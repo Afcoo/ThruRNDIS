@@ -29,13 +29,16 @@ sudo xattr -dr com.apple.quarantine "/Applications/RTVMP.app"
 
 3. 앱에서 `VM Setup` -> `Load Folder`를 눌러 생성된 `assets` 폴더를 선택합니다.
 
-4. RNDIS USB tethering 장치를 Mac에 연결하고, `USB Devices`에서 VM으로 사용할 장치를 선택합니다.
+4. USB 테더링 장치를 Mac에 연결하고, 메뉴바에서 VM이 장치를 사용하도록 선택합니다.
 
-5. 우측 상단의 `Start VM`을 누른 뒤 `USB Devices`에서 passthrough된 장치를 선택하고 `Attach`를 누릅니다.
+   <video src="https://github.com/user-attachments/assets/d285ed13-9bf3-4030-ad34-f04cd9de4e34" width="120" controls></video>
 
-6. `WireGuard` 화면에서 host `.conf`를 복사하거나 저장합니다.
 
-7. WireGuard 도구를 설치합니다.
+6. 우측 상단의 `Start VM`을 누른 뒤 `USB Devices`에서 passthrough된 장치를 선택하고 `Attach`를 누릅니다.
+
+7. `WireGuard` 화면에서 host `.conf`를 복사하거나 저장합니다.
+
+8. WireGuard 도구를 설치합니다.
 
 ```sh
 brew install wireguard-tools wireguard-go
