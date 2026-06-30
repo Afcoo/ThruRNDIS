@@ -16,7 +16,6 @@ final class USBAccessoryCoordinator {
     var onStateChange: (() -> Void)?
     var onStatusMessage: ((String) -> Void)?
     var onEvent: ((String) -> Void)?
-    var onUnexpectedDetach: ((String) -> Void)?
     var virtualMachineProvider: (() -> VZVirtualMachine?)?
     var runtimeStateProvider: (() -> VMRuntimeState)?
 
@@ -32,6 +31,7 @@ final class USBAccessoryCoordinator {
     private var manualDetachEventSuppressedUntilByDescriptor: [String: Date] = [:]
     private var manualDetachEventSuppressedUntilByRegistryID: [UInt64: Date] = [:]
     private var manualPassthroughDisconnectSuppressedUntil: Date?
+    private var reconnectDescriptorKey: String?
 
     private(set) var accessories: [USBAccessoryRecord] = []
     private(set) var isAccessoryMonitoring = false
@@ -123,6 +123,7 @@ final class USBAccessoryCoordinator {
         manualDetachEventSuppressedUntilByDescriptor.removeAll()
         manualDetachEventSuppressedUntilByRegistryID.removeAll()
         manualPassthroughDisconnectSuppressedUntil = nil
+        reconnectDescriptorKey = nil
         notifyStateChanged()
 
         monitor.stop { [weak self] in
@@ -142,6 +143,7 @@ final class USBAccessoryCoordinator {
         manualDetachEventSuppressedUntilByDescriptor.removeAll()
         manualDetachEventSuppressedUntilByRegistryID.removeAll()
         manualPassthroughDisconnectSuppressedUntil = nil
+        reconnectDescriptorKey = nil
         notifyStateChanged()
     }
 
@@ -149,13 +151,7 @@ final class USBAccessoryCoordinator {
         attachedAccessoryID = nil
         attachedDevice = nil
         pendingAttachAccessoryID = nil
-        notifyStateChanged()
-    }
-
-    func prepareForVMRestartAfterUSBDetach() {
-        attachedAccessoryID = nil
-        attachedDevice = nil
-        pendingAttachAccessoryID = nil
+        reconnectDescriptorKey = nil
         notifyStateChanged()
     }
 
@@ -185,6 +181,7 @@ final class USBAccessoryCoordinator {
         manuallyDetachedDescriptorKeys.remove(record.descriptorIdentityKey)
         manualDetachEventSuppressedUntilByDescriptor.removeValue(forKey: record.descriptorIdentityKey)
         manualDetachEventSuppressedUntilByRegistryID.removeValue(forKey: selectedAccessoryID)
+        reconnectDescriptorKey = nil
         attach(accessory, record: record, to: virtualMachine, reason: "manual request")
     }
 
@@ -234,6 +231,9 @@ final class USBAccessoryCoordinator {
 
     func handlePassthroughDisconnect() {
         let attachedRegistry = attachedAccessoryID.map(Self.registryIDText) ?? "none"
+        let reconnectRecord = attachedAccessoryID.flatMap { id in
+            accessories.first { $0.id == id }
+        }
         if isManualPassthroughDisconnectSuppressed() {
             attachedAccessoryID = nil
             attachedDevice = nil
@@ -244,9 +244,11 @@ final class USBAccessoryCoordinator {
 
         attachedAccessoryID = nil
         attachedDevice = nil
+        if let reconnectRecord {
+            reconnectDescriptorKey = reconnectRecord.descriptorIdentityKey
+        }
         notifyStateChanged()
-        onEvent?("USB passthrough device disconnected by the system, attached registry \(attachedRegistry).")
-        onUnexpectedDetach?("Virtualization USB passthrough disconnect for registry \(attachedRegistry)")
+        onEvent?("USB passthrough device disconnected by the system, attached registry \(attachedRegistry); keeping the VM running and waiting for reattach.")
     }
 
     private var selectedAccessoryRecord: USBAccessoryRecord? {
@@ -348,6 +350,7 @@ final class USBAccessoryCoordinator {
             existingRecord.descriptorIdentityKey == record.descriptorIdentityKey
                 && selectedAccessoryID == existingRecord.id
         }
+        let shouldReconnect = reconnectDescriptorKey == record.descriptorIdentityKey
 
         if manuallyDetachedDescriptorKeys.contains(record.descriptorIdentityKey) {
             accessories.removeAll { $0.id == record.id || $0.descriptorIdentityKey == record.descriptorIdentityKey }
@@ -357,8 +360,11 @@ final class USBAccessoryCoordinator {
 
         accessories.append(record)
         accessories.sort { $0.usbIDText < $1.usbIDText }
-        if selectedAccessoryID == nil || replacedSelectedRecord {
+        if selectedAccessoryID == nil || replacedSelectedRecord || shouldReconnect {
             selectedAccessoryID = record.id
+        }
+        if shouldReconnect {
+            reconnectDescriptorKey = nil
         }
         notifyStateChanged()
         onEvent?("USB connected: \(record.descriptorDiagnosticText), registry \(record.registryIDText), \(accessoryEventContext(for: record, kind: "connect")).")
@@ -385,6 +391,7 @@ final class USBAccessoryCoordinator {
         }
 
         if wasAttached {
+            reconnectDescriptorKey = record.descriptorIdentityKey
             attachedAccessoryID = nil
             attachedDevice = nil
         }
@@ -403,8 +410,7 @@ final class USBAccessoryCoordinator {
         onEvent?("USB disconnected: \(record.descriptorDiagnosticText), registry \(record.registryIDText), wasSelected=\(wasSelected), wasAttached=\(wasAttached), \(accessoryEventContext(for: record, kind: "disconnect")).")
 
         if wasAttached {
-            onEvent?("USB disconnect matched the attached passthrough accessory; restarting VM to recreate a fixed usb0 session.")
-            onUnexpectedDetach?("AccessoryAccess disconnect for attached registry \(record.registryIDText)")
+            onEvent?("USB disconnect matched the attached passthrough accessory; VM remains running and the same descriptor will auto-attach on reconnect.")
         }
     }
 

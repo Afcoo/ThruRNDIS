@@ -125,9 +125,9 @@ This environment runs entirely from RAM. Files written here are discarded when
 the VM stops. Select a scratch disk in the host app only if you explicitly want
 temporary block storage attached to the VM.
 
-BusyBox init starts a non-blocking RTPVM network one-shot for VZNAT WireGuard
-and fixed usb0 RNDIS routing. Re-run /usr/local/sbin/init-network manually if
-the network device appears after the one-shot exits.
+BusyBox init prepares RNDIS USB modules before starting the VZNAT WireGuard
+one-shot. It also respawns usb0-watcher so fixed usb0 RNDIS routing is
+recovered when the RNDIS interface appears late or reconnects.
 EOF
 
 if [ -e /proc/sys/kernel/hotplug ] && [ -x /sbin/mdev ]; then

@@ -118,12 +118,12 @@ install_initramfs_script() {
     chmod 0755 "$initramfs_script_destination"
 }
 
-install_init_network_script() {
-    init_network_source="$INITRAMFS_SCRIPT_DIR/init-network"
-    init_network_destination=$1
+install_rendered_initramfs_script() {
+    initramfs_script_source=$1
+    initramfs_script_destination=$2
 
-    require_initramfs_script "$init_network_source"
-    python3 - "$init_network_source" "$init_network_destination" "$WG_LISTEN_PORT" "$WG_ROUTE_SOURCE" <<'PY_RENDER'
+    require_initramfs_script "$initramfs_script_source"
+    python3 - "$initramfs_script_source" "$initramfs_script_destination" "$WG_LISTEN_PORT" "$WG_ROUTE_SOURCE" <<'PY_RENDER'
 from pathlib import Path
 import sys
 
@@ -141,14 +141,23 @@ text = text.replace("@WG_LISTEN_PORT@", shell_single_quote_content(listen_port))
 text = text.replace("@WG_ROUTE_SOURCE@", shell_single_quote_content(route_source))
 destination.write_text(text)
 PY_RENDER
-    chmod 0755 "$init_network_destination"
+    chmod 0755 "$initramfs_script_destination"
+}
+
+install_init_network_script() {
+    init_network_source="$INITRAMFS_SCRIPT_DIR/init-network"
+    init_network_destination=$1
+
+    install_rendered_initramfs_script "$init_network_source" "$init_network_destination"
 }
 
 write_rtpvm_inittab() {
     destination=$1
     cat >"$destination" <<'RTPVM_INITTAB'
 ::sysinit:/etc/init.d/rcS
+::wait:/usr/local/sbin/init-rndis
 ::once:/usr/local/sbin/init-network
+::respawn:/usr/local/sbin/usb0-watcher
 hvc0::respawn:/usr/local/sbin/init-console
 ::restart:/sbin/init
 ::ctrlaltdel:/bin/umount -a -r
@@ -565,7 +574,10 @@ ln -sf /usr/bin/busybox "$work_dir/sbin/init"
 write_rtpvm_inittab "$work_dir/etc/inittab"
 install_initramfs_script "$INITRAMFS_SCRIPT_DIR/rcS" "$work_dir/etc/init.d/rcS"
 install_initramfs_script "$INITRAMFS_SCRIPT_DIR/init-console" "$work_dir/usr/local/sbin/init-console"
+install_initramfs_script "$INITRAMFS_SCRIPT_DIR/init-rndis" "$work_dir/usr/local/sbin/init-rndis"
 install_init_network_script "$work_dir/usr/local/sbin/init-network"
+install_rendered_initramfs_script "$INITRAMFS_SCRIPT_DIR/usb0-watcher" "$work_dir/usr/local/sbin/usb0-watcher"
+install_rendered_initramfs_script "$INITRAMFS_SCRIPT_DIR/wg0-usb0-gateway" "$work_dir/usr/local/sbin/wg0-usb0-gateway"
 
 cp "$WG_SERVER_CONFIG" "$work_dir/etc/wireguard/wg0.conf"
 chmod 0600 "$work_dir/etc/wireguard/wg0.conf"

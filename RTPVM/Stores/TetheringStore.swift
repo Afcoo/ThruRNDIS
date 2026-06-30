@@ -375,9 +375,6 @@ final class TetheringStore: ObservableObject {
         usbCoordinator.onEvent = { [weak self] message in
             self?.appendEvent(message)
         }
-        usbCoordinator.onUnexpectedDetach = { [weak self] reason in
-            self?.restartVirtualMachineAfterUSBDetach(reason: reason)
-        }
         usbCoordinator.runtimeStateProvider = { [weak self] in
             self?.runtimeState ?? .idle
         }
@@ -397,14 +394,6 @@ final class TetheringStore: ObservableObject {
         }
 
         usbCoordinator.startMonitoring(reason: reason)
-    }
-
-    private func restartVirtualMachineAfterUSBDetach(reason: String) {
-        usbCoordinator.prepareForVMRestartAfterUSBDetach()
-        syncUSBState()
-        vmCoordinator.restartAfterUSBDetach(reason: reason) { [weak self] in
-            self?.startVirtualMachine()
-        }
     }
 
     private func syncUSBState() {

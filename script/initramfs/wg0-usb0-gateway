@@ -1,0 +1,340 @@
+#!/bin/sh
+
+WG_ROUTE_SOURCE='@WG_ROUTE_SOURCE@'
+
+BB=/usr/bin/busybox
+PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
+export PATH
+
+WG_IFACE=${RTPVM_WG_IFACE:-wg0}
+RNDIS_IFACE=${RTPVM_RNDIS_IFACE:-usb0}
+TABLE_ID=${RTPVM_WG_ROUTE_TABLE:-51820}
+RULE_PRIORITY=${RTPVM_WG_ROUTE_PRIORITY:-1000}
+RNDIS_WAIT_SECONDS=${RTPVM_RNDIS_WAIT_SECONDS:-2}
+RNDIS_DHCP_ATTEMPTS=${RTPVM_RNDIS_DHCP_ATTEMPTS:-2}
+RNDIS_DHCP_TIMEOUT_SECONDS=${RTPVM_RNDIS_DHCP_TIMEOUT_SECONDS:-2}
+RNDIS_DHCP_TOTAL_TIMEOUT_SECONDS=${RTPVM_RNDIS_DHCP_TOTAL_TIMEOUT_SECONDS:-6}
+NFT_TABLE=${RTPVM_NFT_TABLE:-rtpvm}
+
+log() {
+    echo "rtpvm-gateway: $*" >/dev/kmsg 2>/dev/null || true
+}
+
+log_console() {
+    log "$*"
+    if [ -c /dev/console ]; then
+        echo "rtpvm-gateway: $*" >/dev/console 2>/dev/null || true
+    else
+        echo "rtpvm-gateway: $*" >&2
+    fi
+}
+
+run_with_timeout() {
+    timeout_seconds=$1
+    shift
+
+    "$@" &
+    child_pid=$!
+    (
+        $BB sleep "$timeout_seconds"
+        kill "$child_pid" 2>/dev/null || true
+        $BB sleep 1
+        kill -9 "$child_pid" 2>/dev/null || true
+    ) &
+    watchdog_pid=$!
+
+    wait "$child_pid"
+    rc=$?
+    kill "$watchdog_pid" 2>/dev/null || true
+    wait "$watchdog_pid" 2>/dev/null || true
+
+    case "$rc" in
+        137|143) return 124 ;;
+        *) return "$rc" ;;
+    esac
+}
+
+load_module() {
+    module=$1
+    timeout_seconds=${2:-4}
+    [ -n "$module" ] || return 0
+
+    run_with_timeout "$timeout_seconds" /sbin/modprobe -q "$module" 2>/tmp/modprobe.err
+    rc=$?
+    if [ "$rc" -eq 0 ]; then
+        log_console "loaded module $module"
+        return 0
+    fi
+
+    error=$($BB cat /tmp/modprobe.err 2>/dev/null || true)
+    log_console "failed to load module $module rc=$rc ${error}"
+    return "$rc"
+}
+
+wait_for_interface() {
+    iface=$1
+    timeout_seconds=${2:-2}
+    elapsed=0
+
+    while [ "$elapsed" -lt "$timeout_seconds" ]; do
+        [ -e "/sys/class/net/$iface" ] && return 0
+        [ -x /sbin/mdev ] && /sbin/mdev -s 2>/dev/null || true
+        $BB sleep 1
+        elapsed=$((elapsed + 1))
+    done
+
+    return 1
+}
+
+interface_ipv4_cidr() {
+    iface=$1
+    ip -4 -o addr show dev "$iface" 2>/dev/null | $BB awk '{ print $4 }' | $BB head -n 1
+}
+
+interface_default_gateway() {
+    iface=$1
+    ip -4 route show default dev "$iface" 2>/dev/null | $BB awk '
+        $1 == "default" {
+            for (i = 1; i <= NF; i++) {
+                if ($i == "via" && i < NF) {
+                    print $(i + 1)
+                    exit
+                }
+            }
+        }
+    '
+}
+
+configure_ipv4_dhcp() {
+    iface=$1
+    udhcpc_log="/tmp/udhcpc-$iface.log"
+    udhcpc_script=""
+
+    if ! wait_for_interface "$iface" "$RNDIS_WAIT_SECONDS"; then
+        log_console "$iface not found; skipping IPv4 DHCP"
+        return 1
+    fi
+
+    log_console "requesting IPv4 DHCP on RNDIS interface $iface"
+    ip link set dev "$iface" up 2>/dev/null || $BB ifconfig "$iface" up 2>/dev/null || true
+
+    if [ -f /usr/share/udhcpc/default.script ]; then
+        udhcpc_script="-s /usr/share/udhcpc/default.script"
+    fi
+
+    run_with_timeout "$RNDIS_DHCP_TOTAL_TIMEOUT_SECONDS" \
+        udhcpc -i "$iface" -q -n -t "$RNDIS_DHCP_ATTEMPTS" -T "$RNDIS_DHCP_TIMEOUT_SECONDS" $udhcpc_script \
+        >"$udhcpc_log" 2>&1
+    rc=$?
+    if [ "$rc" -eq 0 ]; then
+        ipv4=$(interface_ipv4_cidr "$iface")
+        if [ -n "$ipv4" ]; then
+            log_console "RNDIS interface $iface IPv4 $ipv4"
+            return 0
+        fi
+
+        log_console "RNDIS interface $iface DHCP completed without visible IPv4 address"
+        return 1
+    fi
+
+    output=$($BB tail -n 3 "$udhcpc_log" 2>/dev/null | $BB tr '\n' ' ' || true)
+    log_console "RNDIS interface $iface DHCP failed rc=$rc ${output}"
+    return 1
+}
+
+load_netfilter_modules() {
+    for module in nfnetlink nf_tables nf_conntrack nf_nat nft_chain_nat nft_ct nft_nat nft_masq; do
+        load_module "$module" 2 || true
+    done
+}
+
+ensure_rndis_gateway() {
+    iface=${1:-$RNDIS_IFACE}
+
+    if ! wait_for_interface "$iface" "$RNDIS_WAIT_SECONDS"; then
+        log_console "RNDIS interface $iface is not present"
+        return 1
+    fi
+
+    ip link set dev "$iface" up 2>/dev/null || $BB ifconfig "$iface" up 2>/dev/null || true
+
+    ipv4=$(interface_ipv4_cidr "$iface")
+    gateway=$(interface_default_gateway "$iface")
+    if [ -z "$ipv4" ] || [ -z "$gateway" ]; then
+        configure_ipv4_dhcp "$iface" || return 1
+    fi
+
+    gateway=$(interface_default_gateway "$iface")
+    if [ -z "$gateway" ]; then
+        log_console "RNDIS interface $iface has no default gateway"
+        return 1
+    fi
+
+    printf '%s' "$gateway"
+    return 0
+}
+
+enable_ipv4_forwarding() {
+    if [ -w /proc/sys/net/ipv4/ip_forward ]; then
+        echo 1 >/proc/sys/net/ipv4/ip_forward 2>/dev/null || true
+    fi
+
+    ip_forward=$($BB cat /proc/sys/net/ipv4/ip_forward 2>/dev/null || echo 0)
+    if [ "$ip_forward" != "1" ]; then
+        log_console "IPv4 forwarding is not enabled; WireGuard-to-RNDIS routing may fail"
+        return 1
+    fi
+
+    return 0
+}
+
+install_policy_route() {
+    gateway=$1
+
+    if ! ip route replace default via "$gateway" dev "$RNDIS_IFACE" table "$TABLE_ID" 2>/tmp/rtpvm-policy-route.err; then
+        output=$($BB cat /tmp/rtpvm-policy-route.err 2>/dev/null || true)
+        log_console "failed to install WireGuard policy default route via $RNDIS_IFACE: ${output}"
+        return 1
+    fi
+
+    while ip rule delete from "$WG_ROUTE_SOURCE" table "$TABLE_ID" 2>/dev/null; do
+        :
+    done
+
+    if ip rule add priority "$RULE_PRIORITY" from "$WG_ROUTE_SOURCE" table "$TABLE_ID" 2>/tmp/rtpvm-policy-rule.err; then
+        ip route flush cache 2>/dev/null || true
+        log_console "configured WireGuard policy route: from $WG_ROUTE_SOURCE lookup $TABLE_ID via $gateway dev $RNDIS_IFACE"
+        return 0
+    fi
+
+    output=$($BB cat /tmp/rtpvm-policy-rule.err 2>/dev/null || true)
+    log_console "failed to install WireGuard policy rule from $WG_ROUTE_SOURCE: ${output}"
+    return 1
+}
+
+install_nftables() {
+    if ! command -v nft >/dev/null 2>&1; then
+        log_console "nft not found; skipping WireGuard-to-RNDIS masquerade"
+        return 1
+    fi
+
+    load_netfilter_modules
+
+    nft delete table ip "$NFT_TABLE" 2>/dev/null || true
+    if nft -f - <<EOF_NFT
+table ip $NFT_TABLE {
+    chain forward {
+        type filter hook forward priority 0; policy drop;
+        iifname "$WG_IFACE" oifname "$RNDIS_IFACE" accept
+        iifname "$RNDIS_IFACE" oifname "$WG_IFACE" ct state established,related accept
+    }
+
+    chain postrouting {
+        type nat hook postrouting priority srcnat; policy accept;
+        iifname "$WG_IFACE" oifname "$RNDIS_IFACE" masquerade
+    }
+}
+EOF_NFT
+    then
+        log_console "configured nftables WireGuard-to-RNDIS masquerade: $WG_IFACE -> $RNDIS_IFACE"
+        return 0
+    fi
+
+    log_console "failed to configure nftables WireGuard-to-RNDIS masquerade"
+    return 1
+}
+
+gateway_up() {
+    gateway=$(ensure_rndis_gateway "$RNDIS_IFACE") || return 1
+
+    if ! wait_for_interface "$WG_IFACE" 1; then
+        log_console "WireGuard interface $WG_IFACE not found; installing name-based nftables rules anyway"
+    fi
+
+    enable_ipv4_forwarding || true
+    install_policy_route "$gateway" || return 1
+    install_nftables || return 1
+    return 0
+}
+
+gateway_down() {
+    while ip rule delete from "$WG_ROUTE_SOURCE" table "$TABLE_ID" 2>/dev/null; do
+        :
+    done
+    ip route flush table "$TABLE_ID" 2>/dev/null || true
+    ip route flush cache 2>/dev/null || true
+
+    if command -v nft >/dev/null 2>&1; then
+        nft delete table ip "$NFT_TABLE" 2>/dev/null || true
+    fi
+
+    log_console "cleared WireGuard-to-RNDIS gateway state for $WG_IFACE -> $RNDIS_IFACE"
+    return 0
+}
+
+gateway_status() {
+    missing=0
+
+    if [ ! -e "/sys/class/net/$RNDIS_IFACE" ]; then
+        echo "missing $RNDIS_IFACE"
+        return 1
+    fi
+
+    ipv4=$(interface_ipv4_cidr "$RNDIS_IFACE")
+    gateway=$(interface_default_gateway "$RNDIS_IFACE")
+    if [ -z "$ipv4" ]; then
+        echo "$RNDIS_IFACE has no IPv4 address"
+        missing=1
+    fi
+    if [ -z "$gateway" ]; then
+        echo "$RNDIS_IFACE has no default gateway"
+        missing=1
+    fi
+
+    if ! ip route show table "$TABLE_ID" default 2>/dev/null | $BB grep -F "dev $RNDIS_IFACE" >/dev/null 2>&1; then
+        echo "missing policy route table $TABLE_ID default via $RNDIS_IFACE"
+        missing=1
+    fi
+
+    if ! ip rule show 2>/dev/null | $BB grep -F "from $WG_ROUTE_SOURCE lookup $TABLE_ID" >/dev/null 2>&1; then
+        echo "missing policy rule from $WG_ROUTE_SOURCE lookup $TABLE_ID"
+        missing=1
+    fi
+
+    ip_forward=$($BB cat /proc/sys/net/ipv4/ip_forward 2>/dev/null || echo 0)
+    if [ "$ip_forward" != "1" ]; then
+        echo "IPv4 forwarding is disabled"
+        missing=1
+    fi
+
+    if ! command -v nft >/dev/null 2>&1; then
+        echo "nft not found"
+        missing=1
+    elif ! nft list table ip "$NFT_TABLE" >/dev/null 2>&1; then
+        echo "missing nft table ip $NFT_TABLE"
+        missing=1
+    fi
+
+    if [ "$missing" -eq 0 ]; then
+        echo "ready $WG_IFACE -> $RNDIS_IFACE via $gateway, source $WG_ROUTE_SOURCE table $TABLE_ID"
+        return 0
+    fi
+
+    return 1
+}
+
+case "${1:-up}" in
+    up)
+        gateway_up
+        ;;
+    down)
+        gateway_down
+        ;;
+    status)
+        gateway_status
+        ;;
+    *)
+        echo "usage: $0 {up|down|status}" >&2
+        exit 2
+        ;;
+esac
