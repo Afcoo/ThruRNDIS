@@ -34,6 +34,7 @@ xattr -dr com.apple.quarantine "/Applications/RTVMP.app"
 
 6. Press `Start VM` in the top-right corner, then select the passthrough device
    in `USB Devices` and press `Attach`.
+   <video src="https://github.com/user-attachments/assets/4d10e732-7510-4555-84c5-1f16ef412a00" width="120" controls></video>
 
 7. Copy or save the host `.conf` from `WireGuard`.
 
