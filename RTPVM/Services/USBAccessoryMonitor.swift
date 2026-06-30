@@ -5,7 +5,7 @@ Copyright (C) 2026 Afcoo.
 import AccessoryAccess
 import Foundation
 
-final class AccessoryMonitor: NSObject {
+final class USBAccessoryMonitor: NSObject {
     var onConnect: ((AAUSBAccessory) -> Void)?
     var onDisconnect: ((AAUSBAccessory) -> Void)?
 
@@ -41,7 +41,7 @@ final class AccessoryMonitor: NSObject {
     }
 }
 
-extension AccessoryMonitor: AAUSBAccessoryListener {
+extension USBAccessoryMonitor: AAUSBAccessoryListener {
     func usbAccessoryDidConnect(_ usbAccessory: AAUSBAccessory) {
         onConnect?(usbAccessory)
     }

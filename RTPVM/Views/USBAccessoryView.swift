@@ -4,7 +4,7 @@ Copyright (C) 2026 Afcoo.
 
 import SwiftUI
 
-struct USBDevicesView: View {
+struct USBAccessoryView: View {
     @EnvironmentObject private var store: TetheringStore
 
     var body: some View {

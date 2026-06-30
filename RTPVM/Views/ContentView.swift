@@ -71,7 +71,7 @@ private struct DetailContainer: View {
         case .setup:
             VMSetupView()
         case .usb:
-            USBDevicesView()
+            USBAccessoryView()
         case .console:
             ConsoleView()
         case .vpn:

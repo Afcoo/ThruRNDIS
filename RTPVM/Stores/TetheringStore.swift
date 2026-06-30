@@ -2,19 +2,11 @@
 Copyright (C) 2026 Afcoo.
 */
 
-import AccessoryAccess
-import Darwin
 import Foundation
-@preconcurrency import Virtualization
 
 private enum AlpineBootDefaults {
     static let initramfsModules = "virtio_pci,virtio_mmio,virtio_console"
     static let initramfsKernelCommandLine = "console=hvc0 rdinit=/sbin/init modules=\(initramfsModules)"
-}
-
-private enum USBPassthroughPolicy {
-    static let attachFailureSuppressionInterval: TimeInterval = 10
-    static let manualDetachAccessoryEventGraceInterval: TimeInterval = 10
 }
 
 private enum VMMemoryDefaults {
@@ -72,7 +64,12 @@ final class TetheringStore: ObservableObject {
     @Published private(set) var runtimeEntitlements = RuntimeEntitlementSnapshot.current
     @Published private(set) var accessories: [USBAccessoryRecord] = []
     @Published private(set) var isAccessoryMonitoring = false
-    @Published var selectedAccessoryID: UInt64?
+    @Published var selectedAccessoryID: UInt64? {
+        didSet {
+            guard !isSyncingUSBState else { return }
+            usbCoordinator.selectAccessory(id: selectedAccessoryID)
+        }
+    }
     @Published private(set) var attachedAccessoryID: UInt64?
     @Published private(set) var consoleText = ""
     @Published private(set) var consoleOutputData = Data()
@@ -84,25 +81,11 @@ final class TetheringStore: ObservableObject {
 
     let guestMACAddress = "02:00:5E:10:00:02"
 
-    private let monitor = AccessoryMonitor()
-    private let wireGuardConfigurationLoader: WireGuardConfigurationLoader
-    private var accessoryObjects: [UInt64: AAUSBAccessory] = [:]
-    private var virtualMachine: VZVirtualMachine?
-    private var vmDelegate: VirtualMachineDelegateBox?
-    private var runtimeResources: VMRuntimeResources?
-    private var attachedDevice: VZUSBPassthroughDevice?
-    private var accessoryEventSequence = 0
-    private var pendingAttachAccessoryID: UInt64?
-    private var isRestartingAfterUSBDetach = false
-    private var lastAccessoryEventByDescriptor: [String: (kind: String, date: Date)] = [:]
-    private var lastAttachAttemptByDescriptor: [String: Date] = [:]
-    private var autoAttachSuppressedUntilByDescriptor: [String: Date] = [:]
-    private var manuallyDetachedDescriptorKeys: Set<String> = []
-    private var manualDetachEventSuppressedUntilByDescriptor: [String: Date] = [:]
-    private var manualPassthroughDisconnectSuppressedUntil: Date?
-    private var hasReceivedConsoleOutput = false
+    private let vmCoordinator = VMCoordinator()
+    private let usbCoordinator = USBAccessoryCoordinator()
+    private let wireguardConfLoader: WireguardConfLoader
     private var didRequestLaunchAccessoryMonitoring = false
-    private var consoleOutputWatchdogTask: Task<Void, Never>?
+    private var isSyncingUSBState = false
 
     var canStartVirtualMachine: Bool {
         kernelURL != nil && initialRamdiskURL != nil && runtimeState != .starting && runtimeState != .running
@@ -161,50 +144,27 @@ final class TetheringStore: ObservableObject {
     }
 
     var canStartAccessoryMonitoring: Bool {
-        runtimeEntitlements.accessoryAccessUSB && !isAccessoryMonitoring
+        runtimeEntitlements.accessoryAccessUSB && usbCoordinator.canStartMonitoring
     }
 
     var canStopAccessoryMonitoring: Bool {
-        isAccessoryMonitoring
-    }
-
-    var usbListenerSubtitle: String {
-        if !runtimeEntitlements.accessoryAccessUSB {
-            return "Missing AccessoryAccess USB entitlement in this local build."
-        }
-
-        return isAccessoryMonitoring ? "AccessoryAccess listener active." : "AccessoryAccess listener inactive."
+        usbCoordinator.canStopMonitoring
     }
 
     var canStopVirtualMachine: Bool {
-        runtimeState == .running || runtimeState == .starting
+        vmCoordinator.canStop
     }
 
     var canSendConsoleInput: Bool {
-        runtimeState == .running && (runtimeResources?.consoleInputPipe.fileHandleForWriting.fileDescriptor ?? -1) >= 0
+        vmCoordinator.canSendConsoleInput
     }
 
     var canAttachSelectedAccessory: Bool {
-        guard runtimeState == .running,
-              let selectedAccessoryRecord,
-              selectedAccessoryRecord.hasConfigurationDescriptor,
-              accessoryObjects[selectedAccessoryRecord.id] != nil,
-              attachedAccessoryID == nil,
-              attachedDevice == nil,
-              pendingAttachAccessoryID == nil else {
-            return false
-        }
-
-        return attachSuppressionRemaining(for: selectedAccessoryRecord) == nil
+        usbCoordinator.canAttachSelectedAccessory(runtimeState: runtimeState)
     }
 
     var canDetachAccessory: Bool {
-        runtimeState == .running && attachedDevice != nil
-    }
-
-    private var selectedAccessoryRecord: USBAccessoryRecord? {
-        guard let selectedAccessoryID else { return nil }
-        return accessories.first { $0.id == selectedAccessoryID }
+        usbCoordinator.canDetachAccessory(runtimeState: runtimeState)
     }
 
     var canExportWireGuardConfiguration: Bool {
@@ -212,23 +172,18 @@ final class TetheringStore: ObservableObject {
     }
 
     var wireGuardHostConfiguration: String {
-        wireGuardConfigurationLoader.hostConfiguration(settings: wireGuardSettings)
+        wireguardConfLoader.hostConfiguration(settings: wireGuardSettings)
     }
 
     init() {
-        let wireGuardConfigurationLoader = WireGuardConfigurationLoader()
-        self.wireGuardConfigurationLoader = wireGuardConfigurationLoader
-        self.wireGuardSettings = wireGuardConfigurationLoader.emptySettings()
+        let wireguardConfLoader = WireguardConfLoader()
+        self.wireguardConfLoader = wireguardConfLoader
+        self.wireGuardSettings = wireguardConfLoader.emptySettings()
+        configureCoordinators()
         restoreAssetSelections()
         reloadWireGuardConfigurationFromAssets(reason: "restored asset selection")
-        configureAccessoryMonitor()
         appendRuntimeEntitlementSummary()
         appendAssetSelectionSummaryIfNeeded()
-    }
-
-    deinit {
-        monitor.stop()
-        runtimeResources?.consoleOutputPipe.fileHandleForReading.readabilityHandler = nil
     }
 
     func startAccessoryMonitoring() {
@@ -260,48 +215,8 @@ final class TetheringStore: ObservableObject {
         }
     }
 
-    private func startAccessoryMonitoring(reason: String) {
-        refreshRuntimeEntitlements()
-
-        guard runtimeEntitlements.accessoryAccessUSB else {
-            reportMissingEntitlement(.accessoryAccessUSB, action: "USB listener")
-            return
-        }
-
-        guard !isAccessoryMonitoring else {
-            appendEvent("USB listener already active: \(reason).")
-            return
-        }
-
-        isAccessoryMonitoring = true
-        appendEvent("Registering AccessoryAccess USB listener: \(reason).")
-
-        monitor.start { [weak self] result in
-            Task { @MainActor in
-                guard let self else { return }
-
-                switch result {
-                case .success(let connectedAccessories):
-                    guard self.isAccessoryMonitoring else {
-                        self.monitor.stop()
-                        self.appendEvent("USB listener registration ignored because listener was stopped.")
-                        return
-                    }
-
-                    connectedAccessories.forEach { self.addAccessory($0) }
-                    self.statusMessage = "USB listener registered."
-                    self.appendEvent("USB listener registered with \(connectedAccessories.count) existing device(s).")
-                case .failure(let error):
-                    self.isAccessoryMonitoring = false
-                    self.statusMessage = error.localizedDescription
-                    self.appendEvent("USB listener failed: \(error.localizedDescription)")
-                }
-            }
-        }
-    }
-
     func stopAccessoryMonitoring() {
-        stopAccessoryMonitoring(reason: "User stopped USB listener.")
+        usbCoordinator.stopMonitoring(reason: "User stopped USB listener.")
     }
 
     func startVirtualMachine() {
@@ -319,106 +234,34 @@ final class TetheringStore: ObservableObject {
             return
         }
 
-        releaseRuntimeResources()
-        cancelConsoleOutputWatchdog()
         clearWireGuardEndpoint(reason: "VM starting")
-        consoleText = ""
-        consoleOutputData = Data()
-        consoleOutputSequence = 0
-        consoleResetSequence &+= 1
-        hasReceivedConsoleOutput = false
-        attachedAccessoryID = nil
-        attachedDevice = nil
-        pendingAttachAccessoryID = nil
-        lastAttachAttemptByDescriptor.removeAll()
-        autoAttachSuppressedUntilByDescriptor.removeAll()
-        manuallyDetachedDescriptorKeys.removeAll()
-        manualDetachEventSuppressedUntilByDescriptor.removeAll()
-        manualPassthroughDisconnectSuppressedUntil = nil
+        clearConsoleForVMStart()
+        usbCoordinator.resetForVMStart()
+        syncUSBState()
 
-        do {
-            let bootCommandLine = normalizedBootCommandLine()
-            if bootCommandLine != kernelCommandLine {
-                kernelCommandLine = bootCommandLine
-                appendEvent("Adjusted kernel arguments for initramfs-only boot.")
-            }
-
-            let input = VMConfigurationInput(
-                kernelURL: kernelURL,
-                initialRamdiskURL: initialRamdiskURL,
-                diskImageURL: diskImageURL,
-                cpuCount: cpuCount,
-                memorySizeBytes: UInt64(memorySizeMiB) * 1024 * 1024,
-                bootCommandLine: bootCommandLine,
-                guestMACAddress: guestMACAddress
-            )
-
-            let result = try VMConfigurationFactory.build(input: input)
-            installConsoleReader(result.resources.consoleOutputPipe)
-
-            let virtualMachine = VZVirtualMachine(configuration: result.configuration)
-            let delegate = makeDelegate()
-            virtualMachine.delegate = delegate
-            virtualMachine.usbControllers.forEach { $0.delegate = delegate }
-
-            self.virtualMachine = virtualMachine
-            self.vmDelegate = delegate
-            self.runtimeResources = result.resources
-            self.runtimeState = .starting
-            self.statusMessage = "Starting VM."
-            appendEvent("Starting ephemeral Alpine RTPVM guest with NAT setup NIC, USB RNDIS upstream, and WireGuard peer support.")
-            appendSelectedAssetDiagnostics(kernelURL: kernelURL, initialRamdiskURL: initialRamdiskURL)
-            appendEvent("Kernel arguments: \(bootCommandLine)")
-
-            virtualMachine.start { [weak self] startResult in
-                Task { @MainActor in
-                    guard let self else { return }
-
-                    switch startResult {
-                    case .success:
-                        self.runtimeState = .running
-                        self.statusMessage = "VM running."
-                        self.appendEvent("VM started.")
-                        self.scheduleConsoleOutputWatchdog()
-                    case .failure(let error):
-                        self.runtimeState = .failed
-                        self.statusMessage = error.localizedDescription
-                        self.appendEvent("VM start failed: \(error.localizedDescription)")
-                        self.virtualMachine = nil
-                        self.vmDelegate = nil
-                        self.releaseRuntimeResources()
-                    }
-                }
-            }
-        } catch {
-            runtimeState = .failed
-            statusMessage = error.localizedDescription
-            appendEvent("VM configuration failed: \(error.localizedDescription)")
+        let bootCommandLine = normalizedBootCommandLine()
+        if bootCommandLine != kernelCommandLine {
+            kernelCommandLine = bootCommandLine
+            appendEvent("Adjusted kernel arguments for initramfs-only boot.")
         }
+
+        let input = VMCoordinatorStartInput(
+            kernelURL: kernelURL,
+            initialRamdiskURL: initialRamdiskURL,
+            diskImageURL: diskImageURL,
+            cpuCount: cpuCount,
+            memorySizeMiB: memorySizeMiB,
+            bootCommandLine: bootCommandLine,
+            guestMACAddress: guestMACAddress
+        )
+
+        appendSelectedAssetDiagnostics(kernelURL: kernelURL, initialRamdiskURL: initialRamdiskURL)
+        appendEvent("Kernel arguments: \(bootCommandLine)")
+        vmCoordinator.start(input: input)
     }
 
     func stopVirtualMachine() {
-        guard let virtualMachine else {
-            return
-        }
-
-        runtimeState = .stopping
-        statusMessage = "Stopping VM."
-        appendEvent("Stopping VM.")
-
-        virtualMachine.stop { [weak self] error in
-            Task { @MainActor in
-                guard let self else { return }
-
-                if let error {
-                    self.runtimeState = .failed
-                    self.statusMessage = error.localizedDescription
-                    self.appendEvent("VM stop failed: \(error.localizedDescription)")
-                } else {
-                    self.markStopped(message: "VM stopped.")
-                }
-            }
-        }
+        vmCoordinator.stop()
     }
 
     func attachSelectedAccessory() {
@@ -429,145 +272,17 @@ final class TetheringStore: ObservableObject {
             return
         }
 
-        guard let virtualMachine else {
-            statusMessage = "Start the VM before attaching USB."
-            return
-        }
-        guard let selectedAccessoryID, let accessory = accessoryObjects[selectedAccessoryID] else {
-            statusMessage = "Select a USB accessory."
-            return
-        }
-
-        let record = USBAccessoryRecord(accessory: accessory)
-        guard record.hasConfigurationDescriptor else {
-            statusMessage = "USB descriptor is incomplete."
-            appendEvent("USB attach not started for registry \(record.registryIDText): AccessoryAccess reported no configuration descriptor. Reconnect the device after enabling USB tethering, then attach when the configuration and interfaces appear.")
-            return
-        }
-
-        if let remaining = attachSuppressionRemaining(for: record) {
-            statusMessage = "USB attach cooling down."
-            appendEvent("USB attach not started for registry \(record.registryIDText): retry allowed in \(Self.secondsText(remaining)).")
-            return
-        }
-
-        manuallyDetachedDescriptorKeys.remove(record.descriptorIdentityKey)
-        manualDetachEventSuppressedUntilByDescriptor.removeValue(forKey: record.descriptorIdentityKey)
-        attach(accessory, record: record, to: virtualMachine, reason: "manual request")
-    }
-
-    private func attach(_ accessory: AAUSBAccessory, record: USBAccessoryRecord, to virtualMachine: VZVirtualMachine, reason: String) {
-        let registryID = accessory.registryID
-        let descriptorKey = record.descriptorIdentityKey
-        guard attachedAccessoryID == nil, attachedDevice == nil else {
-            let attachedRegistry = attachedAccessoryID.map(Self.registryIDText) ?? "unknown"
-            statusMessage = "Only one USB passthrough accessory is supported per VM session."
-            appendEvent("USB attach skipped for registry \(record.registryIDText): single passthrough device limit is already active with registry \(attachedRegistry).")
-            return
-        }
-
-        guard pendingAttachAccessoryID == nil else {
-            appendEvent("USB attach skipped for registry \(record.registryIDText): attach already pending for \(Self.registryIDText(pendingAttachAccessoryID!)).")
-            return
-        }
-
-        pendingAttachAccessoryID = registryID
-        lastAttachAttemptByDescriptor[descriptorKey] = Date()
-        appendEvent("USB attach requested: \(record.descriptorDiagnosticText), registry \(record.registryIDText), reason=\(reason), vm=\(runtimeState.rawValue), usbControllers=\(virtualMachine.usbControllers.count).")
-
-        do {
-            let configuration = VZUSBPassthroughDeviceConfiguration(device: accessory)
-            let device = try VZUSBPassthroughDevice(configuration: configuration)
-
-            guard let controller = virtualMachine.usbControllers.first else {
-                pendingAttachAccessoryID = nil
-                statusMessage = "VM has no USB controller."
-                appendEvent("USB attach failed: VM has no USB controller for registry \(record.registryIDText).")
-                return
-            }
-
-            controller.attach(device: device) { [weak self] error in
-                Task { @MainActor in
-                    guard let self else { return }
-
-                    guard self.pendingAttachAccessoryID == registryID else {
-                        self.appendEvent("USB attach completion ignored for registry \(record.registryIDText): attach is no longer current.")
-                        return
-                    }
-
-                    self.pendingAttachAccessoryID = nil
-
-                    if let error {
-                        self.statusMessage = error.localizedDescription
-                        self.appendEvent("USB attach failed: \(error.localizedDescription)")
-                        self.suppressAutoAttach(
-                            for: record,
-                            interval: USBPassthroughPolicy.attachFailureSuppressionInterval,
-                            reason: "VZ USB controller attach failed: \(error.localizedDescription)"
-                        )
-                    } else {
-                        self.attachedAccessoryID = registryID
-                        self.attachedDevice = device
-                        self.statusMessage = "USB accessory attached."
-                        self.appendEvent("USB accessory attached: registry \(record.registryIDText).")
-                    }
-                }
-            }
-        } catch {
-            pendingAttachAccessoryID = nil
-            statusMessage = error.localizedDescription
-            appendEvent("USB passthrough device creation failed for registry \(record.registryIDText): \(error.localizedDescription)")
-            suppressAutoAttach(
-                for: record,
-                interval: USBPassthroughPolicy.attachFailureSuppressionInterval,
-                reason: "VZ passthrough device creation failed: \(error.localizedDescription)"
-            )
-        }
+        usbCoordinator.attachSelectedAccessory(to: vmCoordinator.virtualMachine)
     }
 
     func detachAccessory() {
-        guard let virtualMachine, let device = attachedDevice else {
-            return
-        }
-
-        guard let controller = virtualMachine.usbControllers.first else {
-            return
-        }
-
-        let detachedAccessoryID = attachedAccessoryID
-        let detachedRecord = detachedAccessoryID.flatMap { id in
-            accessories.first { $0.id == id }
-        }
-
-        if let detachedRecord {
-            noteManualDetach(for: detachedRecord)
-        }
-        manualPassthroughDisconnectSuppressedUntil = Date().addingTimeInterval(USBPassthroughPolicy.manualDetachAccessoryEventGraceInterval)
-
-        controller.detach(device: device) { [weak self] error in
-            Task { @MainActor in
-                guard let self else { return }
-
-                if let error {
-                    if let detachedRecord {
-                        self.manuallyDetachedDescriptorKeys.remove(detachedRecord.descriptorIdentityKey)
-                        self.manualDetachEventSuppressedUntilByDescriptor.removeValue(forKey: detachedRecord.descriptorIdentityKey)
-                    }
-                    self.manualPassthroughDisconnectSuppressedUntil = nil
-                    self.statusMessage = error.localizedDescription
-                    self.appendEvent("USB detach failed: \(error.localizedDescription)")
-                } else {
-                    self.attachedAccessoryID = nil
-                    self.attachedDevice = nil
-                    self.statusMessage = "USB accessory detached from VM."
-                    self.appendEvent("USB accessory detached from VM by user.")
-                }
-            }
-        }
+        usbCoordinator.detachAccessory(from: vmCoordinator.virtualMachine)
     }
 
     func prepareForApplicationTermination() {
         appendEvent("Application terminating.")
+        vmCoordinator.invalidate()
+        usbCoordinator.stopMonitoring(reason: "Application terminating.")
     }
 
     func reloadWireGuardConfiguration() {
@@ -623,68 +338,82 @@ final class TetheringStore: ObservableObject {
 
     @discardableResult
     func sendConsoleBytes(_ data: Data) -> Bool {
-        guard !data.isEmpty else {
-            return true
-        }
-
-        guard canSendConsoleInput else {
-            appendEvent("Console input not sent: VM console input is unavailable.")
-            return false
-        }
-
-        return writeConsolePayload(data, failureContext: "Console input")
-    }
-
-    private func writeConsolePayload(_ payload: Data, failureContext: String) -> Bool {
-        guard let inputPipe = runtimeResources?.consoleInputPipe else {
-            appendEvent("\(failureContext) not sent: VM console input is unavailable.")
-            return false
-        }
-
-        let fileDescriptor = inputPipe.fileHandleForWriting.fileDescriptor
-        var offset = 0
-
-        let success = payload.withUnsafeBytes { rawBuffer -> Bool in
-            guard let baseAddress = rawBuffer.baseAddress else {
-                return true
-            }
-
-            while offset < rawBuffer.count {
-                let written = Darwin.write(fileDescriptor, baseAddress.advanced(by: offset), rawBuffer.count - offset)
-                if written <= 0 {
-                    return false
-                }
-
-                offset += written
-            }
-
-            return true
-        }
-
-        if !success {
-            appendEvent("\(failureContext) write failed: errno \(errno).")
-            return false
-        }
-
-        return true
+        vmCoordinator.sendConsoleBytes(data)
     }
 
     func clearEventLog() {
         eventLog = ""
     }
 
-    private func configureAccessoryMonitor() {
-        monitor.onConnect = { [weak self] accessory in
-            Task { @MainActor in
-                self?.addAccessory(accessory)
-            }
+    private func configureCoordinators() {
+        vmCoordinator.onStateChange = { [weak self] state, message in
+            guard let self else { return }
+            self.runtimeState = state
+            self.statusMessage = message
+        }
+        vmCoordinator.onEvent = { [weak self] message in
+            self?.appendEvent(message)
+        }
+        vmCoordinator.onConsoleOutput = { [weak self] data in
+            self?.appendConsole(data)
+        }
+        vmCoordinator.onUSBPassthroughDisconnect = { [weak self] in
+            self?.usbCoordinator.handlePassthroughDisconnect()
+        }
+        vmCoordinator.onStopped = { [weak self] in
+            guard let self else { return }
+            self.usbCoordinator.clearAttachmentForStoppedVM()
+            self.syncUSBState()
         }
 
-        monitor.onDisconnect = { [weak self] accessory in
-            Task { @MainActor in
-                self?.removeAccessory(accessory)
-            }
+        usbCoordinator.onStateChange = { [weak self] in
+            self?.syncUSBState()
         }
+        usbCoordinator.onStatusMessage = { [weak self] message in
+            self?.statusMessage = message
+        }
+        usbCoordinator.onEvent = { [weak self] message in
+            self?.appendEvent(message)
+        }
+        usbCoordinator.onUnexpectedDetach = { [weak self] reason in
+            self?.restartVirtualMachineAfterUSBDetach(reason: reason)
+        }
+        usbCoordinator.runtimeStateProvider = { [weak self] in
+            self?.runtimeState ?? .idle
+        }
+        usbCoordinator.virtualMachineProvider = { [weak self] in
+            self?.vmCoordinator.virtualMachine
+        }
+
+        syncUSBState()
+    }
+
+    private func startAccessoryMonitoring(reason: String) {
+        refreshRuntimeEntitlements()
+
+        guard runtimeEntitlements.accessoryAccessUSB else {
+            reportMissingEntitlement(.accessoryAccessUSB, action: "USB listener")
+            return
+        }
+
+        usbCoordinator.startMonitoring(reason: reason)
+    }
+
+    private func restartVirtualMachineAfterUSBDetach(reason: String) {
+        usbCoordinator.prepareForVMRestartAfterUSBDetach()
+        syncUSBState()
+        vmCoordinator.restartAfterUSBDetach(reason: reason) { [weak self] in
+            self?.startVirtualMachine()
+        }
+    }
+
+    private func syncUSBState() {
+        isSyncingUSBState = true
+        accessories = usbCoordinator.accessories
+        isAccessoryMonitoring = usbCoordinator.isAccessoryMonitoring
+        selectedAccessoryID = usbCoordinator.selectedAccessoryID
+        attachedAccessoryID = usbCoordinator.attachedAccessoryID
+        isSyncingUSBState = false
     }
 
     private func restoreAssetSelections() {
@@ -879,7 +608,7 @@ final class TetheringStore: ObservableObject {
         let assetFolderURL = configuredVMAssetFolderURL
 
         do {
-            if let result = try wireGuardConfigurationLoader.loadGeneratedSettings(
+            if let result = try wireguardConfLoader.loadGeneratedSettings(
                 from: assetFolderURL,
                 preservingEndpoint: wireGuardSettings.endpoint
             ) {
@@ -1039,351 +768,14 @@ final class TetheringStore: ObservableObject {
         appendEvent("WireGuard guest address discovered from guest console: \(endpoint).")
     }
 
-    private func addAccessory(_ accessory: AAUSBAccessory) {
-        accessoryObjects[accessory.registryID] = accessory
-        let record = USBAccessoryRecord(accessory: accessory)
-        let replacedSelectedRecord = accessories.contains { existingRecord in
-            existingRecord.descriptorIdentityKey == record.descriptorIdentityKey
-                && selectedAccessoryID == existingRecord.id
-        }
-
-        if manuallyDetachedDescriptorKeys.contains(record.descriptorIdentityKey) {
-            accessories.removeAll { $0.id == record.id || $0.descriptorIdentityKey == record.descriptorIdentityKey }
-        } else {
-            accessories.removeAll { $0.id == record.id }
-        }
-
-        accessories.append(record)
-        accessories.sort { $0.usbIDText < $1.usbIDText }
-        if selectedAccessoryID == nil || replacedSelectedRecord {
-            selectedAccessoryID = record.id
-        }
-        appendEvent("USB connected: \(record.descriptorDiagnosticText), registry \(record.registryIDText), \(accessoryEventContext(for: record, kind: "connect")).")
-        autoAttachIfPossible(accessory, record: record)
-    }
-
-    private func removeAccessory(_ accessory: AAUSBAccessory) {
-        let record = USBAccessoryRecord(accessory: accessory)
-        let wasSelected = selectedAccessoryID == accessory.registryID
-        let wasAttached = attachedAccessoryID == accessory.registryID
-
-        if manualDetachEventSuppressionRemaining(for: record) != nil {
-            accessoryObjects[accessory.registryID] = nil
-            appendEvent("USB AccessoryAccess disconnect ignored during manual VM detach: registry \(record.registryIDText), \(accessoryEventContext(for: record, kind: "disconnect")).")
-            return
-        }
-
-        accessoryObjects[accessory.registryID] = nil
-        accessories.removeAll { $0.id == accessory.registryID }
-
-        if wasSelected {
-            selectedAccessoryID = accessories.first?.id
-        }
-
-        if wasAttached {
-            attachedAccessoryID = nil
-            attachedDevice = nil
-        }
-
-        if pendingAttachAccessoryID == accessory.registryID {
-            pendingAttachAccessoryID = nil
-            suppressAutoAttach(
-                for: record,
-                interval: USBPassthroughPolicy.attachFailureSuppressionInterval,
-                reason: "device disconnected while VZ attach was pending."
-            )
-            appendEvent("USB disconnected while VZ attach was pending for registry \(record.registryIDText).")
-        }
-
-        appendEvent("USB disconnected: \(record.descriptorDiagnosticText), registry \(record.registryIDText), wasSelected=\(wasSelected), wasAttached=\(wasAttached), \(accessoryEventContext(for: record, kind: "disconnect")).")
-
-        if wasAttached {
-            appendEvent("USB disconnect matched the attached passthrough accessory; restarting VM to recreate a fixed usb0 session.")
-            restartVirtualMachineAfterUSBDetach(reason: "AccessoryAccess disconnect for attached registry \(record.registryIDText)")
-        }
-    }
-
-    private func autoAttachIfPossible(_ accessory: AAUSBAccessory, record: USBAccessoryRecord) {
-        guard runtimeState == .running, let virtualMachine else {
-            return
-        }
-
-        guard attachedAccessoryID == nil, attachedDevice == nil, pendingAttachAccessoryID == nil else {
-            appendEvent("USB auto-attach skipped for registry \(record.registryIDText): single passthrough device limit is already active.")
-            return
-        }
-
-        guard record.hasConfigurationDescriptor else {
-            appendEvent("USB auto-attach skipped for registry \(record.registryIDText): AccessoryAccess reported no configuration descriptor. Select the device and attach manually only after it stabilizes.")
-            return
-        }
-
-        guard !isManualDetachedAutoAttachBlocked(for: record) else {
-            return
-        }
-
-        guard !isAutoAttachSuppressed(for: record) else {
-            return
-        }
-
-        appendEvent("USB auto-attach on connect: registry \(record.registryIDText).")
-        attach(accessory, record: record, to: virtualMachine, reason: "auto connect")
-    }
-
-    private func autoAttachAvailableAccessoryIfPossible(reason: String) {
-        guard runtimeState == .running, let virtualMachine else {
-            return
-        }
-
-        guard attachedAccessoryID == nil, attachedDevice == nil, pendingAttachAccessoryID == nil else {
-            return
-        }
-
-        guard let record = accessories.first(where: { record in
-            record.hasConfigurationDescriptor
-                && !manuallyDetachedDescriptorKeys.contains(record.descriptorIdentityKey)
-                && attachSuppressionRemaining(for: record) == nil
-        }),
-              let accessory = accessoryObjects[record.id] else {
-            appendEvent("USB auto-attach not started for \(reason): no attachable AccessoryAccess device is available.")
-            return
-        }
-
-        appendEvent("USB auto-attach on \(reason): registry \(record.registryIDText).")
-        attach(accessory, record: record, to: virtualMachine, reason: reason)
-    }
-
-    private func noteManualDetach(for record: USBAccessoryRecord) {
-        let suppressedUntil = Date().addingTimeInterval(USBPassthroughPolicy.manualDetachAccessoryEventGraceInterval)
-        manuallyDetachedDescriptorKeys.insert(record.descriptorIdentityKey)
-        manualDetachEventSuppressedUntilByDescriptor[record.descriptorIdentityKey] = suppressedUntil
-        appendEvent("USB manual detach policy: keeping \(record.registryIDText) in the device list and blocking automatic reattach until the next manual attach.")
-    }
-
-    private func isManualDetachedAutoAttachBlocked(for record: USBAccessoryRecord) -> Bool {
-        guard manuallyDetachedDescriptorKeys.contains(record.descriptorIdentityKey) else {
-            return false
-        }
-
-        appendEvent("USB auto-attach skipped for registry \(record.registryIDText): device was manually detached from the VM.")
-        return true
-    }
-
-    private func isAutoAttachSuppressed(for record: USBAccessoryRecord) -> Bool {
-        guard let remaining = attachSuppressionRemaining(for: record) else { return false }
-
-        appendEvent("USB auto-attach suppressed for registry \(record.registryIDText): retry allowed in \(Self.secondsText(remaining)).")
-        return true
-    }
-
-    private func attachSuppressionRemaining(for record: USBAccessoryRecord) -> TimeInterval? {
-        guard let suppressedUntil = autoAttachSuppressedUntilByDescriptor[record.descriptorIdentityKey] else {
-            return nil
-        }
-
-        let now = Date()
-        guard suppressedUntil > now else {
-            autoAttachSuppressedUntilByDescriptor[record.descriptorIdentityKey] = nil
-            return nil
-        }
-
-        return suppressedUntil.timeIntervalSince(now)
-    }
-
-    private func suppressAutoAttach(for record: USBAccessoryRecord, interval: TimeInterval, reason: String) {
-        let suppressedUntil = Date().addingTimeInterval(interval)
-        autoAttachSuppressedUntilByDescriptor[record.descriptorIdentityKey] = suppressedUntil
-        appendEvent("USB auto-attach suppressed for descriptor \(record.usbIDText) for \(Self.secondsText(interval)): \(reason)")
-    }
-
-    private func manualDetachEventSuppressionRemaining(for record: USBAccessoryRecord) -> TimeInterval? {
-        guard let suppressedUntil = manualDetachEventSuppressedUntilByDescriptor[record.descriptorIdentityKey] else {
-            return nil
-        }
-
-        let now = Date()
-        guard suppressedUntil > now else {
-            manualDetachEventSuppressedUntilByDescriptor[record.descriptorIdentityKey] = nil
-            return nil
-        }
-
-        return suppressedUntil.timeIntervalSince(now)
-    }
-
-    private func isManualPassthroughDisconnectSuppressed() -> Bool {
-        guard let suppressedUntil = manualPassthroughDisconnectSuppressedUntil else {
-            return false
-        }
-
-        let now = Date()
-        guard suppressedUntil > now else {
-            manualPassthroughDisconnectSuppressedUntil = nil
-            return false
-        }
-
-        return true
-    }
-
-    private func stopAccessoryMonitoring(reason: String) {
-        guard isAccessoryMonitoring || !accessoryObjects.isEmpty || !accessories.isEmpty else {
-            return
-        }
-
-        isAccessoryMonitoring = false
-        accessoryObjects.removeAll()
-        accessories.removeAll()
-        selectedAccessoryID = nil
-        pendingAttachAccessoryID = nil
-        manuallyDetachedDescriptorKeys.removeAll()
-        manualDetachEventSuppressedUntilByDescriptor.removeAll()
-        manualPassthroughDisconnectSuppressedUntil = nil
-
-        monitor.stop { [weak self] in
-            Task { @MainActor in
-                self?.appendEvent("AccessoryAccess USB listener stopped: \(reason)")
-            }
-        }
-    }
-
-    private func makeDelegate() -> VirtualMachineDelegateBox {
-        let delegate = VirtualMachineDelegateBox()
-
-        delegate.onGuestDidStop = { [weak self] in
-            Task { @MainActor in
-                self?.markStopped(message: "Guest shut down.")
-            }
-        }
-
-        delegate.onStopError = { [weak self] error in
-            Task { @MainActor in
-                guard let self else { return }
-
-                self.runtimeState = .failed
-                self.statusMessage = error.localizedDescription
-                self.isRestartingAfterUSBDetach = false
-                self.releaseRuntimeResources()
-                self.appendEvent("VM stopped with error: \(error.localizedDescription)")
-            }
-        }
-
-        delegate.onNetworkDisconnect = { [weak self] error in
-            Task { @MainActor in
-                self?.appendEvent("VM network attachment disconnected: \(error.localizedDescription)")
-            }
-        }
-
-        delegate.onUSBPassthroughDisconnect = { [weak self] in
-            Task { @MainActor in
-                guard let self else { return }
-
-                let attachedRegistry = self.attachedAccessoryID.map(Self.registryIDText) ?? "none"
-                if self.isManualPassthroughDisconnectSuppressed() {
-                    self.attachedAccessoryID = nil
-                    self.attachedDevice = nil
-                    self.appendEvent("USB passthrough disconnect ignored because it was produced by a manual VM detach, attached registry \(attachedRegistry).")
-                    return
-                }
-
-                self.attachedAccessoryID = nil
-                self.attachedDevice = nil
-                self.appendEvent("USB passthrough device disconnected by the system, attached registry \(attachedRegistry).")
-                self.restartVirtualMachineAfterUSBDetach(reason: "Virtualization USB passthrough disconnect for registry \(attachedRegistry)")
-            }
-        }
-
-        return delegate
-    }
-
-    private func restartVirtualMachineAfterUSBDetach(reason: String) {
-        guard let virtualMachine else {
-            appendEvent("USB detach restart skipped: VM is not available (\(reason)).")
-            return
-        }
-
-        guard runtimeState == .running || runtimeState == .starting else {
-            appendEvent("USB detach restart skipped while VM state is \(runtimeState.rawValue): \(reason).")
-            return
-        }
-
-        guard !isRestartingAfterUSBDetach else {
-            appendEvent("USB detach restart already pending: \(reason).")
-            return
-        }
-
-        isRestartingAfterUSBDetach = true
-        runtimeState = .stopping
-        statusMessage = "USB detached; restarting VM."
-        attachedAccessoryID = nil
-        attachedDevice = nil
-        pendingAttachAccessoryID = nil
-        appendEvent("USB detach policy: restarting VM to recreate the fixed usb0 RNDIS session (\(reason)).")
-
-        virtualMachine.stop { [weak self] error in
-            Task { @MainActor in
-                guard let self else { return }
-
-                if let error {
-                    self.isRestartingAfterUSBDetach = false
-                    self.runtimeState = .failed
-                    self.statusMessage = error.localizedDescription
-                    self.releaseRuntimeResources()
-                    self.appendEvent("VM restart after USB detach failed while stopping VM: \(error.localizedDescription)")
-                    return
-                }
-
-                self.markStopped(message: "VM stopped after USB detach.")
-                self.isRestartingAfterUSBDetach = false
-                self.startVirtualMachine()
-            }
-        }
-    }
-
-    private func markStopped(message: String) {
-        runtimeState = .stopped
-        statusMessage = message
-        attachedAccessoryID = nil
-        attachedDevice = nil
-        pendingAttachAccessoryID = nil
-        virtualMachine = nil
-        vmDelegate = nil
-        releaseRuntimeResources()
-        appendEvent(message)
-    }
-
-    private func installConsoleReader(_ pipe: Pipe) {
-        pipe.fileHandleForReading.readabilityHandler = { [weak self] fileHandle in
-            let data = fileHandle.availableData
-            guard !data.isEmpty else {
-                fileHandle.readabilityHandler = nil
-                Task { @MainActor in
-                    guard let self else { return }
-                    let message = self.hasReceivedConsoleOutput
-                        ? "Console output pipe closed."
-                        : "Console output pipe closed before any data was received."
-                    self.appendEvent(message)
-                }
-                return
-            }
-
-            Task { @MainActor in
-                self?.appendConsole(data)
-            }
-        }
-    }
-
-    private func releaseRuntimeResources() {
-        cancelConsoleOutputWatchdog()
-        runtimeResources?.consoleOutputPipe.fileHandleForReading.readabilityHandler = nil
-        runtimeResources = nil
+    private func clearConsoleForVMStart() {
+        consoleText = ""
+        consoleOutputData = Data()
+        consoleOutputSequence = 0
+        consoleResetSequence &+= 1
     }
 
     private func appendConsole(_ data: Data) {
-        if !hasReceivedConsoleOutput {
-            hasReceivedConsoleOutput = true
-            cancelConsoleOutputWatchdog()
-            appendEvent("Console output started: first read \(data.count) byte(s).")
-        }
-
         appendConsoleOutputData(data)
 
         if let text = String(data: data, encoding: .utf8) {
@@ -1400,40 +792,6 @@ final class TetheringStore: ObservableObject {
         let timestamp = Self.timestampFormatter.string(from: Date())
         eventLog.append("[\(timestamp)] \(message)\n")
         trimEventLogIfNeeded()
-    }
-
-    private func accessoryEventContext(for record: USBAccessoryRecord, kind: String) -> String {
-        accessoryEventSequence += 1
-
-        let now = Date()
-        let previousEvent = lastAccessoryEventByDescriptor[record.descriptorIdentityKey]
-        lastAccessoryEventByDescriptor[record.descriptorIdentityKey] = (kind: kind, date: now)
-
-        var components = [
-            "event #\(accessoryEventSequence)",
-            "vm=\(runtimeState.rawValue)"
-        ]
-
-        if let previousEvent {
-            let interval = now.timeIntervalSince(previousEvent.date)
-            components.append(String(format: "%.2fs after previous %@ for same descriptor", interval, previousEvent.kind))
-        } else {
-            components.append("first event for descriptor")
-        }
-
-        if let selectedAccessoryID {
-            components.append("selected=\(Self.registryIDText(selectedAccessoryID))")
-        } else {
-            components.append("selected=none")
-        }
-
-        if let attachedAccessoryID {
-            components.append("attached=\(Self.registryIDText(attachedAccessoryID))")
-        } else {
-            components.append("attached=none")
-        }
-
-        return components.joined(separator: ", ")
     }
 
     private func trimConsoleIfNeeded() {
@@ -1455,22 +813,6 @@ final class TetheringStore: ObservableObject {
 
         consoleOutputData = outputData
         consoleOutputSequence &+= 1
-    }
-
-    private func scheduleConsoleOutputWatchdog() {
-        cancelConsoleOutputWatchdog()
-        consoleOutputWatchdogTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .seconds(15))
-            guard let self, !Task.isCancelled else { return }
-            guard self.runtimeState == .running, !self.hasReceivedConsoleOutput else { return }
-
-            self.appendEvent("No VM console output received after 15s. Selected kernel/initramfs assets are logged above; confirm the kernel is Image-lts and the initramfs is initramfs-rtpvm-lts regenerated after the latest script changes.")
-        }
-    }
-
-    private func cancelConsoleOutputWatchdog() {
-        consoleOutputWatchdogTask?.cancel()
-        consoleOutputWatchdogTask = nil
     }
 
     private func trimEventLogIfNeeded() {
@@ -1497,13 +839,4 @@ final class TetheringStore: ObservableObject {
         static let initialRamdiskURLPath = "VMAssets.initialRamdiskURLPath"
         static let diskImageURLPath = "VMAssets.diskImageURLPath"
     }
-
-    private static func registryIDText(_ registryID: UInt64) -> String {
-        "0x" + String(registryID, radix: 16, uppercase: true)
-    }
-
-    private static func secondsText(_ interval: TimeInterval) -> String {
-        String(format: "%.1fs", max(0, interval))
-    }
-
 }

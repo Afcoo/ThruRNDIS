@@ -4,7 +4,7 @@ Copyright (C) 2026 Afcoo.
 
 import Foundation
 
-struct WireGuardConfigurationLoader {
+struct WireguardConfLoader {
     private let serverConfigurationFileName = "wg-server.conf"
     private let clientConfigurationFileName = "wg-client.conf"
     private let emptyServerAddress = "10.100.0.1/24"

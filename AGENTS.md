@@ -16,9 +16,11 @@ WireGuard-over-VZNAT architecture as the baseline.
 
 ## Architecture
 
-- `TetheringStore` owns app state, VM lifecycle, USB accessory selection,
-  WireGuard configuration state, and the console/event logs.
-- `WireGuardConfigurationLoader` loads generated `wg-server.conf` and
+- `TetheringStore` owns SwiftUI-facing app state, WireGuard configuration state,
+  and the console/event logs. VM lifecycle work belongs in `VMCoordinator`; USB
+  AccessoryAccess selection and passthrough policy belong in
+  `USBAccessoryCoordinator`.
+- `WireguardConfLoader` loads generated `wg-server.conf` and
   `wg-client.conf` files from the selected asset tree for preview/export.
   It must not hard-code WireGuard key material.
 - `VMConfigurationFactory` builds the Linux VM configuration. The current
@@ -92,12 +94,14 @@ macOS WireGuard client
 
 - `RTPVM/App`: SwiftUI app entrypoint and top-level commands.
 - `RTPVM/Views`: setup, USB, console, and WireGuard views.
-- `RTPVM/Stores`: `TetheringStore` orchestration and
-  `WireGuardConfigurationLoader` key/config loading and host config rendering.
-- `RTPVM/Services`: AccessoryAccess monitor, VM configuration
+- `RTPVM/Coordinators`: `VMCoordinator` for Virtualization VM lifecycle and
+  `USBAccessoryCoordinator` for AccessoryAccess USB selection/passthrough
+  policy.
+- `RTPVM/Stores`: `TetheringStore` orchestration and SwiftUI-facing app state.
+- `RTPVM/Services`: `USBAccessoryMonitor`, VM configuration
   factory, and VM delegate glue.
-- `RTPVM/Support`: file picker, clipboard, and runtime entitlement
-  reader helpers.
+- `RTPVM/Support`: file picker, clipboard, runtime entitlement reader helpers,
+  and `WireguardConfLoader` key/config loading and host config rendering.
 - `RTPVM/GuestScripts`: currently empty. The generated RTPVM
   initramfs includes a server WireGuard config but still does not install or
   start a guest WireGuard setup script.
