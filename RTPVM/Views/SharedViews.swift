@@ -94,10 +94,10 @@ struct EventLogGroup: View {
                     Spacer()
 
                     Button(action: eraseAction) {
-                        Label("Erase", systemImage: "trash")
+                        Label("Clear", systemImage: "trash")
                     }
                     .disabled(text.isEmpty)
-                    .help("Erase event log")
+                    .help("Clear event log")
                 }
 
                 LogTextView(text: text.isEmpty ? "No events." : text)
