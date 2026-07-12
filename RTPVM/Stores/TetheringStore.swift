@@ -2,6 +2,7 @@
 Copyright (C) 2026 Afcoo.
 */
 
+import AppKit
 import Foundation
 
 private enum AlpineBootDefaults {
@@ -25,7 +26,6 @@ private enum VMAssetFolderLoadError: LocalizedError {
     case notDirectory(URL)
     case missingKernel(URL)
     case missingInitramfs(URL)
-    case missingWireGuardConfiguration(URL)
 
     var errorDescription: String? {
         switch self {
@@ -35,8 +35,6 @@ private enum VMAssetFolderLoadError: LocalizedError {
             return "No Image-* kernel found in VM asset folder: \(url.path)"
         case .missingInitramfs(let url):
             return "No initramfs-rtpvm-* ramdisk found in VM asset folder: \(url.path)"
-        case .missingWireGuardConfiguration(let url):
-            return "Missing wireguard/wg-server.conf or wireguard/wg-client.conf in VM asset folder: \(url.path)"
         }
     }
 }
@@ -51,19 +49,16 @@ final class TetheringStore: ObservableObject {
     @Published private(set) var selectedAssetFolderURL: URL? {
         didSet {
             persistFileURL(selectedAssetFolderURL, forKey: DefaultsKey.assetFolderURLPath)
-            reloadWireGuardConfigurationFromAssets(reason: "asset folder selection changed")
         }
     }
     @Published var kernelURL: URL? {
         didSet {
             persistFileURL(kernelURL, forKey: DefaultsKey.kernelURLPath)
-            reloadWireGuardConfigurationFromAssets(reason: "kernel selection changed")
         }
     }
     @Published var initialRamdiskURL: URL? {
         didSet {
             persistFileURL(initialRamdiskURL, forKey: DefaultsKey.initialRamdiskURLPath)
-            reloadWireGuardConfigurationFromAssets(reason: "initramfs selection changed")
         }
     }
     @Published var diskImageURL: URL? {
@@ -100,7 +95,7 @@ final class TetheringStore: ObservableObject {
     @Published private(set) var consoleResetSequence = 0
     @Published private(set) var eventLog = ""
     @Published private(set) var wireGuardSettings: WireGuardSettings
-    @Published private(set) var wireGuardStatusMessage = "Run the asset build script, select the generated assets, then start the VM to discover the endpoint."
+    @Published private(set) var wireGuardStatusMessage = "Loading WireGuard configuration from Application Support."
     @Published private(set) var hasCompletedOnboarding = false
     @Published private(set) var onboardingPresentationRequest = OnboardingPresentationRequest(
         sequence: 0,
@@ -113,7 +108,9 @@ final class TetheringStore: ObservableObject {
 
     private let vmCoordinator = VMCoordinator()
     private let usbCoordinator = USBAccessoryCoordinator()
-    private let wireguardConfLoader: WireguardConfLoader
+    private let wireGuardConfStore: WireGuardConfStore
+    private let wireGuardConfBuilder: WireGuardConfBuilder
+    private var wireGuardKeyMaterial: WireGuardKeyMaterial?
     private var didRequestLaunchAccessoryMonitoring = false
     private var isSyncingUSBState = false
     private var pendingAttachmentAccessoryID: UInt64?
@@ -143,7 +140,9 @@ final class TetheringStore: ObservableObject {
     }
 
     var canStartVirtualMachine: Bool {
-        hasConfiguredVMAssets && vmCoordinator.canStart
+        hasConfiguredVMAssets
+            && wireGuardSettings.hasKeyMaterial
+            && vmCoordinator.canStart
     }
 
     var canRestartVirtualMachine: Bool {
@@ -171,20 +170,12 @@ final class TetheringStore: ObservableObject {
 
     var hasConfiguredVMAssets: Bool {
         guard let kernelURL,
-              let initialRamdiskURL,
-              let assetFolderURL = configuredVMAssetFolderURL else {
+              let initialRamdiskURL else {
             return false
         }
 
-        let wireGuardDirectory = assetFolderURL.appendingPathComponent("wireguard", isDirectory: true)
-        let serverConfigurationURL = wireGuardDirectory.appendingPathComponent("wg-server.conf")
-        let clientConfigurationURL = wireGuardDirectory.appendingPathComponent("wg-client.conf")
-
         return isRegularFile(kernelURL)
             && isRegularFile(initialRamdiskURL)
-            && isRegularFile(serverConfigurationURL)
-            && isRegularFile(clientConfigurationURL)
-            && wireGuardSettings.hasKeyMaterial
     }
 
     var shouldPresentOnboardingOnLaunch: Bool {
@@ -308,17 +299,28 @@ final class TetheringStore: ObservableObject {
     }
 
     var wireGuardHostConfiguration: String {
-        wireguardConfLoader.hostConfiguration(settings: wireGuardSettings)
+        guard let wireGuardKeyMaterial else {
+            return """
+            # WireGuard key material is unavailable in Application Support.
+            """
+        }
+
+        return wireGuardConfBuilder.clientConfiguration(
+            keyMaterial: wireGuardKeyMaterial,
+            endpoint: wireGuardSettings.endpoint
+        )
     }
 
     init() {
-        let wireguardConfLoader = WireguardConfLoader()
-        self.wireguardConfLoader = wireguardConfLoader
-        self.wireGuardSettings = wireguardConfLoader.emptySettings()
+        let wireGuardConfStore = WireGuardConfStore()
+        let wireGuardConfBuilder = WireGuardConfBuilder(elements: .defaults)
+        self.wireGuardConfStore = wireGuardConfStore
+        self.wireGuardConfBuilder = wireGuardConfBuilder
+        self.wireGuardSettings = wireGuardConfBuilder.settings()
         configureCoordinators()
         restoreAssetSelections()
         restoreVMSettings()
-        reloadWireGuardConfigurationFromAssets(reason: "restored asset selection")
+        prepareWireGuardConfiguration()
         restoreOnboardingState()
         appendRuntimeEntitlementSummary()
         appendAssetSelectionSummaryIfNeeded()
@@ -368,10 +370,8 @@ final class TetheringStore: ObservableObject {
         kernelURL = nil
         initialRamdiskURL = nil
         diskImageURL = nil
-        wireGuardSettings = wireguardConfLoader.emptySettings()
-        wireGuardStatusMessage = "Select generated VM assets to load WireGuard configuration."
         statusMessage = "VM asset selections cleared. Select a VM asset folder to continue."
-        appendEvent("Cleared VM asset selections; generated asset files were not deleted.")
+        appendEvent("Cleared VM asset selections; WireGuard configuration was preserved.")
     }
 
     func stopAccessoryMonitoring() {
@@ -402,17 +402,32 @@ final class TetheringStore: ObservableObject {
     func startVirtualMachine() -> Bool {
         refreshRuntimeEntitlements()
         migrateLegacyInitramfsSelectionIfNeeded()
-        reloadWireGuardConfigurationFromAssets(reason: "VM starting")
 
-        guard canStartVirtualMachine else {
-            statusMessage = hasConfiguredVMAssets
-                ? "Wait for the current VM transition to finish."
-                : "Select a valid VM asset folder before starting the VM."
+        guard hasConfiguredVMAssets else {
+            statusMessage = "Select a valid VM asset folder before starting the VM."
+            return false
+        }
+
+        guard wireGuardSettings.hasKeyMaterial else {
+            statusMessage = "Fix the WireGuard configuration error before starting the VM."
+            return false
+        }
+
+        guard vmCoordinator.canStart else {
+            statusMessage = "Wait for the current VM transition to finish."
             return false
         }
 
         guard runtimeEntitlements.virtualization else {
             reportMissingEntitlement(.virtualization, action: "VM start")
+            return false
+        }
+
+        guard reloadWireGuardConfigurationFromApplicationSupport(
+            reason: "VM starting",
+            requireExisting: true
+        ) else {
+            statusMessage = "Fix the WireGuard configuration error before starting the VM."
             return false
         }
 
@@ -433,6 +448,7 @@ final class TetheringStore: ObservableObject {
             kernelURL: kernelURL,
             initialRamdiskURL: initialRamdiskURL,
             diskImageURL: diskImageURL,
+            wireGuardConfigurationDirectoryURL: wireGuardConfStore.sharedDirectoryURL,
             cpuCount: cpuCount,
             memorySizeMiB: memorySizeMiB,
             bootCommandLine: bootCommandLine,
@@ -560,7 +576,33 @@ final class TetheringStore: ObservableObject {
     }
 
     func reloadWireGuardConfiguration() {
-        reloadWireGuardConfigurationFromAssets(reason: "manual request", reportIfMissing: true)
+        _ = reloadWireGuardConfigurationFromApplicationSupport(
+            reason: "manual request",
+            requireExisting: true
+        )
+    }
+
+    func openWireGuardConfigurationFolder() {
+        let directoryURL = wireGuardConfStore.files.wireGuardDirectoryURL
+        var isDirectory: ObjCBool = false
+
+        guard FileManager.default.fileExists(
+            atPath: directoryURL.path,
+            isDirectory: &isDirectory
+        ), isDirectory.boolValue else {
+            wireGuardStatusMessage = "WireGuard configuration folder was not found."
+            appendEvent("WireGuard configuration folder not opened because it does not exist: \(directoryURL.path)")
+            return
+        }
+
+        guard NSWorkspace.shared.open(directoryURL) else {
+            wireGuardStatusMessage = "Could not open the WireGuard configuration folder."
+            appendEvent("WireGuard configuration folder open failed: \(directoryURL.path)")
+            return
+        }
+
+        wireGuardStatusMessage = "Opened the WireGuard configuration folder."
+        appendEvent("Opened WireGuard configuration folder: \(directoryURL.path)")
     }
 
     func copyWireGuardConfiguration() {
@@ -677,6 +719,15 @@ final class TetheringStore: ObservableObject {
             return false
         }
 
+        do {
+            try wireGuardConfStore.removeConfigurationDirectory()
+        } catch {
+            preferencesStatusMessage = "Could not remove WireGuard configuration: \(error.localizedDescription)"
+            wireGuardStatusMessage = preferencesStatusMessage
+            appendEvent("App settings reset cancelled: \(preferencesStatusMessage)")
+            return false
+        }
+
         cancelPendingAttachment(reason: "app settings reset")
         queuedUSBAttachmentPrompts.removeAll()
         promptedAccessoryIDs.removeAll()
@@ -701,8 +752,9 @@ final class TetheringStore: ObservableObject {
         UserDefaults.standard.removeObject(forKey: DefaultsKey.onboardingVersion)
 
         hasCompletedOnboarding = false
-        wireGuardSettings = wireguardConfLoader.emptySettings()
-        wireGuardStatusMessage = "Select generated VM assets to load WireGuard configuration."
+        wireGuardKeyMaterial = nil
+        wireGuardSettings = wireGuardConfBuilder.settings()
+        wireGuardStatusMessage = "WireGuard configuration removed; new keys will be created after restart."
         statusMessage = "App settings reset. Select a VM asset folder to continue."
 
         do {
@@ -713,7 +765,7 @@ final class TetheringStore: ObservableObject {
             preferencesStatusMessage = "Settings reset, but Launch at Login could not be disabled: \(error.localizedDescription)"
         }
 
-        appendEvent("App settings reset; generated asset files were not deleted.")
+        appendEvent("App settings and WireGuard configuration were reset; VM asset files were not deleted.")
         return true
     }
 
@@ -1235,20 +1287,6 @@ final class TetheringStore: ObservableObject {
             throw VMAssetFolderLoadError.missingInitramfs(directory)
         }
 
-        let wireGuardDirectory = directory.appendingPathComponent("wireguard", isDirectory: true)
-        let serverConfigurationURL = wireGuardDirectory.appendingPathComponent("wg-server.conf")
-        let clientConfigurationURL = wireGuardDirectory.appendingPathComponent("wg-client.conf")
-        guard isRegularFile(serverConfigurationURL), isRegularFile(clientConfigurationURL) else {
-            throw VMAssetFolderLoadError.missingWireGuardConfiguration(directory)
-        }
-
-        guard let loadedSettings = try wireguardConfLoader.loadGeneratedSettings(
-            from: directory,
-            preservingEndpoint: nil
-        ), loadedSettings.settings.hasKeyMaterial else {
-            throw VMAssetFolderLoadError.missingWireGuardConfiguration(directory)
-        }
-
         return VMAssetFolderSelection(kernelURL: kernelURL, initialRamdiskURL: initialRamdiskURL)
     }
 
@@ -1386,37 +1424,57 @@ final class TetheringStore: ObservableObject {
         }
     }
 
-    private func reloadWireGuardConfigurationFromAssets(
-        reason: String,
-        reportIfMissing: Bool = false
-    ) {
-        let assetFolderURL = configuredVMAssetFolderURL
-
+    private func prepareWireGuardConfiguration() {
         do {
-            if let result = try wireguardConfLoader.loadGeneratedSettings(
-                from: assetFolderURL,
-                preservingEndpoint: wireGuardSettings.endpoint
-            ) {
-                wireGuardSettings = result.settings
-                wireGuardStatusMessage = "Loaded generated WireGuard configuration."
-                appendEvent("Loaded generated WireGuard configuration from \(result.sourceURL.path): \(reason).")
-                return
-            }
-
-            wireGuardSettings = wireguardConfLoader.emptySettings(
+            let prepared = try wireGuardConfStore.prepareConfigurationIfNeeded(
+                builder: wireGuardConfBuilder
+            )
+            wireGuardKeyMaterial = prepared.keyMaterial
+            wireGuardSettings = wireGuardConfBuilder.settings(
+                keyMaterial: prepared.keyMaterial,
                 endpoint: wireGuardSettings.endpoint
             )
-
-            if reportIfMissing {
-                wireGuardStatusMessage = "Generated WireGuard configs were not found near the selected assets."
-                appendEvent("WireGuard configuration not loaded: selected VM asset folder must contain wireguard/wg-server.conf and wireguard/wg-client.conf.")
-            }
+            wireGuardStatusMessage = "WireGuard configuration is ready."
+            appendEvent("Prepared WireGuard configuration from Application Support keys: \(prepared.files.wireGuardDirectoryURL.path).")
         } catch {
-            wireGuardSettings = wireguardConfLoader.emptySettings(
+            wireGuardKeyMaterial = nil
+            wireGuardSettings = wireGuardConfBuilder.settings(
+                endpoint: wireGuardSettings.endpoint
+            )
+            wireGuardStatusMessage = error.localizedDescription
+            appendEvent("WireGuard key/configuration initialization failed without replacing existing keys: \(error.localizedDescription)")
+        }
+    }
+
+    @discardableResult
+    private func reloadWireGuardConfigurationFromApplicationSupport(
+        reason: String,
+        requireExisting: Bool
+    ) -> Bool {
+        do {
+            let prepared = requireExisting
+                ? try wireGuardConfStore.requireExistingConfiguration(
+                    builder: wireGuardConfBuilder
+                )
+                : try wireGuardConfStore.prepareConfigurationIfNeeded(
+                    builder: wireGuardConfBuilder
+                )
+            wireGuardKeyMaterial = prepared.keyMaterial
+            wireGuardSettings = wireGuardConfBuilder.settings(
+                keyMaterial: prepared.keyMaterial,
+                endpoint: wireGuardSettings.endpoint
+            )
+            wireGuardStatusMessage = "Generated WireGuard configuration from Application Support keys."
+            appendEvent("Regenerated WireGuard configuration from keys in \(prepared.files.wireGuardDirectoryURL.path): \(reason).")
+            return true
+        } catch {
+            wireGuardKeyMaterial = nil
+            wireGuardSettings = wireGuardConfBuilder.settings(
                 endpoint: wireGuardSettings.endpoint
             )
             wireGuardStatusMessage = error.localizedDescription
             appendEvent("WireGuard configuration load failed: \(error.localizedDescription)")
+            return false
         }
     }
 

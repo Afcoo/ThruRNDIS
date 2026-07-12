@@ -24,80 +24,13 @@ APKINDEX_ARCHIVE="$CACHE_DIR/$APKINDEX_NAME"
 APKINDEX_FILE="$CACHE_DIR/APKINDEX-$ALPINE_BRANCH-main-$ALPINE_ARCH"
 GUEST_PACKAGES="iproute2 nftables wireguard-tools-wg-quick tcpdump"
 
-WG_SERVER_ADDRESS=${WG_SERVER_ADDRESS:-"10.100.0.1/24"}
-WG_CLIENT_ADDRESS=${WG_CLIENT_ADDRESS:-"10.100.0.2/24"}
-WG_CLIENT_ALLOWED_IP=${WG_CLIENT_ALLOWED_IP:-"10.100.0.2/32"}
-WG_ALLOWED_IPS=${WG_ALLOWED_IPS:-"10.100.0.0/24, 0.0.0.0/1, 128.0.0.0/1"}
-WG_ROUTE_SOURCE=${WG_ROUTE_SOURCE:-"10.100.0.0/24"}
-WG_LISTEN_PORT=${WG_LISTEN_PORT:-51820}
-WG_MTU=${WG_MTU:-1420}
-WG_PERSISTENT_KEEPALIVE=${WG_PERSISTENT_KEEPALIVE:-25}
-WG_ENDPOINT_PLACEHOLDER=${WG_ENDPOINT_PLACEHOLDER:-"<RTPVM_WG_ENDPOINT>"}
-WG_CONFIG_DIR=${WG_CONFIG_DIR:-"$ASSET_DIR/wireguard"}
-WG_SERVER_CONFIG=${WG_SERVER_CONFIG:-"$WG_CONFIG_DIR/wg-server.conf"}
-WG_CLIENT_CONFIG=${WG_CLIENT_CONFIG:-"$WG_CONFIG_DIR/wg-client.conf"}
-WG_BIN=${WG_BIN:-}
+mkdir -p "$ASSET_ROOT" "$ASSET_DIR" "$CACHE_DIR" "$ISO_EXTRACT_DIR"
 
-mkdir -p "$ASSET_ROOT" "$ASSET_DIR" "$CACHE_DIR" "$ISO_EXTRACT_DIR" "$WG_CONFIG_DIR"
-mkdir -p "$(dirname -- "$WG_SERVER_CONFIG")" "$(dirname -- "$WG_CLIENT_CONFIG")"
-
-resolve_wireguard_binary() {
-    if [ -n "$WG_BIN" ]; then
-        if [ -x "$WG_BIN" ]; then
-            return
-        fi
-
-        echo "WG_BIN is set but is not executable: $WG_BIN" >&2
-        exit 1
-    fi
-
-    WG_BIN=$(command -v wg 2>/dev/null || true)
-    if [ -z "$WG_BIN" ]; then
-        echo "Missing WireGuard CLI 'wg'." >&2
-        echo "Install it with: brew install wireguard-tools" >&2
-        echo "Or set WG_BIN=/path/to/wg before running this script." >&2
-        exit 1
-    fi
-}
-
-generate_wireguard_keys() {
-    resolve_wireguard_binary
-
-    WG_SERVER_PRIVATE_KEY=$("$WG_BIN" genkey)
-    WG_SERVER_PUBLIC_KEY=$(printf '%s\n' "$WG_SERVER_PRIVATE_KEY" | "$WG_BIN" pubkey)
-    WG_CLIENT_PRIVATE_KEY=$("$WG_BIN" genkey)
-    WG_CLIENT_PUBLIC_KEY=$(printf '%s\n' "$WG_CLIENT_PRIVATE_KEY" | "$WG_BIN" pubkey)
-}
-
-write_wireguard_configs() {
-    cat >"$WG_SERVER_CONFIG" <<EOF
-[Interface]
-PrivateKey = $WG_SERVER_PRIVATE_KEY
-Address = $WG_SERVER_ADDRESS
-ListenPort = $WG_LISTEN_PORT
-MTU = $WG_MTU
-
-[Peer]
-PublicKey = $WG_CLIENT_PUBLIC_KEY
-AllowedIPs = $WG_CLIENT_ALLOWED_IP
-PersistentKeepalive = $WG_PERSISTENT_KEEPALIVE
-EOF
-    chmod 0600 "$WG_SERVER_CONFIG"
-
-    cat >"$WG_CLIENT_CONFIG" <<EOF
-[Interface]
-PrivateKey = $WG_CLIENT_PRIVATE_KEY
-Address = $WG_CLIENT_ADDRESS
-MTU = $WG_MTU
-
-[Peer]
-PublicKey = $WG_SERVER_PUBLIC_KEY
-AllowedIPs = $WG_ALLOWED_IPS
-Endpoint = $WG_ENDPOINT_PLACEHOLDER
-PersistentKeepalive = $WG_PERSISTENT_KEEPALIVE
-EOF
-    chmod 0600 "$WG_CLIENT_CONFIG"
-}
+stale_wireguard_dir="$ASSET_DIR/wireguard"
+if [ -e "$stale_wireguard_dir" ]; then
+    rm -rf "$stale_wireguard_dir"
+    echo "Removed stale WireGuard asset directory: $stale_wireguard_dir"
+fi
 
 INITRAMFS_SCRIPT_DIR="$SCRIPT_DIR/initramfs"
 
@@ -118,44 +51,12 @@ install_initramfs_script() {
     chmod 0755 "$initramfs_script_destination"
 }
 
-install_rendered_initramfs_script() {
-    initramfs_script_source=$1
-    initramfs_script_destination=$2
-
-    require_initramfs_script "$initramfs_script_source"
-    python3 - "$initramfs_script_source" "$initramfs_script_destination" "$WG_LISTEN_PORT" "$WG_ROUTE_SOURCE" <<'PY_RENDER'
-from pathlib import Path
-import sys
-
-source = Path(sys.argv[1])
-destination = Path(sys.argv[2])
-listen_port = sys.argv[3]
-route_source = sys.argv[4]
-
-
-def shell_single_quote_content(value):
-    return value.replace("'", "'\"'\"'")
-
-text = source.read_text()
-text = text.replace("@WG_LISTEN_PORT@", shell_single_quote_content(listen_port))
-text = text.replace("@WG_ROUTE_SOURCE@", shell_single_quote_content(route_source))
-destination.write_text(text)
-PY_RENDER
-    chmod 0755 "$initramfs_script_destination"
-}
-
-install_init_network_script() {
-    init_network_source="$INITRAMFS_SCRIPT_DIR/init-network"
-    init_network_destination=$1
-
-    install_rendered_initramfs_script "$init_network_source" "$init_network_destination"
-}
-
 write_rtpvm_inittab() {
     destination=$1
     cat >"$destination" <<'RTPVM_INITTAB'
 ::sysinit:/etc/init.d/rcS
 ::wait:/usr/local/sbin/init-rndis
+::wait:/usr/local/sbin/init-virtiofs-wgconf
 ::once:/usr/local/sbin/init-network
 ::respawn:/usr/local/sbin/usb0-watcher
 hvc0::respawn:/usr/local/sbin/init-console
@@ -273,9 +174,6 @@ write_header("TRAILER!!!", 0, 0)
 PY
 }
 
-generate_wireguard_keys
-write_wireguard_configs
-
 download() {
     url=$1
     dest=$2
@@ -383,6 +281,7 @@ kernel/drivers/net/usb/cdc_ether.ko.gz
 kernel/drivers/net/usb/cdc_subset.ko.gz
 kernel/drivers/net/usb/rndis_host.ko.gz
 kernel/drivers/net/wireguard/wireguard.ko.gz
+kernel/fs/fuse/virtiofs.ko.gz
 kernel/net/netfilter/nfnetlink.ko.gz
 kernel/net/netfilter/nf_tables.ko.gz
 kernel/net/netfilter/nf_conntrack.ko.gz
@@ -563,7 +462,6 @@ mkdir -p \
     "$work_dir/sbin" \
     "$work_dir/dev" \
     "$work_dir/etc/init.d" \
-    "$work_dir/etc/wireguard" \
     "$work_dir/root" \
     "$work_dir/tmp" \
     "$work_dir/run" \
@@ -575,12 +473,10 @@ write_rtpvm_inittab "$work_dir/etc/inittab"
 install_initramfs_script "$INITRAMFS_SCRIPT_DIR/rcS" "$work_dir/etc/init.d/rcS"
 install_initramfs_script "$INITRAMFS_SCRIPT_DIR/init-console" "$work_dir/usr/local/sbin/init-console"
 install_initramfs_script "$INITRAMFS_SCRIPT_DIR/init-rndis" "$work_dir/usr/local/sbin/init-rndis"
-install_init_network_script "$work_dir/usr/local/sbin/init-network"
-install_rendered_initramfs_script "$INITRAMFS_SCRIPT_DIR/usb0-watcher" "$work_dir/usr/local/sbin/usb0-watcher"
-install_rendered_initramfs_script "$INITRAMFS_SCRIPT_DIR/wg0-usb0-gateway" "$work_dir/usr/local/sbin/wg0-usb0-gateway"
-
-cp "$WG_SERVER_CONFIG" "$work_dir/etc/wireguard/wg0.conf"
-chmod 0600 "$work_dir/etc/wireguard/wg0.conf"
+install_initramfs_script "$INITRAMFS_SCRIPT_DIR/init-virtiofs-wgconf" "$work_dir/usr/local/sbin/init-virtiofs-wgconf"
+install_initramfs_script "$INITRAMFS_SCRIPT_DIR/init-network" "$work_dir/usr/local/sbin/init-network"
+install_initramfs_script "$INITRAMFS_SCRIPT_DIR/usb0-watcher" "$work_dir/usr/local/sbin/usb0-watcher"
+install_initramfs_script "$INITRAMFS_SCRIPT_DIR/wg0-usb0-gateway" "$work_dir/usr/local/sbin/wg0-usb0-gateway"
 
 for applet in \
     awk cat chmod clear cp cut date dmesg echo env false find grep head hostname \
@@ -669,14 +565,6 @@ BASE_INITRAMFS=$base_initramfs
 INITRAMFS=$rtpvm_initramfs
 KERNEL_ARGS=$kernel_args
 GUEST_PACKAGES=$guest_package_names
-WG_SERVER_CONFIG=$WG_SERVER_CONFIG
-WG_CLIENT_CONFIG=$WG_CLIENT_CONFIG
-WG_SERVER_ADDRESS=$WG_SERVER_ADDRESS
-WG_CLIENT_ADDRESS=$WG_CLIENT_ADDRESS
-WG_CLIENT_ALLOWED_IP=$WG_CLIENT_ALLOWED_IP
-WG_ALLOWED_IPS=$WG_ALLOWED_IPS
-WG_ROUTE_SOURCE=$WG_ROUTE_SOURCE
-WG_ENDPOINT_PLACEHOLDER=$WG_ENDPOINT_PLACEHOLDER
 EOF
 
 cat <<EOF
@@ -684,9 +572,7 @@ Prepared ephemeral Alpine RTPVM assets:
   Kernel:            $kernel_image
   RTPVM initramfs:    $rtpvm_initramfs
   Base initramfs:    $base_initramfs
-  Server WG config:   $WG_SERVER_CONFIG
-  Client WG config:   $WG_CLIENT_CONFIG
-  Kernel modules:    $kernel_release RNDIS/WireGuard/netfilter/NAT modules from $kernel_apk_name
+  Kernel modules:    $kernel_release VirtioFS/RNDIS/WireGuard/netfilter/NAT modules from $kernel_apk_name
   Guest packages:   $guest_package_names
   Kernel arguments:  $kernel_args
 EOF

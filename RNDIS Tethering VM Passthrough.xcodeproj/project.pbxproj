@@ -24,7 +24,8 @@
 		8B0000000000000000000012 /* RuntimeEntitlements.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000000000000000000112 /* RuntimeEntitlements.swift */; };
 		8E0000000000000000000001 /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = 8E0000000000000000000102 /* SwiftTerm */; };
 		8F0000000000000000000001 /* WireGuardSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F0000000000000000000101 /* WireGuardSettings.swift */; };
-		8F0000000000000000000002 /* WireguardConfLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F0000000000000000000102 /* WireguardConfLoader.swift */; };
+		8F0000000000000000000002 /* WireGuardConfBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F0000000000000000000102 /* WireGuardConfBuilder.swift */; };
+		8F0000000000000000000005 /* WireGuardConfStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F0000000000000000000105 /* WireGuardConfStore.swift */; };
 		8F0000000000000000000003 /* VMCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F0000000000000000000103 /* VMCoordinator.swift */; };
 		8F0000000000000000000004 /* USBAccessoryCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F0000000000000000000104 /* USBAccessoryCoordinator.swift */; };
 		9A0000000000000000000001 /* MenuBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A0000000000000000000101 /* MenuBarController.swift */; };
@@ -61,7 +62,8 @@
 		8B0000000000000000000112 /* RuntimeEntitlements.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeEntitlements.swift; sourceTree = "<group>"; };
 		8B0000000000000000000113 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		8F0000000000000000000101 /* WireGuardSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardSettings.swift; sourceTree = "<group>"; };
-		8F0000000000000000000102 /* WireguardConfLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireguardConfLoader.swift; sourceTree = "<group>"; };
+		8F0000000000000000000102 /* WireGuardConfBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardConfBuilder.swift; sourceTree = "<group>"; };
+		8F0000000000000000000105 /* WireGuardConfStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardConfStore.swift; sourceTree = "<group>"; };
 		8F0000000000000000000103 /* VMCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMCoordinator.swift; sourceTree = "<group>"; };
 		8F0000000000000000000104 /* USBAccessoryCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBAccessoryCoordinator.swift; sourceTree = "<group>"; };
 		9A0000000000000000000101 /* MenuBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarController.swift; sourceTree = "<group>"; };
@@ -191,7 +193,8 @@
 				8B0000000000000000000109 /* Clipboard.swift */,
 				8B000000000000000000010A /* FilePicker.swift */,
 				8B0000000000000000000112 /* RuntimeEntitlements.swift */,
-				8F0000000000000000000102 /* WireguardConfLoader.swift */,
+				8F0000000000000000000105 /* WireGuardConfStore.swift */,
+				8F0000000000000000000102 /* WireGuardConfBuilder.swift */,
 			);
 			path = Support;
 			sourceTree = "<group>";
@@ -320,7 +323,8 @@
 				8B000000000000000000000A /* FilePicker.swift in Sources */,
 				8B0000000000000000000012 /* RuntimeEntitlements.swift in Sources */,
 				8F0000000000000000000001 /* WireGuardSettings.swift in Sources */,
-				8F0000000000000000000002 /* WireguardConfLoader.swift in Sources */,
+				8F0000000000000000000005 /* WireGuardConfStore.swift in Sources */,
+				8F0000000000000000000002 /* WireGuardConfBuilder.swift in Sources */,
 				8F0000000000000000000003 /* VMCoordinator.swift in Sources */,
 				8F0000000000000000000004 /* USBAccessoryCoordinator.swift in Sources */,
 				9A0000000000000000000001 /* MenuBarController.swift in Sources */,

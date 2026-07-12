@@ -10,6 +10,7 @@ struct VMCoordinatorStartInput {
     let kernelURL: URL
     let initialRamdiskURL: URL
     let diskImageURL: URL?
+    let wireGuardConfigurationDirectoryURL: URL
     let cpuCount: Int
     let memorySizeMiB: Int
     let bootCommandLine: String
@@ -77,6 +78,7 @@ final class VMCoordinator {
                 kernelURL: input.kernelURL,
                 initialRamdiskURL: input.initialRamdiskURL,
                 diskImageURL: input.diskImageURL,
+                wireGuardConfigurationDirectoryURL: input.wireGuardConfigurationDirectoryURL,
                 cpuCount: input.cpuCount,
                 memorySizeBytes: UInt64(input.memorySizeMiB) * 1024 * 1024,
                 bootCommandLine: input.bootCommandLine,

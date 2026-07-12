@@ -1,22 +1,7 @@
 #!/bin/sh
 set -eu
 
-SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-ASSET_DIR=${RTPVM_ASSET_DIR:-"$SCRIPT_DIR/assets"}
-DEFAULT_SOURCE_CONFIG="$ASSET_DIR/wireguard/wg-client.conf"
-CACHE_SOURCE_CONFIG="$ASSET_DIR/.cache/wireguard/wg-client.conf"
-LEGACY_SOURCE_CONFIG="$ASSET_DIR/wg-client.conf"
-if [ -n "${RTPVM_CLIENT_CONF:-}" ]; then
-    SOURCE_CONFIG=$RTPVM_CLIENT_CONF
-elif [ -f "$DEFAULT_SOURCE_CONFIG" ]; then
-    SOURCE_CONFIG=$DEFAULT_SOURCE_CONFIG
-elif [ -f "$CACHE_SOURCE_CONFIG" ]; then
-    SOURCE_CONFIG=$CACHE_SOURCE_CONFIG
-elif [ -f "$LEGACY_SOURCE_CONFIG" ]; then
-    SOURCE_CONFIG=$LEGACY_SOURCE_CONFIG
-else
-    SOURCE_CONFIG=$DEFAULT_SOURCE_CONFIG
-fi
+SOURCE_CONFIG=${RTPVM_CLIENT_CONF:-}
 RUNTIME_DIR=${RTPVM_WG_RUNTIME_DIR:-"${HOME:?HOME is not set}/.rtpvm"}
 WG_IF=""
 RUNTIME_CONFIG=""
@@ -32,7 +17,8 @@ usage:
   $0 status [wgX]
   $0 print [wgX]
 
-Configures a host WireGuard client connection from $SOURCE_CONFIG.
+Configures a host WireGuard client connection from the file specified by
+RTPVM_CLIENT_CONF.
 
 Actions:
   up       writes $RUNTIME_DIR/<wgX>.conf and runs wg-quick up
@@ -51,6 +37,7 @@ Interactive prompts:
   endpoint port:       defaults to $WG_ENDPOINT_PORT when left blank
 
 Environment overrides:
+  RTPVM_CLIENT_CONF=/path/to/wg-client.conf
   RTPVM_WG_ENDPOINT=192.168.64.2
   RTPVM_WG_ENDPOINT_PORT=$WG_ENDPOINT_PORT
   RTPVM_WG_INTERFACE=wg0
@@ -277,20 +264,35 @@ real_wireguard_interface() {
     printf '%s' "$WG_IF"
 }
 
-prepare_runtime_config() {
+require_source_config() {
     action=$1
-    endpoint=${2:-}
+
+    if [ -z "$SOURCE_CONFIG" ]; then
+        cat >&2 <<EOF
+RTPVM_CLIENT_CONF is required.
+
+Save or export the client config from RTPVM's WireGuard screen, then run:
+  RTPVM_CLIENT_CONF=/path/to/wg-client.conf $0 $action
+EOF
+        exit 1
+    fi
 
     if [ ! -f "$SOURCE_CONFIG" ]; then
         cat >&2 <<EOF
 Missing WireGuard client config:
   $SOURCE_CONFIG
 
-Generate assets first:
-  ./script/make_vm_assets
+Set RTPVM_CLIENT_CONF to the client config saved or exported from RTPVM.
 EOF
         exit 1
     fi
+}
+
+prepare_runtime_config() {
+    action=$1
+    endpoint=${2:-}
+
+    require_source_config "$action"
 
     mkdir -p "$RUNTIME_DIR"
     umask 077
@@ -395,6 +397,7 @@ case "$ACTION" in
         if should_use_existing_runtime_config; then
             echo "Using existing $RUNTIME_CONFIG"
         else
+            require_source_config "$ACTION"
             ENDPOINT=$(resolve_endpoint)
             prepare_runtime_config "$ACTION" "$ENDPOINT"
         fi
@@ -415,6 +418,7 @@ case "$ACTION" in
         if should_use_existing_runtime_config; then
             echo "Using existing $RUNTIME_CONFIG"
         else
+            require_source_config "$ACTION"
             ENDPOINT=$(resolve_endpoint)
             prepare_runtime_config "$ACTION" "$ENDPOINT"
         fi
@@ -435,6 +439,7 @@ case "$ACTION" in
     print)
         resolve_interface "$INTERFACE_ARG"
         if ! should_use_existing_runtime_config; then
+            require_source_config "$ACTION"
             ENDPOINT=$(resolve_endpoint)
             prepare_runtime_config "$ACTION" "$ENDPOINT"
         fi

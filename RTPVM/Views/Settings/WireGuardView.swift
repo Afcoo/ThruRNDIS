@@ -45,6 +45,10 @@ struct WireGuardView: View {
                         store.reloadWireGuardConfiguration()
                     }
 
+                    Button("Open Config Folder") {
+                        store.openWireGuardConfigurationFolder()
+                    }
+
                     Spacer()
 
                     Button("Clear Endpoint") {

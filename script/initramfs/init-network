@@ -1,6 +1,5 @@
 #!/bin/sh
 
-WG_LISTEN_PORT='@WG_LISTEN_PORT@'
 BB=/usr/bin/busybox
 PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
 export PATH
@@ -105,6 +104,48 @@ interface_default_gateway() {
     '
 }
 
+wireguard_listen_port() {
+    config=$1
+    [ -f "$config" ] || return 1
+
+    port=$($BB awk '
+        function trim(value) {
+            gsub(/^[[:space:]]+/, "", value)
+            gsub(/[[:space:]]+$/, "", value)
+            return value
+        }
+
+        {
+            line = $0
+            sub(/[;#].*$/, "", line)
+
+            if (line ~ /^[[:space:]]*\[/) {
+                section = line
+                sub(/^[[:space:]]*\[/, "", section)
+                sub(/\][[:space:]]*$/, "", section)
+                section = trim(section)
+                next
+            }
+
+            if (section == "Interface" && line ~ /^[[:space:]]*ListenPort[[:space:]]*=/) {
+                sub(/^[^=]*=/, "", line)
+                print trim(line)
+                exit
+            }
+        }
+    ' "$config")
+
+    case "$port" in
+        ''|*[!0-9]*) return 1 ;;
+    esac
+
+    if [ "$port" -lt 1 ] || [ "$port" -gt 65535 ]; then
+        return 1
+    fi
+
+    printf '%s' "$port"
+}
+
 configure_ipv4_dhcp() {
     iface=$1
     label=$2
@@ -155,12 +196,15 @@ load_nat_modules() {
 
 configure_nat_ipv4() {
     iface=${1:-eth0}
+    listen_port=${2:-}
     load_nat_modules
     if configure_ipv4_dhcp "$iface" "NAT interface" "$NAT_WAIT_SECONDS" \
         "$NAT_DHCP_ATTEMPTS" "$NAT_DHCP_TIMEOUT_SECONDS" "$NAT_DHCP_TOTAL_TIMEOUT_SECONDS"; then
         endpoint_ipv4=$(interface_ipv4_address "$iface")
-        if [ -n "$endpoint_ipv4" ]; then
-            log_console "RTPVM_WG_ENDPOINT=$endpoint_ipv4:$WG_LISTEN_PORT"
+        if [ -n "$endpoint_ipv4" ] && [ -n "$listen_port" ]; then
+            log_console "RTPVM_WG_ENDPOINT=$endpoint_ipv4:$listen_port"
+        elif [ -n "$endpoint_ipv4" ]; then
+            log_console "WireGuard ListenPort is unavailable; endpoint marker not emitted"
         fi
         return 0
     fi
@@ -174,7 +218,7 @@ load_wireguard_modules() {
 
 start_wireguard() {
     iface=${1:-wg0}
-    config="/etc/wireguard/$iface.conf"
+    config=${2:-"/run/rtpvm-wireguard/$iface.conf"}
     wg_quick_log="/tmp/wg-quick-$iface.log"
 
     if [ ! -f "$config" ]; then
@@ -189,7 +233,7 @@ start_wireguard() {
 
     log_console "starting WireGuard interface $iface"
     load_wireguard_modules
-    run_with_timeout "$WG_START_TIMEOUT_SECONDS" wg-quick up "$iface" >"$wg_quick_log" 2>&1
+    run_with_timeout "$WG_START_TIMEOUT_SECONDS" wg-quick up "$config" >"$wg_quick_log" 2>&1
     rc=$?
     if [ "$rc" -eq 0 ]; then
         log_console "WireGuard interface $iface started"
@@ -202,7 +246,9 @@ start_wireguard() {
 }
 
 log_console "starting RTPVM network one-shot"
-configure_nat_ipv4 eth0 || true
-start_wireguard wg0 || true
+wireguard_config=/run/rtpvm-wireguard/wg0.conf
+listen_port=$(wireguard_listen_port "$wireguard_config" 2>/dev/null || true)
+configure_nat_ipv4 eth0 "$listen_port" || true
+start_wireguard wg0 "$wireguard_config" || true
 log_console "RTPVM network one-shot finished; usb0-watcher handles RNDIS routing"
 exit 0

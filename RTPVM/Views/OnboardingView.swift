@@ -115,14 +115,13 @@ struct OnboardingView: View {
                 .foregroundStyle(.secondary)
 
             onboardingCommand(
-                title: "Install WireGuard tools",
-                command: "brew install wireguard-tools"
-            )
-
-            onboardingCommand(
                 title: "From the repository root",
                 command: "./script/make_vm_assets"
             )
+
+            Text("WireGuard server/client keys and the generated guest server config are created separately in Application Support on first launch. Client configs are rendered only for preview or export, and are not included in the VM assets.")
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
 
             HStack {
                 Label("Output: script/assets", systemImage: "folder")
@@ -141,7 +140,7 @@ struct OnboardingView: View {
             Label("Select the Asset Folder", systemImage: "folder.badge.gearshape")
                 .font(.largeTitle.bold())
 
-            Text("Choose the generated assets folder.\nRTPVM validates the Linux kernel, custom initramfs, and generated WireGuard server/client configs before saving the selection.")
+            Text("Choose the generated assets folder.\nRTPVM validates the Linux kernel and custom initramfs before saving the selection.")
                 .font(.title3)
                 .foregroundStyle(.secondary)
 
@@ -155,7 +154,7 @@ struct OnboardingView: View {
                     }
 
                     if store.hasConfiguredVMAssets {
-                        Label("Kernel, initramfs, and WireGuard configs are ready.", systemImage: "checkmark.circle.fill")
+                        Label("Kernel and custom initramfs are ready.", systemImage: "checkmark.circle.fill")
                             .foregroundStyle(.green)
                     } else {
                         Label("A valid asset folder is required to finish.", systemImage: "exclamationmark.triangle")

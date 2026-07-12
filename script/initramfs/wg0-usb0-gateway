@@ -1,14 +1,12 @@
 #!/bin/sh
 
-WG_ROUTE_SOURCE='@WG_ROUTE_SOURCE@'
-
 BB=/usr/bin/busybox
 PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
 export PATH
 
 WG_IFACE=${RTPVM_WG_IFACE:-wg0}
 RNDIS_IFACE=${RTPVM_RNDIS_IFACE:-usb0}
-TABLE_ID=${RTPVM_WG_ROUTE_TABLE:-51820}
+TABLE_ID=${RTPVM_WG_ROUTE_TABLE:-100}
 RULE_PRIORITY=${RTPVM_WG_ROUTE_PRIORITY:-1000}
 RNDIS_WAIT_SECONDS=${RTPVM_RNDIS_WAIT_SECONDS:-2}
 RNDIS_DHCP_ATTEMPTS=${RTPVM_RNDIS_DHCP_ATTEMPTS:-2}
@@ -89,6 +87,16 @@ wait_for_interface() {
 interface_ipv4_cidr() {
     iface=$1
     ip -4 -o addr show dev "$iface" 2>/dev/null | $BB awk '{ print $4 }' | $BB head -n 1
+}
+
+wireguard_connected_ipv4_cidr() {
+    iface=$1
+    ip -4 route show dev "$iface" proto kernel scope link 2>/dev/null | $BB awk '
+        $1 != "default" && $1 ~ /^[0-9]+\./ {
+            print $1
+            exit
+        }
+    '
 }
 
 interface_default_gateway() {
@@ -190,6 +198,7 @@ enable_ipv4_forwarding() {
 
 install_policy_route() {
     gateway=$1
+    route_source=$2
 
     if ! ip route replace default via "$gateway" dev "$RNDIS_IFACE" table "$TABLE_ID" 2>/tmp/rtpvm-policy-route.err; then
         output=$($BB cat /tmp/rtpvm-policy-route.err 2>/dev/null || true)
@@ -197,18 +206,18 @@ install_policy_route() {
         return 1
     fi
 
-    while ip rule delete from "$WG_ROUTE_SOURCE" table "$TABLE_ID" 2>/dev/null; do
+    while ip rule delete priority "$RULE_PRIORITY" from "$route_source" table "$TABLE_ID" 2>/dev/null; do
         :
     done
 
-    if ip rule add priority "$RULE_PRIORITY" from "$WG_ROUTE_SOURCE" table "$TABLE_ID" 2>/tmp/rtpvm-policy-rule.err; then
+    if ip rule add priority "$RULE_PRIORITY" from "$route_source" table "$TABLE_ID" 2>/tmp/rtpvm-policy-rule.err; then
         ip route flush cache 2>/dev/null || true
-        log_console "configured WireGuard policy route: from $WG_ROUTE_SOURCE lookup $TABLE_ID via $gateway dev $RNDIS_IFACE"
+        log_console "configured WireGuard policy route: from $route_source lookup $TABLE_ID via $gateway dev $RNDIS_IFACE"
         return 0
     fi
 
     output=$($BB cat /tmp/rtpvm-policy-rule.err 2>/dev/null || true)
-    log_console "failed to install WireGuard policy rule from $WG_ROUTE_SOURCE: ${output}"
+    log_console "failed to install WireGuard policy rule from $route_source: ${output}"
     return 1
 }
 
@@ -245,20 +254,33 @@ EOF_NFT
 }
 
 gateway_up() {
-    gateway=$(ensure_rndis_gateway "$RNDIS_IFACE") || return 1
-
     if ! wait_for_interface "$WG_IFACE" 1; then
-        log_console "WireGuard interface $WG_IFACE not found; installing name-based nftables rules anyway"
+        log_console "WireGuard interface $WG_IFACE not found; cannot derive policy route source"
+        return 1
     fi
 
+    route_source=$(wireguard_connected_ipv4_cidr "$WG_IFACE")
+    if [ -z "$route_source" ]; then
+        log_console "WireGuard interface $WG_IFACE has no connected IPv4 CIDR"
+        return 1
+    fi
+
+    gateway=$(ensure_rndis_gateway "$RNDIS_IFACE") || return 1
+
     enable_ipv4_forwarding || true
-    install_policy_route "$gateway" || return 1
+    install_policy_route "$gateway" "$route_source" || return 1
     install_nftables || return 1
     return 0
 }
 
 gateway_down() {
-    while ip rule delete from "$WG_ROUTE_SOURCE" table "$TABLE_ID" 2>/dev/null; do
+    route_source=$(wireguard_connected_ipv4_cidr "$WG_IFACE")
+    if [ -n "$route_source" ]; then
+        while ip rule delete priority "$RULE_PRIORITY" from "$route_source" table "$TABLE_ID" 2>/dev/null; do
+            :
+        done
+    fi
+    while ip rule delete priority "$RULE_PRIORITY" table "$TABLE_ID" 2>/dev/null; do
         :
     done
     ip route flush table "$TABLE_ID" 2>/dev/null || true
@@ -274,6 +296,12 @@ gateway_down() {
 
 gateway_status() {
     missing=0
+    route_source=$(wireguard_connected_ipv4_cidr "$WG_IFACE")
+
+    if [ -z "$route_source" ]; then
+        echo "$WG_IFACE has no connected IPv4 CIDR"
+        missing=1
+    fi
 
     if [ ! -e "/sys/class/net/$RNDIS_IFACE" ]; then
         echo "missing $RNDIS_IFACE"
@@ -296,9 +324,11 @@ gateway_status() {
         missing=1
     fi
 
-    if ! ip rule show 2>/dev/null | $BB grep -F "from $WG_ROUTE_SOURCE lookup $TABLE_ID" >/dev/null 2>&1; then
-        echo "missing policy rule from $WG_ROUTE_SOURCE lookup $TABLE_ID"
-        missing=1
+    if [ -n "$route_source" ]; then
+        if ! ip rule show 2>/dev/null | $BB grep -F "from $route_source lookup $TABLE_ID" >/dev/null 2>&1; then
+            echo "missing policy rule from $route_source lookup $TABLE_ID"
+            missing=1
+        fi
     fi
 
     ip_forward=$($BB cat /proc/sys/net/ipv4/ip_forward 2>/dev/null || echo 0)
@@ -316,7 +346,7 @@ gateway_status() {
     fi
 
     if [ "$missing" -eq 0 ]; then
-        echo "ready $WG_IFACE -> $RNDIS_IFACE via $gateway, source $WG_ROUTE_SOURCE table $TABLE_ID"
+        echo "ready $WG_IFACE -> $RNDIS_IFACE via $gateway, source $route_source table $TABLE_ID"
         return 0
     fi
 
