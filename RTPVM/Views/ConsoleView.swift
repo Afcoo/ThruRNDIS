@@ -10,17 +10,20 @@ struct ConsoleView: View {
     @EnvironmentObject private var store: TetheringStore
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HeaderView(title: "VM Console", subtitle: "VM serial terminal - \(store.runtimeState.title)", systemImage: "terminal")
-
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
+                Label("VM serial terminal", systemImage: "terminal")
+
+                Text(store.vmDisplayState.rawValue)
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
                 Button {
                     store.clearConsole()
                 } label: {
                     Label("Clear", systemImage: "trash")
                 }
-
-                Spacer()
             }
 
             SwiftTermConsoleView(
@@ -36,8 +39,8 @@ struct ConsoleView: View {
                 .frame(minHeight: 320)
                 .clipShape(RoundedRectangle(cornerRadius: 6))
         }
-        .padding(20)
-        .navigationTitle("VM Console")
+        .padding(12)
+        .frame(minWidth: 680, minHeight: 420)
     }
 }
 

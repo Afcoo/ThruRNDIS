@@ -11,21 +11,10 @@ enum VMRuntimeState: String {
     case stopping
     case stopped
     case failed
+}
 
-    var title: String {
-        switch self {
-        case .idle:
-            return "Idle"
-        case .starting:
-            return "Starting"
-        case .running:
-            return "Running"
-        case .stopping:
-            return "Stopping"
-        case .stopped:
-            return "Stopped"
-        case .failed:
-            return "Failed"
-        }
-    }
+enum VMDisplayState: String {
+    case stopped = "Stopped"
+    case running = "Running"
+    case restarting = "Restarting"
 }

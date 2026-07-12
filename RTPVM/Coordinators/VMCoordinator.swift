@@ -21,7 +21,7 @@ final class VMCoordinator {
     var onStateChange: ((VMRuntimeState, String) -> Void)?
     var onEvent: ((String) -> Void)?
     var onConsoleOutput: ((Data) -> Void)?
-    var onUSBPassthroughDisconnect: (() -> Void)?
+    var onUSBPassthroughDisconnect: ((VZUSBPassthroughDevice) -> Void)?
     var onStopped: (() -> Void)?
 
     private(set) var runtimeState: VMRuntimeState = .idle
@@ -31,21 +31,46 @@ final class VMCoordinator {
     private var usbDelegate: USBControllerDelegateBox?
     private var runtimeResources: VMRuntimeResources?
     private var hasReceivedConsoleOutput = false
-    private var isRestartingAfterUSBDetach = false
+    private var isRestarting = false
+    private var restartContinuation: (() -> Void)?
+    private var generation: UInt64 = 0
     private var consoleOutputWatchdogTask: Task<Void, Never>?
 
     var canStop: Bool {
-        runtimeState == .running || runtimeState == .starting
+        virtualMachine != nil
+            && (runtimeState == .running || runtimeState == .starting || runtimeState == .failed)
+    }
+
+    var canRestart: Bool {
+        (runtimeState == .running || runtimeState == .starting) && !isRestarting
     }
 
     var canSendConsoleInput: Bool {
         runtimeState == .running && (runtimeResources?.consoleInputPipe.fileHandleForWriting.fileDescriptor ?? -1) >= 0
     }
 
+    var canStart: Bool {
+        virtualMachine == nil
+            && (runtimeState == .idle || runtimeState == .stopped || runtimeState == .failed)
+    }
+
+    var hasVirtualMachine: Bool {
+        virtualMachine != nil
+    }
+
     func start(input: VMCoordinatorStartInput) {
+        guard runtimeState != .starting,
+              runtimeState != .running,
+              runtimeState != .stopping else {
+            onEvent?("VM start ignored while VM state is \(runtimeState.rawValue).")
+            return
+        }
+
         releaseRuntimeResources()
         cancelConsoleOutputWatchdog()
         hasReceivedConsoleOutput = false
+        generation &+= 1
+        let generation = self.generation
 
         do {
             let configurationInput = VMConfigurationInput(
@@ -59,11 +84,11 @@ final class VMCoordinator {
             )
 
             let result = try VMConfigurationFactory.build(input: configurationInput)
-            installConsoleReader(result.resources.consoleOutputPipe)
+            installConsoleReader(result.resources.consoleOutputPipe, generation: generation)
 
             let virtualMachine = VZVirtualMachine(configuration: result.configuration)
-            let delegate = makeDelegate()
-            let usbDelegate = makeUSBDelegate()
+            let delegate = makeDelegate(generation: generation)
+            let usbDelegate = makeUSBDelegate(for: virtualMachine, generation: generation)
             virtualMachine.delegate = delegate
             virtualMachine.usbControllers.forEach { $0.delegate = usbDelegate }
 
@@ -77,15 +102,25 @@ final class VMCoordinator {
             virtualMachine.start { [weak self] startResult in
                 Task { @MainActor in
                     guard let self else { return }
+                    guard self.isCurrent(virtualMachine, generation: generation) else {
+                        self.onEvent?("Ignoring stale VM start completion from an earlier VM generation.")
+                        return
+                    }
+
+                    guard self.runtimeState == .starting else {
+                        self.onEvent?("Ignoring VM start completion while VM state is \(self.runtimeState.rawValue).")
+                        return
+                    }
 
                     switch startResult {
                     case .success:
                         self.transition(to: .running, message: "VM running.")
                         self.onEvent?("VM started.")
-                        self.scheduleConsoleOutputWatchdog()
+                        self.scheduleConsoleOutputWatchdog(generation: generation)
                     case .failure(let error):
                         self.transition(to: .failed, message: error.localizedDescription)
                         self.onEvent?("VM start failed: \(error.localizedDescription)")
+                        self.generation &+= 1
                         self.virtualMachine = nil
                         self.vmDelegate = nil
                         self.usbDelegate = nil
@@ -103,6 +138,7 @@ final class VMCoordinator {
         guard let virtualMachine else {
             return
         }
+        let generation = self.generation
 
         transition(to: .stopping, message: "Stopping VM.")
         onEvent?("Stopping VM.")
@@ -110,6 +146,10 @@ final class VMCoordinator {
         virtualMachine.stop { [weak self] error in
             Task { @MainActor in
                 guard let self else { return }
+                guard self.isCurrent(virtualMachine, generation: generation) else {
+                    self.onEvent?("Ignoring stale VM stop completion from an earlier VM generation.")
+                    return
+                }
 
                 if let error {
                     self.transition(to: .failed, message: error.localizedDescription)
@@ -121,41 +161,45 @@ final class VMCoordinator {
         }
     }
 
-    func restartAfterUSBDetach(reason: String, startAgain: @escaping () -> Void) {
+    func restart(reason: String, startAgain: @escaping () -> Void) {
         guard let virtualMachine else {
-            onEvent?("USB detach restart skipped: VM is not available (\(reason)).")
+            onEvent?("VM restart skipped: VM is not available (\(reason)).")
             return
         }
 
         guard runtimeState == .running || runtimeState == .starting else {
-            onEvent?("USB detach restart skipped while VM state is \(runtimeState.rawValue): \(reason).")
+            onEvent?("VM restart skipped while VM state is \(runtimeState.rawValue): \(reason).")
             return
         }
 
-        guard !isRestartingAfterUSBDetach else {
-            onEvent?("USB detach restart already pending: \(reason).")
+        guard !isRestarting else {
+            onEvent?("VM restart already pending: \(reason).")
             return
         }
+        let generation = self.generation
 
-        isRestartingAfterUSBDetach = true
-        transition(to: .stopping, message: "USB detached; restarting VM.")
-        onEvent?("USB detach policy: restarting VM to recreate the fixed usb0 RNDIS session (\(reason)).")
+        isRestarting = true
+        restartContinuation = startAgain
+        transition(to: .stopping, message: "Restarting VM.")
+        onEvent?("Restarting VM to recreate the fixed usb0 RNDIS session (\(reason)).")
 
         virtualMachine.stop { [weak self] error in
             Task { @MainActor in
                 guard let self else { return }
-
-                if let error {
-                    self.isRestartingAfterUSBDetach = false
-                    self.transition(to: .failed, message: error.localizedDescription)
-                    self.releaseRuntimeResources()
-                    self.onEvent?("VM restart after USB detach failed while stopping VM: \(error.localizedDescription)")
+                guard self.isCurrent(virtualMachine, generation: generation) else {
+                    self.onEvent?("Ignoring stale VM restart completion from an earlier VM generation.")
                     return
                 }
 
-                self.markStopped(message: "VM stopped after USB detach.")
-                self.isRestartingAfterUSBDetach = false
-                startAgain()
+                if let error {
+                    self.isRestarting = false
+                    self.restartContinuation = nil
+                    self.transition(to: .failed, message: error.localizedDescription)
+                    self.onEvent?("VM restart failed while stopping VM: \(error.localizedDescription)")
+                    return
+                }
+
+                self.markStopped(message: "VM stopped for restart.")
             }
         }
     }
@@ -175,47 +219,74 @@ final class VMCoordinator {
     }
 
     func invalidate() {
+        generation &+= 1
+        isRestarting = false
+        restartContinuation = nil
+        virtualMachine = nil
+        vmDelegate = nil
+        usbDelegate = nil
         releaseRuntimeResources()
     }
 
-    private func makeDelegate() -> VirtualMachineDelegateBox {
+    private func makeDelegate(generation: UInt64) -> VirtualMachineDelegateBox {
         let delegate = VirtualMachineDelegateBox()
 
-        delegate.onGuestDidStop = { [weak self] in
+        delegate.onGuestDidStop = { [weak self] callbackVirtualMachine in
             Task { @MainActor in
-                self?.markStopped(message: "Guest shut down.")
+                guard let self,
+                      self.isCurrent(callbackVirtualMachine, generation: generation) else {
+                    return
+                }
+                self.markStopped(message: "Guest shut down.")
             }
         }
 
-        delegate.onStopError = { [weak self] error in
+        delegate.onStopError = { [weak self] callbackVirtualMachine, error in
             Task { @MainActor in
-                guard let self else { return }
+                guard let self,
+                      self.isCurrent(callbackVirtualMachine, generation: generation) else {
+                    return
+                }
 
-                self.isRestartingAfterUSBDetach = false
+                self.isRestarting = false
+                self.restartContinuation = nil
                 self.transition(to: .failed, message: error.localizedDescription)
+                self.generation &+= 1
                 self.releaseRuntimeResources()
                 self.virtualMachine = nil
                 self.vmDelegate = nil
                 self.usbDelegate = nil
+                self.onStopped?()
                 self.onEvent?("VM stopped with error: \(error.localizedDescription)")
             }
         }
 
-        delegate.onNetworkDisconnect = { [weak self] error in
+        delegate.onNetworkDisconnect = { [weak self] callbackVirtualMachine, error in
             Task { @MainActor in
-                self?.onEvent?("VM network attachment disconnected: \(error.localizedDescription)")
+                guard let self,
+                      self.isCurrent(callbackVirtualMachine, generation: generation) else {
+                    return
+                }
+                self.onEvent?("VM network attachment disconnected: \(error.localizedDescription)")
             }
         }
 
         return delegate
     }
 
-    private func makeUSBDelegate() -> USBControllerDelegateBox {
+    private func makeUSBDelegate(
+        for virtualMachine: VZVirtualMachine,
+        generation: UInt64
+    ) -> USBControllerDelegateBox {
         let delegate = USBControllerDelegateBox()
 
-        delegate.onUSBPassthroughDisconnect = { [weak self] in
+        delegate.onUSBPassthroughDisconnect = { [weak self, weak virtualMachine] device in
             Task { @MainActor in
-                self?.onUSBPassthroughDisconnect?()
+                guard let self, let virtualMachine,
+                      self.isCurrent(virtualMachine, generation: generation) else {
+                    return
+                }
+                self.onUSBPassthroughDisconnect?(device)
             }
         }
 
@@ -223,22 +294,28 @@ final class VMCoordinator {
     }
 
     private func markStopped(message: String) {
-        transition(to: .stopped, message: message)
+        let continuation = restartContinuation
+        restartContinuation = nil
+        isRestarting = false
+        generation &+= 1
         virtualMachine = nil
         vmDelegate = nil
         usbDelegate = nil
         releaseRuntimeResources()
+        transition(to: .stopped, message: message)
         onStopped?()
         onEvent?(message)
+        continuation?()
     }
 
-    private func installConsoleReader(_ pipe: Pipe) {
+    private func installConsoleReader(_ pipe: Pipe, generation: UInt64) {
         pipe.fileHandleForReading.readabilityHandler = { [weak self] fileHandle in
             let data = fileHandle.availableData
             guard !data.isEmpty else {
                 fileHandle.readabilityHandler = nil
                 Task { @MainActor in
                     guard let self else { return }
+                    guard self.generation == generation else { return }
                     let message = self.hasReceivedConsoleOutput
                         ? "Console output pipe closed."
                         : "Console output pipe closed before any data was received."
@@ -248,7 +325,8 @@ final class VMCoordinator {
             }
 
             Task { @MainActor in
-                self?.appendConsole(data)
+                guard let self, self.generation == generation else { return }
+                self.appendConsole(data)
             }
         }
     }
@@ -303,11 +381,12 @@ final class VMCoordinator {
         runtimeResources = nil
     }
 
-    private func scheduleConsoleOutputWatchdog() {
+    private func scheduleConsoleOutputWatchdog(generation: UInt64) {
         cancelConsoleOutputWatchdog()
         consoleOutputWatchdogTask = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(15))
             guard let self, !Task.isCancelled else { return }
+            guard self.generation == generation else { return }
             guard self.runtimeState == .running, !self.hasReceivedConsoleOutput else { return }
 
             self.onEvent?("No VM console output received after 15s. Selected kernel/initramfs assets are logged above; confirm the kernel is Image-lts and the initramfs is initramfs-rtpvm-lts regenerated after the latest script changes.")
@@ -323,22 +402,26 @@ final class VMCoordinator {
         runtimeState = state
         onStateChange?(state, message)
     }
+
+    private func isCurrent(_ virtualMachine: VZVirtualMachine, generation: UInt64) -> Bool {
+        self.virtualMachine === virtualMachine && self.generation == generation
+    }
 }
 
 private final class VirtualMachineDelegateBox: NSObject, VZVirtualMachineDelegate {
-    var onGuestDidStop: (() -> Void)?
-    var onStopError: ((Error) -> Void)?
-    var onNetworkDisconnect: ((Error) -> Void)?
+    var onGuestDidStop: ((VZVirtualMachine) -> Void)?
+    var onStopError: ((VZVirtualMachine, Error) -> Void)?
+    var onNetworkDisconnect: ((VZVirtualMachine, Error) -> Void)?
 
     func guestDidStop(_ virtualMachine: VZVirtualMachine) {
         DispatchQueue.main.async { [weak self] in
-            self?.onGuestDidStop?()
+            self?.onGuestDidStop?(virtualMachine)
         }
     }
 
     func virtualMachine(_ virtualMachine: VZVirtualMachine, didStopWithError error: Error) {
         DispatchQueue.main.async { [weak self] in
-            self?.onStopError?(error)
+            self?.onStopError?(virtualMachine, error)
         }
     }
 
@@ -348,17 +431,17 @@ private final class VirtualMachineDelegateBox: NSObject, VZVirtualMachineDelegat
         attachmentWasDisconnectedWithError error: Error
     ) {
         DispatchQueue.main.async { [weak self] in
-            self?.onNetworkDisconnect?(error)
+            self?.onNetworkDisconnect?(virtualMachine, error)
         }
     }
 }
 
 private final class USBControllerDelegateBox: NSObject, VZUSBController.Delegate {
-    var onUSBPassthroughDisconnect: (() -> Void)?
+    var onUSBPassthroughDisconnect: ((VZUSBPassthroughDevice) -> Void)?
 
     func usbController(_ usbController: VZUSBController, usbPassthroughDeviceDidDisconnect device: VZUSBPassthroughDevice) {
         DispatchQueue.main.async { [weak self] in
-            self?.onUSBPassthroughDisconnect?()
+            self?.onUSBPassthroughDisconnect?(device)
         }
     }
 }

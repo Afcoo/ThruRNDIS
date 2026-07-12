@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		8B0000000000000000000001 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000000000000000000101 /* App.swift */; };
-		8B0000000000000000000002 /* AppSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000000000000000000102 /* AppSection.swift */; };
 		8B0000000000000000000003 /* USBAccessoryRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000000000000000000103 /* USBAccessoryRecord.swift */; };
 		8B0000000000000000000004 /* VMRuntimeState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000000000000000000104 /* VMRuntimeState.swift */; };
 		8B0000000000000000000005 /* USBAccessoryMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000000000000000000105 /* USBAccessoryMonitor.swift */; };
@@ -16,11 +15,11 @@
 		8B0000000000000000000008 /* TetheringStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000000000000000000108 /* TetheringStore.swift */; };
 		8B0000000000000000000009 /* Clipboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000000000000000000109 /* Clipboard.swift */; };
 		8B000000000000000000000A /* FilePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B000000000000000000010A /* FilePicker.swift */; };
-		8B000000000000000000000B /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B000000000000000000010B /* ContentView.swift */; };
-		8B000000000000000000000C /* VMSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B000000000000000000010C /* VMSetupView.swift */; };
+		8B000000000000000000000B /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B000000000000000000010B /* SettingsView.swift */; };
+		8B000000000000000000000C /* VMView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B000000000000000000010C /* VMView.swift */; };
 		8B000000000000000000000D /* USBAccessoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B000000000000000000010D /* USBAccessoryView.swift */; };
 		8B000000000000000000000E /* ConsoleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B000000000000000000010E /* ConsoleView.swift */; };
-		8B000000000000000000000F /* WireguardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B000000000000000000010F /* WireguardView.swift */; };
+		8B000000000000000000000F /* WireGuardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B000000000000000000010F /* WireGuardView.swift */; };
 		8B0000000000000000000011 /* SharedViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000000000000000000111 /* SharedViews.swift */; };
 		8B0000000000000000000012 /* RuntimeEntitlements.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000000000000000000112 /* RuntimeEntitlements.swift */; };
 		8E0000000000000000000001 /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = 8E0000000000000000000102 /* SwiftTerm */; };
@@ -28,6 +27,15 @@
 		8F0000000000000000000002 /* WireguardConfLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F0000000000000000000102 /* WireguardConfLoader.swift */; };
 		8F0000000000000000000003 /* VMCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F0000000000000000000103 /* VMCoordinator.swift */; };
 		8F0000000000000000000004 /* USBAccessoryCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F0000000000000000000104 /* USBAccessoryCoordinator.swift */; };
+		9A0000000000000000000001 /* MenuBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A0000000000000000000101 /* MenuBarController.swift */; };
+		9A0000000000000000000002 /* OnboardingWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A0000000000000000000102 /* OnboardingWindowController.swift */; };
+		9A0000000000000000000003 /* USBAttachmentPrompt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A0000000000000000000103 /* USBAttachmentPrompt.swift */; };
+		9A0000000000000000000004 /* LaunchAtLoginService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A0000000000000000000104 /* LaunchAtLoginService.swift */; };
+		9A0000000000000000000005 /* GeneralView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A0000000000000000000105 /* GeneralView.swift */; };
+		9A0000000000000000000006 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A0000000000000000000106 /* OnboardingView.swift */; };
+		9A0000000000000000000007 /* SettingsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A0000000000000000000107 /* SettingsWindowController.swift */; };
+		9A0000000000000000000008 /* ConsoleWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A0000000000000000000108 /* ConsoleWindowController.swift */; };
+		9A0000000000000000000009 /* InfoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A0000000000000000000109 /* InfoView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -37,7 +45,6 @@
 		3B6662F3321F8749BDBDDB08 /* LICENSE.txt */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; path = LICENSE.txt; sourceTree = "<group>"; };
 		415EB883448D759F3C023B32 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		8B0000000000000000000101 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
-		8B0000000000000000000102 /* AppSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSection.swift; sourceTree = "<group>"; };
 		8B0000000000000000000103 /* USBAccessoryRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBAccessoryRecord.swift; sourceTree = "<group>"; };
 		8B0000000000000000000104 /* VMRuntimeState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMRuntimeState.swift; sourceTree = "<group>"; };
 		8B0000000000000000000105 /* USBAccessoryMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBAccessoryMonitor.swift; sourceTree = "<group>"; };
@@ -45,11 +52,11 @@
 		8B0000000000000000000108 /* TetheringStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TetheringStore.swift; sourceTree = "<group>"; };
 		8B0000000000000000000109 /* Clipboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Clipboard.swift; sourceTree = "<group>"; };
 		8B000000000000000000010A /* FilePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilePicker.swift; sourceTree = "<group>"; };
-		8B000000000000000000010B /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		8B000000000000000000010C /* VMSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMSetupView.swift; sourceTree = "<group>"; };
+		8B000000000000000000010B /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		8B000000000000000000010C /* VMView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMView.swift; sourceTree = "<group>"; };
 		8B000000000000000000010D /* USBAccessoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBAccessoryView.swift; sourceTree = "<group>"; };
 		8B000000000000000000010E /* ConsoleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsoleView.swift; sourceTree = "<group>"; };
-		8B000000000000000000010F /* WireguardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireguardView.swift; sourceTree = "<group>"; };
+		8B000000000000000000010F /* WireGuardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardView.swift; sourceTree = "<group>"; };
 		8B0000000000000000000111 /* SharedViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedViews.swift; sourceTree = "<group>"; };
 		8B0000000000000000000112 /* RuntimeEntitlements.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeEntitlements.swift; sourceTree = "<group>"; };
 		8B0000000000000000000113 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -57,6 +64,15 @@
 		8F0000000000000000000102 /* WireguardConfLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireguardConfLoader.swift; sourceTree = "<group>"; };
 		8F0000000000000000000103 /* VMCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMCoordinator.swift; sourceTree = "<group>"; };
 		8F0000000000000000000104 /* USBAccessoryCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBAccessoryCoordinator.swift; sourceTree = "<group>"; };
+		9A0000000000000000000101 /* MenuBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarController.swift; sourceTree = "<group>"; };
+		9A0000000000000000000102 /* OnboardingWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingWindowController.swift; sourceTree = "<group>"; };
+		9A0000000000000000000103 /* USBAttachmentPrompt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBAttachmentPrompt.swift; sourceTree = "<group>"; };
+		9A0000000000000000000104 /* LaunchAtLoginService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginService.swift; sourceTree = "<group>"; };
+		9A0000000000000000000105 /* GeneralView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralView.swift; sourceTree = "<group>"; };
+		9A0000000000000000000106 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		9A0000000000000000000107 /* SettingsWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowController.swift; sourceTree = "<group>"; };
+		9A0000000000000000000108 /* ConsoleWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsoleWindowController.swift; sourceTree = "<group>"; };
+		9A0000000000000000000109 /* InfoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InfoView.swift; sourceTree = "<group>"; };
 		E3865CF619CB3E4197A4D3AA /* LocalSigning.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = LocalSigning.xcconfig.example; path = Configuration/LocalSigning.xcconfig.example; sourceTree = "<group>"; };
 		E3865CF719CB3E4197A4D3A9 /* BuildSettings.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = BuildSettings.xcconfig; path = Configuration/BuildSettings.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -132,6 +148,10 @@
 			isa = PBXGroup;
 			children = (
 				8B0000000000000000000101 /* App.swift */,
+				9A0000000000000000000101 /* MenuBarController.swift */,
+				9A0000000000000000000102 /* OnboardingWindowController.swift */,
+				9A0000000000000000000107 /* SettingsWindowController.swift */,
+				9A0000000000000000000108 /* ConsoleWindowController.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -139,10 +159,10 @@
 		8B0000000000000000000202 /* Models */ = {
 			isa = PBXGroup;
 			children = (
-				8B0000000000000000000102 /* AppSection.swift */,
 				8B0000000000000000000103 /* USBAccessoryRecord.swift */,
 				8B0000000000000000000104 /* VMRuntimeState.swift */,
 				8F0000000000000000000101 /* WireGuardSettings.swift */,
+				9A0000000000000000000103 /* USBAttachmentPrompt.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -152,6 +172,7 @@
 			children = (
 				8B0000000000000000000105 /* USBAccessoryMonitor.swift */,
 				8B0000000000000000000107 /* VMConfigurationFactory.swift */,
+				9A0000000000000000000104 /* LaunchAtLoginService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -178,14 +199,25 @@
 		8B0000000000000000000206 /* Views */ = {
 			isa = PBXGroup;
 			children = (
-				8B000000000000000000010B /* ContentView.swift */,
-				8B000000000000000000010C /* VMSetupView.swift */,
-				8B000000000000000000010D /* USBAccessoryView.swift */,
+				9A000000000000000000020A /* Settings */,
+				9A0000000000000000000106 /* OnboardingView.swift */,
 				8B000000000000000000010E /* ConsoleView.swift */,
-				8B000000000000000000010F /* WireguardView.swift */,
 				8B0000000000000000000111 /* SharedViews.swift */,
 			);
 			path = Views;
+			sourceTree = "<group>";
+		};
+		9A000000000000000000020A /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				8B000000000000000000010B /* SettingsView.swift */,
+				9A0000000000000000000105 /* GeneralView.swift */,
+				8B000000000000000000010C /* VMView.swift */,
+				8B000000000000000000010D /* USBAccessoryView.swift */,
+				8B000000000000000000010F /* WireGuardView.swift */,
+				9A0000000000000000000109 /* InfoView.swift */,
+			);
+			path = Settings;
 			sourceTree = "<group>";
 		};
 		8C0000000000000000000202 /* Frameworks */ = {
@@ -279,7 +311,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				8B0000000000000000000001 /* App.swift in Sources */,
-				8B0000000000000000000002 /* AppSection.swift in Sources */,
 				8B0000000000000000000003 /* USBAccessoryRecord.swift in Sources */,
 				8B0000000000000000000004 /* VMRuntimeState.swift in Sources */,
 				8B0000000000000000000005 /* USBAccessoryMonitor.swift in Sources */,
@@ -292,11 +323,20 @@
 				8F0000000000000000000002 /* WireguardConfLoader.swift in Sources */,
 				8F0000000000000000000003 /* VMCoordinator.swift in Sources */,
 				8F0000000000000000000004 /* USBAccessoryCoordinator.swift in Sources */,
-				8B000000000000000000000B /* ContentView.swift in Sources */,
-				8B000000000000000000000C /* VMSetupView.swift in Sources */,
+				9A0000000000000000000001 /* MenuBarController.swift in Sources */,
+				9A0000000000000000000002 /* OnboardingWindowController.swift in Sources */,
+				9A0000000000000000000007 /* SettingsWindowController.swift in Sources */,
+				9A0000000000000000000008 /* ConsoleWindowController.swift in Sources */,
+				9A0000000000000000000003 /* USBAttachmentPrompt.swift in Sources */,
+				9A0000000000000000000004 /* LaunchAtLoginService.swift in Sources */,
+				8B000000000000000000000B /* SettingsView.swift in Sources */,
+				9A0000000000000000000005 /* GeneralView.swift in Sources */,
+				9A0000000000000000000009 /* InfoView.swift in Sources */,
+				9A0000000000000000000006 /* OnboardingView.swift in Sources */,
+				8B000000000000000000000C /* VMView.swift in Sources */,
 				8B000000000000000000000D /* USBAccessoryView.swift in Sources */,
 				8B000000000000000000000E /* ConsoleView.swift in Sources */,
-				8B000000000000000000000F /* WireguardView.swift in Sources */,
+				8B000000000000000000000F /* WireGuardView.swift in Sources */,
 				8B0000000000000000000011 /* SharedViews.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

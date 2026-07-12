@@ -25,6 +25,7 @@ private enum VMAssetFolderLoadError: LocalizedError {
     case notDirectory(URL)
     case missingKernel(URL)
     case missingInitramfs(URL)
+    case missingWireGuardConfiguration(URL)
 
     var errorDescription: String? {
         switch self {
@@ -34,12 +35,25 @@ private enum VMAssetFolderLoadError: LocalizedError {
             return "No Image-* kernel found in VM asset folder: \(url.path)"
         case .missingInitramfs(let url):
             return "No initramfs-rtpvm-* ramdisk found in VM asset folder: \(url.path)"
+        case .missingWireGuardConfiguration(let url):
+            return "Missing wireguard/wg-server.conf or wireguard/wg-client.conf in VM asset folder: \(url.path)"
         }
     }
 }
 
+struct OnboardingPresentationRequest {
+    let sequence: Int
+    let restart: Bool
+}
+
 @MainActor
 final class TetheringStore: ObservableObject {
+    @Published private(set) var selectedAssetFolderURL: URL? {
+        didSet {
+            persistFileURL(selectedAssetFolderURL, forKey: DefaultsKey.assetFolderURLPath)
+            reloadWireGuardConfigurationFromAssets(reason: "asset folder selection changed")
+        }
+    }
     @Published var kernelURL: URL? {
         didSet {
             persistFileURL(kernelURL, forKey: DefaultsKey.kernelURLPath)
@@ -55,11 +69,18 @@ final class TetheringStore: ObservableObject {
     @Published var diskImageURL: URL? {
         didSet { persistFileURL(diskImageURL, forKey: DefaultsKey.diskImageURLPath) }
     }
-    @Published var cpuCount = 1
-    @Published var memorySizeMiB = VMMemoryDefaults.defaultMiB
-    @Published var kernelCommandLine = AlpineBootDefaults.initramfsKernelCommandLine
+    @Published var cpuCount = 1 {
+        didSet { UserDefaults.standard.set(cpuCount, forKey: DefaultsKey.cpuCount) }
+    }
+    @Published var memorySizeMiB = VMMemoryDefaults.defaultMiB {
+        didSet { UserDefaults.standard.set(memorySizeMiB, forKey: DefaultsKey.memorySizeMiB) }
+    }
+    @Published var kernelCommandLine = AlpineBootDefaults.initramfsKernelCommandLine {
+        didSet { UserDefaults.standard.set(kernelCommandLine, forKey: DefaultsKey.kernelCommandLine) }
+    }
 
     @Published private(set) var runtimeState: VMRuntimeState = .idle
+    @Published private(set) var isRestartingVirtualMachine = false
     @Published private(set) var statusMessage = "Select Alpine VM assets to begin."
     @Published private(set) var runtimeEntitlements = RuntimeEntitlementSnapshot.current
     @Published private(set) var accessories: [USBAccessoryRecord] = []
@@ -71,6 +92,8 @@ final class TetheringStore: ObservableObject {
         }
     }
     @Published private(set) var attachedAccessoryID: UInt64?
+    @Published private(set) var vmSessionAccessoryID: UInt64?
+    @Published private(set) var usbAttachmentPrompt: USBAttachmentPrompt?
     @Published private(set) var consoleText = ""
     @Published private(set) var consoleOutputData = Data()
     @Published private(set) var consoleOutputSequence = 0
@@ -78,6 +101,13 @@ final class TetheringStore: ObservableObject {
     @Published private(set) var eventLog = ""
     @Published private(set) var wireGuardSettings: WireGuardSettings
     @Published private(set) var wireGuardStatusMessage = "Run the asset build script, select the generated assets, then start the VM to discover the endpoint."
+    @Published private(set) var hasCompletedOnboarding = false
+    @Published private(set) var onboardingPresentationRequest = OnboardingPresentationRequest(
+        sequence: 0,
+        restart: false
+    )
+    @Published private(set) var launchAtLoginSnapshot = LaunchAtLoginService.snapshot()
+    @Published private(set) var preferencesStatusMessage = ""
 
     let guestMACAddress = "02:00:5E:10:00:02"
 
@@ -86,9 +116,79 @@ final class TetheringStore: ObservableObject {
     private let wireguardConfLoader: WireguardConfLoader
     private var didRequestLaunchAccessoryMonitoring = false
     private var isSyncingUSBState = false
+    private var pendingAttachmentAccessoryID: UInt64?
+    private var pendingAttachmentToken: UUID?
+    private var pendingAttachmentStartedVM = false
+    private var shouldStartPendingAttachmentAfterStop = false
+    private var restartWillStartVM = false
+    private var queuedUSBAttachmentPrompts: [USBAttachmentPrompt] = []
+    private var promptedAccessoryIDs: Set<UInt64> = []
+    private var accessoriesAwaitingAssetSetup: Set<UInt64> = []
+
+    private var attachmentRequiresVMStopRetry: Bool {
+        runtimeState == .failed && vmCoordinator.hasVirtualMachine
+    }
+
+    var vmDisplayState: VMDisplayState {
+        if isRestartingVirtualMachine {
+            return .restarting
+        }
+
+        switch runtimeState {
+        case .starting, .running:
+            return .running
+        case .idle, .stopping, .stopped, .failed:
+            return .stopped
+        }
+    }
 
     var canStartVirtualMachine: Bool {
-        kernelURL != nil && initialRamdiskURL != nil && runtimeState != .starting && runtimeState != .running
+        hasConfiguredVMAssets && vmCoordinator.canStart
+    }
+
+    var canRestartVirtualMachine: Bool {
+        hasConfiguredVMAssets
+            && pendingAttachmentAccessoryID == nil
+            && vmCoordinator.canRestart
+    }
+
+    var canEditVMConfiguration: Bool {
+        !vmCoordinator.hasVirtualMachine
+            && (runtimeState == .idle || runtimeState == .stopped || runtimeState == .failed)
+    }
+
+    var canResetAppSettings: Bool {
+        canEditVMConfiguration
+    }
+
+    var canClearVMAssets: Bool {
+        canEditVMConfiguration
+            && (selectedAssetFolderURL != nil
+                || kernelURL != nil
+                || initialRamdiskURL != nil
+                || diskImageURL != nil)
+    }
+
+    var hasConfiguredVMAssets: Bool {
+        guard let kernelURL,
+              let initialRamdiskURL,
+              let assetFolderURL = configuredVMAssetFolderURL else {
+            return false
+        }
+
+        let wireGuardDirectory = assetFolderURL.appendingPathComponent("wireguard", isDirectory: true)
+        let serverConfigurationURL = wireGuardDirectory.appendingPathComponent("wg-server.conf")
+        let clientConfigurationURL = wireGuardDirectory.appendingPathComponent("wg-client.conf")
+
+        return isRegularFile(kernelURL)
+            && isRegularFile(initialRamdiskURL)
+            && isRegularFile(serverConfigurationURL)
+            && isRegularFile(clientConfigurationURL)
+            && wireGuardSettings.hasKeyMaterial
+    }
+
+    var shouldPresentOnboardingOnLaunch: Bool {
+        !hasCompletedOnboarding
     }
 
     var memorySizeRangeMiB: ClosedRange<Int> {
@@ -122,6 +222,9 @@ final class TetheringStore: ObservableObject {
     }
 
     var vmAssetFolderInitialURL: URL? {
+        if let selectedAssetFolderURL {
+            return selectedAssetFolderURL
+        }
         if let configuredVMAssetFolderURL {
             return configuredVMAssetFolderURL
         }
@@ -133,6 +236,9 @@ final class TetheringStore: ObservableObject {
     }
 
     private var configuredVMAssetFolderURL: URL? {
+        if let selectedAssetFolderURL {
+            return selectedAssetFolderURL
+        }
         if let initialRamdiskURL {
             return vmAssetFolderURL(containing: initialRamdiskURL)
         }
@@ -144,11 +250,19 @@ final class TetheringStore: ObservableObject {
     }
 
     var canStartAccessoryMonitoring: Bool {
-        runtimeEntitlements.accessoryAccessUSB && usbCoordinator.canStartMonitoring
+        hasConfiguredVMAssets
+            && runtimeEntitlements.accessoryAccessUSB
+            && usbCoordinator.canStartMonitoring
     }
 
     var canStopAccessoryMonitoring: Bool {
-        usbCoordinator.canStopMonitoring
+        pendingAttachmentAccessoryID == nil && usbCoordinator.canStopMonitoring
+    }
+
+    var canReloadAccessoryMonitoring: Bool {
+        pendingAttachmentAccessoryID == nil
+            && runtimeEntitlements.accessoryAccessUSB
+            && usbCoordinator.canReloadMonitoring
     }
 
     var canStopVirtualMachine: Bool {
@@ -160,11 +274,33 @@ final class TetheringStore: ObservableObject {
     }
 
     var canAttachSelectedAccessory: Bool {
-        usbCoordinator.canAttachSelectedAccessory(runtimeState: runtimeState)
+        guard hasConfiguredVMAssets,
+              pendingAttachmentAccessoryID == nil,
+              !attachmentRequiresVMStopRetry,
+              let selectedAccessoryID else {
+            return false
+        }
+
+        return usbCoordinator.canRequestAttachment(for: selectedAccessoryID)
     }
 
     var canDetachAccessory: Bool {
         usbCoordinator.canDetachAccessory(runtimeState: runtimeState)
+    }
+
+    func canRequestAttachment(for accessoryID: UInt64) -> Bool {
+        pendingAttachmentAccessoryID == nil
+            && usbAttachmentPrompt == nil
+            && !attachmentRequiresVMStopRetry
+            && hasConfiguredVMAssets
+            && usbCoordinator.canRequestAttachment(for: accessoryID)
+    }
+
+    func canChooseAccessoryForAttachment(_ accessoryID: UInt64) -> Bool {
+        pendingAttachmentAccessoryID == nil
+            && usbAttachmentPrompt == nil
+            && !attachmentRequiresVMStopRetry
+            && usbCoordinator.canRequestAttachment(for: accessoryID)
     }
 
     var canExportWireGuardConfiguration: Bool {
@@ -181,12 +317,19 @@ final class TetheringStore: ObservableObject {
         self.wireGuardSettings = wireguardConfLoader.emptySettings()
         configureCoordinators()
         restoreAssetSelections()
+        restoreVMSettings()
         reloadWireGuardConfigurationFromAssets(reason: "restored asset selection")
+        restoreOnboardingState()
         appendRuntimeEntitlementSummary()
         appendAssetSelectionSummaryIfNeeded()
     }
 
     func startAccessoryMonitoring() {
+        guard hasConfiguredVMAssets else {
+            statusMessage = "Select a valid VM asset folder before starting the USB listener."
+            return
+        }
+
         startAccessoryMonitoring(reason: "manual request")
     }
 
@@ -203,6 +346,7 @@ final class TetheringStore: ObservableObject {
     func loadVMAssets(from directoryURL: URL) -> Error? {
         do {
             let selection = try resolveVMAssetFolder(directoryURL)
+            selectedAssetFolderURL = directoryURL.standardizedFileURL
             kernelURL = selection.kernelURL
             initialRamdiskURL = selection.initialRamdiskURL
             statusMessage = "Loaded VM assets from folder."
@@ -215,24 +359,64 @@ final class TetheringStore: ObservableObject {
         }
     }
 
+    func clearVMAssets() {
+        guard canClearVMAssets else {
+            return
+        }
+
+        selectedAssetFolderURL = nil
+        kernelURL = nil
+        initialRamdiskURL = nil
+        diskImageURL = nil
+        wireGuardSettings = wireguardConfLoader.emptySettings()
+        wireGuardStatusMessage = "Select generated VM assets to load WireGuard configuration."
+        statusMessage = "VM asset selections cleared. Select a VM asset folder to continue."
+        appendEvent("Cleared VM asset selections; generated asset files were not deleted.")
+    }
+
     func stopAccessoryMonitoring() {
+        guard pendingAttachmentAccessoryID == nil else {
+            statusMessage = "Wait for the current USB attachment workflow before stopping the listener."
+            return
+        }
         usbCoordinator.stopMonitoring(reason: "User stopped USB listener.")
     }
 
-    func startVirtualMachine() {
+    func reloadAccessoryMonitoring() {
+        refreshRuntimeEntitlements()
+
+        guard runtimeEntitlements.accessoryAccessUSB else {
+            reportMissingEntitlement(.accessoryAccessUSB, action: "USB listener reload")
+            return
+        }
+
+        guard pendingAttachmentAccessoryID == nil else {
+            statusMessage = "Wait for the current USB attachment workflow before reloading the listener."
+            return
+        }
+
+        usbCoordinator.reloadMonitoring(reason: "user request")
+    }
+
+    @discardableResult
+    func startVirtualMachine() -> Bool {
         refreshRuntimeEntitlements()
         migrateLegacyInitramfsSelectionIfNeeded()
         reloadWireGuardConfigurationFromAssets(reason: "VM starting")
 
-        guard runtimeEntitlements.virtualization else {
-            reportMissingEntitlement(.virtualization, action: "VM start")
-            return
+        guard canStartVirtualMachine else {
+            statusMessage = hasConfiguredVMAssets
+                ? "Wait for the current VM transition to finish."
+                : "Select a valid VM asset folder before starting the VM."
+            return false
         }
 
-        guard let kernelURL, let initialRamdiskURL else {
-            statusMessage = "Kernel and RTPVM initramfs are required."
-            return
+        guard runtimeEntitlements.virtualization else {
+            reportMissingEntitlement(.virtualization, action: "VM start")
+            return false
         }
+
+        guard let kernelURL, let initialRamdiskURL else { return false }
 
         clearWireGuardEndpoint(reason: "VM starting")
         clearConsoleForVMStart()
@@ -258,13 +442,38 @@ final class TetheringStore: ObservableObject {
         appendSelectedAssetDiagnostics(kernelURL: kernelURL, initialRamdiskURL: initialRamdiskURL)
         appendEvent("Kernel arguments: \(bootCommandLine)")
         vmCoordinator.start(input: input)
+        return true
     }
 
     func stopVirtualMachine() {
+        isRestartingVirtualMachine = false
+        cancelPendingAttachment(reason: "VM stop requested by user")
+        usbCoordinator.prepareForIntentionalVMStop()
         vmCoordinator.stop()
     }
 
-    func attachSelectedAccessory() {
+    func restartVirtualMachine() {
+        guard canRestartVirtualMachine else {
+            return
+        }
+
+        pendingAttachmentAccessoryID = attachedAccessoryID
+        pendingAttachmentToken = attachedAccessoryID == nil ? nil : UUID()
+        shouldStartPendingAttachmentAfterStop = false
+        usbCoordinator.prepareForIntentionalVMStop()
+        restartVirtualMachine(reason: "manual request")
+    }
+
+    func requestAttachSelectedAccessory() {
+        guard let selectedAccessoryID else {
+            statusMessage = "Select a USB accessory."
+            return
+        }
+
+        requestAttachAccessory(id: selectedAccessoryID)
+    }
+
+    func requestAttachAccessory(id accessoryID: UInt64) {
         refreshRuntimeEntitlements()
 
         guard runtimeEntitlements.accessoryAccessUSB else {
@@ -272,15 +481,80 @@ final class TetheringStore: ObservableObject {
             return
         }
 
-        usbCoordinator.attachSelectedAccessory(to: vmCoordinator.virtualMachine)
+        guard pendingAttachmentAccessoryID == nil else {
+            statusMessage = "Wait for the current USB attachment workflow to finish."
+            return
+        }
+
+        guard !attachmentRequiresVMStopRetry else {
+            statusMessage = "The VM did not stop cleanly. Retry Stop before attaching a USB accessory."
+            return
+        }
+
+        guard let record = accessories.first(where: { $0.id == accessoryID }) else {
+            statusMessage = "The selected USB accessory is no longer available."
+            return
+        }
+
+        guard hasConfiguredVMAssets else {
+            enqueueUSBAttachmentPrompt(
+                USBAttachmentPrompt(accessory: record, kind: .assetsRequired)
+            )
+            return
+        }
+
+        if let sessionAccessoryID = vmSessionAccessoryID,
+           sessionAccessoryID != accessoryID,
+           runtimeState == .running || runtimeState == .starting || runtimeState == .stopping {
+            let previousRecord = accessories.first { $0.id == sessionAccessoryID }
+            enqueueUSBAttachmentPrompt(
+                USBAttachmentPrompt(
+                    accessory: record,
+                    kind: .replace(
+                        previousAccessoryID: sessionAccessoryID,
+                        previousUSBIDText: previousRecord?.usbIDText ?? Self.registryIDText(sessionAccessoryID),
+                        isCurrentlyAttached: attachedAccessoryID == sessionAccessoryID
+                    )
+                )
+            )
+            return
+        }
+
+        beginAttachmentWorkflow(accessoryID: accessoryID, requiresRestart: false)
     }
 
     func detachAccessory() {
         usbCoordinator.detachAccessory(from: vmCoordinator.virtualMachine)
     }
 
+    func resolveUSBAttachmentPrompt(accepted: Bool) {
+        guard let prompt = usbAttachmentPrompt else {
+            return
+        }
+
+        usbAttachmentPrompt = nil
+        promptedAccessoryIDs.remove(prompt.accessory.id)
+
+        if accepted {
+            switch prompt.kind {
+            case .attach:
+                beginAttachmentWorkflow(accessoryID: prompt.accessory.id, requiresRestart: false)
+            case .replace:
+                beginAttachmentWorkflow(accessoryID: prompt.accessory.id, requiresRestart: true)
+            case .assetsRequired:
+                accessoriesAwaitingAssetSetup.insert(prompt.accessory.id)
+                requestOnboardingPresentation(restart: false)
+            }
+        } else {
+            appendEvent("USB attach declined for registry \(prompt.accessory.registryIDText).")
+        }
+
+        presentNextUSBAttachmentPromptIfNeeded()
+    }
+
     func prepareForApplicationTermination() {
         appendEvent("Application terminating.")
+        usbCoordinator.prepareForIntentionalVMStop()
         vmCoordinator.invalidate()
         usbCoordinator.stopMonitoring(reason: "Application terminating.")
     }
@@ -345,11 +619,123 @@ final class TetheringStore: ObservableObject {
         eventLog = ""
     }
 
+    func setLaunchAtLoginEnabled(_ isEnabled: Bool) {
+        do {
+            launchAtLoginSnapshot = try LaunchAtLoginService.setEnabled(isEnabled)
+            preferencesStatusMessage = launchAtLoginSnapshot.statusText
+        } catch {
+            launchAtLoginSnapshot = LaunchAtLoginService.snapshot()
+            preferencesStatusMessage = "Could not update Launch at Login: \(error.localizedDescription)"
+            appendEvent(preferencesStatusMessage)
+        }
+    }
+
+    func refreshLaunchAtLoginStatus() {
+        launchAtLoginSnapshot = LaunchAtLoginService.snapshot()
+        preferencesStatusMessage = ""
+    }
+
+    func openLoginItemsSettings() {
+        LaunchAtLoginService.openSystemSettings()
+    }
+
+    func requestOnboardingPresentation(restart: Bool = true) {
+        onboardingPresentationRequest = OnboardingPresentationRequest(
+            sequence: onboardingPresentationRequest.sequence + 1,
+            restart: restart
+        )
+    }
+
+    func completeOnboarding() {
+        guard hasConfiguredVMAssets else {
+            statusMessage = "Select a valid VM asset folder before finishing onboarding."
+            return
+        }
+
+        UserDefaults.standard.set(Self.currentOnboardingVersion, forKey: DefaultsKey.onboardingVersion)
+        hasCompletedOnboarding = true
+        appendEvent("Onboarding completed.")
+
+        let waitingAccessoryIDs = accessoriesAwaitingAssetSetup
+        accessoriesAwaitingAssetSetup.removeAll()
+        for accessoryID in waitingAccessoryIDs {
+            guard let record = accessories.first(where: { $0.id == accessoryID }) else {
+                continue
+            }
+            enqueueUSBAttachmentPrompt(
+                USBAttachmentPrompt(accessory: record, kind: .attach)
+            )
+        }
+
+        presentNextUSBAttachmentPromptIfNeeded()
+    }
+
+    @discardableResult
+    func resetAppSettings() -> Bool {
+        guard canResetAppSettings else {
+            preferencesStatusMessage = "Stop the VM before resetting app settings."
+            return false
+        }
+
+        cancelPendingAttachment(reason: "app settings reset")
+        queuedUSBAttachmentPrompts.removeAll()
+        promptedAccessoryIDs.removeAll()
+        accessoriesAwaitingAssetSetup.removeAll()
+        usbAttachmentPrompt = nil
+
+        selectedAssetFolderURL = nil
+        kernelURL = nil
+        initialRamdiskURL = nil
+        diskImageURL = nil
+        cpuCount = 1
+        memorySizeMiB = VMMemoryDefaults.defaultMiB
+        kernelCommandLine = AlpineBootDefaults.initramfsKernelCommandLine
+
+        UserDefaults.standard.removeObject(forKey: DefaultsKey.assetFolderURLPath)
+        UserDefaults.standard.removeObject(forKey: DefaultsKey.kernelURLPath)
+        UserDefaults.standard.removeObject(forKey: DefaultsKey.initialRamdiskURLPath)
+        UserDefaults.standard.removeObject(forKey: DefaultsKey.diskImageURLPath)
+        UserDefaults.standard.removeObject(forKey: DefaultsKey.cpuCount)
+        UserDefaults.standard.removeObject(forKey: DefaultsKey.memorySizeMiB)
+        UserDefaults.standard.removeObject(forKey: DefaultsKey.kernelCommandLine)
+        UserDefaults.standard.removeObject(forKey: DefaultsKey.onboardingVersion)
+
+        hasCompletedOnboarding = false
+        wireGuardSettings = wireguardConfLoader.emptySettings()
+        wireGuardStatusMessage = "Select generated VM assets to load WireGuard configuration."
+        statusMessage = "App settings reset. Select a VM asset folder to continue."
+
+        do {
+            launchAtLoginSnapshot = try LaunchAtLoginService.setEnabled(false)
+            preferencesStatusMessage = "App settings were reset."
+        } catch {
+            launchAtLoginSnapshot = LaunchAtLoginService.snapshot()
+            preferencesStatusMessage = "Settings reset, but Launch at Login could not be disabled: \(error.localizedDescription)"
+        }
+
+        appendEvent("App settings reset; generated asset files were not deleted.")
+        return true
+    }
+
     private func configureCoordinators() {
         vmCoordinator.onStateChange = { [weak self] state, message in
             guard let self else { return }
+            if state == .running || state == .failed {
+                self.isRestartingVirtualMachine = false
+            }
             self.runtimeState = state
             self.statusMessage = message
+
+            switch state {
+            case .running:
+                self.continuePendingAttachmentIfPossible()
+                self.presentNextUSBAttachmentPromptIfNeeded()
+            case .failed:
+                self.restartWillStartVM = false
+                self.cancelPendingAttachment(reason: "VM start or runtime failure")
+            default:
+                break
+            }
         }
         vmCoordinator.onEvent = { [weak self] message in
             self?.appendEvent(message)
@@ -357,17 +743,48 @@ final class TetheringStore: ObservableObject {
         vmCoordinator.onConsoleOutput = { [weak self] data in
             self?.appendConsole(data)
         }
-        vmCoordinator.onUSBPassthroughDisconnect = { [weak self] in
-            self?.usbCoordinator.handlePassthroughDisconnect()
+        vmCoordinator.onUSBPassthroughDisconnect = { [weak self] device in
+            self?.usbCoordinator.handlePassthroughDisconnect(device: device)
         }
         vmCoordinator.onStopped = { [weak self] in
             guard let self else { return }
             self.usbCoordinator.clearAttachmentForStoppedVM()
             self.syncUSBState()
+
+            if let pendingAccessoryID = self.pendingAttachmentAccessoryID,
+               !self.shouldStartPendingAttachmentAfterStop,
+               !self.restartWillStartVM {
+                let pendingRecord = self.accessories.first { $0.id == pendingAccessoryID }
+                self.cancelPendingAttachment(
+                    reason: "VM stopped before USB attachment completed",
+                    presentNextPrompt: false
+                )
+                if let pendingRecord {
+                    self.enqueueUSBAttachmentPrompt(
+                        USBAttachmentPrompt(accessory: pendingRecord, kind: .attach)
+                    )
+                }
+                self.presentNextUSBAttachmentPromptIfNeeded()
+                return
+            }
+
+            guard self.shouldStartPendingAttachmentAfterStop,
+                  self.pendingAttachmentAccessoryID != nil,
+                  !self.restartWillStartVM else {
+                self.presentNextUSBAttachmentPromptIfNeeded()
+                return
+            }
+
+            self.shouldStartPendingAttachmentAfterStop = false
+            if !self.startVirtualMachine() {
+                self.cancelPendingAttachment(reason: "VM preflight failed after stop")
+            }
         }
 
         usbCoordinator.onStateChange = { [weak self] in
-            self?.syncUSBState()
+            guard let self else { return }
+            self.syncUSBState()
+            self.presentNextUSBAttachmentPromptIfNeeded()
         }
         usbCoordinator.onStatusMessage = { [weak self] message in
             self?.statusMessage = message
@@ -375,14 +792,335 @@ final class TetheringStore: ObservableObject {
         usbCoordinator.onEvent = { [weak self] message in
             self?.appendEvent(message)
         }
+        usbCoordinator.onAccessoryAvailable = { [weak self] record in
+            self?.offerAttachmentForAvailableAccessory(record)
+        }
+        usbCoordinator.onAccessoryUnavailable = { [weak self] accessoryID in
+            self?.handleAccessoryUnavailable(accessoryID)
+        }
+        usbCoordinator.onUnexpectedDetach = { [weak self] accessoryID, reason in
+            self?.handleUnexpectedUSBDetach(accessoryID: accessoryID, reason: reason)
+        }
         usbCoordinator.runtimeStateProvider = { [weak self] in
             self?.runtimeState ?? .idle
         }
-        usbCoordinator.virtualMachineProvider = { [weak self] in
-            self?.vmCoordinator.virtualMachine
-        }
 
         syncUSBState()
+    }
+
+    private func offerAttachmentForAvailableAccessory(_ record: USBAccessoryRecord) {
+        guard record.hasConfigurationDescriptor,
+              attachedAccessoryID != record.id,
+              pendingAttachmentAccessoryID != record.id,
+              !accessoriesAwaitingAssetSetup.contains(record.id) else {
+            return
+        }
+
+        enqueueUSBAttachmentPrompt(attachmentPrompt(for: record))
+    }
+
+    private func enqueueUSBAttachmentPrompt(_ prompt: USBAttachmentPrompt) {
+        guard promptedAccessoryIDs.insert(prompt.accessory.id).inserted else {
+            return
+        }
+
+        queuedUSBAttachmentPrompts.append(prompt)
+        presentNextUSBAttachmentPromptIfNeeded()
+    }
+
+    private func presentNextUSBAttachmentPromptIfNeeded() {
+        guard usbAttachmentPrompt == nil,
+              pendingAttachmentAccessoryID == nil,
+              !restartWillStartVM,
+              !usbCoordinator.isDetachPending else {
+            return
+        }
+
+        guard hasConfiguredVMAssets || accessoriesAwaitingAssetSetup.isEmpty else {
+            return
+        }
+
+        while let firstPrompt = queuedUSBAttachmentPrompts.first {
+            guard let currentRecord = accessories.first(where: { $0.id == firstPrompt.accessory.id }),
+                  currentRecord.id != attachedAccessoryID else {
+                queuedUSBAttachmentPrompts.removeFirst()
+                promptedAccessoryIDs.remove(firstPrompt.accessory.id)
+                continue
+            }
+
+            queuedUSBAttachmentPrompts.removeFirst()
+            usbAttachmentPrompt = attachmentPrompt(for: currentRecord)
+            return
+        }
+    }
+
+    private func attachmentPrompt(for record: USBAccessoryRecord) -> USBAttachmentPrompt {
+        guard hasConfiguredVMAssets else {
+            return USBAttachmentPrompt(accessory: record, kind: .assetsRequired)
+        }
+
+        if let sessionAccessoryID = vmSessionAccessoryID,
+           sessionAccessoryID != record.id,
+           runtimeState == .running || runtimeState == .starting || runtimeState == .stopping {
+            let previousRecord = accessories.first { $0.id == sessionAccessoryID }
+            return USBAttachmentPrompt(
+                accessory: record,
+                kind: .replace(
+                    previousAccessoryID: sessionAccessoryID,
+                    previousUSBIDText: previousRecord?.usbIDText ?? Self.registryIDText(sessionAccessoryID),
+                    isCurrentlyAttached: attachedAccessoryID == sessionAccessoryID
+                )
+            )
+        }
+
+        return USBAttachmentPrompt(accessory: record, kind: .attach)
+    }
+
+    private func beginAttachmentWorkflow(accessoryID: UInt64, requiresRestart: Bool) {
+        guard pendingAttachmentAccessoryID == nil else {
+            statusMessage = "Wait for the current USB attachment workflow to finish."
+            return
+        }
+
+        guard !attachmentRequiresVMStopRetry else {
+            statusMessage = "The VM did not stop cleanly. Retry Stop before attaching a USB accessory."
+            presentNextUSBAttachmentPromptIfNeeded()
+            return
+        }
+
+        guard hasConfiguredVMAssets else {
+            if let record = accessories.first(where: { $0.id == accessoryID }) {
+                enqueueUSBAttachmentPrompt(
+                    USBAttachmentPrompt(accessory: record, kind: .assetsRequired)
+                )
+            }
+            return
+        }
+
+        guard accessories.contains(where: { $0.id == accessoryID }) else {
+            statusMessage = "The selected USB accessory is no longer available."
+            return
+        }
+
+        if attachedAccessoryID == accessoryID {
+            statusMessage = "The selected USB accessory is already attached."
+            return
+        }
+
+        let activeSessionUsesDifferentAccessory = vmSessionAccessoryID.map { $0 != accessoryID } == true
+            && (runtimeState == .running || runtimeState == .starting || runtimeState == .stopping)
+
+        if activeSessionUsesDifferentAccessory, !requiresRestart,
+           let record = accessories.first(where: { $0.id == accessoryID }),
+           let sessionAccessoryID = vmSessionAccessoryID {
+            let previousRecord = accessories.first { $0.id == sessionAccessoryID }
+            enqueueUSBAttachmentPrompt(
+                USBAttachmentPrompt(
+                    accessory: record,
+                    kind: .replace(
+                        previousAccessoryID: sessionAccessoryID,
+                        previousUSBIDText: previousRecord?.usbIDText ?? Self.registryIDText(sessionAccessoryID),
+                        isCurrentlyAttached: attachedAccessoryID == sessionAccessoryID
+                    )
+                )
+            )
+            return
+        }
+
+        selectedAccessoryID = accessoryID
+        pendingAttachmentAccessoryID = accessoryID
+        pendingAttachmentToken = UUID()
+        pendingAttachmentStartedVM = false
+        shouldStartPendingAttachmentAfterStop = false
+
+        guard requiresRestart && activeSessionUsesDifferentAccessory else {
+            continuePendingAttachmentIfPossible()
+            return
+        }
+
+        switch runtimeState {
+        case .running, .starting:
+            if attachedAccessoryID != nil {
+                let workflowToken = pendingAttachmentToken
+                usbCoordinator.detachAccessory(from: vmCoordinator.virtualMachine) { [weak self] success in
+                    guard let self,
+                          self.pendingAttachmentToken == workflowToken else {
+                        return
+                    }
+
+                    guard success else {
+                        self.cancelPendingAttachment(reason: "USB replacement detach failed")
+                        return
+                    }
+
+                    self.usbCoordinator.prepareForIntentionalVMStop()
+                    self.restartVirtualMachine(
+                        reason: "USB replacement",
+                        requiresPendingAttachment: true
+                    )
+                }
+            } else {
+                usbCoordinator.prepareForIntentionalVMStop()
+                restartVirtualMachine(
+                    reason: "USB replacement after a prior device in this VM session",
+                    requiresPendingAttachment: true
+                )
+            }
+        case .stopping:
+            shouldStartPendingAttachmentAfterStop = true
+        case .idle, .stopped, .failed:
+            continuePendingAttachmentIfPossible()
+        }
+    }
+
+    private func continuePendingAttachmentIfPossible() {
+        guard let accessoryID = pendingAttachmentAccessoryID,
+              let attachmentToken = pendingAttachmentToken else {
+            return
+        }
+
+        guard accessories.contains(where: { $0.id == accessoryID }) else {
+            let shouldStopVM = pendingAttachmentStartedVM && vmCoordinator.canStop
+            cancelPendingAttachment(
+                reason: "USB accessory became unavailable",
+                presentNextPrompt: !shouldStopVM
+            )
+            statusMessage = "The USB accessory became unavailable before it could be attached."
+            if shouldStopVM {
+                usbCoordinator.prepareForIntentionalVMStop()
+                vmCoordinator.stop()
+            }
+            return
+        }
+
+        switch runtimeState {
+        case .running:
+            usbCoordinator.attachAccessory(
+                id: accessoryID,
+                to: vmCoordinator.virtualMachine
+            ) { [weak self] success in
+                guard let self,
+                      self.pendingAttachmentToken == attachmentToken else {
+                    return
+                }
+                self.pendingAttachmentAccessoryID = nil
+                self.pendingAttachmentToken = nil
+                self.pendingAttachmentStartedVM = false
+                self.shouldStartPendingAttachmentAfterStop = false
+                self.syncUSBState()
+
+                if !success {
+                    self.appendEvent("Approved USB attach did not complete for registry \(Self.registryIDText(accessoryID)).")
+                }
+                self.presentNextUSBAttachmentPromptIfNeeded()
+            }
+        case .starting:
+            break
+        case .stopping:
+            shouldStartPendingAttachmentAfterStop = true
+        case .idle, .stopped, .failed:
+            if startVirtualMachine() {
+                if pendingAttachmentToken == attachmentToken,
+                   pendingAttachmentAccessoryID == accessoryID,
+                   runtimeState == .starting {
+                    pendingAttachmentStartedVM = true
+                }
+            } else {
+                cancelPendingAttachment(reason: "VM preflight failed")
+            }
+        }
+    }
+
+    private func restartVirtualMachine(
+        reason: String,
+        requiresPendingAttachment: Bool = false
+    ) {
+        guard vmCoordinator.canRestart else {
+            if runtimeState == .stopping {
+                shouldStartPendingAttachmentAfterStop = pendingAttachmentAccessoryID != nil
+            }
+            return
+        }
+
+        isRestartingVirtualMachine = true
+        restartWillStartVM = true
+        vmCoordinator.restart(reason: reason) { [weak self] in
+            guard let self else { return }
+            self.restartWillStartVM = false
+
+            if requiresPendingAttachment, self.pendingAttachmentAccessoryID == nil {
+                self.isRestartingVirtualMachine = false
+                self.statusMessage = "USB target disconnected; VM restart cancelled."
+                self.presentNextUSBAttachmentPromptIfNeeded()
+                return
+            }
+
+            if requiresPendingAttachment {
+                self.pendingAttachmentStartedVM = true
+            }
+            if !self.startVirtualMachine() {
+                self.isRestartingVirtualMachine = false
+                self.cancelPendingAttachment(reason: "VM preflight failed after restart")
+            }
+        }
+    }
+
+    private func handleAccessoryUnavailable(_ accessoryID: UInt64) {
+        accessoriesAwaitingAssetSetup.remove(accessoryID)
+
+        guard pendingAttachmentAccessoryID == accessoryID else {
+            return
+        }
+
+        let shouldStopVM = pendingAttachmentStartedVM && vmCoordinator.canStop
+        cancelPendingAttachment(
+            reason: "target USB accessory disconnected",
+            presentNextPrompt: !shouldStopVM
+        )
+
+        if shouldStopVM {
+            usbCoordinator.prepareForIntentionalVMStop()
+            vmCoordinator.stop()
+        }
+    }
+
+    private func handleUnexpectedUSBDetach(accessoryID: UInt64, reason: String) {
+        guard runtimeState == .running || runtimeState == .starting else {
+            return
+        }
+
+        if pendingAttachmentAccessoryID != nil {
+            appendEvent("Replacing the pending USB attachment after an unexpected USB detach.")
+        }
+        pendingAttachmentAccessoryID = accessories.contains(where: { $0.id == accessoryID })
+            ? accessoryID
+            : nil
+        pendingAttachmentToken = pendingAttachmentAccessoryID == nil ? nil : UUID()
+        pendingAttachmentStartedVM = false
+        shouldStartPendingAttachmentAfterStop = false
+        usbCoordinator.prepareForIntentionalVMStop()
+        restartVirtualMachine(
+            reason: reason,
+            requiresPendingAttachment: false
+        )
+    }
+
+    private func cancelPendingAttachment(
+        reason: String,
+        presentNextPrompt: Bool = true
+    ) {
+        guard pendingAttachmentAccessoryID != nil || shouldStartPendingAttachmentAfterStop else {
+            return
+        }
+
+        pendingAttachmentAccessoryID = nil
+        pendingAttachmentToken = nil
+        pendingAttachmentStartedVM = false
+        shouldStartPendingAttachmentAfterStop = false
+        appendEvent("Pending USB attachment cancelled: \(reason).")
+        if presentNextPrompt {
+            presentNextUSBAttachmentPromptIfNeeded()
+        }
     }
 
     private func startAccessoryMonitoring(reason: String) {
@@ -402,10 +1140,12 @@ final class TetheringStore: ObservableObject {
         isAccessoryMonitoring = usbCoordinator.isAccessoryMonitoring
         selectedAccessoryID = usbCoordinator.selectedAccessoryID
         attachedAccessoryID = usbCoordinator.attachedAccessoryID
+        vmSessionAccessoryID = usbCoordinator.vmSessionAccessoryID
         isSyncingUSBState = false
     }
 
     private func restoreAssetSelections() {
+        selectedAssetFolderURL = restoredFileURL(forKey: DefaultsKey.assetFolderURLPath)
         kernelURL = restoredFileURL(forKey: DefaultsKey.kernelURLPath)
         initialRamdiskURL = restoredFileURL(forKey: DefaultsKey.initialRamdiskURLPath)
 
@@ -416,11 +1156,53 @@ final class TetheringStore: ObservableObject {
             diskImageURL = nil
         }
 
+        if selectedAssetFolderURL == nil {
+            selectedAssetFolderURL = configuredVMAssetFolderURL
+        }
+
         if canStartVirtualMachine {
             statusMessage = "Previous VM asset selection restored."
         } else if kernelURL != nil || initialRamdiskURL != nil || diskImageURL != nil {
             statusMessage = "Select missing Alpine RTPVM assets to begin."
         }
+    }
+
+    private func restoreVMSettings() {
+        let defaults = UserDefaults.standard
+
+        if defaults.object(forKey: DefaultsKey.cpuCount) != nil {
+            cpuCount = min(max(defaults.integer(forKey: DefaultsKey.cpuCount), 1), 8)
+        }
+
+        if defaults.object(forKey: DefaultsKey.memorySizeMiB) != nil {
+            let restoredMemory = defaults.integer(forKey: DefaultsKey.memorySizeMiB)
+            let clampedMemory = min(max(restoredMemory, VMMemoryDefaults.minimumMiB), VMMemoryDefaults.maximumMiB)
+            memorySizeMiB = (clampedMemory / VMMemoryDefaults.stepMiB) * VMMemoryDefaults.stepMiB
+        }
+
+        if let restoredCommandLine = defaults.string(forKey: DefaultsKey.kernelCommandLine),
+           !restoredCommandLine.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            kernelCommandLine = restoredCommandLine
+        }
+    }
+
+    private func restoreOnboardingState() {
+        let defaults = UserDefaults.standard
+        let completedVersion = defaults.integer(forKey: DefaultsKey.onboardingVersion)
+
+        if completedVersion >= Self.currentOnboardingVersion {
+            hasCompletedOnboarding = true
+            return
+        }
+
+        if completedVersion == 0, hasConfiguredVMAssets {
+            defaults.set(Self.currentOnboardingVersion, forKey: DefaultsKey.onboardingVersion)
+            hasCompletedOnboarding = true
+            appendEvent("Existing VM asset selection migrated past first-run onboarding.")
+            return
+        }
+
+        hasCompletedOnboarding = false
     }
 
     private func resolveVMAssetFolder(_ directoryURL: URL) throws -> VMAssetFolderSelection {
@@ -451,6 +1233,20 @@ final class TetheringStore: ObservableObject {
             prefix: "initramfs-rtpvm-"
         ) else {
             throw VMAssetFolderLoadError.missingInitramfs(directory)
+        }
+
+        let wireGuardDirectory = directory.appendingPathComponent("wireguard", isDirectory: true)
+        let serverConfigurationURL = wireGuardDirectory.appendingPathComponent("wg-server.conf")
+        let clientConfigurationURL = wireGuardDirectory.appendingPathComponent("wg-client.conf")
+        guard isRegularFile(serverConfigurationURL), isRegularFile(clientConfigurationURL) else {
+            throw VMAssetFolderLoadError.missingWireGuardConfiguration(directory)
+        }
+
+        guard let loadedSettings = try wireguardConfLoader.loadGeneratedSettings(
+            from: directory,
+            preservingEndpoint: nil
+        ), loadedSettings.settings.hasKeyMaterial else {
+            throw VMAssetFolderLoadError.missingWireGuardConfiguration(directory)
         }
 
         return VMAssetFolderSelection(kernelURL: kernelURL, initialRamdiskURL: initialRamdiskURL)
@@ -607,11 +1403,18 @@ final class TetheringStore: ObservableObject {
                 return
             }
 
+            wireGuardSettings = wireguardConfLoader.emptySettings(
+                endpoint: wireGuardSettings.endpoint
+            )
+
             if reportIfMissing {
                 wireGuardStatusMessage = "Generated WireGuard configs were not found near the selected assets."
                 appendEvent("WireGuard configuration not loaded: selected VM asset folder must contain wireguard/wg-server.conf and wireguard/wg-client.conf.")
             }
         } catch {
+            wireGuardSettings = wireguardConfLoader.emptySettings(
+                endpoint: wireGuardSettings.endpoint
+            )
             wireGuardStatusMessage = error.localizedDescription
             appendEvent("WireGuard configuration load failed: \(error.localizedDescription)")
         }
@@ -823,9 +1626,20 @@ final class TetheringStore: ObservableObject {
         return formatter
     }()
 
+    private static let currentOnboardingVersion = 1
+
+    private static func registryIDText(_ registryID: UInt64) -> String {
+        "0x" + String(registryID, radix: 16, uppercase: true)
+    }
+
     private enum DefaultsKey {
+        static let assetFolderURLPath = "VMAssets.folderURLPath"
         static let kernelURLPath = "VMAssets.kernelURLPath"
         static let initialRamdiskURLPath = "VMAssets.initialRamdiskURLPath"
         static let diskImageURLPath = "VMAssets.diskImageURLPath"
+        static let cpuCount = "VM.cpuCount"
+        static let memorySizeMiB = "VM.memorySizeMiB"
+        static let kernelCommandLine = "VM.kernelCommandLine"
+        static let onboardingVersion = "Onboarding.completedVersion"
     }
 }
