@@ -17,6 +17,7 @@
 		D10000000000000000000002 /* USBSessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10000000000000000000102 /* USBSessionStore.swift */; };
 		D10000000000000000000003 /* VMConfigurationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10000000000000000000103 /* VMConfigurationStore.swift */; };
 		D10000000000000000000004 /* VMCoordinating.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10000000000000000000104 /* VMCoordinating.swift */; };
+		D10000000000000000000005 /* SessionStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10000000000000000000105 /* SessionStoreTests.swift */; };
 		D10000000000000000000006 /* VMAssetStorageLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10000000000000000000106 /* VMAssetStorageLayout.swift */; };
 		8B0000000000000000000009 /* Clipboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000000000000000000109 /* Clipboard.swift */; };
 		8B000000000000000000000A /* FilePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B000000000000000000010A /* FilePicker.swift */; };
@@ -52,7 +53,7 @@
 		C10000000000000000000001 /* VMAssetTestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000000000000000000101 /* VMAssetTestSupport.swift */; };
 		C10000000000000000000002 /* VMAssetSelectionStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000000000000000000102 /* VMAssetSelectionStoreTests.swift */; };
 		C10000000000000000000003 /* VMAssetServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000000000000000000103 /* VMAssetServiceTests.swift */; };
-		C10000000000000000000004 /* VMAssetControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000000000000000000104 /* VMAssetControllerTests.swift */; };
+		C10000000000000000000004 /* VMAssetWorkflowCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000000000000000000104 /* VMAssetWorkflowCoordinatorTests.swift */; };
 		C10000000000000000000005 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C10000000000000000000106 /* XCTest.framework */; };
 /* End PBXBuildFile section */
 
@@ -82,6 +83,7 @@
 		D10000000000000000000102 /* USBSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBSessionStore.swift; sourceTree = "<group>"; };
 		D10000000000000000000103 /* VMConfigurationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMConfigurationStore.swift; sourceTree = "<group>"; };
 		D10000000000000000000104 /* VMCoordinating.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMCoordinating.swift; sourceTree = "<group>"; };
+		D10000000000000000000105 /* SessionStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStoreTests.swift; sourceTree = "<group>"; };
 		D10000000000000000000106 /* VMAssetStorageLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMAssetStorageLayout.swift; sourceTree = "<group>"; };
 		8B0000000000000000000109 /* Clipboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Clipboard.swift; sourceTree = "<group>"; };
 		8B000000000000000000010A /* FilePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilePicker.swift; sourceTree = "<group>"; };
@@ -117,7 +119,7 @@
 		C10000000000000000000101 /* VMAssetTestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMAssetTestSupport.swift; sourceTree = "<group>"; };
 		C10000000000000000000102 /* VMAssetSelectionStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMAssetSelectionStoreTests.swift; sourceTree = "<group>"; };
 		C10000000000000000000103 /* VMAssetServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMAssetServiceTests.swift; sourceTree = "<group>"; };
-		C10000000000000000000104 /* VMAssetControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMAssetControllerTests.swift; sourceTree = "<group>"; };
+		C10000000000000000000104 /* VMAssetWorkflowCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMAssetWorkflowCoordinatorTests.swift; sourceTree = "<group>"; };
 		C10000000000000000000105 /* ThruRNDISTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ThruRNDISTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C10000000000000000000106 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = System/Library/Frameworks/XCTest.framework; sourceTree = SDKROOT; };
 		E3865CF619CB3E4197A4D3AA /* LocalSigning.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = LocalSigning.xcconfig.example; path = Configuration/LocalSigning.xcconfig.example; sourceTree = "<group>"; };
@@ -326,12 +328,53 @@
 		C10000000000000000000201 /* ThruRNDISTests */ = {
 			isa = PBXGroup;
 			children = (
-				C10000000000000000000101 /* VMAssetTestSupport.swift */,
-				C10000000000000000000102 /* VMAssetSelectionStoreTests.swift */,
-				C10000000000000000000103 /* VMAssetServiceTests.swift */,
-				C10000000000000000000104 /* VMAssetControllerTests.swift */,
+				D10000000000000000000203 /* Coordinators */,
+				D10000000000000000000204 /* Persistence */,
+				D10000000000000000000205 /* Services */,
+				D10000000000000000000206 /* Stores */,
+				D10000000000000000000207 /* TestSupport */,
 			);
 			path = ThruRNDISTests;
+			sourceTree = "<group>";
+		};
+		D10000000000000000000203 /* Coordinators */ = {
+			isa = PBXGroup;
+			children = (
+				C10000000000000000000104 /* VMAssetWorkflowCoordinatorTests.swift */,
+			);
+			path = Coordinators;
+			sourceTree = "<group>";
+		};
+		D10000000000000000000204 /* Persistence */ = {
+			isa = PBXGroup;
+			children = (
+				C10000000000000000000102 /* VMAssetSelectionStoreTests.swift */,
+			);
+			path = Persistence;
+			sourceTree = "<group>";
+		};
+		D10000000000000000000205 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				C10000000000000000000103 /* VMAssetServiceTests.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		D10000000000000000000206 /* Stores */ = {
+			isa = PBXGroup;
+			children = (
+				D10000000000000000000105 /* SessionStoreTests.swift */,
+			);
+			path = Stores;
+			sourceTree = "<group>";
+		};
+		D10000000000000000000207 /* TestSupport */ = {
+			isa = PBXGroup;
+			children = (
+				C10000000000000000000101 /* VMAssetTestSupport.swift */,
+			);
+			path = TestSupport;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -486,10 +529,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D10000000000000000000005 /* SessionStoreTests.swift in Sources */,
 				C10000000000000000000001 /* VMAssetTestSupport.swift in Sources */,
 				C10000000000000000000002 /* VMAssetSelectionStoreTests.swift in Sources */,
 				C10000000000000000000003 /* VMAssetServiceTests.swift in Sources */,
-				C10000000000000000000004 /* VMAssetControllerTests.swift in Sources */,
+				C10000000000000000000004 /* VMAssetWorkflowCoordinatorTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

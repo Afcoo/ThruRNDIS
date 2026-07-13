@@ -3,7 +3,7 @@ import XCTest
 @testable import ThruRNDIS
 
 @MainActor
-final class VMAssetControllerTests: XCTestCase {
+final class VMAssetWorkflowCoordinatorTests: XCTestCase {
     func testAlreadyInstalledReleaseIsActivatedWithoutDownload() async throws {
         let release = VMAssetTestSupport.release()
         let installed = VMAssetTestSupport.installedRelease(
@@ -13,30 +13,30 @@ final class VMAssetControllerTests: XCTestCase {
         let downloader = FakeDownloader()
         let installer = FakeInstaller(installed: [installed], matching: installed)
         let selectionStore = FakeSelectionStore()
-        let controller = VMAssetController(
+        let coordinator = VMAssetWorkflowCoordinator(
             releaseService: releaseService,
             downloadService: downloader,
             installService: installer,
             selectionStore: selectionStore
         )
         var busyValuesAtStateChanges: [Bool] = []
-        let stateCancellable = controller.$installState
+        let stateCancellable = coordinator.$installState
             .dropFirst()
             .sink { _ in
-                busyValuesAtStateChanges.append(controller.isBusy)
+                busyValuesAtStateChanges.append(coordinator.isBusy)
             }
 
-        controller.installLatest()
-        try await waitUntilIdle(controller)
+        coordinator.installLatest()
+        try await waitUntilIdle(coordinator)
 
         XCTAssertEqual(downloader.callCount, 0)
         XCTAssertEqual(selectionStore.managedSelectionCount, 1)
         XCTAssertEqual(installer.pruneCount, 1)
-        XCTAssertEqual(controller.installedRelease, installed)
+        XCTAssertEqual(coordinator.installedRelease, installed)
         XCTAssertEqual(busyValuesAtStateChanges.last, false)
         XCTAssertTrue(busyValuesAtStateChanges.dropLast().allSatisfy { $0 })
         XCTAssertEqual(downloader.discardedOperationIDs.count, 1)
-        guard case .ready = controller.installState else {
+        guard case .ready = coordinator.installState else {
             return XCTFail("Expected ready state")
         }
         withExtendedLifetime(stateCancellable) {}
@@ -44,18 +44,18 @@ final class VMAssetControllerTests: XCTestCase {
 
     func testReleaseFailurePreservesPreviousSelection() async throws {
         let previous = FakeSelectionStore.manualSelection
-        let controller = VMAssetController(
+        let coordinator = VMAssetWorkflowCoordinator(
             releaseService: FakeReleaseService(result: .failure(URLError(.notConnectedToInternet))),
             downloadService: FakeDownloader(),
             installService: FakeInstaller(installed: [], matching: nil),
             selectionStore: FakeSelectionStore(initialSelection: previous)
         )
 
-        controller.installLatest()
-        try await waitUntilIdle(controller)
+        coordinator.installLatest()
+        try await waitUntilIdle(coordinator)
 
-        XCTAssertEqual(controller.currentSelection, previous)
-        guard case .failed = controller.installState else {
+        XCTAssertEqual(coordinator.currentSelection, previous)
+        guard case .failed = coordinator.installState else {
             return XCTFail("Expected failed state")
         }
     }
@@ -63,22 +63,22 @@ final class VMAssetControllerTests: XCTestCase {
     func testCancellationRestoresReadyStateForExistingSelection() async throws {
         let selectionStore = FakeSelectionStore(initialSelection: FakeSelectionStore.manualSelection)
         let downloader = FakeDownloader(shouldSuspend: true)
-        let controller = VMAssetController(
+        let coordinator = VMAssetWorkflowCoordinator(
             releaseService: FakeReleaseService(result: .success(VMAssetTestSupport.release())),
             downloadService: downloader,
             installService: FakeInstaller(installed: [], matching: nil),
             selectionStore: selectionStore
         )
 
-        controller.installLatest()
+        coordinator.installLatest()
         try await waitUntil { downloader.callCount == 1 }
-        controller.cancelInstall()
-        try await waitUntilIdle(controller)
+        coordinator.cancelInstall()
+        try await waitUntilIdle(coordinator)
 
-        XCTAssertEqual(controller.currentSelection, FakeSelectionStore.manualSelection)
-        XCTAssertNil(controller.errorMessage)
+        XCTAssertEqual(coordinator.currentSelection, FakeSelectionStore.manualSelection)
+        XCTAssertNil(coordinator.errorMessage)
         XCTAssertEqual(downloader.discardedOperationIDs.count, 1)
-        guard case .ready = controller.installState else {
+        guard case .ready = coordinator.installState else {
             return XCTFail("Expected ready state after cancellation")
         }
     }
@@ -87,17 +87,17 @@ final class VMAssetControllerTests: XCTestCase {
         let temporaryURL = try VMAssetTestSupport.temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: temporaryURL) }
         let downloader = BoundaryCancellationDownloader(baseURL: temporaryURL)
-        let controller = VMAssetController(
+        let coordinator = VMAssetWorkflowCoordinator(
             releaseService: FakeReleaseService(result: .success(VMAssetTestSupport.release())),
             downloadService: downloader,
             installService: FakeInstaller(installed: [], matching: nil),
             selectionStore: FakeSelectionStore(initialSelection: FakeSelectionStore.manualSelection)
         )
 
-        controller.installLatest()
+        coordinator.installLatest()
         try await waitUntil { downloader.didStart }
-        controller.cancelInstall()
-        try await waitUntilIdle(controller)
+        coordinator.cancelInstall()
+        try await waitUntilIdle(coordinator)
 
         XCTAssertTrue(downloader.didDiscard)
         if let stagingDirectoryURL = downloader.stagingDirectoryURL {
@@ -110,52 +110,52 @@ final class VMAssetControllerTests: XCTestCase {
     func testCancelledReleaseRequestReportingURLErrorRestoresReadyState() async throws {
         let releaseService = URLSessionCancellationReleaseService()
         let downloader = FakeDownloader()
-        let controller = VMAssetController(
+        let coordinator = VMAssetWorkflowCoordinator(
             releaseService: releaseService,
             downloadService: downloader,
             installService: FakeInstaller(installed: [], matching: nil),
             selectionStore: FakeSelectionStore(initialSelection: FakeSelectionStore.manualSelection)
         )
 
-        controller.installLatest()
+        coordinator.installLatest()
         try await waitUntil { releaseService.didStart }
-        controller.cancelInstall()
-        try await waitUntilIdle(controller)
+        coordinator.cancelInstall()
+        try await waitUntilIdle(coordinator)
 
-        XCTAssertEqual(controller.currentSelection, FakeSelectionStore.manualSelection)
-        XCTAssertNil(controller.errorMessage)
+        XCTAssertEqual(coordinator.currentSelection, FakeSelectionStore.manualSelection)
+        XCTAssertNil(coordinator.errorMessage)
         XCTAssertEqual(downloader.callCount, 0)
         XCTAssertEqual(downloader.discardedOperationIDs.count, 1)
-        guard case .ready = controller.installState else {
+        guard case .ready = coordinator.installState else {
             return XCTFail("Expected ready state after URLSession-shaped release cancellation")
         }
     }
 
     func testCancelledDownloadReportingURLErrorRestoresReadyState() async throws {
         let downloader = URLSessionCancellationDownloader()
-        let controller = VMAssetController(
+        let coordinator = VMAssetWorkflowCoordinator(
             releaseService: FakeReleaseService(result: .success(VMAssetTestSupport.release())),
             downloadService: downloader,
             installService: FakeInstaller(installed: [], matching: nil),
             selectionStore: FakeSelectionStore(initialSelection: FakeSelectionStore.manualSelection)
         )
 
-        controller.installLatest()
+        coordinator.installLatest()
         try await waitUntil { downloader.didStart }
-        controller.cancelInstall()
-        try await waitUntilIdle(controller)
+        coordinator.cancelInstall()
+        try await waitUntilIdle(coordinator)
 
-        XCTAssertEqual(controller.currentSelection, FakeSelectionStore.manualSelection)
-        XCTAssertNil(controller.errorMessage)
+        XCTAssertEqual(coordinator.currentSelection, FakeSelectionStore.manualSelection)
+        XCTAssertNil(coordinator.errorMessage)
         XCTAssertEqual(downloader.discardedOperationIDs.count, 1)
-        guard case .ready = controller.installState else {
+        guard case .ready = coordinator.installState else {
             return XCTFail("Expected ready state after URLSession-shaped download cancellation")
         }
     }
 
     func testInstalledReleaseInventoryFailurePreservesValidRestoredSelection() {
         let inventoryError = CocoaError(.fileReadNoPermission)
-        let controller = VMAssetController(
+        let coordinator = VMAssetWorkflowCoordinator(
             releaseService: FakeReleaseService(result: .success(VMAssetTestSupport.release())),
             downloadService: FakeDownloader(),
             installService: FakeInstaller(
@@ -166,11 +166,11 @@ final class VMAssetControllerTests: XCTestCase {
             selectionStore: FakeSelectionStore(initialSelection: FakeSelectionStore.manualSelection)
         )
 
-        XCTAssertEqual(controller.currentSelection, FakeSelectionStore.manualSelection)
-        XCTAssertTrue(controller.hasConfiguredAssets)
-        XCTAssertTrue(controller.installedReleases.isEmpty)
-        XCTAssertEqual(controller.errorMessage, inventoryError.localizedDescription)
-        guard case .failed = controller.installState else {
+        XCTAssertEqual(coordinator.currentSelection, FakeSelectionStore.manualSelection)
+        XCTAssertTrue(coordinator.hasConfiguredAssets)
+        XCTAssertTrue(coordinator.installedReleases.isEmpty)
+        XCTAssertEqual(coordinator.errorMessage, inventoryError.localizedDescription)
+        guard case .failed = coordinator.installState else {
             return XCTFail("Expected the inventory error to remain visible")
         }
     }
@@ -180,15 +180,15 @@ final class VMAssetControllerTests: XCTestCase {
             at: URL(fileURLWithPath: "/managed/42-100", isDirectory: true)
         )
         let installer = FakeInstaller(installed: [installed], matching: installed)
-        let controller = VMAssetController(
+        let coordinator = VMAssetWorkflowCoordinator(
             releaseService: FakeReleaseService(result: .success(VMAssetTestSupport.release())),
             downloadService: FakeDownloader(),
             installService: installer,
             selectionStore: FakeSelectionStore(initialSelection: FakeSelectionStore.manualSelection)
         )
 
-        controller.installLatest()
-        try await waitUntilIdle(controller)
+        coordinator.installLatest()
+        try await waitUntilIdle(coordinator)
 
         XCTAssertEqual(
             installer.protectedDirectoryURL,
@@ -196,22 +196,22 @@ final class VMAssetControllerTests: XCTestCase {
         )
     }
 
-    private func waitUntilIdle(_ controller: VMAssetController) async throws {
-        try await waitUntil { !controller.isBusy }
+    private func waitUntilIdle(_ coordinator: VMAssetWorkflowCoordinator) async throws {
+        try await waitUntil { !coordinator.isBusy }
     }
 
     private func waitUntil(_ condition: @escaping () -> Bool) async throws {
         let deadline = Date().addingTimeInterval(2)
         while !condition() {
             if Date() > deadline {
-                throw VMAssetControllerTestError.timeout
+                throw VMAssetWorkflowCoordinatorTestError.timeout
             }
             try await Task.sleep(for: .milliseconds(10))
         }
     }
 }
 
-private enum VMAssetControllerTestError: Error {
+private enum VMAssetWorkflowCoordinatorTestError: Error {
     case timeout
 }
 
