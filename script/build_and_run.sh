@@ -2,12 +2,12 @@
 set -euo pipefail
 
 MODE="${1:-run}"
-APP_NAME="RTVMP"
-PROJECT_NAME="RNDIS Tethering VM Passthrough.xcodeproj"
-SCHEME_NAME="RNDIS Tethering VM Passthrough"
+APP_NAME="ThruRNDIS"
+PROJECT_NAME="ThruRNDIS.xcodeproj"
+SCHEME_NAME="ThruRNDIS"
 BUILD_CONFIGURATION="Debug"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DERIVED_DATA="${DERIVED_DATA:-/tmp/RTPVM-DerivedData}"
+DERIVED_DATA="${DERIVED_DATA:-/tmp/ThruRNDIS-DerivedData}"
 XCODEBUILD="${XCODEBUILD:-/Applications/Xcode-beta.app/Contents/Developer/usr/bin/xcodebuild}"
 SIGNING_ARGS=(CODE_SIGNING_ALLOWED=NO)
 
@@ -18,7 +18,7 @@ fi
 APP_BUNDLE="$DERIVED_DATA/Build/Products/Debug/$APP_NAME.app"
 
 if [[ "$MODE" == "--runtime" || "$MODE" == "runtime" ]]; then
-  SCHEME_NAME="RNDIS Tethering VM Passthrough Runtime"
+  SCHEME_NAME="ThruRNDIS Runtime"
   BUILD_CONFIGURATION="RuntimeDebug"
   APP_BUNDLE="$DERIVED_DATA/Build/Products/RuntimeDebug/$APP_NAME.app"
   SIGNING_ARGS=()
@@ -53,7 +53,7 @@ case "$MODE" in
     ;;
   --telemetry|telemetry)
     open_app
-    /usr/bin/log stream --info --style compact --predicate "subsystem == \"${RTPVM_LOG_SUBSYSTEM:-com.example.rndis-tethering}\""
+    /usr/bin/log stream --info --style compact --predicate "subsystem == \"${THRURNDIS_LOG_SUBSYSTEM:-com.example.thrurndis}\""
     ;;
   --verify|verify)
     open_app

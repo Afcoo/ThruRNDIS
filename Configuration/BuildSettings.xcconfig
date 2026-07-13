@@ -5,6 +5,6 @@
 // Public defaults. Runtime USB validation still requires a local development
 // team and restricted entitlements in the provisioning profile.
 DEVELOPMENT_TEAM =
-RTPVM_APP_BUNDLE_IDENTIFIER = com.example.rndis-tethering
+THRURNDIS_APP_BUNDLE_IDENTIFIER = com.example.thrurndis
 
 #include? "LocalSigning.xcconfig"

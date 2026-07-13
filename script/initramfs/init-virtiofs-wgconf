@@ -4,21 +4,21 @@ BB=/usr/bin/busybox
 PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
 export PATH
 
-SHARE_TAG=rtpvm-wireguard
-SHARE_MOUNT=/run/rtpvm-wireguard
+SHARE_TAG=thrurndis-wireguard
+SHARE_MOUNT=/run/thrurndis-wireguard
 SOURCE_CONFIG="$SHARE_MOUNT/wg0.conf"
-MOUNT_TIMEOUT_SECONDS=${RTPVM_WIREGUARD_MOUNT_TIMEOUT_SECONDS:-8}
+MOUNT_TIMEOUT_SECONDS=${THRURNDIS_WIREGUARD_MOUNT_TIMEOUT_SECONDS:-8}
 
 log() {
-    echo "rtpvm-wireguard-config: $*" >/dev/kmsg 2>/dev/null || true
+    echo "thrurndis-wireguard-config: $*" >/dev/kmsg 2>/dev/null || true
 }
 
 log_console() {
     log "$*"
     if [ -c /dev/console ]; then
-        echo "rtpvm-wireguard-config: $*" >/dev/console 2>/dev/null || true
+        echo "thrurndis-wireguard-config: $*" >/dev/console 2>/dev/null || true
     else
-        echo "rtpvm-wireguard-config: $*" >&2
+        echo "thrurndis-wireguard-config: $*" >&2
     fi
 }
 
@@ -54,10 +54,10 @@ fail() {
 
 log_console "mounting WireGuard configuration share"
 
-run_with_timeout "$MOUNT_TIMEOUT_SECONDS" /sbin/modprobe -q virtiofs 2>/tmp/rtpvm-virtiofs-modprobe.err
+run_with_timeout "$MOUNT_TIMEOUT_SECONDS" /sbin/modprobe -q virtiofs 2>/tmp/thrurndis-virtiofs-modprobe.err
 rc=$?
 if [ "$rc" -ne 0 ]; then
-    output=$($BB cat /tmp/rtpvm-virtiofs-modprobe.err 2>/dev/null || true)
+    output=$($BB cat /tmp/thrurndis-virtiofs-modprobe.err 2>/dev/null || true)
     fail "failed to load virtiofs module rc=$rc ${output}"
 fi
 
@@ -66,10 +66,10 @@ $BB chmod 0700 "$SHARE_MOUNT" || fail "failed to secure WireGuard share mount po
 
 run_with_timeout "$MOUNT_TIMEOUT_SECONDS" \
     $BB mount -t virtiofs -o ro,nosuid,nodev,noexec "$SHARE_TAG" "$SHARE_MOUNT" \
-    2>/tmp/rtpvm-virtiofs-mount.err
+    2>/tmp/thrurndis-virtiofs-mount.err
 rc=$?
 if [ "$rc" -ne 0 ]; then
-    output=$($BB cat /tmp/rtpvm-virtiofs-mount.err 2>/dev/null || true)
+    output=$($BB cat /tmp/thrurndis-virtiofs-mount.err 2>/dev/null || true)
     fail "failed to mount $SHARE_TAG read-only rc=$rc ${output}"
 fi
 

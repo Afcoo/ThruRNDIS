@@ -3,19 +3,19 @@
 BB=/usr/bin/busybox
 PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
 export PATH
-CONSOLE_ROWS=${RTPVM_CONSOLE_ROWS:-40}
-CONSOLE_COLUMNS=${RTPVM_CONSOLE_COLUMNS:-120}
+CONSOLE_ROWS=${THRURNDIS_CONSOLE_ROWS:-40}
+CONSOLE_COLUMNS=${THRURNDIS_CONSOLE_COLUMNS:-120}
 
 log() {
-    echo "rtpvm-rcS: $*" >/dev/kmsg 2>/dev/null || true
+    echo "thrurndis-rcS: $*" >/dev/kmsg 2>/dev/null || true
 }
 
 log_console() {
     log "$*"
     if [ -c /dev/console ]; then
-        echo "rtpvm-rcS: $*" >/dev/console 2>/dev/null || true
+        echo "thrurndis-rcS: $*" >/dev/console 2>/dev/null || true
     else
-        echo "rtpvm-rcS: $*" 2>/dev/null || true
+        echo "thrurndis-rcS: $*" 2>/dev/null || true
     fi
 }
 
@@ -104,22 +104,22 @@ mount_fs tmpfs tmpfs /tmp "mode=1777"
 $BB mkdir -p /etc /root /var/log
 $BB ln -sf /proc/mounts /etc/mtab
 $BB ln -sf /proc/self/fd /dev/fd
-$BB hostname alpine-rtpvm
+$BB hostname alpine-thrurndis
 
 cat >/etc/profile <<'EOF'
 export PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
 export HOME=/root
 export TERM=${TERM:-xterm-256color}
 export PAGER=more
-export LINES=${RTPVM_CONSOLE_ROWS:-40}
-export COLUMNS=${RTPVM_CONSOLE_COLUMNS:-120}
+export LINES=${THRURNDIS_CONSOLE_ROWS:-40}
+export COLUMNS=${THRURNDIS_CONSOLE_COLUMNS:-120}
 export PS1='\h:\w# '
 alias ll='ls -al'
 alias reboot='echo "Stop and restart the VM from the host app."'
 EOF
 
 cat >/etc/motd <<'EOF'
-Alpine RTPVM initramfs
+Alpine ThruRNDIS initramfs
 
 This environment runs entirely from RAM. Files written here are discarded when
 the VM stops. Select a scratch disk in the host app only if you explicitly want

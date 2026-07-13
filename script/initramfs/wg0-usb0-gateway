@@ -4,26 +4,26 @@ BB=/usr/bin/busybox
 PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
 export PATH
 
-WG_IFACE=${RTPVM_WG_IFACE:-wg0}
-RNDIS_IFACE=${RTPVM_RNDIS_IFACE:-usb0}
-TABLE_ID=${RTPVM_WG_ROUTE_TABLE:-100}
-RULE_PRIORITY=${RTPVM_WG_ROUTE_PRIORITY:-1000}
-RNDIS_WAIT_SECONDS=${RTPVM_RNDIS_WAIT_SECONDS:-2}
-RNDIS_DHCP_ATTEMPTS=${RTPVM_RNDIS_DHCP_ATTEMPTS:-2}
-RNDIS_DHCP_TIMEOUT_SECONDS=${RTPVM_RNDIS_DHCP_TIMEOUT_SECONDS:-2}
-RNDIS_DHCP_TOTAL_TIMEOUT_SECONDS=${RTPVM_RNDIS_DHCP_TOTAL_TIMEOUT_SECONDS:-6}
-NFT_TABLE=${RTPVM_NFT_TABLE:-rtpvm}
+WG_IFACE=${THRURNDIS_WG_IFACE:-wg0}
+RNDIS_IFACE=${THRURNDIS_RNDIS_IFACE:-usb0}
+TABLE_ID=${THRURNDIS_WG_ROUTE_TABLE:-100}
+RULE_PRIORITY=${THRURNDIS_WG_ROUTE_PRIORITY:-1000}
+RNDIS_WAIT_SECONDS=${THRURNDIS_RNDIS_WAIT_SECONDS:-2}
+RNDIS_DHCP_ATTEMPTS=${THRURNDIS_RNDIS_DHCP_ATTEMPTS:-2}
+RNDIS_DHCP_TIMEOUT_SECONDS=${THRURNDIS_RNDIS_DHCP_TIMEOUT_SECONDS:-2}
+RNDIS_DHCP_TOTAL_TIMEOUT_SECONDS=${THRURNDIS_RNDIS_DHCP_TOTAL_TIMEOUT_SECONDS:-6}
+NFT_TABLE=${THRURNDIS_NFT_TABLE:-thrurndis}
 
 log() {
-    echo "rtpvm-gateway: $*" >/dev/kmsg 2>/dev/null || true
+    echo "thrurndis-gateway: $*" >/dev/kmsg 2>/dev/null || true
 }
 
 log_console() {
     log "$*"
     if [ -c /dev/console ]; then
-        echo "rtpvm-gateway: $*" >/dev/console 2>/dev/null || true
+        echo "thrurndis-gateway: $*" >/dev/console 2>/dev/null || true
     else
-        echo "rtpvm-gateway: $*" >&2
+        echo "thrurndis-gateway: $*" >&2
     fi
 }
 
@@ -200,8 +200,8 @@ install_policy_route() {
     gateway=$1
     route_source=$2
 
-    if ! ip route replace default via "$gateway" dev "$RNDIS_IFACE" table "$TABLE_ID" 2>/tmp/rtpvm-policy-route.err; then
-        output=$($BB cat /tmp/rtpvm-policy-route.err 2>/dev/null || true)
+    if ! ip route replace default via "$gateway" dev "$RNDIS_IFACE" table "$TABLE_ID" 2>/tmp/thrurndis-policy-route.err; then
+        output=$($BB cat /tmp/thrurndis-policy-route.err 2>/dev/null || true)
         log_console "failed to install WireGuard policy default route via $RNDIS_IFACE: ${output}"
         return 1
     fi
@@ -210,13 +210,13 @@ install_policy_route() {
         :
     done
 
-    if ip rule add priority "$RULE_PRIORITY" from "$route_source" table "$TABLE_ID" 2>/tmp/rtpvm-policy-rule.err; then
+    if ip rule add priority "$RULE_PRIORITY" from "$route_source" table "$TABLE_ID" 2>/tmp/thrurndis-policy-rule.err; then
         ip route flush cache 2>/dev/null || true
         log_console "configured WireGuard policy route: from $route_source lookup $TABLE_ID via $gateway dev $RNDIS_IFACE"
         return 0
     fi
 
-    output=$($BB cat /tmp/rtpvm-policy-rule.err 2>/dev/null || true)
+    output=$($BB cat /tmp/thrurndis-policy-rule.err 2>/dev/null || true)
     log_console "failed to install WireGuard policy rule from $route_source: ${output}"
     return 1
 }

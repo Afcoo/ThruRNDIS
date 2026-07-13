@@ -4,20 +4,20 @@ BB=/usr/bin/busybox
 PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
 export PATH
 
-RNDIS_IFACE=${RTPVM_RNDIS_IFACE:-usb0}
-WATCH_INTERVAL_SECONDS=${RTPVM_USB0_WATCH_INTERVAL_SECONDS:-2}
-GATEWAY_SCRIPT=${RTPVM_GATEWAY_SCRIPT:-/usr/local/sbin/wg0-usb0-gateway}
+RNDIS_IFACE=${THRURNDIS_RNDIS_IFACE:-usb0}
+WATCH_INTERVAL_SECONDS=${THRURNDIS_USB0_WATCH_INTERVAL_SECONDS:-2}
+GATEWAY_SCRIPT=${THRURNDIS_GATEWAY_SCRIPT:-/usr/local/sbin/wg0-usb0-gateway}
 
 log() {
-    echo "rtpvm-usb0-watcher: $*" >/dev/kmsg 2>/dev/null || true
+    echo "thrurndis-usb0-watcher: $*" >/dev/kmsg 2>/dev/null || true
 }
 
 log_console() {
     log "$*"
     if [ -c /dev/console ]; then
-        echo "rtpvm-usb0-watcher: $*" >/dev/console 2>/dev/null || true
+        echo "thrurndis-usb0-watcher: $*" >/dev/console 2>/dev/null || true
     else
-        echo "rtpvm-usb0-watcher: $*" 2>/dev/null || true
+        echo "thrurndis-usb0-watcher: $*" 2>/dev/null || true
     fi
 }
 

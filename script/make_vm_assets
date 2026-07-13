@@ -51,9 +51,9 @@ install_initramfs_script() {
     chmod 0755 "$initramfs_script_destination"
 }
 
-write_rtpvm_inittab() {
+write_thrurndis_inittab() {
     destination=$1
-    cat >"$destination" <<'RTPVM_INITTAB'
+    cat >"$destination" <<'THRURNDIS_INITTAB'
 ::sysinit:/etc/init.d/rcS
 ::wait:/usr/local/sbin/init-rndis
 ::wait:/usr/local/sbin/init-virtiofs-wgconf
@@ -62,7 +62,7 @@ write_rtpvm_inittab() {
 hvc0::respawn:/usr/local/sbin/init-console
 ::restart:/sbin/init
 ::ctrlaltdel:/bin/umount -a -r
-RTPVM_INITTAB
+THRURNDIS_INITTAB
     chmod 0644 "$destination"
 }
 
@@ -238,8 +238,8 @@ destination.write_bytes(image)
 PY
 
 base_initramfs="$ISO_EXTRACT_DIR/boot/initramfs-$kernel_flavor"
-rtpvm_initramfs="$ASSET_DIR/initramfs-rtpvm-$kernel_flavor"
-work_dir=$(mktemp -d "${TMPDIR:-/tmp}/alpine-rtpvm-initramfs.XXXXXX")
+thrurndis_initramfs="$ASSET_DIR/initramfs-thrurndis-$kernel_flavor"
+work_dir=$(mktemp -d "${TMPDIR:-/tmp}/alpine-thrurndis-initramfs.XXXXXX")
 trap 'rm -rf "$work_dir"' EXIT HUP INT TERM
 
 gzip -dc "$base_initramfs" | (cd "$work_dir" && cpio -idm >/dev/null 2>&1)
@@ -274,7 +274,7 @@ do
     fi
 done
 
-module_seed_file="$work_dir/.rtpvm-module-seeds"
+module_seed_file="$work_dir/.thrurndis-module-seeds"
 cat >"$module_seed_file" <<'EOF'
 kernel/drivers/net/usb/usbnet.ko.gz
 kernel/drivers/net/usb/cdc_ether.ko.gz
@@ -292,7 +292,7 @@ kernel/net/netfilter/nft_nat.ko.gz
 kernel/net/netfilter/nft_masq.ko.gz
 EOF
 
-module_copy_list="$work_dir/.rtpvm-module-copy-list"
+module_copy_list="$work_dir/.thrurndis-module-copy-list"
 python3 - "$module_stage/$module_base/modules.dep" "$module_seed_file" >"$module_copy_list" <<'PY'
 import pathlib
 import sys
@@ -346,7 +346,7 @@ rm -rf "$module_stage"
 download "$APK_REPOSITORY/APKINDEX.tar.gz" "$APKINDEX_ARCHIVE"
 tar -xOf "$APKINDEX_ARCHIVE" APKINDEX >"$APKINDEX_FILE"
 
-guest_package_list="$work_dir/.rtpvm-guest-packages"
+guest_package_list="$work_dir/.thrurndis-guest-packages"
 python3 - "$APKINDEX_FILE" $GUEST_PACKAGES >"$guest_package_list" <<'PY'
 import pathlib
 import re
@@ -469,7 +469,7 @@ mkdir -p \
 
 ln -sf /sbin/init "$work_dir/init"
 ln -sf /usr/bin/busybox "$work_dir/sbin/init"
-write_rtpvm_inittab "$work_dir/etc/inittab"
+write_thrurndis_inittab "$work_dir/etc/inittab"
 install_initramfs_script "$INITRAMFS_SCRIPT_DIR/rcS" "$work_dir/etc/init.d/rcS"
 install_initramfs_script "$INITRAMFS_SCRIPT_DIR/init-console" "$work_dir/usr/local/sbin/init-console"
 install_initramfs_script "$INITRAMFS_SCRIPT_DIR/init-rndis" "$work_dir/usr/local/sbin/init-rndis"
@@ -547,7 +547,7 @@ EOF
 fi
 chmod 0755 "$work_dir/usr/share/udhcpc/default.script"
 
-write_initramfs_archive "$work_dir" "$rtpvm_initramfs"
+write_initramfs_archive "$work_dir" "$thrurndis_initramfs"
 rm -rf "$work_dir"
 trap - EXIT HUP INT TERM
 
@@ -562,15 +562,15 @@ ALPINE_FLAVOR=$ALPINE_FLAVOR
 KERNEL_FLAVOR=$kernel_flavor
 KERNEL=$kernel_image
 BASE_INITRAMFS=$base_initramfs
-INITRAMFS=$rtpvm_initramfs
+INITRAMFS=$thrurndis_initramfs
 KERNEL_ARGS=$kernel_args
 GUEST_PACKAGES=$guest_package_names
 EOF
 
 cat <<EOF
-Prepared ephemeral Alpine RTPVM assets:
+Prepared ephemeral Alpine ThruRNDIS assets:
   Kernel:            $kernel_image
-  RTPVM initramfs:    $rtpvm_initramfs
+  ThruRNDIS initramfs: $thrurndis_initramfs
   Base initramfs:    $base_initramfs
   Kernel modules:    $kernel_release VirtioFS/RNDIS/WireGuard/netfilter/NAT modules from $kernel_apk_name
   Guest packages:   $guest_package_names

@@ -3,8 +3,8 @@
 BB=/usr/bin/busybox
 PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
 export PATH
-CONSOLE_ROWS=${RTPVM_CONSOLE_ROWS:-40}
-CONSOLE_COLUMNS=${RTPVM_CONSOLE_COLUMNS:-120}
+CONSOLE_ROWS=${THRURNDIS_CONSOLE_ROWS:-40}
+CONSOLE_COLUMNS=${THRURNDIS_CONSOLE_COLUMNS:-120}
 HOME=/root
 TERM=${TERM:-xterm-256color}
 export HOME TERM

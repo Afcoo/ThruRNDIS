@@ -3,22 +3,22 @@
 BB=/usr/bin/busybox
 PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
 export PATH
-NAT_WAIT_SECONDS=${RTPVM_NAT_WAIT_SECONDS:-8}
-NAT_DHCP_ATTEMPTS=${RTPVM_NAT_DHCP_ATTEMPTS:-5}
-NAT_DHCP_TIMEOUT_SECONDS=${RTPVM_NAT_DHCP_TIMEOUT_SECONDS:-2}
-NAT_DHCP_TOTAL_TIMEOUT_SECONDS=${RTPVM_NAT_DHCP_TOTAL_TIMEOUT_SECONDS:-16}
-WG_START_TIMEOUT_SECONDS=${RTPVM_WG_START_TIMEOUT_SECONDS:-16}
+NAT_WAIT_SECONDS=${THRURNDIS_NAT_WAIT_SECONDS:-8}
+NAT_DHCP_ATTEMPTS=${THRURNDIS_NAT_DHCP_ATTEMPTS:-5}
+NAT_DHCP_TIMEOUT_SECONDS=${THRURNDIS_NAT_DHCP_TIMEOUT_SECONDS:-2}
+NAT_DHCP_TOTAL_TIMEOUT_SECONDS=${THRURNDIS_NAT_DHCP_TOTAL_TIMEOUT_SECONDS:-16}
+WG_START_TIMEOUT_SECONDS=${THRURNDIS_WG_START_TIMEOUT_SECONDS:-16}
 
 log() {
-    echo "rtpvm-net: $*" >/dev/kmsg 2>/dev/null || true
+    echo "thrurndis-net: $*" >/dev/kmsg 2>/dev/null || true
 }
 
 log_console() {
     log "$*"
     if [ -c /dev/console ]; then
-        echo "rtpvm-net: $*" >/dev/console 2>/dev/null || true
+        echo "thrurndis-net: $*" >/dev/console 2>/dev/null || true
     else
-        echo "rtpvm-net: $*" 2>/dev/null || true
+        echo "thrurndis-net: $*" 2>/dev/null || true
     fi
 }
 
@@ -202,7 +202,7 @@ configure_nat_ipv4() {
         "$NAT_DHCP_ATTEMPTS" "$NAT_DHCP_TIMEOUT_SECONDS" "$NAT_DHCP_TOTAL_TIMEOUT_SECONDS"; then
         endpoint_ipv4=$(interface_ipv4_address "$iface")
         if [ -n "$endpoint_ipv4" ] && [ -n "$listen_port" ]; then
-            log_console "RTPVM_WG_ENDPOINT=$endpoint_ipv4:$listen_port"
+            log_console "THRURNDIS_WG_ENDPOINT=$endpoint_ipv4:$listen_port"
         elif [ -n "$endpoint_ipv4" ]; then
             log_console "WireGuard ListenPort is unavailable; endpoint marker not emitted"
         fi
@@ -218,7 +218,7 @@ load_wireguard_modules() {
 
 start_wireguard() {
     iface=${1:-wg0}
-    config=${2:-"/run/rtpvm-wireguard/$iface.conf"}
+    config=${2:-"/run/thrurndis-wireguard/$iface.conf"}
     wg_quick_log="/tmp/wg-quick-$iface.log"
 
     if [ ! -f "$config" ]; then
@@ -245,10 +245,10 @@ start_wireguard() {
     return 0
 }
 
-log_console "starting RTPVM network one-shot"
-wireguard_config=/run/rtpvm-wireguard/wg0.conf
+log_console "starting ThruRNDIS network one-shot"
+wireguard_config=/run/thrurndis-wireguard/wg0.conf
 listen_port=$(wireguard_listen_port "$wireguard_config" 2>/dev/null || true)
 configure_nat_ipv4 eth0 "$listen_port" || true
 start_wireguard wg0 "$wireguard_config" || true
-log_console "RTPVM network one-shot finished; usb0-watcher handles RNDIS routing"
+log_console "ThruRNDIS network one-shot finished; usb0-watcher handles RNDIS routing"
 exit 0

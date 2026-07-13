@@ -1,4 +1,4 @@
-# RTVMP: RNDIS Tethering VM Passthrough
+# ThruRNDIS
 
 [한국어](./README.md) | [English](./README.en.md)
 
@@ -18,12 +18,12 @@ It uses Virtualization framework USB passthrough to connect the RNDIS device to 
 ./make_vm_assets
 ```
 
-2. Run `RTVMP.app`. 
+2. Run `ThruRNDIS.app`.
 
     If macOS blocks launch, run:
 
 ```sh
-xattr -dr com.apple.quarantine "/Applications/RTVMP.app"
+xattr -dr com.apple.quarantine "/Applications/ThruRNDIS.app"
 ```
 
 3. In the app, open `VM Setup` -> `Load Folder` and select the generated
@@ -47,10 +47,10 @@ brew install wireguard-tools wireguard-go
 8. Configure WireGuard with the `.conf` file saved in the current directory.
 
 ```sh
-sudo wg-quick up ./rtvmp.conf
+sudo wg-quick up ./thrurndis.conf
 sudo wg show
 # On exit
-sudo wg-quick down ./rtvmp.conf
+sudo wg-quick down ./thrurndis.conf
 ```
 
 **The official WireGuard app does not work correctly, so `wireguard-go` is recommended.**
@@ -83,7 +83,7 @@ AllowedIPs = 10.100.0.0/24, 0.0.0.0/1, 128.0.0.0/1
 Extract it and select the extracted folder in `VM Setup`.
 
 - Kernel: `script/assets/Image-lts`
-- Initramfs: `script/assets/initramfs-rtpvm-lts`
+- Initramfs: `script/assets/initramfs-thrurndis-lts`
 - Guest config: `script/assets/wireguard/wg-server.conf`
 - Host config: `script/assets/wireguard/wg-client.conf`
 
@@ -116,7 +116,7 @@ Put your local `DEVELOPMENT_TEAM` and bundle identifier in
 
 ## Layout
 
-- `RTPVM`: SwiftUI app and VM/USB/WireGuard orchestration.
+- `ThruRNDIS`: SwiftUI app and VM/USB/WireGuard orchestration.
 - `script`: asset generation, build/run, and host WireGuard helper.
 - `script/initramfs`: guest BusyBox initramfs source.
 - `Configuration`: signing configuration template.

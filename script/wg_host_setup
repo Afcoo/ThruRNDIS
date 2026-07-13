@@ -1,12 +1,12 @@
 #!/bin/sh
 set -eu
 
-SOURCE_CONFIG=${RTPVM_CLIENT_CONF:-}
-RUNTIME_DIR=${RTPVM_WG_RUNTIME_DIR:-"${HOME:?HOME is not set}/.rtpvm"}
+SOURCE_CONFIG=${THRURNDIS_CLIENT_CONF:-}
+RUNTIME_DIR=${THRURNDIS_WG_RUNTIME_DIR:-"${HOME:?HOME is not set}/.thrurndis"}
 WG_IF=""
 RUNTIME_CONFIG=""
-PLACEHOLDER="<RTPVM_WG_ENDPOINT>"
-WG_ENDPOINT_PORT=${RTPVM_WG_ENDPOINT_PORT:-51820}
+PLACEHOLDER="<THRURNDIS_WG_ENDPOINT>"
+WG_ENDPOINT_PORT=${THRURNDIS_WG_ENDPOINT_PORT:-51820}
 
 usage() {
     cat <<EOF
@@ -18,7 +18,7 @@ usage:
   $0 print [wgX]
 
 Configures a host WireGuard client connection from the file specified by
-RTPVM_CLIENT_CONF.
+THRURNDIS_CLIENT_CONF.
 
 Actions:
   up       writes $RUNTIME_DIR/<wgX>.conf and runs wg-quick up
@@ -27,7 +27,7 @@ Actions:
   status   prints wg status for the interface
   print    writes or reuses the runtime config, then prints it
 
-The generated RTPVM client config is an IPv4 full-tunnel profile, so host IPv4
+The generated ThruRNDIS client config is an IPv4 full-tunnel profile, so host IPv4
 internet traffic uses the VM RNDIS upstream while the tunnel is active.
 
 Interactive prompts:
@@ -37,12 +37,12 @@ Interactive prompts:
   endpoint port:       defaults to $WG_ENDPOINT_PORT when left blank
 
 Environment overrides:
-  RTPVM_CLIENT_CONF=/path/to/wg-client.conf
-  RTPVM_WG_ENDPOINT=192.168.64.2
-  RTPVM_WG_ENDPOINT_PORT=$WG_ENDPOINT_PORT
-  RTPVM_WG_INTERFACE=wg0
-  RTPVM_USE_EXISTING_CONFIG=y
-  RTPVM_WG_RUNTIME_DIR=$RUNTIME_DIR
+  THRURNDIS_CLIENT_CONF=/path/to/wg-client.conf
+  THRURNDIS_WG_ENDPOINT=192.168.64.2
+  THRURNDIS_WG_ENDPOINT_PORT=$WG_ENDPOINT_PORT
+  THRURNDIS_WG_INTERFACE=wg0
+  THRURNDIS_USE_EXISTING_CONFIG=y
+  THRURNDIS_WG_RUNTIME_DIR=$RUNTIME_DIR
 EOF
 }
 
@@ -53,7 +53,7 @@ Missing WireGuard command: $1
 Install WireGuard tools first:
   brew install wireguard-tools
 
-For macOS RTPVM validation, wireguard-go is also recommended:
+For macOS ThruRNDIS validation, wireguard-go is also recommended:
   brew install wireguard-go
 EOF
     exit 1
@@ -69,9 +69,9 @@ require_tty_input() {
 Interactive input is required.
 
 Run this script from a terminal, or set:
-  RTPVM_WG_ENDPOINT=192.168.64.2
-  RTPVM_WG_ENDPOINT_PORT=$WG_ENDPOINT_PORT
-  RTPVM_WG_INTERFACE=wg0
+  THRURNDIS_WG_ENDPOINT=192.168.64.2
+  THRURNDIS_WG_ENDPOINT_PORT=$WG_ENDPOINT_PORT
+  THRURNDIS_WG_INTERFACE=wg0
 EOF
         exit 1
     fi
@@ -167,7 +167,7 @@ validate_port() {
 }
 
 resolve_endpoint() {
-    endpoint_value=${1:-${RTPVM_WG_ENDPOINT:-}}
+    endpoint_value=${1:-${THRURNDIS_WG_ENDPOINT:-}}
     endpoint_host=""
     endpoint_port=""
     prompted_endpoint=0
@@ -183,7 +183,7 @@ resolve_endpoint() {
     done
 
     if [ -z "$endpoint_port" ]; then
-        endpoint_port=${RTPVM_WG_ENDPOINT_PORT:-}
+        endpoint_port=${THRURNDIS_WG_ENDPOINT_PORT:-}
     fi
 
     if [ -z "$endpoint_port" ]; then
@@ -199,7 +199,7 @@ resolve_endpoint() {
 }
 
 resolve_interface() {
-    value=${1:-${RTPVM_WG_INTERFACE:-}}
+    value=${1:-${THRURNDIS_WG_INTERFACE:-}}
 
     if [ -z "$value" ]; then
         value=$(prompt "WireGuard interface name" "wg0")
@@ -220,7 +220,7 @@ resolve_interface() {
     fi
 
     WG_IF=$value
-    RUNTIME_CONFIG=${RTPVM_RUNTIME_CONFIG:-"$RUNTIME_DIR/$WG_IF.conf"}
+    RUNTIME_CONFIG=${THRURNDIS_RUNTIME_CONFIG:-"$RUNTIME_DIR/$WG_IF.conf"}
 }
 
 run_as_root() {
@@ -269,10 +269,10 @@ require_source_config() {
 
     if [ -z "$SOURCE_CONFIG" ]; then
         cat >&2 <<EOF
-RTPVM_CLIENT_CONF is required.
+THRURNDIS_CLIENT_CONF is required.
 
-Save or export the client config from RTPVM's WireGuard screen, then run:
-  RTPVM_CLIENT_CONF=/path/to/wg-client.conf $0 $action
+Save or export the client config from ThruRNDIS's WireGuard screen, then run:
+  THRURNDIS_CLIENT_CONF=/path/to/wg-client.conf $0 $action
 EOF
         exit 1
     fi
@@ -282,7 +282,7 @@ EOF
 Missing WireGuard client config:
   $SOURCE_CONFIG
 
-Set RTPVM_CLIENT_CONF to the client config saved or exported from RTPVM.
+Set THRURNDIS_CLIENT_CONF to the client config saved or exported from ThruRNDIS.
 EOF
         exit 1
     fi
@@ -313,11 +313,11 @@ prepare_runtime_config() {
             cat >&2 <<EOF
 $SOURCE_CONFIG still contains Endpoint = $PLACEHOLDER.
 
-Print RTPVM_WG_ENDPOINT=<guest-nat-ip>:$WG_ENDPOINT_PORT from the guest console,
+Print THRURNDIS_WG_ENDPOINT=<guest-nat-ip>:$WG_ENDPOINT_PORT from the guest console,
 then enter the endpoint IP address and port when prompted.
 
 For non-interactive use:
-  RTPVM_WG_ENDPOINT=192.168.64.2 RTPVM_WG_ENDPOINT_PORT=$WG_ENDPOINT_PORT $0 up
+  THRURNDIS_WG_ENDPOINT=192.168.64.2 THRURNDIS_WG_ENDPOINT_PORT=$WG_ENDPOINT_PORT $0 up
 EOF
             exit 1
         fi
@@ -339,7 +339,7 @@ require_runtime_config() {
 Runtime WireGuard config not found:
   $RUNTIME_CONFIG
 
-Run '$0 up' first, or set RTPVM_WG_RUNTIME_DIR to the directory that contains
+Run '$0 up' first, or set THRURNDIS_WG_RUNTIME_DIR to the directory that contains
 the runtime $WG_IF.conf file.
 EOF
     exit 1
@@ -350,7 +350,7 @@ should_use_existing_runtime_config() {
         return 1
     fi
 
-    case "${RTPVM_USE_EXISTING_CONFIG:-}" in
+    case "${THRURNDIS_USE_EXISTING_CONFIG:-}" in
         y|Y|yes|YES|true|TRUE|1)
             return 0
             ;;
@@ -360,7 +360,7 @@ should_use_existing_runtime_config() {
         "")
             ;;
         *)
-            echo "RTPVM_USE_EXISTING_CONFIG must be y or n." >&2
+            echo "THRURNDIS_USE_EXISTING_CONFIG must be y or n." >&2
             exit 1
             ;;
     esac

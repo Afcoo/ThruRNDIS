@@ -5,15 +5,15 @@ PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
 export PATH
 
 log() {
-    echo "rtpvm-rndis-init: $*" >/dev/kmsg 2>/dev/null || true
+    echo "thrurndis-rndis-init: $*" >/dev/kmsg 2>/dev/null || true
 }
 
 log_console() {
     log "$*"
     if [ -c /dev/console ]; then
-        echo "rtpvm-rndis-init: $*" >/dev/console 2>/dev/null || true
+        echo "thrurndis-rndis-init: $*" >/dev/console 2>/dev/null || true
     else
-        echo "rtpvm-rndis-init: $*" 2>/dev/null || true
+        echo "thrurndis-rndis-init: $*" 2>/dev/null || true
     fi
 }
 

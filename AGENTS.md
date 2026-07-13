@@ -10,8 +10,8 @@ WireGuard-over-VZNAT architecture as the baseline.
   CLI `main.swift` entrypoint. It has no primary `WindowGroup`; SwiftUI provides
   the Settings scene, while a small AppKit window controller presents
   first-run onboarding.
-- The Xcode project is `RNDIS Tethering VM Passthrough.xcodeproj`.
-- The main app target is `RTPVM` and builds a macOS app bundle.
+- The Xcode project is `ThruRNDIS.xcodeproj`.
+- The main app target is `ThruRNDIS` and builds a macOS app bundle.
 - There is no host packet-tunnel extension target. The app does not create a
   host VPN, and does not inspect or forward packet payloads.
 - Linux assets are not bundled with the app. The baseline user flow is to
@@ -41,7 +41,7 @@ WireGuard-over-VZNAT architecture as the baseline.
 - `VMConfigurationFactory` builds the Linux VM configuration. The current
   baseline uses `VZLinuxBootLoader`, raw disk attachment, an XHCI USB
   controller, `VZNATNetworkDeviceAttachment`, and
-  `VZVirtioFileSystemDeviceConfiguration(tag: "rtpvm-wireguard")`. Its
+  `VZVirtioFileSystemDeviceConfiguration(tag: "thrurndis-wireguard")`. Its
   `VZSharedDirectory(readOnly: true)` points only at `WireGuard/Shared/`.
 - USB passthrough must stay on the public API path that passes an
   AccessoryAccess `AAUSBAccessory` into
@@ -75,7 +75,7 @@ macOS WireGuard client
 - The app's default server configuration listens on UDP port `51820`, but the
   guest reads `ListenPort` from the runtime configuration instead of baking a
   port into the VM assets. The app parses
-  `RTPVM_WG_ENDPOINT=<guest-nat-ip>:<listen-port>` from serial console output.
+  `THRURNDIS_WG_ENDPOINT=<guest-nat-ip>:<listen-port>` from serial console output.
 - WireGuard configuration lives under
   `~/Library/Application Support/<bundle-id>/WireGuard/`: `wg-server.key` and
   `wg-client.key` are the persistent private-key sources, while the generated
@@ -91,13 +91,13 @@ macOS WireGuard client
   demand. Existing asset configurations are ignored and are not migrated.
   `PresharedKey` is not part of the current configuration format.
 - BusyBox `init` runs `init-virtiofs-wgconf` as a `::wait` action between
-  `init-rndis` and `init-network`. It mounts the `rtpvm-wireguard` VirtioFS tag
-  read-only at `/run/rtpvm-wireguard` and verifies that `wg0.conf` exists and
+  `init-rndis` and `init-network`. It mounts the `thrurndis-wireguard` VirtioFS tag
+  read-only at `/run/thrurndis-wireguard` and verifies that `wg0.conf` exists and
   is nonempty. `init-network` starts the interface directly from the shared
   config with `wg-quick`; host file changes do not alter an already-running
   interface and take effect on the next VM start.
 - The app-generated client `.conf` acts as a WireGuard client and uses
-  `<RTPVM_WG_ENDPOINT>` as a placeholder for the discovered guest VZNAT address.
+  `<THRURNDIS_WG_ENDPOINT>` as a placeholder for the discovered guest VZNAT address.
   The client `.conf` uses IPv4 full-tunnel routing with
   `AllowedIPs = 10.100.0.0/24, 0.0.0.0/1, 128.0.0.0/1`. Keep the explicit
   overlay route so `10.100.0.1` remains reachable, and prefer split internet
@@ -124,22 +124,22 @@ macOS WireGuard client
 
 ## Directory Guide
 
-- `RTPVM/App`: SwiftUI app entrypoint, AppKit menu-bar controller, and
+- `ThruRNDIS/App`: SwiftUI app entrypoint, AppKit menu-bar controller, and
   onboarding window controller.
-- `RTPVM/Views`: setup, USB, console, and WireGuard views.
-- `RTPVM/Coordinators`: `VMCoordinator` for Virtualization VM lifecycle and
+- `ThruRNDIS/Views`: setup, USB, console, and WireGuard views.
+- `ThruRNDIS/Coordinators`: `VMCoordinator` for Virtualization VM lifecycle and
   `USBAccessoryCoordinator` for AccessoryAccess USB selection/passthrough
   policy.
-- `RTPVM/Stores`: `TetheringStore` orchestration and SwiftUI-facing app state.
-- `RTPVM/Services`: `USBAccessoryMonitor`, VM configuration
+- `ThruRNDIS/Stores`: `TetheringStore` orchestration and SwiftUI-facing app state.
+- `ThruRNDIS/Services`: `USBAccessoryMonitor`, VM configuration
   factory, and VM delegate glue.
-- `RTPVM/Support`: file picker, clipboard, runtime entitlement reader helpers,
+- `ThruRNDIS/Support`: file picker, clipboard, runtime entitlement reader helpers,
   `WireGuardConfStore` key creation/validation, and `WireGuardConfBuilder`
   server/client configuration rendering.
-- `RTPVM/GuestScripts`: currently empty. Published guest boot assets are owned
+- `ThruRNDIS/GuestScripts`: currently empty. Published guest boot assets are owned
   by the separate `Afcoo/ThruRNDIS_VM_Assets` repository. No WireGuard
   configuration or private key is included in its release assets.
-- `RTPVM/Models`: USB accessory records and approval prompts, VM state, and
+- `ThruRNDIS/Models`: USB accessory records and approval prompts, VM state, and
   WireGuard settings.
 - `script`: local app build/run/debug/verify entrypoints and host-side
   validation helpers. VM asset production and release belong to the separate
@@ -154,17 +154,17 @@ macOS WireGuard client
 ./script/build_and_run.sh
 ```
 
-- The default script builds the `RNDIS Tethering VM Passthrough` scheme,
+- The default script builds the `ThruRNDIS` scheme,
   `Debug` configuration, with `CODE_SIGNING_ALLOWED=NO`, then opens the app.
 - For direct builds, prefer the Xcode beta `xcodebuild`:
 
 ```sh
 /Applications/Xcode-beta.app/Contents/Developer/usr/bin/xcodebuild \
-  -project "RNDIS Tethering VM Passthrough.xcodeproj" \
-  -scheme "RNDIS Tethering VM Passthrough" \
+  -project "ThruRNDIS.xcodeproj" \
+  -scheme "ThruRNDIS" \
   -configuration Debug \
   -destination "platform=macOS" \
-  -derivedDataPath /tmp/RTPVM-DerivedData \
+  -derivedDataPath /tmp/ThruRNDIS-DerivedData \
   CODE_SIGNING_ALLOWED=NO \
   build
 ```
@@ -176,7 +176,7 @@ macOS WireGuard client
 ./script/build_and_run.sh --runtime
 ```
 
-- `--runtime` uses the `RNDIS Tethering VM Passthrough Runtime` scheme and
+- `--runtime` uses the `ThruRNDIS Runtime` scheme and
   the `RuntimeDebug` configuration, and does not disable signing.
 
 ## Signing And Entitlements
@@ -194,7 +194,7 @@ macOS WireGuard client
   app bundle identifier there. The local file is intentionally ignored by Git.
 - Do not hard-code a personal development team ID, provisioning profile, or local
   bundle identifier into the Xcode project file.
-- `RTPVM.entitlements` is the main app entitlement file used by
+- `ThruRNDIS.entitlements` is the main app entitlement file used by
   the standard app target configurations and includes:
   - `com.apple.developer.accessory-access.usb`
   - `com.apple.security.virtualization`
@@ -224,7 +224,7 @@ macOS WireGuard client
   in Settings. Users should download and extract `vm_assets.zip` from
   `https://github.com/Afcoo/ThruRNDIS_VM_Assets/releases`, then select the
   extracted `vm_assets` folder. A valid release asset folder requires the
-  kernel and RTPVM initramfs; asset selection and validation must not require
+  kernel and ThruRNDIS initramfs; asset selection and validation must not require
   WireGuard configuration files. Release assets never contain WireGuard keys
   or configuration. Before VM start, validate the separate app-local key pair,
   regenerate `Shared/wg0.conf`, and block startup with a visible WireGuard
@@ -243,15 +243,15 @@ macOS WireGuard client
   WireGuard key or configuration. Do not restore hardcoded keys, asset config
   migration, or asset-relative config lookup in Swift, shell scripts, README
   examples, or AGENTS guidance.
-- BusyBox `init` is PID 1 in the published RTPVM initramfs. Its `sysinit`
+- BusyBox `init` is PID 1 in the published ThruRNDIS initramfs. Its `sysinit`
   action mounts the early filesystems and prepares the console-side early boot
   path. Keep `init-rndis`, `init-virtiofs-wgconf`, and `init-network` ordered
   as `::wait` actions so the read-only VirtioFS configuration is mounted before
-  `wg-quick up /run/rtpvm-wireguard/wg0.conf`. The RNDIS watcher handles `usb0` DHCP,
+  `wg-quick up /run/thrurndis-wireguard/wg0.conf`. The RNDIS watcher handles `usb0` DHCP,
   installs source policy routing for the live `wg0` connected IPv4 CIDR via the
   RNDIS default gateway, enables IPv4 forwarding, and installs narrow nftables
   masquerade from `wg0` to `usb0`.
-- Use `RTPVM_WG_ENDPOINT=<guest-nat-ip>:<listen-port>` from the guest console
+- Use `THRURNDIS_WG_ENDPOINT=<guest-nat-ip>:<listen-port>` from the guest console
   when rendering the app-generated client config. The port comes from the
   runtime server config's `ListenPort`.
 - VM asset production, dependency locking, license compliance, and GitHub
@@ -264,7 +264,7 @@ macOS WireGuard client
   `apk add`, and must keep automatic forwarding scoped to IPv4 `wg0` traffic
   leaving through fixed RNDIS `usb0`.
 - `script/wg_host_setup` has no asset-relative client-config fallback. Set
-  `RTPVM_CLIENT_CONF` to the client config path saved or exported from the app
+  `THRURNDIS_CLIENT_CONF` to the client config path saved or exported from the app
   before asking the helper to create a runtime host configuration.
 - Real USB/WireGuard runtime validation requires macOS 27 beta, an approved
   provisioning profile for USB/Virtualization, a real RNDIS USB device, and a
@@ -273,4 +273,4 @@ macOS WireGuard client
   documentation work.
 - After code changes, the minimum verification is a
   `CODE_SIGNING_ALLOWED=NO` Xcode build. If app launch verification is needed,
-  use `DERIVED_DATA=/tmp/RTPVM-Check ./script/build_and_run.sh --verify`.
+  use `DERIVED_DATA=/tmp/ThruRNDIS-Check ./script/build_and_run.sh --verify`.
