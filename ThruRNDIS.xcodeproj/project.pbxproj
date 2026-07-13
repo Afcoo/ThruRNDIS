@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		7A0000000000000000000001 /* ThruRNDIS.icon in Resources */ = {isa = PBXBuildFile; fileRef = 7A0000000000000000000101 /* ThruRNDIS.icon */; };
 		8B0000000000000000000001 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000000000000000000101 /* App.swift */; };
 		8B0000000000000000000003 /* USBAccessoryRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000000000000000000103 /* USBAccessoryRecord.swift */; };
 		8B0000000000000000000004 /* VMRuntimeState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000000000000000000104 /* VMRuntimeState.swift */; };
@@ -73,6 +74,7 @@
 		374FD26224CBAE6700890848 /* Runtime.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Runtime.entitlements; sourceTree = "<group>"; };
 		3B6662F3321F8749BDBDDB08 /* LICENSE.txt */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; path = LICENSE.txt; sourceTree = "<group>"; };
 		415EB883448D759F3C023B32 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		7A0000000000000000000101 /* ThruRNDIS.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = ThruRNDIS.icon; sourceTree = "<group>"; };
 		8B0000000000000000000101 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
 		8B0000000000000000000103 /* USBAccessoryRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBAccessoryRecord.swift; sourceTree = "<group>"; };
 		8B0000000000000000000104 /* VMRuntimeState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMRuntimeState.swift; sourceTree = "<group>"; };
@@ -171,6 +173,7 @@
 		374FD25924CBADD100890848 /* ThruRNDIS */ = {
 			isa = PBXGroup;
 			children = (
+				7A0000000000000000000101 /* ThruRNDIS.icon */,
 				8B0000000000000000000201 /* App */,
 				D10000000000000000000201 /* Presentation */,
 				8B0000000000000000000202 /* Models */,
@@ -464,6 +467,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7A0000000000000000000001 /* ThruRNDIS.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -669,6 +673,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = E3865CF719CB3E4197A4D3A9 /* BuildSettings.xcconfig */;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = ThruRNDIS;
 				CODE_SIGN_ENTITLEMENTS = ThruRNDIS/ThruRNDIS.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
@@ -694,6 +699,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = E3865CF719CB3E4197A4D3A9 /* BuildSettings.xcconfig */;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = ThruRNDIS;
 				CODE_SIGN_ENTITLEMENTS = ThruRNDIS/ThruRNDIS.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
@@ -781,6 +787,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = E3865CF719CB3E4197A4D3A9 /* BuildSettings.xcconfig */;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = ThruRNDIS;
 				CODE_SIGN_ENTITLEMENTS = ThruRNDIS/Runtime.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
