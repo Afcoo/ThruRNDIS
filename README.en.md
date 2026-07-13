@@ -21,10 +21,9 @@ sudo xattr -dr com.apple.quarantine "/Applications/ThruRNDIS.app"
 ```
 
 2. Select `Download & Install Latest` during first-run onboarding. The app
-   downloads the latest `vm_assets.zip` and `SHA256SUMS` from the
+   downloads and installs the latest VM Asset from the
    [VM Asset releases](https://github.com/Afcoo/ThruRNDIS_VM_Assets/releases),
-   verifies the checksum and boot files, installs them in Application Support,
-   and selects the installation immediately.
+   then selects the installation immediately.
 
 3. Connect the USB tethering device to the Mac, then select the VM to use the device from the menu bar.
 
@@ -81,52 +80,13 @@ or `VM Assets` > `Check & Install Latest` in Settings. The app checks for a
 release only after an explicit button press; it does not update in the
 background or retry automatically.
 
-The app finds exactly one attachment named `vm_assets.zip` and one named
-`SHA256SUMS` in the latest published `Afcoo/ThruRNDIS_VM_Assets` release. It
-first stores both files in:
+VM Assets come from the
+[Afcoo/ThruRNDIS_VM_Assets](https://github.com/Afcoo/ThruRNDIS_VM_Assets)
+repository's [Releases](https://github.com/Afcoo/ThruRNDIS_VM_Assets/releases).
 
-```text
-~/Library/Application Support/<bundle-id>/VMAssets/.staging/<operation-id>/
-```
-
-It compares each downloaded size with the size reported by the GitHub release,
-then compares the `vm_assets.zip` entry in `SHA256SUMS` with the SHA-256 it
-calculates locally. Archive entries outside the `vm_assets/` root, path
-traversal, duplicate paths, and symbolic links are rejected. After extraction,
-the app requires regular `Image-lts` and `initramfs-thrurndis-lts` files and
-atomically installs the release at:
-
-```text
-~/Library/Application Support/<bundle-id>/VMAssets/Releases/<release-id>-<asset-id>/
-├── install.json
-└── vm_assets/
-    ├── Image-lts
-    └── initramfs-thrurndis-lts
-```
-
-An already-installed release and asset are reused without another download.
-The previous managed release is removed only after a new installation has been
-activated. A failed or cancelled download, verification, extraction, or
-activation cleans up staging and preserves the previous selection. `Clear`
-clears only the selection; it does not delete managed release files.
-
-If automatic installation is unavailable, download `vm_assets.zip` and
-`SHA256SUMS` from the releases page, verify the checksum, extract the archive,
-and select the extracted `vm_assets` folder with `Choose Asset Folder…` during
-onboarding or `Choose Folder…` in Settings. `Asset Overrides` in Settings can
-also replace the kernel or initramfs individually.
-
-VM Asset releases contain no WireGuard keys or configuration. The app creates
-and manages those separately under the Application Support `WireGuard/`
-directory. The scratch disk in `Optional Storage` is also a separate,
-user-selected file; updating or clearing the managed VM Asset selection does
-not change it.
-
-In the code, the app-wide `VMAssetController` owns installation state and the
-UI workflow. Injected services separately own release lookup, download,
-verification/installation, and selection persistence. `TetheringStore` receives
-only validated boot files through `VMAssetProviding` immediately before VM
-start, while continuing to own scratch-disk selection separately.
+You can also manually select a VM Asset folder containing your own kernel and
+initramfs. With an existing VM Asset selected, Settings > `Asset Overrides`
+lets you choose the kernel and initramfs files individually.
 
 ## Build
 
