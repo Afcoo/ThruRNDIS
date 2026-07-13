@@ -1150,19 +1150,7 @@ final class TetheringStore: ObservableObject {
         let defaults = UserDefaults.standard
         let completedVersion = defaults.integer(forKey: DefaultsKey.onboardingVersion)
 
-        if completedVersion >= Self.currentOnboardingVersion {
-            hasCompletedOnboarding = true
-            return
-        }
-
-        if completedVersion == 0, hasConfiguredVMAssets {
-            defaults.set(Self.currentOnboardingVersion, forKey: DefaultsKey.onboardingVersion)
-            hasCompletedOnboarding = true
-            appendEvent("Existing VM asset selection migrated past first-run onboarding.")
-            return
-        }
-
-        hasCompletedOnboarding = false
+        hasCompletedOnboarding = completedVersion >= Self.currentOnboardingVersion
     }
 
     private func normalizedBootCommandLine() -> String {
@@ -1396,7 +1384,7 @@ final class TetheringStore: ObservableObject {
         return formatter
     }()
 
-    private static let currentOnboardingVersion = 1
+    private static let currentOnboardingVersion = 2
 
     private static func registryIDText(_ registryID: UInt64) -> String {
         "0x" + String(registryID, radix: 16, uppercase: true)

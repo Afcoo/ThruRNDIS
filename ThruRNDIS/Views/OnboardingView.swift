@@ -12,9 +12,13 @@ struct OnboardingView: View {
     @State private var alert: OnboardingAlert?
 
     let onFinish: () -> Void
+    let onStepChange: (Int) -> Void
 
     private let releasesURL = URL(
         string: "https://github.com/Afcoo/ThruRNDIS_VM_Assets/releases"
+    )!
+    private let vmAssetsDocumentationURL = URL(
+        string: "https://github.com/Afcoo/ThruRNDIS#vm-assets"
     )!
 
     var body: some View {
@@ -37,7 +41,7 @@ struct OnboardingView: View {
                     case 1:
                         assetInstallStep
                     default:
-                        assetReadyStep
+                        accessoryAttachStep
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -62,6 +66,7 @@ struct OnboardingView: View {
                         step += 1
                     }
                     .buttonStyle(.borderedProminent)
+                    .disabled(!canContinue)
                 } else {
                     Button("Finish") {
                         store.completeOnboarding()
@@ -77,6 +82,9 @@ struct OnboardingView: View {
         }
         .onReceive(assetController.$errorMessage.compactMap { $0 }) { message in
             alert = OnboardingAlert(message: message)
+        }
+        .onChange(of: step) { _, newStep in
+            onStepChange(newStep)
         }
         .alert(item: $alert) { alert in
             Alert(
@@ -98,28 +106,39 @@ struct OnboardingView: View {
             Text("Welcome to ThruRNDIS")
                 .font(.largeTitle.bold())
 
-            Text("ThruRNDIS keeps the VM stopped until you approve a USB tethering device.\nIt then starts the Linux VM and attaches exactly one USB device for that VM session.")
+            Text("Set up ThruRNDIS once, then use the menu bar whenever you want to connect a USB tethering device.")
                 .font(.title3)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
             VStack(alignment: .leading, spacing: 8) {
-                onboardingPoint("The AccessoryAccess listener runs whenever the app is open.", image: "dot.radiowaves.left.and.right")
-                onboardingPoint("VM and USB actions stay available from the menu bar.", image: "menubar.rectangle")
-                onboardingPoint("VM assets can be installed directly from the latest published release.", image: "arrow.down.circle")
+                onboardingPoint("Install the required files in the next step.", image: "arrow.down.circle")
+                onboardingPoint("Turn on USB tethering and connect your device to this Mac.", image: "cable.connector")
+                onboardingPoint("Use Virtual Machine Accessories in the menu bar to connect the device to ThruRNDIS.", image: "menubar.rectangle")
             }
         }
     }
 
     private var assetInstallStep: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Label("Install the VM Assets", systemImage: "shippingbox.and.arrow.backward")
+            Label("Install the Required Files", systemImage: "shippingbox.and.arrow.backward")
                 .font(.largeTitle.bold())
 
-            Text("ThruRNDIS downloads the latest published Linux kernel and initramfs, verifies vm_assets.zip against SHA256SUMS, and installs it in Application Support.")
-                .font(.title3)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text("Download and install the VM Assets ThruRNDIS needs.")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Spacer()
+
+                Link(destination: vmAssetsDocumentationURL) {
+                    Label("What are VM Assets", systemImage: "questionmark.circle")
+                }
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize()
+            }
 
             GroupBox {
                 VStack(alignment: .leading, spacing: 10) {
@@ -130,67 +149,43 @@ struct OnboardingView: View {
                         ProgressView(value: progress)
                     }
 
-                    HStack {
+                    if assetController.hasConfiguredAssets {
+                        Label("ThruRNDIS is ready to continue.", systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+
+                        if let release = assetController.installedRelease {
+                            LabeledContent("Installed version", value: release.displayName)
+                        } else {
+                            Label("Using manually selected files", systemImage: "folder")
+                                .foregroundStyle(.secondary)
+                        }
+                    } else if !assetController.isBusy {
+                        Label("Install or choose valid files to continue.", systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(.orange)
+                    }
+
+                    HStack(spacing: 8) {
                         if assetController.isBusy {
                             Button("Cancel") {
                                 assetController.cancelInstall()
                             }
                         } else {
-                            Button("Download & Install Latest") {
+                            Button(assetController.hasConfiguredAssets ? "Check & Install Latest" : "Download & Install Latest") {
                                 assetController.installLatest()
                             }
                             .buttonStyle(.borderedProminent)
                             .disabled(!store.canEditVMConfiguration)
                         }
 
-                        Spacer()
-
-                        Link("View Releases", destination: releasesURL)
-                    }
-                }
-                .padding(.vertical, 2)
-            }
-
-            Text("No WireGuard keys or configuration are downloaded with the VM assets. ThruRNDIS creates those separately in Application Support.")
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
-    private var assetReadyStep: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Label("Confirm the VM Assets", systemImage: "checkmark.seal")
-                .font(.largeTitle.bold())
-
-            Text("The managed installation is recommended. You can also select an extracted vm_assets folder manually as a fallback.")
-                .font(.title3)
-                .foregroundStyle(.secondary)
-
-            GroupBox {
-                VStack(alignment: .leading, spacing: 10) {
-                    LabeledContent("Folder") {
-                        Text(assetController.selectedFolderURL?.path ?? "Not selected")
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                            .foregroundStyle(assetController.hasConfiguredAssets ? .primary : .secondary)
+                        Link("View VM Asset Release", destination: releasesURL)
                     }
 
-                    if let release = assetController.installedRelease {
-                        LabeledContent("Managed release", value: release.displayName)
-                    }
-
-                    if assetController.hasConfiguredAssets {
-                        Label("Kernel and ThruRNDIS initramfs are ready.", systemImage: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
-                    } else {
-                        Label("Install or select valid assets to finish.", systemImage: "exclamationmark.triangle")
-                            .foregroundStyle(.orange)
-                    }
+                    Divider()
 
                     HStack {
-                        Button("Choose Asset Folder…") {
+                        Button("Choose Downloaded Assets…") {
                             guard let url = FilePicker.chooseDirectory(
-                                title: "Choose extracted vm_assets folder",
+                                title: "Choose downloaded VM assets",
                                 initialURL: assetController.selectedFolderURL
                             ) else {
                                 return
@@ -212,8 +207,93 @@ struct OnboardingView: View {
                 }
                 .padding(.vertical, 2)
             }
+        }
+    }
 
-            Link("Open the manual release fallback", destination: releasesURL)
+    private var accessoryAttachStep: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label("Connect Your Tethering Device", systemImage: "cable.connector.horizontal")
+                .font(.largeTitle.bold())
+
+            Text("Use the macOS menu bar to make your USB tethering device available to ThruRNDIS.")
+                .font(.title3)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            connectionVideoPlaceholder
+
+            VStack(alignment: .leading, spacing: 12) {
+                onboardingInstruction(
+                    "Connect your device",
+                    detail: "Turn on USB tethering, then connect the device to this Mac with USB.",
+                    image: "cable.connector"
+                )
+                onboardingInstruction(
+                    "Open Virtual Machine Accessories",
+                    detail: "Click the USB device icon in the menu bar and choose the tethering device you want to use.",
+                    image: "menubar.rectangle"
+                )
+                onboardingInstruction(
+                    "Use it with ThruRNDIS",
+                    detail: "Select \u{201c}Use with ThruRNDIS,\u{201d} then choose \u{201c}Attach\u{201d} when ThruRNDIS asks.",
+                    image: "checkmark.circle"
+                )
+            }
+        }
+    }
+
+    private var connectionVideoPlaceholder: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.secondary.opacity(0.08))
+
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(Color.secondary.opacity(0.2))
+
+            VStack(spacing: 8) {
+                Image(systemName: "play.rectangle")
+                    .font(.system(size: 34))
+                    .foregroundStyle(.secondary)
+
+                Text("Device connection video")
+                    .font(.headline)
+
+                Text("A connection walkthrough will appear here.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(width: 400, height: 225)
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var canContinue: Bool {
+        guard step == 1 else {
+            return true
+        }
+        return assetController.hasConfiguredAssets && !assetController.isBusy
+    }
+
+    private func onboardingInstruction(
+        _ title: String,
+        detail: String,
+        image: String
+    ) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: image)
+                .font(.title3)
+                .foregroundStyle(.tint)
+                .frame(width: 24)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.headline)
+
+                Text(detail)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 
@@ -242,8 +322,16 @@ struct OnboardingView: View {
     }
 
     private func onboardingPoint(_ title: String, image: String) -> some View {
-        Label(title, systemImage: image)
-            .font(.headline)
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: image)
+                .font(.system(size: 16, weight: .semibold))
+                .frame(width: 24, height: 20)
+                .accessibilityHidden(true)
+
+            Text(title)
+                .font(.headline)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 }
 
