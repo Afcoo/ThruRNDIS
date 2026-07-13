@@ -7,9 +7,14 @@ import SwiftUI
 
 @MainActor
 final class OnboardingWindowController: NSWindowController {
-    init(store: TetheringStore, onFinish: @escaping () -> Void) {
+    init(
+        store: TetheringStore,
+        assetController: VMAssetController,
+        onFinish: @escaping () -> Void
+    ) {
         let rootView = OnboardingView(onFinish: onFinish)
             .environmentObject(store)
+            .environmentObject(assetController)
         let hostingController = NSHostingController(rootView: rootView)
         let window = NSWindow(contentViewController: hostingController)
 

@@ -2,17 +2,19 @@
 Copyright (C) 2026 Afcoo.
 */
 
+import Combine
 import SwiftUI
 
 struct OnboardingView: View {
     @EnvironmentObject private var store: TetheringStore
+    @EnvironmentObject private var assetController: VMAssetController
     @State private var step = 0
     @State private var alert: OnboardingAlert?
 
     let onFinish: () -> Void
 
-    private let readmeURL = URL(
-        string: "https://github.com/Afcoo/ThruRNDIS/blob/main/README.en.md#vm-assets"
+    private let releasesURL = URL(
+        string: "https://github.com/Afcoo/ThruRNDIS_VM_Assets/releases"
     )!
 
     var body: some View {
@@ -33,9 +35,9 @@ struct OnboardingView: View {
                     case 0:
                         welcomeStep
                     case 1:
-                        assetBuildStep
+                        assetInstallStep
                     default:
-                        assetSelectionStep
+                        assetReadyStep
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -63,21 +65,26 @@ struct OnboardingView: View {
                 } else {
                     Button("Finish") {
                         store.completeOnboarding()
-                        if store.hasConfiguredVMAssets {
+                        if assetController.hasConfiguredAssets {
                             onFinish()
                         }
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(!store.hasConfiguredVMAssets)
+                    .disabled(!assetController.hasConfiguredAssets || assetController.isBusy)
                 }
             }
             .padding(12)
         }
+        .onReceive(assetController.$errorMessage.compactMap { $0 }) { message in
+            alert = OnboardingAlert(message: message)
+        }
         .alert(item: $alert) { alert in
             Alert(
-                title: Text("Invalid VM Asset Folder"),
+                title: Text("VM Asset Error"),
                 message: Text(alert.message),
-                dismissButton: .default(Text("OK"))
+                dismissButton: .default(Text("OK")) {
+                    assetController.clearError()
+                }
             )
         }
     }
@@ -99,118 +106,144 @@ struct OnboardingView: View {
             VStack(alignment: .leading, spacing: 8) {
                 onboardingPoint("The AccessoryAccess listener runs whenever the app is open.", image: "dot.radiowaves.left.and.right")
                 onboardingPoint("VM and USB actions stay available from the menu bar.", image: "menubar.rectangle")
-                onboardingPoint("Assets, CPU, memory, USB controls, and console live in Settings.", image: "gearshape")
+                onboardingPoint("VM assets can be installed directly from the latest published release.", image: "arrow.down.circle")
             }
-
         }
     }
 
-    private var assetBuildStep: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Label("Build the VM Assets", systemImage: "shippingbox")
+    private var assetInstallStep: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label("Install the VM Assets", systemImage: "shippingbox.and.arrow.backward")
                 .font(.largeTitle.bold())
 
-            Text("Linux assets are not bundled with ThruRNDIS.\nBuild them from the repository before selecting the generated folder.")
+            Text("ThruRNDIS downloads the latest published Linux kernel and initramfs, verifies vm_assets.zip against SHA256SUMS, and installs it in Application Support.")
                 .font(.title3)
-                .foregroundStyle(.secondary)
-
-            onboardingCommand(
-                title: "From the repository root",
-                command: "./script/make_vm_assets"
-            )
-
-            Text("WireGuard server/client keys and the generated guest server config are created separately in Application Support on first launch. Client configs are rendered only for preview or export, and are not included in the VM assets.")
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            HStack {
-                Label("Output: script/assets", systemImage: "folder")
-                    .font(.headline)
+            GroupBox {
+                VStack(alignment: .leading, spacing: 10) {
+                    Label(assetController.installState.statusText, systemImage: assetStatusImage)
+                        .foregroundStyle(assetStatusColor)
 
-                Spacer()
+                    if let progress = assetController.installState.progress {
+                        ProgressView(value: progress)
+                    }
 
-                Link("Open GitHub README", destination: readmeURL)
+                    HStack {
+                        if assetController.isBusy {
+                            Button("Cancel") {
+                                assetController.cancelInstall()
+                            }
+                        } else {
+                            Button("Download & Install Latest") {
+                                assetController.installLatest()
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(!store.canEditVMConfiguration)
+                        }
+
+                        Spacer()
+
+                        Link("View Releases", destination: releasesURL)
+                    }
+                }
+                .padding(.vertical, 2)
             }
 
+            Text("No WireGuard keys or configuration are downloaded with the VM assets. ThruRNDIS creates those separately in Application Support.")
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
-    private var assetSelectionStep: some View {
+    private var assetReadyStep: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Label("Select the Asset Folder", systemImage: "folder.badge.gearshape")
+            Label("Confirm the VM Assets", systemImage: "checkmark.seal")
                 .font(.largeTitle.bold())
 
-            Text("Choose the generated assets folder.\nThruRNDIS validates the Linux kernel and custom initramfs before saving the selection.")
+            Text("The managed installation is recommended. You can also select an extracted vm_assets folder manually as a fallback.")
                 .font(.title3)
                 .foregroundStyle(.secondary)
 
             GroupBox {
                 VStack(alignment: .leading, spacing: 10) {
                     LabeledContent("Folder") {
-                        Text(store.vmAssetFolderInitialURL?.path ?? "Not selected")
+                        Text(assetController.selectedFolderURL?.path ?? "Not selected")
                             .lineLimit(1)
                             .truncationMode(.middle)
-                            .foregroundStyle(store.hasConfiguredVMAssets ? .primary : .secondary)
+                            .foregroundStyle(assetController.hasConfiguredAssets ? .primary : .secondary)
                     }
 
-                    if store.hasConfiguredVMAssets {
-                        Label("Kernel and custom initramfs are ready.", systemImage: "checkmark.circle.fill")
+                    if let release = assetController.installedRelease {
+                        LabeledContent("Managed release", value: release.displayName)
+                    }
+
+                    if assetController.hasConfiguredAssets {
+                        Label("Kernel and ThruRNDIS initramfs are ready.", systemImage: "checkmark.circle.fill")
                             .foregroundStyle(.green)
                     } else {
-                        Label("A valid asset folder is required to finish.", systemImage: "exclamationmark.triangle")
+                        Label("Install or select valid assets to finish.", systemImage: "exclamationmark.triangle")
                             .foregroundStyle(.orange)
                     }
 
-                    Button("Choose Asset Folder…") {
-                        guard let url = FilePicker.chooseDirectory(
-                            title: "Choose VM asset folder",
-                            initialURL: store.vmAssetFolderInitialURL
-                        ) else {
-                            return
+                    HStack {
+                        Button("Choose Asset Folder…") {
+                            guard let url = FilePicker.chooseDirectory(
+                                title: "Choose extracted vm_assets folder",
+                                initialURL: assetController.selectedFolderURL
+                            ) else {
+                                return
+                            }
+                            if let error = assetController.selectManualFolder(url) {
+                                alert = OnboardingAlert(message: error.localizedDescription)
+                            }
                         }
 
-                        if let error = store.loadVMAssets(from: url) {
-                            alert = OnboardingAlert(message: error.localizedDescription)
+                        if !assetController.installedReleases.isEmpty {
+                            Button("Use Installed Assets") {
+                                if let error = assetController.useMostRecentInstalledAssets() {
+                                    alert = OnboardingAlert(message: error.localizedDescription)
+                                }
+                            }
                         }
                     }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!store.canEditVMConfiguration)
+                    .disabled(!store.canEditVMConfiguration || assetController.isBusy)
                 }
                 .padding(.vertical, 2)
             }
 
-            Link("Read the VM Assets guide on GitHub", destination: readmeURL)
+            Link("Open the manual release fallback", destination: releasesURL)
+        }
+    }
 
+    private var assetStatusImage: String {
+        switch assetController.installState {
+        case .ready:
+            return "checkmark.circle.fill"
+        case .failed:
+            return "exclamationmark.triangle.fill"
+        case .idle:
+            return "circle"
+        default:
+            return "arrow.triangle.2.circlepath"
+        }
+    }
+
+    private var assetStatusColor: Color {
+        switch assetController.installState {
+        case .ready:
+            return .green
+        case .failed:
+            return .red
+        default:
+            return .secondary
         }
     }
 
     private func onboardingPoint(_ title: String, image: String) -> some View {
         Label(title, systemImage: image)
             .font(.headline)
-    }
-
-    private func onboardingCommand(title: String, command: String) -> some View {
-        GroupBox {
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(title)
-                        .font(.headline)
-
-                    Text(command)
-                        .font(.system(.body, design: .monospaced))
-                        .textSelection(.enabled)
-                }
-
-                Spacer()
-
-                Button {
-                    Clipboard.copy(command)
-                } label: {
-                    Label("Copy", systemImage: "doc.on.doc")
-                }
-            }
-            .padding(.vertical, 2)
-        }
     }
 }
 

@@ -9,6 +9,7 @@ import SwiftUI
 final class SettingsWindowController: NSWindowController {
     init(
         store: TetheringStore,
+        assetController: VMAssetController,
         openConsole: @escaping () -> Void,
         resetAndRestart: @escaping () -> Void
     ) {
@@ -17,6 +18,7 @@ final class SettingsWindowController: NSWindowController {
             resetAndRestart: resetAndRestart
         )
             .environmentObject(store)
+            .environmentObject(assetController)
         let hostingController = NSHostingController(rootView: rootView)
         let window = NSWindow(contentViewController: hostingController)
 

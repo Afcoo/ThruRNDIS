@@ -34,7 +34,7 @@ struct USBAttachmentPrompt: Identifiable {
             let previousState = isCurrentlyAttached ? "is attached" : "was already used in this VM session"
             return "USB device \(previousUSBIDText) \(previousState). ThruRNDIS will detach it if needed, restart the VM, and attach \(accessory.usbIDText). Continue?"
         case .assetsRequired:
-            return "USB device \(accessory.usbIDText) is ready, but VM assets have not been configured. Open onboarding to build or select the asset folder first."
+            return "USB device \(accessory.usbIDText) is ready, but VM assets have not been configured. Open onboarding to install the latest release or select an extracted vm_assets folder."
         }
     }
 

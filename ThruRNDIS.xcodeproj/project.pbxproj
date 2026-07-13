@@ -37,7 +37,29 @@
 		9A0000000000000000000007 /* SettingsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A0000000000000000000107 /* SettingsWindowController.swift */; };
 		9A0000000000000000000008 /* ConsoleWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A0000000000000000000108 /* ConsoleWindowController.swift */; };
 		9A0000000000000000000009 /* InfoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A0000000000000000000109 /* InfoView.swift */; };
+		B10000000000000000000001 /* VMAssetModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000101 /* VMAssetModels.swift */; };
+		B10000000000000000000002 /* VMAssetFolderResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000102 /* VMAssetFolderResolver.swift */; };
+		B10000000000000000000003 /* GitHubVMAssetReleaseService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000103 /* GitHubVMAssetReleaseService.swift */; };
+		B10000000000000000000004 /* VMAssetDownloadService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000104 /* VMAssetDownloadService.swift */; };
+		B10000000000000000000005 /* VMAssetInstallService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000105 /* VMAssetInstallService.swift */; };
+		B10000000000000000000006 /* VMAssetSelectionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000106 /* VMAssetSelectionStore.swift */; };
+		B10000000000000000000007 /* VMAssetController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000107 /* VMAssetController.swift */; };
+		C10000000000000000000001 /* VMAssetTestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000000000000000000101 /* VMAssetTestSupport.swift */; };
+		C10000000000000000000002 /* VMAssetSelectionStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000000000000000000102 /* VMAssetSelectionStoreTests.swift */; };
+		C10000000000000000000003 /* VMAssetServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000000000000000000103 /* VMAssetServiceTests.swift */; };
+		C10000000000000000000004 /* VMAssetControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000000000000000000104 /* VMAssetControllerTests.swift */; };
+		C10000000000000000000005 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C10000000000000000000106 /* XCTest.framework */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		C10000000000000000000701 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 374FD24F24CBADD100890848 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 374FD25624CBADD100890848;
+			remoteInfo = ThruRNDIS;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		374FD25724CBADD100890848 /* ThruRNDIS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ThruRNDIS.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -75,6 +97,19 @@
 		9A0000000000000000000107 /* SettingsWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowController.swift; sourceTree = "<group>"; };
 		9A0000000000000000000108 /* ConsoleWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsoleWindowController.swift; sourceTree = "<group>"; };
 		9A0000000000000000000109 /* InfoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InfoView.swift; sourceTree = "<group>"; };
+		B10000000000000000000101 /* VMAssetModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMAssetModels.swift; sourceTree = "<group>"; };
+		B10000000000000000000102 /* VMAssetFolderResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMAssetFolderResolver.swift; sourceTree = "<group>"; };
+		B10000000000000000000103 /* GitHubVMAssetReleaseService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubVMAssetReleaseService.swift; sourceTree = "<group>"; };
+		B10000000000000000000104 /* VMAssetDownloadService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMAssetDownloadService.swift; sourceTree = "<group>"; };
+		B10000000000000000000105 /* VMAssetInstallService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMAssetInstallService.swift; sourceTree = "<group>"; };
+		B10000000000000000000106 /* VMAssetSelectionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMAssetSelectionStore.swift; sourceTree = "<group>"; };
+		B10000000000000000000107 /* VMAssetController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMAssetController.swift; sourceTree = "<group>"; };
+		C10000000000000000000101 /* VMAssetTestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMAssetTestSupport.swift; sourceTree = "<group>"; };
+		C10000000000000000000102 /* VMAssetSelectionStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMAssetSelectionStoreTests.swift; sourceTree = "<group>"; };
+		C10000000000000000000103 /* VMAssetServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMAssetServiceTests.swift; sourceTree = "<group>"; };
+		C10000000000000000000104 /* VMAssetControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMAssetControllerTests.swift; sourceTree = "<group>"; };
+		C10000000000000000000105 /* ThruRNDISTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ThruRNDISTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		C10000000000000000000106 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = System/Library/Frameworks/XCTest.framework; sourceTree = SDKROOT; };
 		E3865CF619CB3E4197A4D3AA /* LocalSigning.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = LocalSigning.xcconfig.example; path = Configuration/LocalSigning.xcconfig.example; sourceTree = "<group>"; };
 		E3865CF719CB3E4197A4D3A9 /* BuildSettings.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = BuildSettings.xcconfig; path = Configuration/BuildSettings.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -88,6 +123,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C10000000000000000000302 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C10000000000000000000005 /* XCTest.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -96,6 +139,7 @@
 			children = (
 				415EB883448D759F3C023B32 /* README.md */,
 				374FD25924CBADD100890848 /* ThruRNDIS */,
+				C10000000000000000000201 /* ThruRNDISTests */,
 				8C0000000000000000000202 /* Frameworks */,
 				374FD25824CBADD100890848 /* Products */,
 				7311A096A816DCB7003B6B98 /* Configuration */,
@@ -107,6 +151,7 @@
 			isa = PBXGroup;
 			children = (
 				374FD25724CBADD100890848 /* ThruRNDIS.app */,
+				C10000000000000000000105 /* ThruRNDISTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -116,6 +161,7 @@
 			children = (
 				8B0000000000000000000201 /* App */,
 				8B0000000000000000000202 /* Models */,
+				B10000000000000000000201 /* Controllers */,
 				8F0000000000000000000201 /* Coordinators */,
 				8B0000000000000000000203 /* Services */,
 				8B0000000000000000000204 /* Stores */,
@@ -165,6 +211,7 @@
 				8B0000000000000000000104 /* VMRuntimeState.swift */,
 				8F0000000000000000000101 /* WireGuardSettings.swift */,
 				9A0000000000000000000103 /* USBAttachmentPrompt.swift */,
+				B10000000000000000000101 /* VMAssetModels.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -175,6 +222,9 @@
 				8B0000000000000000000105 /* USBAccessoryMonitor.swift */,
 				8B0000000000000000000107 /* VMConfigurationFactory.swift */,
 				9A0000000000000000000104 /* LaunchAtLoginService.swift */,
+				B10000000000000000000103 /* GitHubVMAssetReleaseService.swift */,
+				B10000000000000000000104 /* VMAssetDownloadService.swift */,
+				B10000000000000000000105 /* VMAssetInstallService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -183,6 +233,7 @@
 			isa = PBXGroup;
 			children = (
 				8B0000000000000000000108 /* TetheringStore.swift */,
+				B10000000000000000000106 /* VMAssetSelectionStore.swift */,
 			);
 			path = Stores;
 			sourceTree = "<group>";
@@ -195,6 +246,7 @@
 				8B0000000000000000000112 /* RuntimeEntitlements.swift */,
 				8F0000000000000000000105 /* WireGuardConfStore.swift */,
 				8F0000000000000000000102 /* WireGuardConfBuilder.swift */,
+				B10000000000000000000102 /* VMAssetFolderResolver.swift */,
 			);
 			path = Support;
 			sourceTree = "<group>";
@@ -226,6 +278,7 @@
 		8C0000000000000000000202 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				C10000000000000000000106 /* XCTest.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -237,6 +290,25 @@
 				8F0000000000000000000104 /* USBAccessoryCoordinator.swift */,
 			);
 			path = Coordinators;
+			sourceTree = "<group>";
+		};
+		B10000000000000000000201 /* Controllers */ = {
+			isa = PBXGroup;
+			children = (
+				B10000000000000000000107 /* VMAssetController.swift */,
+			);
+			path = Controllers;
+			sourceTree = "<group>";
+		};
+		C10000000000000000000201 /* ThruRNDISTests */ = {
+			isa = PBXGroup;
+			children = (
+				C10000000000000000000101 /* VMAssetTestSupport.swift */,
+				C10000000000000000000102 /* VMAssetSelectionStoreTests.swift */,
+				C10000000000000000000103 /* VMAssetServiceTests.swift */,
+				C10000000000000000000104 /* VMAssetControllerTests.swift */,
+			);
+			path = ThruRNDISTests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -262,6 +334,24 @@
 			productReference = 374FD25724CBADD100890848 /* ThruRNDIS.app */;
 			productType = "com.apple.product-type.application";
 		};
+		C10000000000000000000401 /* ThruRNDISTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C10000000000000000000601 /* Build configuration list for PBXNativeTarget "ThruRNDISTests" */;
+			buildPhases = (
+				C10000000000000000000301 /* Sources */,
+				C10000000000000000000302 /* Frameworks */,
+				C10000000000000000000303 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C10000000000000000000702 /* PBXTargetDependency */,
+			);
+			name = ThruRNDISTests;
+			productName = ThruRNDISTests;
+			productReference = C10000000000000000000105 /* ThruRNDISTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -274,6 +364,10 @@
 				TargetAttributes = {
 					374FD25624CBADD100890848 = {
 						CreatedOnToolsVersion = 12.0;
+					};
+					C10000000000000000000401 = {
+						CreatedOnToolsVersion = 27.0;
+						TestTargetID = 374FD25624CBADD100890848;
 					};
 				};
 			};
@@ -294,12 +388,20 @@
 			projectRoot = "";
 			targets = (
 				374FD25624CBADD100890848 /* ThruRNDIS */,
+				C10000000000000000000401 /* ThruRNDISTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		8D0000000000000000000301 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C10000000000000000000303 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -342,10 +444,36 @@
 				8B000000000000000000000E /* ConsoleView.swift in Sources */,
 				8B000000000000000000000F /* WireGuardView.swift in Sources */,
 				8B0000000000000000000011 /* SharedViews.swift in Sources */,
+				B10000000000000000000001 /* VMAssetModels.swift in Sources */,
+				B10000000000000000000002 /* VMAssetFolderResolver.swift in Sources */,
+				B10000000000000000000003 /* GitHubVMAssetReleaseService.swift in Sources */,
+				B10000000000000000000004 /* VMAssetDownloadService.swift in Sources */,
+				B10000000000000000000005 /* VMAssetInstallService.swift in Sources */,
+				B10000000000000000000006 /* VMAssetSelectionStore.swift in Sources */,
+				B10000000000000000000007 /* VMAssetController.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C10000000000000000000301 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C10000000000000000000001 /* VMAssetTestSupport.swift in Sources */,
+				C10000000000000000000002 /* VMAssetSelectionStoreTests.swift in Sources */,
+				C10000000000000000000003 /* VMAssetServiceTests.swift in Sources */,
+				C10000000000000000000004 /* VMAssetControllerTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		C10000000000000000000702 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 374FD25624CBADD100890848 /* ThruRNDIS */;
+			targetProxy = C10000000000000000000701 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		374FD25C24CBADD100890848 /* Debug */ = {
@@ -602,6 +730,59 @@
 			};
 			name = RuntimeDebug;
 		};
+		C10000000000000000000501 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = E3865CF719CB3E4197A4D3A9 /* BuildSettings.xcconfig */;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(THRURNDIS_APP_BUNDLE_IDENTIFIER).tests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ThruRNDIS.app/Contents/MacOS/ThruRNDIS";
+		};
+			name = Debug;
+		};
+		C10000000000000000000502 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = E3865CF719CB3E4197A4D3A9 /* BuildSettings.xcconfig */;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(THRURNDIS_APP_BUNDLE_IDENTIFIER).tests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ThruRNDIS.app/Contents/MacOS/ThruRNDIS";
+			};
+			name = Release;
+		};
+		C10000000000000000000503 /* RuntimeDebug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = E3865CF719CB3E4197A4D3A9 /* BuildSettings.xcconfig */;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(THRURNDIS_APP_BUNDLE_IDENTIFIER).tests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ThruRNDIS.app/Contents/MacOS/ThruRNDIS";
+			};
+			name = RuntimeDebug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -621,6 +802,16 @@
 				374FD25F24CBADD100890848 /* Debug */,
 				374FD26024CBADD100890848 /* Release */,
 				8B0000000000000000000302 /* RuntimeDebug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C10000000000000000000601 /* Build configuration list for PBXNativeTarget "ThruRNDISTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C10000000000000000000501 /* Debug */,
+				C10000000000000000000502 /* Release */,
+				C10000000000000000000503 /* RuntimeDebug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

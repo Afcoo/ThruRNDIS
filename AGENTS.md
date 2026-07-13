@@ -14,24 +14,49 @@ WireGuard-over-VZNAT architecture as the baseline.
 - The main app target is `ThruRNDIS` and builds a macOS app bundle.
 - There is no host packet-tunnel extension target. The app does not create a
   host VPN, and does not inspect or forward packet payloads.
-- Linux assets are not bundled with the app. The baseline user flow is to
-  download `vm_assets.zip` from the public
-  [Afcoo/ThruRNDIS_VM_Assets Releases](https://github.com/Afcoo/ThruRNDIS_VM_Assets/releases),
-  verify it against the attached `SHA256SUMS`, extract it, and select the
-  extracted `vm_assets` folder in the app UI. An optional raw scratch disk is
-  user-managed separately. Do not direct users to build VM assets locally from
-  this repository.
+- Linux assets are not bundled with the app. The baseline user flow is the
+  explicit `Download & Install Latest` action in onboarding, or
+  `Check & Install Latest` in Settings. The app downloads the exact
+  `vm_assets.zip` and `SHA256SUMS` attachments from the latest published
+  [Afcoo/ThruRNDIS_VM_Assets Release](https://github.com/Afcoo/ThruRNDIS_VM_Assets/releases),
+  verifies and installs them in Application Support, and activates the managed
+  release. Manual download, checksum verification, extraction, and folder
+  selection remain a fallback. An optional raw scratch disk is user-managed
+  separately. Do not direct users to build VM assets locally from this
+  repository.
+- The VM boots with the kernel image and initial ramdisk (initramfs) contained
+  in the `vm_assets.zip` release artifact. After extraction and selection,
+  `VMConfigurationFactory` passes those files from the selected `vm_assets`
+  folder to `VZLinuxBootLoader` as its kernel and `initialRamdiskURL`.
 
 ## Architecture
 
-- `TetheringStore` owns SwiftUI-facing app state, WireGuard configuration state,
-  onboarding/preferences, USB approval workflow, and the console/event logs. VM
-  lifecycle work belongs in `VMCoordinator`; USB AccessoryAccess selection and
-  passthrough policy belong in `USBAccessoryCoordinator`.
-- `AppDelegate` owns the shared `TetheringStore`, starts AccessoryAccess
-  monitoring at app launch, and connects AppKit presentation to store state.
-  `MenuBarController` owns only the native status item/menu and forwards all
-  actions into the store.
+- `TetheringStore` owns the general SwiftUI-facing app state, WireGuard
+  configuration state, onboarding/preferences, optional scratch-disk
+  selection, USB approval workflow, and console/event logs. It does not own VM
+  Asset selection, persistence, or installation. VM lifecycle work belongs in
+  `VMCoordinator`; USB AccessoryAccess selection and passthrough policy belong
+  in `USBAccessoryCoordinator`.
+- `AppDelegate` owns one shared `VMAssetController` and one shared
+  `TetheringStore(assetProvider:)`, starts AccessoryAccess monitoring at app
+  launch, and injects the same controller into onboarding, Settings, and the
+  menu bar. Keep the dependency one-way: `TetheringStore` sees only the
+  read-only `VMAssetProviding` boundary, and `VMAssetController` must not
+  reference `TetheringStore`.
+- `VMAssetController` is the `@MainActor` UI/workflow owner for the current
+  selection, installed releases, install state, progress, errors, cancellation,
+  and stale-operation protection. It orchestrates protocol-injected release,
+  download, install, and selection services; do not put `URLSession`,
+  `FileManager`, `Process`, or hashing work directly in the controller.
+- `GitHubVMAssetReleaseService` resolves the latest published release and
+  requires exactly one `vm_assets.zip` and one `SHA256SUMS` attachment.
+  `VMAssetDownloadService` owns HTTP validation, reported-size checks,
+  progress, staging, cancellation, and partial-download cleanup.
+  `VMAssetInstallService` owns checksum/archive validation, extraction, atomic
+  promotion, metadata, and managed-release cleanup. `VMAssetSelectionStore`
+  owns UserDefaults restoration and persistence for managed/manual selections
+  and kernel/initramfs overrides. `VMAssetFolderResolver` is the shared,
+  file-only folder resolver and validator.
 - `WireGuardConfStore` owns the app-local WireGuard directory and creates the
   server/client private-key files on first launch. `WireGuardConfBuilder`
   accepts editable configuration elements, uses defaults for now, generates
@@ -39,8 +64,8 @@ WireGuard-over-VZNAT architecture as the baseline.
   Neither type reads WireGuard configuration from the selected VM asset tree or
   hard-codes key material.
 - `VMConfigurationFactory` builds the Linux VM configuration. The current
-  baseline uses `VZLinuxBootLoader`, raw disk attachment, an XHCI USB
-  controller, `VZNATNetworkDeviceAttachment`, and
+  baseline uses `VZLinuxBootLoader`, an optional raw scratch-disk attachment,
+  an XHCI USB controller, `VZNATNetworkDeviceAttachment`, and
   `VZVirtioFileSystemDeviceConfiguration(tag: "thrurndis-wireguard")`. Its
   `VZSharedDirectory(readOnly: true)` points only at `WireGuard/Shared/`.
 - USB passthrough must stay on the public API path that passes an
@@ -54,6 +79,43 @@ WireGuard-over-VZNAT architecture as the baseline.
   currently has a connection bring-up issue in this validation flow; recommend
   `wireguard-go` for macOS validation. This app must not start, stop, or manage
   the host WireGuard tunnel.
+
+## VM Asset Installation
+
+- App launch restores and validates the persisted local selection and enumerates
+  managed installations without making a network request. Latest-release lookup
+  begins only after an explicit user action. It uses the unauthenticated GitHub
+  latest-release API; surface rate-limit and network failures instead of adding
+  a token, background update, automatic retry, or silent fallback.
+- Downloads are staged under
+  `~/Library/Application Support/<bundle-id>/VMAssets/.staging/<operation-id>/`.
+  Require successful HTTP responses and sizes matching the release API for both
+  exact asset names. Cancellation and every failure path must remove partial
+  downloads and the operation staging directory.
+- `SHA256SUMS` must contain exactly one valid entry for `vm_assets.zip`.
+  Calculate the archive SHA-256 with CryptoKit before extraction. Inspect ZIP
+  entries before running `/usr/bin/ditto -x -k`: accept only the `vm_assets/`
+  root, reject absolute or traversal paths, duplicate entries, unexpected roots,
+  and symbolic links. A managed release specifically requires regular
+  `vm_assets/Image-lts` and
+  `vm_assets/initramfs-thrurndis-lts` files.
+- Promote a verified extraction atomically to
+  `~/Library/Application Support/<bundle-id>/VMAssets/Releases/<release-id>-<archive-asset-id>/`
+  and write `install.json` with the release ID/tag, archive asset ID, calculated
+  hash, and install time.
+  Reuse a valid matching installation without downloading it again. Persist the
+  new selection before pruning older managed releases; never delete a manually
+  selected directory. A failed/cancelled operation leaves the previous
+  selection active, and clearing the selection preserves managed files.
+- Manual selection of an extracted `vm_assets` folder and per-file kernel or
+  initramfs overrides are supported fallbacks. `VMAssetFolderResolver` accepts
+  the release root or its `boot/` directory layout and requires readable regular
+  boot files. `VMConfigurationFactory` must receive only the validated effective
+  boot URLs from `VMAssetProviding` immediately before VM start.
+- The optional scratch disk remains `TetheringStore` state and is neither
+  downloaded nor deleted by VM Asset installation or selection changes.
+  WireGuard keys/configuration likewise remain in the separate Application
+  Support `WireGuard/` tree and never come from a VM Asset release.
 
 ## Data Path
 
@@ -126,21 +188,24 @@ macOS WireGuard client
 
 - `ThruRNDIS/App`: SwiftUI app entrypoint, AppKit menu-bar controller, and
   onboarding window controller.
+- `ThruRNDIS/Controllers`: `VMAssetController`, the shared VM Asset UI state and
+  installation-workflow owner.
 - `ThruRNDIS/Views`: setup, USB, console, and WireGuard views.
 - `ThruRNDIS/Coordinators`: `VMCoordinator` for Virtualization VM lifecycle and
   `USBAccessoryCoordinator` for AccessoryAccess USB selection/passthrough
   policy.
-- `ThruRNDIS/Stores`: `TetheringStore` orchestration and SwiftUI-facing app state.
-- `ThruRNDIS/Services`: `USBAccessoryMonitor`, VM configuration
-  factory, and VM delegate glue.
+- `ThruRNDIS/Stores`: `TetheringStore` orchestration/general app state and
+  `VMAssetSelectionStore` selection persistence.
+- `ThruRNDIS/Services`: VM Asset release lookup, download, verification/install,
+  `USBAccessoryMonitor`, VM configuration factory, and VM delegate glue.
 - `ThruRNDIS/Support`: file picker, clipboard, runtime entitlement reader helpers,
-  `WireGuardConfStore` key creation/validation, and `WireGuardConfBuilder`
-  server/client configuration rendering.
+  `VMAssetFolderResolver`, `WireGuardConfStore` key creation/validation, and
+  `WireGuardConfBuilder` server/client configuration rendering.
 - `ThruRNDIS/GuestScripts`: currently empty. Published guest boot assets are owned
   by the separate `Afcoo/ThruRNDIS_VM_Assets` repository. No WireGuard
   configuration or private key is included in its release assets.
-- `ThruRNDIS/Models`: USB accessory records and approval prompts, VM state, and
-  WireGuard settings.
+- `ThruRNDIS/Models`: VM Asset values/protocol boundaries, USB accessory records
+  and approval prompts, VM state, and WireGuard settings.
 - `script`: local app build/run/debug/verify entrypoints and host-side
   validation helpers. VM asset production and release belong to the separate
   public asset repository.
@@ -220,19 +285,21 @@ macOS WireGuard client
   VZ attach/detach completions. Preserve the VM-generation and USB-operation
   tokens that prevent callbacks from an earlier VM or attachment from mutating
   the current session.
-- VM assets are selected during first-run onboarding and can later be changed
-  in Settings. Users should download and extract `vm_assets.zip` from
-  `https://github.com/Afcoo/ThruRNDIS_VM_Assets/releases`, then select the
-  extracted `vm_assets` folder. A valid release asset folder requires the
-  kernel and ThruRNDIS initramfs; asset selection and validation must not require
-  WireGuard configuration files. Release assets never contain WireGuard keys
-  or configuration. Before VM start, validate the separate app-local key pair,
-  regenerate `Shared/wg0.conf`, and block startup with a visible WireGuard
-  error if a key is missing or malformed.
-- Clearing VM assets preserves the Application Support WireGuard directory.
-  Reset App Settings may delete that directory only while the VM is stopped;
-  if deletion fails, report the error and do not restart the app. A successful
-  reset creates fresh key files and a generated server config on the next launch.
+- VM assets are installed during first-run onboarding and can later be checked,
+  activated, manually selected, overridden, or cleared in Settings. Keep these
+  controls disabled while VM configuration cannot be edited or an Asset
+  operation is active. VM/USB start paths must reject requests while the
+  controller is busy and must revalidate the effective kernel/initramfs URLs.
+- Asset selection and validation must not require WireGuard configuration files;
+  release assets never contain WireGuard keys or configuration. Before VM start,
+  validate the separate app-local key pair, regenerate `Shared/wg0.conf`, and
+  block startup with a visible WireGuard error if a key is missing or malformed.
+- Clearing VM Asset selection preserves managed releases, the optional scratch
+  disk, and the Application Support WireGuard directory. Reset App Settings may
+  delete the WireGuard directory and clear the Asset selection only while the VM
+  is stopped; it preserves managed Asset releases. If WireGuard deletion fails,
+  report the error and do not restart the app. A successful reset creates fresh
+  key files and a generated server config on the next launch.
 - Keep the WireGuard screen read-only: preview, copy, save/export, and reload
   use `WireGuardConfBuilder`. Its `WireGuardConfElements` input is ready for a
   future editor but currently uses defaults. Configuration editing and applying

@@ -2,11 +2,13 @@
 Copyright (C) 2026 Afcoo.
 */
 
+import Combine
 import SwiftUI
 
 struct VirtualMachineView: View {
     @EnvironmentObject private var store: TetheringStore
-    @State private var assetFolderLoadAlert: AssetFolderLoadAlert?
+    @EnvironmentObject private var assetController: VMAssetController
+    @State private var assetAlert: VMAssetAlert?
 
     let openConsole: () -> Void
 
@@ -65,8 +67,21 @@ struct VirtualMachineView: View {
             .disabled(!store.canEditVMConfiguration)
 
             Section("VM Assets") {
+                LabeledContent("Status") {
+                    Text(assetController.installState.statusText)
+                        .foregroundStyle(assetStatusColor)
+                }
+
+                if let progress = assetController.installState.progress {
+                    ProgressView(value: progress)
+                }
+
+                if let release = assetController.installedRelease {
+                    LabeledContent("Managed release", value: release.displayName)
+                }
+
                 LabeledContent("Asset folder") {
-                    Text(store.vmAssetFolderInitialURL?.path ?? "Not selected")
+                    Text(assetController.selectedFolderURL?.path ?? "Not selected")
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                         .truncationMode(.middle)
@@ -74,52 +89,87 @@ struct VirtualMachineView: View {
                 }
 
                 HStack(spacing: 12) {
-                    Button("Choose Asset Folder…") {
+                    if assetController.isBusy {
+                        Button("Cancel") {
+                            assetController.cancelInstall()
+                        }
+                    } else {
+                        Button("Check & Install Latest") {
+                            assetController.installLatest()
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+
+                    Button("Choose Folder…") {
                         if let url = FilePicker.chooseDirectory(
-                            title: "Choose VM asset folder",
-                            initialURL: store.vmAssetFolderInitialURL
-                        ), let error = store.loadVMAssets(from: url) {
-                            assetFolderLoadAlert = AssetFolderLoadAlert(message: error.localizedDescription)
+                            title: "Choose extracted vm_assets folder",
+                            initialURL: assetController.selectedFolderURL
+                        ), let error = assetController.selectManualFolder(url) {
+                            assetAlert = VMAssetAlert(message: error.localizedDescription)
                         }
                     }
-                    .disabled(!store.canEditVMConfiguration)
+                    .disabled(assetController.isBusy)
+
+                    if !assetController.installedReleases.isEmpty {
+                        Button("Use Installed") {
+                            if let error = assetController.useMostRecentInstalledAssets() {
+                                assetAlert = VMAssetAlert(message: error.localizedDescription)
+                            }
+                        }
+                        .disabled(assetController.isBusy)
+                    }
 
                     Button("Clear") {
-                        store.clearVMAssets()
+                        assetController.clearSelection()
                     }
-                    .disabled(!store.canClearVMAssets)
-                    .help("Clear the selected VM asset paths without deleting files.")
+                    .disabled(assetController.currentSelection == nil || assetController.isBusy)
+                    .help("Clear the selected VM asset paths without deleting managed release files.")
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .disabled(!store.canEditVMConfiguration)
             }
 
             Section("Asset Overrides") {
                 SettingsAssetRow(
                     title: "Linux kernel",
-                    url: store.kernelURL,
-                    systemImage: "doc"
-                ) {
-                    if let url = FilePicker.chooseFile(
-                        title: "Choose Linux kernel",
-                        initialURL: store.kernelURL
-                    ) {
-                        store.kernelURL = url
+                    url: assetController.kernelURL,
+                    systemImage: "doc",
+                    choose: {
+                        if let url = FilePicker.chooseFile(
+                            title: "Choose Linux kernel override",
+                            initialURL: assetController.kernelURL
+                        ), let error = assetController.setKernelOverride(url) {
+                            assetAlert = VMAssetAlert(message: error.localizedDescription)
+                        }
+                    },
+                    clear: assetController.kernelOverrideURL == nil ? nil : {
+                        if let error = assetController.setKernelOverride(nil) {
+                            assetAlert = VMAssetAlert(message: error.localizedDescription)
+                        }
                     }
-                }
+                )
 
                 SettingsAssetRow(
                     title: "ThruRNDIS initramfs",
-                    url: store.initialRamdiskURL,
-                    systemImage: "doc.zipper"
-                ) {
-                    if let url = FilePicker.chooseFile(
-                        title: "Choose initial ramdisk",
-                        initialURL: store.initialRamdiskURL
-                    ) {
-                        store.initialRamdiskURL = url
+                    url: assetController.initialRamdiskURL,
+                    systemImage: "doc.zipper",
+                    choose: {
+                        if let url = FilePicker.chooseFile(
+                            title: "Choose initial ramdisk override",
+                            initialURL: assetController.initialRamdiskURL
+                        ), let error = assetController.setInitialRamdiskOverride(url) {
+                            assetAlert = VMAssetAlert(message: error.localizedDescription)
+                        }
+                    },
+                    clear: assetController.initialRamdiskOverrideURL == nil ? nil : {
+                        if let error = assetController.setInitialRamdiskOverride(nil) {
+                            assetAlert = VMAssetAlert(message: error.localizedDescription)
+                        }
                     }
-                }
+                )
+            }
+            .disabled(!store.canEditVMConfiguration || assetController.isBusy || assetController.currentSelection == nil)
 
+            Section("Optional Storage") {
                 SettingsAssetRow(
                     title: "Scratch disk",
                     url: store.diskImageURL,
@@ -132,24 +182,40 @@ struct VirtualMachineView: View {
                             store.diskImageURL = url
                         }
                     },
-                    clear: {
+                    clear: store.diskImageURL == nil ? nil : {
                         store.diskImageURL = nil
                     }
                 )
             }
             .disabled(!store.canEditVMConfiguration)
         }
-        .alert(item: $assetFolderLoadAlert) { alert in
+        .onReceive(assetController.$errorMessage.compactMap { $0 }) { message in
+            assetAlert = VMAssetAlert(message: message)
+        }
+        .alert(item: $assetAlert) { alert in
             Alert(
-                title: Text("Invalid VM Asset Folder"),
+                title: Text("VM Asset Error"),
                 message: Text(alert.message),
-                dismissButton: .default(Text("OK"))
+                dismissButton: .default(Text("OK")) {
+                    assetController.clearError()
+                }
             )
+        }
+    }
+
+    private var assetStatusColor: Color {
+        switch assetController.installState {
+        case .ready:
+            return .green
+        case .failed:
+            return .red
+        default:
+            return .secondary
         }
     }
 }
 
-private struct AssetFolderLoadAlert: Identifiable {
+private struct VMAssetAlert: Identifiable {
     let id = UUID()
     let message: String
 }

@@ -6,6 +6,7 @@ import SwiftUI
 
 struct InfoView: View {
     @EnvironmentObject private var store: TetheringStore
+    @EnvironmentObject private var assetController: VMAssetController
     @State private var resetConfirmation: ResetConfirmation?
     @State private var isOpenSourceAcknowledgementsPresented = false
 
@@ -33,7 +34,7 @@ struct InfoView: View {
                     Button("Reset All Settings…", role: .destructive) {
                         resetConfirmation = .reset
                     }
-                    .disabled(!store.canResetAppSettings)
+                    .disabled(!store.canResetAppSettings || assetController.isBusy)
                 }
             }
 
@@ -78,7 +79,7 @@ struct InfoView: View {
             case .reset:
                 Alert(
                     title: Text("Reset All Settings?"),
-                    message: Text("Saved asset selections, VM runtime preferences, onboarding state, and Launch at Login will be reset."),
+                    message: Text("Saved asset selections, VM runtime preferences, onboarding state, and Launch at Login will be reset. Managed VM asset files will be preserved."),
                     primaryButton: .destructive(Text("Continue")) {
                         Task { @MainActor in
                             resetConfirmation = .restart
@@ -89,7 +90,7 @@ struct InfoView: View {
             case .restart:
                 Alert(
                     title: Text("ThruRNDIS Will Restart"),
-                    message: Text("ThruRNDIS will restart immediately after resetting. Onboarding will appear after the app opens again, and VM assets must be selected again."),
+                    message: Text("ThruRNDIS will restart immediately after resetting. Onboarding will appear again; preserved managed VM assets can be selected without downloading them again."),
                     primaryButton: .destructive(Text("Reset and Restart")) {
                         resetAndRestart()
                     },

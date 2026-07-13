@@ -102,17 +102,21 @@ private final class StatusMenuItemView: NSView {
 @MainActor
 final class MenuBarController: NSObject, NSMenuDelegate {
     private let store: TetheringStore
+    private let assetController: VMAssetController
     private let openSettings: () -> Void
     private let statusItem: NSStatusItem
     private let menu = NSMenu()
     private var cancellable: AnyCancellable?
+    private var assetCancellable: AnyCancellable?
     private var isPresentingPrompt = false
 
     init(
         store: TetheringStore,
+        assetController: VMAssetController,
         openSettings: @escaping () -> Void
     ) {
         self.store = store
+        self.assetController = assetController
         self.openSettings = openSettings
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         super.init()
@@ -140,6 +144,14 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             DispatchQueue.main.async {
                 self?.updateStatusButton()
             }
+        }
+
+        assetCancellable = Publishers.CombineLatest(
+            assetController.$currentSelection,
+            assetController.$installState
+        )
+        .sink { [weak self] _ in
+            self?.updateStatusButton()
         }
     }
 
@@ -185,7 +197,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private func rebuildMenu() {
         menu.removeAllItems()
 
-        if store.hasConfiguredVMAssets {
+        if assetController.hasConfiguredAssets {
             menu.addItem(statusItemLine(
                 title: "VM: \(store.vmDisplayState.rawValue)",
                 dotColor: vmStatusColor

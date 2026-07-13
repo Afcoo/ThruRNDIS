@@ -5,6 +5,16 @@ Copyright (C) 2026 Afcoo.
 import AppKit
 import Combine
 
+private enum AppExecutionEnvironment {
+    static var isRunningUnderXCTest: Bool {
+        let environment = ProcessInfo.processInfo.environment
+        return environment["XCTestConfigurationFilePath"] != nil
+            || environment["XCTestBundlePath"] != nil
+            || environment["XCTestSessionIdentifier"] != nil
+            || NSClassFromString("XCTestCase") != nil
+    }
+}
+
 @main
 enum App {
     @MainActor
@@ -19,19 +29,37 @@ enum App {
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    let store = TetheringStore()
+    lazy var assetController = VMAssetController()
+    lazy var store = TetheringStore(assetProvider: assetController)
 
     private var menuBarController: MenuBarController?
     private var settingsWindowController: SettingsWindowController?
     private var consoleWindowController: ConsoleWindowController?
     private var onboardingWindowController: OnboardingWindowController?
     private var cancellables: Set<AnyCancellable> = []
+    private var pendingTerminationApplication: NSApplication?
+    private var didPrepareForTermination = false
+    private let isRunningUnderXCTest: Bool
+
+    override init() {
+        self.isRunningUnderXCTest = AppExecutionEnvironment.isRunningUnderXCTest
+        super.init()
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        guard !isRunningUnderXCTest else {
+            return
+        }
+
         NSApp.setActivationPolicy(.accessory)
+
+        assetController.onEvent = { [weak self] message in
+            self?.store.recordVMAssetEvent(message)
+        }
 
         menuBarController = MenuBarController(
             store: store,
+            assetController: assetController,
             openSettings: { [weak self] in self?.showSettingsWindow() }
         )
 
@@ -51,6 +79,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .store(in: &cancellables)
 
+        assetController.$installState
+            .sink { [weak self] _ in
+                guard let self else {
+                    return
+                }
+                guard self.pendingTerminationApplication == nil else {
+                    self.finishPendingTerminationIfPossible()
+                    return
+                }
+                self.store.assetAvailabilityDidChange()
+            }
+            .store(in: &cancellables)
+
         store.$onboardingPresentationRequest
             .dropFirst()
             .sink { [weak self] request in
@@ -62,7 +103,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         store.startAccessoryMonitoringOnLaunch()
 
-        if store.shouldPresentOnboardingOnLaunch {
+        if store.shouldPresentOnboardingOnLaunch || !assetController.hasConfiguredAssets {
             DispatchQueue.main.async { [weak self] in
                 self?.showOnboardingWindow()
             }
@@ -70,11 +111,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        store.prepareForApplicationTermination()
-        return .terminateNow
+        guard !isRunningUnderXCTest else {
+            return .terminateNow
+        }
+
+        prepareStoreForTerminationIfNeeded()
+
+        guard assetController.isBusy else {
+            assetController.prepareForApplicationTermination()
+            return .terminateNow
+        }
+
+        pendingTerminationApplication = sender
+        assetController.prepareForApplicationTermination()
+        return .terminateLater
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {
+        guard !isRunningUnderXCTest else {
+            return
+        }
         store.refreshLaunchAtLoginStatus()
     }
 
@@ -86,6 +142,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if settingsWindowController == nil {
             settingsWindowController = SettingsWindowController(
                 store: store,
+                assetController: assetController,
                 openConsole: { [weak self] in
                     self?.showConsoleWindow()
                 },
@@ -110,6 +167,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard store.resetAppSettings() else {
             return
         }
+        assetController.clearSelection()
 
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.createsNewApplicationInstance = true
@@ -149,6 +207,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             onboardingWindowController?.close()
             onboardingWindowController = OnboardingWindowController(
                 store: store,
+                assetController: assetController,
                 onFinish: { [weak self] in
                     self?.onboardingWindowController?.close()
                 }
@@ -156,5 +215,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         onboardingWindowController?.show()
+    }
+
+    private func prepareStoreForTerminationIfNeeded() {
+        guard !didPrepareForTermination else {
+            return
+        }
+        didPrepareForTermination = true
+        store.prepareForApplicationTermination()
+    }
+
+    private func finishPendingTerminationIfPossible() {
+        guard let application = pendingTerminationApplication,
+              !assetController.isBusy else {
+            return
+        }
+        pendingTerminationApplication = nil
+        application.reply(toApplicationShouldTerminate: true)
     }
 }

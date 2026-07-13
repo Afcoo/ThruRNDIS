@@ -391,7 +391,7 @@ final class VMCoordinator {
             guard self.generation == generation else { return }
             guard self.runtimeState == .running, !self.hasReceivedConsoleOutput else { return }
 
-            self.onEvent?("No VM console output received after 15s. Selected kernel/initramfs assets are logged above; confirm the kernel is Image-lts and the initramfs is initramfs-thrurndis-lts regenerated after the latest script changes.")
+            self.onEvent?("No VM console output received after 15s. Selected kernel/initramfs assets are logged above; confirm the installed release contains Image-lts and initramfs-thrurndis-lts.")
         }
     }
 

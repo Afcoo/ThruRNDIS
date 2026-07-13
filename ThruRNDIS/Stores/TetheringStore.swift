@@ -17,28 +17,6 @@ private enum VMMemoryDefaults {
     static let stepMiB = 256
 }
 
-private struct VMAssetFolderSelection {
-    let kernelURL: URL
-    let initialRamdiskURL: URL
-}
-
-private enum VMAssetFolderLoadError: LocalizedError {
-    case notDirectory(URL)
-    case missingKernel(URL)
-    case missingInitramfs(URL)
-
-    var errorDescription: String? {
-        switch self {
-        case .notDirectory(let url):
-            return "Selected VM asset path is not a folder: \(url.path)"
-        case .missingKernel(let url):
-            return "No Image-* kernel found in VM asset folder: \(url.path)"
-        case .missingInitramfs(let url):
-            return "No initramfs-thrurndis-* ramdisk found in VM asset folder: \(url.path)"
-        }
-    }
-}
-
 struct OnboardingPresentationRequest {
     let sequence: Int
     let restart: Bool
@@ -46,21 +24,6 @@ struct OnboardingPresentationRequest {
 
 @MainActor
 final class TetheringStore: ObservableObject {
-    @Published private(set) var selectedAssetFolderURL: URL? {
-        didSet {
-            persistFileURL(selectedAssetFolderURL, forKey: DefaultsKey.assetFolderURLPath)
-        }
-    }
-    @Published var kernelURL: URL? {
-        didSet {
-            persistFileURL(kernelURL, forKey: DefaultsKey.kernelURLPath)
-        }
-    }
-    @Published var initialRamdiskURL: URL? {
-        didSet {
-            persistFileURL(initialRamdiskURL, forKey: DefaultsKey.initialRamdiskURLPath)
-        }
-    }
     @Published var diskImageURL: URL? {
         didSet { persistFileURL(diskImageURL, forKey: DefaultsKey.diskImageURLPath) }
     }
@@ -76,7 +39,7 @@ final class TetheringStore: ObservableObject {
 
     @Published private(set) var runtimeState: VMRuntimeState = .idle
     @Published private(set) var isRestartingVirtualMachine = false
-    @Published private(set) var statusMessage = "Select Alpine VM assets to begin."
+    @Published private(set) var statusMessage = "Install or select VM assets to begin."
     @Published private(set) var runtimeEntitlements = RuntimeEntitlementSnapshot.current
     @Published private(set) var accessories: [USBAccessoryRecord] = []
     @Published private(set) var isAccessoryMonitoring = false
@@ -108,6 +71,7 @@ final class TetheringStore: ObservableObject {
 
     private let vmCoordinator = VMCoordinator()
     private let usbCoordinator = USBAccessoryCoordinator()
+    private let assetProvider: VMAssetProviding
     private let wireGuardConfStore: WireGuardConfStore
     private let wireGuardConfBuilder: WireGuardConfBuilder
     private var wireGuardKeyMaterial: WireGuardKeyMaterial?
@@ -141,12 +105,14 @@ final class TetheringStore: ObservableObject {
 
     var canStartVirtualMachine: Bool {
         hasConfiguredVMAssets
+            && !assetProvider.isBusy
             && wireGuardSettings.hasKeyMaterial
             && vmCoordinator.canStart
     }
 
     var canRestartVirtualMachine: Bool {
         hasConfiguredVMAssets
+            && !assetProvider.isBusy
             && pendingAttachmentAccessoryID == nil
             && vmCoordinator.canRestart
     }
@@ -157,25 +123,11 @@ final class TetheringStore: ObservableObject {
     }
 
     var canResetAppSettings: Bool {
-        canEditVMConfiguration
-    }
-
-    var canClearVMAssets: Bool {
-        canEditVMConfiguration
-            && (selectedAssetFolderURL != nil
-                || kernelURL != nil
-                || initialRamdiskURL != nil
-                || diskImageURL != nil)
+        canEditVMConfiguration && !assetProvider.isBusy
     }
 
     var hasConfiguredVMAssets: Bool {
-        guard let kernelURL,
-              let initialRamdiskURL else {
-            return false
-        }
-
-        return isRegularFile(kernelURL)
-            && isRegularFile(initialRamdiskURL)
+        assetProvider.hasConfiguredAssets
     }
 
     var shouldPresentOnboardingOnLaunch: Bool {
@@ -212,36 +164,9 @@ final class TetheringStore: ObservableObject {
         }
     }
 
-    var vmAssetFolderInitialURL: URL? {
-        if let selectedAssetFolderURL {
-            return selectedAssetFolderURL
-        }
-        if let configuredVMAssetFolderURL {
-            return configuredVMAssetFolderURL
-        }
-        if let diskImageURL {
-            return vmAssetFolderURL(containing: diskImageURL)
-        }
-
-        return nil
-    }
-
-    private var configuredVMAssetFolderURL: URL? {
-        if let selectedAssetFolderURL {
-            return selectedAssetFolderURL
-        }
-        if let initialRamdiskURL {
-            return vmAssetFolderURL(containing: initialRamdiskURL)
-        }
-        if let kernelURL {
-            return vmAssetFolderURL(containing: kernelURL)
-        }
-
-        return nil
-    }
-
     var canStartAccessoryMonitoring: Bool {
         hasConfiguredVMAssets
+            && !assetProvider.isBusy
             && runtimeEntitlements.accessoryAccessUSB
             && usbCoordinator.canStartMonitoring
     }
@@ -266,6 +191,7 @@ final class TetheringStore: ObservableObject {
 
     var canAttachSelectedAccessory: Bool {
         guard hasConfiguredVMAssets,
+              !assetProvider.isBusy,
               pendingAttachmentAccessoryID == nil,
               !attachmentRequiresVMStopRetry,
               let selectedAccessoryID else {
@@ -284,6 +210,7 @@ final class TetheringStore: ObservableObject {
             && usbAttachmentPrompt == nil
             && !attachmentRequiresVMStopRetry
             && hasConfiguredVMAssets
+            && !assetProvider.isBusy
             && usbCoordinator.canRequestAttachment(for: accessoryID)
     }
 
@@ -291,6 +218,7 @@ final class TetheringStore: ObservableObject {
         pendingAttachmentAccessoryID == nil
             && usbAttachmentPrompt == nil
             && !attachmentRequiresVMStopRetry
+            && !assetProvider.isBusy
             && usbCoordinator.canRequestAttachment(for: accessoryID)
     }
 
@@ -311,24 +239,27 @@ final class TetheringStore: ObservableObject {
         )
     }
 
-    init() {
+    init(assetProvider: VMAssetProviding) {
         let wireGuardConfStore = WireGuardConfStore()
         let wireGuardConfBuilder = WireGuardConfBuilder(elements: .defaults)
+        self.assetProvider = assetProvider
         self.wireGuardConfStore = wireGuardConfStore
         self.wireGuardConfBuilder = wireGuardConfBuilder
         self.wireGuardSettings = wireGuardConfBuilder.settings()
         configureCoordinators()
-        restoreAssetSelections()
+        restoreDiskImageSelection()
         restoreVMSettings()
         prepareWireGuardConfiguration()
         restoreOnboardingState()
         appendRuntimeEntitlementSummary()
-        appendAssetSelectionSummaryIfNeeded()
+        appendScratchDiskSelectionSummaryIfNeeded()
     }
 
     func startAccessoryMonitoring() {
-        guard hasConfiguredVMAssets else {
-            statusMessage = "Select a valid VM asset folder before starting the USB listener."
+        guard hasConfiguredVMAssets, !assetProvider.isBusy else {
+            statusMessage = assetProvider.isBusy
+                ? "Wait for VM asset installation to finish before starting the USB listener."
+                : "Install or select valid VM assets before starting the USB listener."
             return
         }
 
@@ -342,36 +273,6 @@ final class TetheringStore: ObservableObject {
 
         didRequestLaunchAccessoryMonitoring = true
         startAccessoryMonitoring(reason: "app launch")
-    }
-
-    @discardableResult
-    func loadVMAssets(from directoryURL: URL) -> Error? {
-        do {
-            let selection = try resolveVMAssetFolder(directoryURL)
-            selectedAssetFolderURL = directoryURL.standardizedFileURL
-            kernelURL = selection.kernelURL
-            initialRamdiskURL = selection.initialRamdiskURL
-            statusMessage = "Loaded VM assets from folder."
-            appendEvent("Loaded VM assets from folder: \(directoryURL.standardizedFileURL.path).")
-            return nil
-        } catch {
-            statusMessage = error.localizedDescription
-            appendEvent("VM asset folder load failed: \(error.localizedDescription)")
-            return error
-        }
-    }
-
-    func clearVMAssets() {
-        guard canClearVMAssets else {
-            return
-        }
-
-        selectedAssetFolderURL = nil
-        kernelURL = nil
-        initialRamdiskURL = nil
-        diskImageURL = nil
-        statusMessage = "VM asset selections cleared. Select a VM asset folder to continue."
-        appendEvent("Cleared VM asset selections; WireGuard configuration was preserved.")
     }
 
     func stopAccessoryMonitoring() {
@@ -401,10 +302,18 @@ final class TetheringStore: ObservableObject {
     @discardableResult
     func startVirtualMachine() -> Bool {
         refreshRuntimeEntitlements()
-        migrateLegacyInitramfsSelectionIfNeeded()
 
-        guard hasConfiguredVMAssets else {
-            statusMessage = "Select a valid VM asset folder before starting the VM."
+        guard !assetProvider.isBusy else {
+            statusMessage = "Wait for VM asset installation to finish before starting the VM."
+            return false
+        }
+
+        let bootAssets: VMAssetBootAssets
+        do {
+            bootAssets = try assetProvider.validatedBootAssets()
+        } catch {
+            statusMessage = error.localizedDescription
+            appendEvent("VM asset validation failed before VM start: \(error.localizedDescription)")
             return false
         }
 
@@ -431,8 +340,6 @@ final class TetheringStore: ObservableObject {
             return false
         }
 
-        guard let kernelURL, let initialRamdiskURL else { return false }
-
         clearWireGuardEndpoint(reason: "VM starting")
         clearConsoleForVMStart()
         usbCoordinator.resetForVMStart()
@@ -445,8 +352,8 @@ final class TetheringStore: ObservableObject {
         }
 
         let input = VMCoordinatorStartInput(
-            kernelURL: kernelURL,
-            initialRamdiskURL: initialRamdiskURL,
+            kernelURL: bootAssets.kernelURL,
+            initialRamdiskURL: bootAssets.initialRamdiskURL,
             diskImageURL: diskImageURL,
             wireGuardConfigurationDirectoryURL: wireGuardConfStore.sharedDirectoryURL,
             cpuCount: cpuCount,
@@ -455,7 +362,8 @@ final class TetheringStore: ObservableObject {
             guestMACAddress: guestMACAddress
         )
 
-        appendSelectedAssetDiagnostics(kernelURL: kernelURL, initialRamdiskURL: initialRamdiskURL)
+        appendEvent("Kernel asset: \(bootAssets.kernelURL.path)")
+        appendEvent("Initramfs asset: \(bootAssets.initialRamdiskURL.path)")
         appendEvent("Kernel arguments: \(bootCommandLine)")
         vmCoordinator.start(input: input)
         return true
@@ -491,6 +399,11 @@ final class TetheringStore: ObservableObject {
 
     func requestAttachAccessory(id accessoryID: UInt64) {
         refreshRuntimeEntitlements()
+
+        guard !assetProvider.isBusy else {
+            statusMessage = "Wait for VM asset installation to finish before attaching USB."
+            return
+        }
 
         guard runtimeEntitlements.accessoryAccessUSB else {
             reportMissingEntitlement(.accessoryAccessUSB, action: "USB attach")
@@ -689,8 +602,8 @@ final class TetheringStore: ObservableObject {
     }
 
     func completeOnboarding() {
-        guard hasConfiguredVMAssets else {
-            statusMessage = "Select a valid VM asset folder before finishing onboarding."
+        guard hasConfiguredVMAssets, !assetProvider.isBusy else {
+            statusMessage = "Install or select valid VM assets before finishing onboarding."
             return
         }
 
@@ -734,17 +647,11 @@ final class TetheringStore: ObservableObject {
         accessoriesAwaitingAssetSetup.removeAll()
         usbAttachmentPrompt = nil
 
-        selectedAssetFolderURL = nil
-        kernelURL = nil
-        initialRamdiskURL = nil
         diskImageURL = nil
         cpuCount = 1
         memorySizeMiB = VMMemoryDefaults.defaultMiB
         kernelCommandLine = AlpineBootDefaults.initramfsKernelCommandLine
 
-        UserDefaults.standard.removeObject(forKey: DefaultsKey.assetFolderURLPath)
-        UserDefaults.standard.removeObject(forKey: DefaultsKey.kernelURLPath)
-        UserDefaults.standard.removeObject(forKey: DefaultsKey.initialRamdiskURLPath)
         UserDefaults.standard.removeObject(forKey: DefaultsKey.diskImageURLPath)
         UserDefaults.standard.removeObject(forKey: DefaultsKey.cpuCount)
         UserDefaults.standard.removeObject(forKey: DefaultsKey.memorySizeMiB)
@@ -755,7 +662,7 @@ final class TetheringStore: ObservableObject {
         wireGuardKeyMaterial = nil
         wireGuardSettings = wireGuardConfBuilder.settings()
         wireGuardStatusMessage = "WireGuard configuration removed; new keys will be created after restart."
-        statusMessage = "App settings reset. Select a VM asset folder to continue."
+        statusMessage = "App settings reset. Install or select VM assets to continue."
 
         do {
             launchAtLoginSnapshot = try LaunchAtLoginService.setEnabled(false)
@@ -767,6 +674,15 @@ final class TetheringStore: ObservableObject {
 
         appendEvent("App settings and WireGuard configuration were reset; VM asset files were not deleted.")
         return true
+    }
+
+    func recordVMAssetEvent(_ message: String) {
+        appendEvent(message)
+    }
+
+    func assetAvailabilityDidChange() {
+        objectWillChange.send()
+        presentNextUSBAttachmentPromptIfNeeded()
     }
 
     private func configureCoordinators() {
@@ -884,6 +800,7 @@ final class TetheringStore: ObservableObject {
         guard usbAttachmentPrompt == nil,
               pendingAttachmentAccessoryID == nil,
               !restartWillStartVM,
+              !assetProvider.isBusy,
               !usbCoordinator.isDetachPending else {
             return
         }
@@ -931,6 +848,11 @@ final class TetheringStore: ObservableObject {
     private func beginAttachmentWorkflow(accessoryID: UInt64, requiresRestart: Bool) {
         guard pendingAttachmentAccessoryID == nil else {
             statusMessage = "Wait for the current USB attachment workflow to finish."
+            return
+        }
+
+        guard !assetProvider.isBusy else {
+            statusMessage = "Wait for VM asset installation to finish before attaching USB."
             return
         }
 
@@ -1196,26 +1118,12 @@ final class TetheringStore: ObservableObject {
         isSyncingUSBState = false
     }
 
-    private func restoreAssetSelections() {
-        selectedAssetFolderURL = restoredFileURL(forKey: DefaultsKey.assetFolderURLPath)
-        kernelURL = restoredFileURL(forKey: DefaultsKey.kernelURLPath)
-        initialRamdiskURL = restoredFileURL(forKey: DefaultsKey.initialRamdiskURLPath)
-
+    private func restoreDiskImageSelection() {
         if let restoredDiskURL = restoredFileURL(forKey: DefaultsKey.diskImageURLPath),
            restoredDiskURL.pathExtension.localizedCaseInsensitiveCompare("iso") != .orderedSame {
             diskImageURL = restoredDiskURL
         } else {
             diskImageURL = nil
-        }
-
-        if selectedAssetFolderURL == nil {
-            selectedAssetFolderURL = configuredVMAssetFolderURL
-        }
-
-        if canStartVirtualMachine {
-            statusMessage = "Previous VM asset selection restored."
-        } else if kernelURL != nil || initialRamdiskURL != nil || diskImageURL != nil {
-            statusMessage = "Select missing Alpine ThruRNDIS assets to begin."
         }
     }
 
@@ -1255,92 +1163,6 @@ final class TetheringStore: ObservableObject {
         }
 
         hasCompletedOnboarding = false
-    }
-
-    private func resolveVMAssetFolder(_ directoryURL: URL) throws -> VMAssetFolderSelection {
-        let directory = directoryURL.standardizedFileURL
-        var isDirectory: ObjCBool = false
-
-        guard FileManager.default.fileExists(atPath: directory.path, isDirectory: &isDirectory),
-              isDirectory.boolValue else {
-            throw VMAssetFolderLoadError.notDirectory(directory)
-        }
-
-        let searchDirectories = [
-            directory,
-            directory.appendingPathComponent("boot", isDirectory: true)
-        ]
-
-        guard let kernelURL = firstAsset(
-            in: searchDirectories,
-            preferredNames: ["Image-lts", "Image-virt"],
-            prefix: "Image-"
-        ) else {
-            throw VMAssetFolderLoadError.missingKernel(directory)
-        }
-
-        guard let initialRamdiskURL = firstAsset(
-            in: searchDirectories,
-            preferredNames: ["initramfs-thrurndis-lts", "initramfs-thrurndis-virt"],
-            prefix: "initramfs-thrurndis-"
-        ) else {
-            throw VMAssetFolderLoadError.missingInitramfs(directory)
-        }
-
-        return VMAssetFolderSelection(kernelURL: kernelURL, initialRamdiskURL: initialRamdiskURL)
-    }
-
-    private func firstAsset(
-        in directories: [URL],
-        preferredNames: [String],
-        prefix: String
-    ) -> URL? {
-        for directory in directories {
-            for preferredName in preferredNames {
-                let url = directory.appendingPathComponent(preferredName, isDirectory: false)
-                if isRegularFile(url) {
-                    return url
-                }
-            }
-        }
-
-        for directory in directories {
-            guard let urls = try? FileManager.default.contentsOfDirectory(
-                at: directory,
-                includingPropertiesForKeys: [.isRegularFileKey],
-                options: [.skipsHiddenFiles]
-            ) else {
-                continue
-            }
-
-            if let match = urls
-                .filter({ $0.lastPathComponent.hasPrefix(prefix) && isRegularFile($0) })
-                .sorted(by: { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending })
-                .first {
-                return match
-            }
-        }
-
-        return nil
-    }
-
-    private func isRegularFile(_ url: URL) -> Bool {
-        do {
-            let values = try url.resourceValues(forKeys: [.isRegularFileKey])
-            return values.isRegularFile == true
-        } catch {
-            return false
-        }
-    }
-
-    private func vmAssetFolderURL(containing url: URL) -> URL {
-        let directory = url.hasDirectoryPath ? url : url.deletingLastPathComponent()
-
-        if directory.lastPathComponent == "boot" {
-            return directory.deletingLastPathComponent()
-        }
-
-        return directory
     }
 
     private func normalizedBootCommandLine() -> String {
@@ -1383,44 +1205,9 @@ final class TetheringStore: ObservableObject {
         return tokens.joined(separator: " ")
     }
 
-    private func migrateLegacyInitramfsSelectionIfNeeded() {
-        guard let initialRamdiskURL,
-              initialRamdiskURL.lastPathComponent.hasPrefix("initramfs-tui-") else {
-            return
-        }
-
-        let replacementName = initialRamdiskURL.lastPathComponent.replacingOccurrences(
-            of: "initramfs-tui-",
-            with: "initramfs-thrurndis-",
-            options: [.anchored]
-        )
-        let replacementURL = initialRamdiskURL
-            .deletingLastPathComponent()
-            .appendingPathComponent(replacementName, isDirectory: false)
-
-        guard FileManager.default.fileExists(atPath: replacementURL.path) else {
-            return
-        }
-
-        self.initialRamdiskURL = replacementURL
-        appendEvent("Updated legacy initramfs selection to \(replacementName).")
-    }
-
-    private func appendAssetSelectionSummaryIfNeeded() {
-        var restoredAssets: [String] = []
-
-        if kernelURL != nil {
-            restoredAssets.append("kernel")
-        }
-        if initialRamdiskURL != nil {
-            restoredAssets.append("initramfs")
-        }
-        if diskImageURL != nil {
-            restoredAssets.append("scratch disk")
-        }
-
-        if !restoredAssets.isEmpty {
-            appendEvent("Restored previous VM asset selection: \(restoredAssets.joined(separator: ", ")).")
+    private func appendScratchDiskSelectionSummaryIfNeeded() {
+        if let diskImageURL {
+            appendEvent("Restored optional scratch disk selection: \(diskImageURL.path).")
         }
     }
 
@@ -1482,49 +1269,7 @@ final class TetheringStore: ObservableObject {
         guard let path = UserDefaults.standard.string(forKey: key), !path.isEmpty else {
             return nil
         }
-
-        let url = URL(fileURLWithPath: path)
-        if let migratedURL = migratedLegacyAssetURL(from: url) {
-            UserDefaults.standard.set(migratedURL.standardizedFileURL.path, forKey: key)
-            return migratedURL
-        }
-
-        return url
-    }
-
-    private func migratedLegacyAssetURL(from url: URL) -> URL? {
-        let legacySegment = "/script/VMAssets/"
-        let migratedSegment = "/script/assets/"
-        let path = url.standardizedFileURL.path
-
-        if let range = path.range(of: legacySegment) {
-            let migratedPath = path.replacingCharacters(in: range, with: migratedSegment)
-            guard FileManager.default.fileExists(atPath: migratedPath) else {
-                return nil
-            }
-
-            return URL(fileURLWithPath: migratedPath)
-        }
-
-        guard let assetRange = path.range(of: migratedSegment) else {
-            return nil
-        }
-
-        let suffix = path[assetRange.upperBound...]
-        let pathComponents = suffix.split(separator: "/")
-
-        guard pathComponents.count >= 3,
-              pathComponents[1] == "boot",
-              let fileName = pathComponents.last else {
-            return nil
-        }
-
-        let flattenedPath = String(path[..<assetRange.upperBound]) + String(fileName)
-        guard FileManager.default.fileExists(atPath: flattenedPath) else {
-            return nil
-        }
-
-        return URL(fileURLWithPath: flattenedPath)
+        return URL(fileURLWithPath: path)
     }
 
     private func persistFileURL(_ url: URL?, forKey key: String) {
@@ -1532,33 +1277,6 @@ final class TetheringStore: ObservableObject {
             UserDefaults.standard.set(path, forKey: key)
         } else {
             UserDefaults.standard.removeObject(forKey: key)
-        }
-    }
-
-    private func appendSelectedAssetDiagnostics(kernelURL: URL, initialRamdiskURL: URL) {
-        appendEvent(assetDiagnosticText(label: "Kernel", url: kernelURL))
-        appendEvent(assetDiagnosticText(label: "Initramfs", url: initialRamdiskURL))
-    }
-
-    private func assetDiagnosticText(label: String, url: URL) -> String {
-        let path = url.standardizedFileURL.path
-
-        do {
-            let attributes = try FileManager.default.attributesOfItem(atPath: path)
-            var details: [String] = []
-
-            if let size = (attributes[.size] as? NSNumber)?.int64Value {
-                details.append("size=\(ByteCountFormatter.string(fromByteCount: size, countStyle: .file))")
-            }
-
-            if let modified = attributes[.modificationDate] as? Date {
-                details.append("modified=\(Self.assetDateFormatter.string(from: modified))")
-            }
-
-            let suffix = details.isEmpty ? "" : " (\(details.joined(separator: ", ")))"
-            return "\(label) asset: \(path)\(suffix)"
-        } catch {
-            return "\(label) asset: \(path) (metadata unavailable: \(error.localizedDescription))"
         }
     }
 
@@ -1678,12 +1396,6 @@ final class TetheringStore: ObservableObject {
         return formatter
     }()
 
-    private static let assetDateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-        return formatter
-    }()
-
     private static let currentOnboardingVersion = 1
 
     private static func registryIDText(_ registryID: UInt64) -> String {
@@ -1691,9 +1403,6 @@ final class TetheringStore: ObservableObject {
     }
 
     private enum DefaultsKey {
-        static let assetFolderURLPath = "VMAssets.folderURLPath"
-        static let kernelURLPath = "VMAssets.kernelURLPath"
-        static let initialRamdiskURLPath = "VMAssets.initialRamdiskURLPath"
         static let diskImageURLPath = "VMAssets.diskImageURLPath"
         static let cpuCount = "VM.cpuCount"
         static let memorySizeMiB = "VM.memorySizeMiB"
