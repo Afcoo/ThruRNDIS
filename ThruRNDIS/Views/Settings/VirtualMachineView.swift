@@ -7,7 +7,8 @@ import SwiftUI
 
 struct VirtualMachineView: View {
     @EnvironmentObject private var store: TetheringStore
-    @EnvironmentObject private var assetController: VMAssetController
+    @EnvironmentObject private var vmConfiguration: VMConfigurationStore
+    @EnvironmentObject private var assetWorkflowCoordinator: VMAssetWorkflowCoordinator
     @State private var assetAlert: VMAssetAlert?
 
     let openConsole: () -> Void
@@ -45,21 +46,21 @@ struct VirtualMachineView: View {
             }
 
             Section("Runtime") {
-                Stepper(value: $store.cpuCount, in: 1...8) {
-                    LabeledContent("CPUs", value: "\(store.cpuCount)")
+                Stepper(value: $vmConfiguration.cpuCount, in: 1...8) {
+                    LabeledContent("CPUs", value: "\(vmConfiguration.cpuCount)")
                 }
 
                 Stepper(
-                    value: $store.memorySizeMiB,
-                    in: store.memorySizeRangeMiB,
-                    step: store.memorySizeStepMiB
+                    value: $vmConfiguration.memorySizeMiB,
+                    in: vmConfiguration.memorySizeRangeMiB,
+                    step: vmConfiguration.memorySizeStepMiB
                 ) {
-                    LabeledContent("Memory", value: store.memorySizeLabel)
+                    LabeledContent("Memory", value: vmConfiguration.memorySizeLabel)
                 }
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Kernel arguments")
-                    TextEditor(text: $store.kernelCommandLine)
+                    TextEditor(text: $vmConfiguration.kernelCommandLine)
                         .font(.system(.body, design: .monospaced))
                         .frame(height: 56)
                 }
@@ -68,20 +69,20 @@ struct VirtualMachineView: View {
 
             Section("VM Assets") {
                 LabeledContent("Status") {
-                    Text(assetController.installState.statusText)
+                    Text(assetWorkflowCoordinator.installState.statusText)
                         .foregroundStyle(assetStatusColor)
                 }
 
-                if let progress = assetController.installState.progress {
+                if let progress = assetWorkflowCoordinator.installState.progress {
                     ProgressView(value: progress)
                 }
 
-                if let release = assetController.installedRelease {
+                if let release = assetWorkflowCoordinator.installedRelease {
                     LabeledContent("Managed release", value: release.displayName)
                 }
 
                 LabeledContent("Asset folder") {
-                    Text(assetController.selectedFolderURL?.path ?? "Not selected")
+                    Text(assetWorkflowCoordinator.selectedFolderURL?.path ?? "Not selected")
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                         .truncationMode(.middle)
@@ -89,13 +90,13 @@ struct VirtualMachineView: View {
                 }
 
                 HStack(spacing: 12) {
-                    if assetController.isBusy {
+                    if assetWorkflowCoordinator.isBusy {
                         Button("Cancel") {
-                            assetController.cancelInstall()
+                            assetWorkflowCoordinator.cancelInstall()
                         }
                     } else {
                         Button("Check & Install Latest") {
-                            assetController.installLatest()
+                            assetWorkflowCoordinator.installLatest()
                         }
                         .buttonStyle(.borderedProminent)
                     }
@@ -103,26 +104,26 @@ struct VirtualMachineView: View {
                     Button("Choose Folder…") {
                         if let url = FilePicker.chooseDirectory(
                             title: "Choose extracted vm_assets folder",
-                            initialURL: assetController.selectedFolderURL
-                        ), let error = assetController.selectManualFolder(url) {
+                            initialURL: assetWorkflowCoordinator.selectedFolderURL
+                        ), let error = assetWorkflowCoordinator.selectManualFolder(url) {
                             assetAlert = VMAssetAlert(message: error.localizedDescription)
                         }
                     }
-                    .disabled(assetController.isBusy)
+                    .disabled(assetWorkflowCoordinator.isBusy)
 
-                    if !assetController.installedReleases.isEmpty {
+                    if !assetWorkflowCoordinator.installedReleases.isEmpty {
                         Button("Use Installed") {
-                            if let error = assetController.useMostRecentInstalledAssets() {
+                            if let error = assetWorkflowCoordinator.useMostRecentInstalledAssets() {
                                 assetAlert = VMAssetAlert(message: error.localizedDescription)
                             }
                         }
-                        .disabled(assetController.isBusy)
+                        .disabled(assetWorkflowCoordinator.isBusy)
                     }
 
                     Button("Clear") {
-                        assetController.clearSelection()
+                        assetWorkflowCoordinator.clearSelection()
                     }
-                    .disabled(assetController.currentSelection == nil || assetController.isBusy)
+                    .disabled(assetWorkflowCoordinator.currentSelection == nil || assetWorkflowCoordinator.isBusy)
                     .help("Clear the selected VM asset paths without deleting managed release files.")
                 }
                 .disabled(!store.canEditVMConfiguration)
@@ -131,18 +132,18 @@ struct VirtualMachineView: View {
             Section("Asset Overrides") {
                 SettingsAssetRow(
                     title: "Linux kernel",
-                    url: assetController.kernelURL,
+                    url: assetWorkflowCoordinator.kernelURL,
                     systemImage: "doc",
                     choose: {
                         if let url = FilePicker.chooseFile(
                             title: "Choose Linux kernel override",
-                            initialURL: assetController.kernelURL
-                        ), let error = assetController.setKernelOverride(url) {
+                            initialURL: assetWorkflowCoordinator.kernelURL
+                        ), let error = assetWorkflowCoordinator.setKernelOverride(url) {
                             assetAlert = VMAssetAlert(message: error.localizedDescription)
                         }
                     },
-                    clear: assetController.kernelOverrideURL == nil ? nil : {
-                        if let error = assetController.setKernelOverride(nil) {
+                    clear: assetWorkflowCoordinator.kernelOverrideURL == nil ? nil : {
+                        if let error = assetWorkflowCoordinator.setKernelOverride(nil) {
                             assetAlert = VMAssetAlert(message: error.localizedDescription)
                         }
                     }
@@ -150,46 +151,46 @@ struct VirtualMachineView: View {
 
                 SettingsAssetRow(
                     title: "ThruRNDIS initramfs",
-                    url: assetController.initialRamdiskURL,
+                    url: assetWorkflowCoordinator.initialRamdiskURL,
                     systemImage: "doc.zipper",
                     choose: {
                         if let url = FilePicker.chooseFile(
                             title: "Choose initial ramdisk override",
-                            initialURL: assetController.initialRamdiskURL
-                        ), let error = assetController.setInitialRamdiskOverride(url) {
+                            initialURL: assetWorkflowCoordinator.initialRamdiskURL
+                        ), let error = assetWorkflowCoordinator.setInitialRamdiskOverride(url) {
                             assetAlert = VMAssetAlert(message: error.localizedDescription)
                         }
                     },
-                    clear: assetController.initialRamdiskOverrideURL == nil ? nil : {
-                        if let error = assetController.setInitialRamdiskOverride(nil) {
+                    clear: assetWorkflowCoordinator.initialRamdiskOverrideURL == nil ? nil : {
+                        if let error = assetWorkflowCoordinator.setInitialRamdiskOverride(nil) {
                             assetAlert = VMAssetAlert(message: error.localizedDescription)
                         }
                     }
                 )
             }
-            .disabled(!store.canEditVMConfiguration || assetController.isBusy || assetController.currentSelection == nil)
+            .disabled(!store.canEditVMConfiguration || assetWorkflowCoordinator.isBusy || assetWorkflowCoordinator.currentSelection == nil)
 
             Section("Optional Storage") {
                 SettingsAssetRow(
                     title: "Scratch disk",
-                    url: store.diskImageURL,
+                    url: vmConfiguration.diskImageURL,
                     systemImage: "internaldrive",
                     choose: {
                         if let url = FilePicker.chooseFile(
                             title: "Choose optional scratch disk image",
-                            initialURL: store.diskImageURL
+                            initialURL: vmConfiguration.diskImageURL
                         ) {
-                            store.diskImageURL = url
+                            vmConfiguration.diskImageURL = url
                         }
                     },
-                    clear: store.diskImageURL == nil ? nil : {
-                        store.diskImageURL = nil
+                    clear: vmConfiguration.diskImageURL == nil ? nil : {
+                        vmConfiguration.diskImageURL = nil
                     }
                 )
             }
             .disabled(!store.canEditVMConfiguration)
         }
-        .onReceive(assetController.$errorMessage.compactMap { $0 }) { message in
+        .onReceive(assetWorkflowCoordinator.$errorMessage.compactMap { $0 }) { message in
             assetAlert = VMAssetAlert(message: message)
         }
         .alert(item: $assetAlert) { alert in
@@ -197,14 +198,14 @@ struct VirtualMachineView: View {
                 title: Text("VM Asset Error"),
                 message: Text(alert.message),
                 dismissButton: .default(Text("OK")) {
-                    assetController.clearError()
+                    assetWorkflowCoordinator.clearError()
                 }
             )
         }
     }
 
     private var assetStatusColor: Color {
-        switch assetController.installState {
+        switch assetWorkflowCoordinator.installState {
         case .ready:
             return .green
         case .failed:

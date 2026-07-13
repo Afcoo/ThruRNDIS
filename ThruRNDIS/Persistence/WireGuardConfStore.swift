@@ -19,6 +19,19 @@ struct PreparedWireGuardConfiguration {
     let keyMaterial: WireGuardKeyMaterial
 }
 
+protocol WireGuardConfigurationStoring {
+    var files: WireGuardConfigurationFiles { get }
+    var sharedDirectoryURL: URL { get }
+
+    func prepareConfigurationIfNeeded(
+        builder: WireGuardConfBuilder
+    ) throws -> PreparedWireGuardConfiguration
+    func requireExistingConfiguration(
+        builder: WireGuardConfBuilder
+    ) throws -> PreparedWireGuardConfiguration
+    func removeConfigurationDirectory() throws
+}
+
 struct WireGuardConfStore {
     private let fileManager: FileManager
     let files: WireGuardConfigurationFiles
@@ -290,6 +303,8 @@ struct WireGuardConfStore {
         }
     }
 }
+
+extension WireGuardConfStore: WireGuardConfigurationStoring {}
 
 enum WireGuardConfStoreError: LocalizedError {
     case missingKey(URL)

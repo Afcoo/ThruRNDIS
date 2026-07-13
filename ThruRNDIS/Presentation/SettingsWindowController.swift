@@ -9,7 +9,7 @@ import SwiftUI
 final class SettingsWindowController: NSWindowController {
     init(
         store: TetheringStore,
-        assetController: VMAssetController,
+        assetWorkflowCoordinator: VMAssetWorkflowCoordinator,
         openConsole: @escaping () -> Void,
         resetAndRestart: @escaping () -> Void
     ) {
@@ -18,7 +18,9 @@ final class SettingsWindowController: NSWindowController {
             resetAndRestart: resetAndRestart
         )
             .environmentObject(store)
-            .environmentObject(assetController)
+            .environmentObject(store.usbSession)
+            .environmentObject(store.vmConfiguration)
+            .environmentObject(assetWorkflowCoordinator)
         let hostingController = NSHostingController(rootView: rootView)
         let window = NSWindow(contentViewController: hostingController)
 

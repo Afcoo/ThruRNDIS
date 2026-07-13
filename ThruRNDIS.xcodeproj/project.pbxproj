@@ -13,11 +13,16 @@
 		8B0000000000000000000005 /* USBAccessoryMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000000000000000000105 /* USBAccessoryMonitor.swift */; };
 		8B0000000000000000000007 /* VMConfigurationFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000000000000000000107 /* VMConfigurationFactory.swift */; };
 		8B0000000000000000000008 /* TetheringStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000000000000000000108 /* TetheringStore.swift */; };
+		D10000000000000000000001 /* ConsoleSessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10000000000000000000101 /* ConsoleSessionStore.swift */; };
+		D10000000000000000000002 /* USBSessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10000000000000000000102 /* USBSessionStore.swift */; };
+		D10000000000000000000003 /* VMConfigurationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10000000000000000000103 /* VMConfigurationStore.swift */; };
+		D10000000000000000000004 /* VMCoordinating.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10000000000000000000104 /* VMCoordinating.swift */; };
+		D10000000000000000000006 /* VMAssetStorageLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10000000000000000000106 /* VMAssetStorageLayout.swift */; };
 		8B0000000000000000000009 /* Clipboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000000000000000000109 /* Clipboard.swift */; };
 		8B000000000000000000000A /* FilePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B000000000000000000010A /* FilePicker.swift */; };
 		8B000000000000000000000B /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B000000000000000000010B /* SettingsView.swift */; };
-		8B000000000000000000000C /* VMView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B000000000000000000010C /* VMView.swift */; };
-		8B000000000000000000000D /* USBAccessoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B000000000000000000010D /* USBAccessoryView.swift */; };
+		8B000000000000000000000C /* VirtualMachineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B000000000000000000010C /* VirtualMachineView.swift */; };
+		8B000000000000000000000D /* USBDevicesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B000000000000000000010D /* USBDevicesView.swift */; };
 		8B000000000000000000000E /* ConsoleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B000000000000000000010E /* ConsoleView.swift */; };
 		8B000000000000000000000F /* WireGuardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B000000000000000000010F /* WireGuardView.swift */; };
 		8B0000000000000000000011 /* SharedViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000000000000000000111 /* SharedViews.swift */; };
@@ -43,7 +48,7 @@
 		B10000000000000000000004 /* VMAssetDownloadService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000104 /* VMAssetDownloadService.swift */; };
 		B10000000000000000000005 /* VMAssetInstallService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000105 /* VMAssetInstallService.swift */; };
 		B10000000000000000000006 /* VMAssetSelectionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000106 /* VMAssetSelectionStore.swift */; };
-		B10000000000000000000007 /* VMAssetController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000107 /* VMAssetController.swift */; };
+		B10000000000000000000007 /* VMAssetWorkflowCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000107 /* VMAssetWorkflowCoordinator.swift */; };
 		C10000000000000000000001 /* VMAssetTestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000000000000000000101 /* VMAssetTestSupport.swift */; };
 		C10000000000000000000002 /* VMAssetSelectionStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000000000000000000102 /* VMAssetSelectionStoreTests.swift */; };
 		C10000000000000000000003 /* VMAssetServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000000000000000000103 /* VMAssetServiceTests.swift */; };
@@ -73,11 +78,16 @@
 		8B0000000000000000000105 /* USBAccessoryMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBAccessoryMonitor.swift; sourceTree = "<group>"; };
 		8B0000000000000000000107 /* VMConfigurationFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMConfigurationFactory.swift; sourceTree = "<group>"; };
 		8B0000000000000000000108 /* TetheringStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TetheringStore.swift; sourceTree = "<group>"; };
+		D10000000000000000000101 /* ConsoleSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsoleSessionStore.swift; sourceTree = "<group>"; };
+		D10000000000000000000102 /* USBSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBSessionStore.swift; sourceTree = "<group>"; };
+		D10000000000000000000103 /* VMConfigurationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMConfigurationStore.swift; sourceTree = "<group>"; };
+		D10000000000000000000104 /* VMCoordinating.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMCoordinating.swift; sourceTree = "<group>"; };
+		D10000000000000000000106 /* VMAssetStorageLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMAssetStorageLayout.swift; sourceTree = "<group>"; };
 		8B0000000000000000000109 /* Clipboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Clipboard.swift; sourceTree = "<group>"; };
 		8B000000000000000000010A /* FilePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilePicker.swift; sourceTree = "<group>"; };
 		8B000000000000000000010B /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
-		8B000000000000000000010C /* VMView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMView.swift; sourceTree = "<group>"; };
-		8B000000000000000000010D /* USBAccessoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBAccessoryView.swift; sourceTree = "<group>"; };
+		8B000000000000000000010C /* VirtualMachineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VirtualMachineView.swift; sourceTree = "<group>"; };
+		8B000000000000000000010D /* USBDevicesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBDevicesView.swift; sourceTree = "<group>"; };
 		8B000000000000000000010E /* ConsoleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsoleView.swift; sourceTree = "<group>"; };
 		8B000000000000000000010F /* WireGuardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardView.swift; sourceTree = "<group>"; };
 		8B0000000000000000000111 /* SharedViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedViews.swift; sourceTree = "<group>"; };
@@ -103,7 +113,7 @@
 		B10000000000000000000104 /* VMAssetDownloadService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMAssetDownloadService.swift; sourceTree = "<group>"; };
 		B10000000000000000000105 /* VMAssetInstallService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMAssetInstallService.swift; sourceTree = "<group>"; };
 		B10000000000000000000106 /* VMAssetSelectionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMAssetSelectionStore.swift; sourceTree = "<group>"; };
-		B10000000000000000000107 /* VMAssetController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMAssetController.swift; sourceTree = "<group>"; };
+		B10000000000000000000107 /* VMAssetWorkflowCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMAssetWorkflowCoordinator.swift; sourceTree = "<group>"; };
 		C10000000000000000000101 /* VMAssetTestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMAssetTestSupport.swift; sourceTree = "<group>"; };
 		C10000000000000000000102 /* VMAssetSelectionStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMAssetSelectionStoreTests.swift; sourceTree = "<group>"; };
 		C10000000000000000000103 /* VMAssetServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMAssetServiceTests.swift; sourceTree = "<group>"; };
@@ -160,11 +170,12 @@
 			isa = PBXGroup;
 			children = (
 				8B0000000000000000000201 /* App */,
+				D10000000000000000000201 /* Presentation */,
 				8B0000000000000000000202 /* Models */,
-				B10000000000000000000201 /* Controllers */,
 				8F0000000000000000000201 /* Coordinators */,
 				8B0000000000000000000203 /* Services */,
 				8B0000000000000000000204 /* Stores */,
+				D10000000000000000000202 /* Persistence */,
 				8B0000000000000000000205 /* Support */,
 				8B0000000000000000000206 /* Views */,
 				8B0000000000000000000113 /* Info.plist */,
@@ -196,10 +207,6 @@
 			isa = PBXGroup;
 			children = (
 				8B0000000000000000000101 /* App.swift */,
-				9A0000000000000000000101 /* MenuBarController.swift */,
-				9A0000000000000000000102 /* OnboardingWindowController.swift */,
-				9A0000000000000000000107 /* SettingsWindowController.swift */,
-				9A0000000000000000000108 /* ConsoleWindowController.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -233,7 +240,9 @@
 			isa = PBXGroup;
 			children = (
 				8B0000000000000000000108 /* TetheringStore.swift */,
-				B10000000000000000000106 /* VMAssetSelectionStore.swift */,
+				D10000000000000000000101 /* ConsoleSessionStore.swift */,
+				D10000000000000000000102 /* USBSessionStore.swift */,
+				D10000000000000000000103 /* VMConfigurationStore.swift */,
 			);
 			path = Stores;
 			sourceTree = "<group>";
@@ -244,7 +253,6 @@
 				8B0000000000000000000109 /* Clipboard.swift */,
 				8B000000000000000000010A /* FilePicker.swift */,
 				8B0000000000000000000112 /* RuntimeEntitlements.swift */,
-				8F0000000000000000000105 /* WireGuardConfStore.swift */,
 				8F0000000000000000000102 /* WireGuardConfBuilder.swift */,
 				B10000000000000000000102 /* VMAssetFolderResolver.swift */,
 			);
@@ -267,8 +275,8 @@
 			children = (
 				8B000000000000000000010B /* SettingsView.swift */,
 				9A0000000000000000000105 /* GeneralView.swift */,
-				8B000000000000000000010C /* VMView.swift */,
-				8B000000000000000000010D /* USBAccessoryView.swift */,
+				8B000000000000000000010C /* VirtualMachineView.swift */,
+				8B000000000000000000010D /* USBDevicesView.swift */,
 				8B000000000000000000010F /* WireGuardView.swift */,
 				9A0000000000000000000109 /* InfoView.swift */,
 			);
@@ -286,18 +294,33 @@
 		8F0000000000000000000201 /* Coordinators */ = {
 			isa = PBXGroup;
 			children = (
+				D10000000000000000000104 /* VMCoordinating.swift */,
 				8F0000000000000000000103 /* VMCoordinator.swift */,
 				8F0000000000000000000104 /* USBAccessoryCoordinator.swift */,
+				B10000000000000000000107 /* VMAssetWorkflowCoordinator.swift */,
 			);
 			path = Coordinators;
 			sourceTree = "<group>";
 		};
-		B10000000000000000000201 /* Controllers */ = {
+		D10000000000000000000201 /* Presentation */ = {
 			isa = PBXGroup;
 			children = (
-				B10000000000000000000107 /* VMAssetController.swift */,
+				9A0000000000000000000101 /* MenuBarController.swift */,
+				9A0000000000000000000108 /* ConsoleWindowController.swift */,
+				9A0000000000000000000102 /* OnboardingWindowController.swift */,
+				9A0000000000000000000107 /* SettingsWindowController.swift */,
 			);
-			path = Controllers;
+			path = Presentation;
+			sourceTree = "<group>";
+		};
+		D10000000000000000000202 /* Persistence */ = {
+			isa = PBXGroup;
+			children = (
+				D10000000000000000000106 /* VMAssetStorageLayout.swift */,
+				B10000000000000000000106 /* VMAssetSelectionStore.swift */,
+				8F0000000000000000000105 /* WireGuardConfStore.swift */,
+			);
+			path = Persistence;
 			sourceTree = "<group>";
 		};
 		C10000000000000000000201 /* ThruRNDISTests */ = {
@@ -421,6 +444,11 @@
 				8B0000000000000000000005 /* USBAccessoryMonitor.swift in Sources */,
 				8B0000000000000000000007 /* VMConfigurationFactory.swift in Sources */,
 				8B0000000000000000000008 /* TetheringStore.swift in Sources */,
+				D10000000000000000000001 /* ConsoleSessionStore.swift in Sources */,
+				D10000000000000000000002 /* USBSessionStore.swift in Sources */,
+				D10000000000000000000003 /* VMConfigurationStore.swift in Sources */,
+				D10000000000000000000004 /* VMCoordinating.swift in Sources */,
+				D10000000000000000000006 /* VMAssetStorageLayout.swift in Sources */,
 				8B0000000000000000000009 /* Clipboard.swift in Sources */,
 				8B000000000000000000000A /* FilePicker.swift in Sources */,
 				8B0000000000000000000012 /* RuntimeEntitlements.swift in Sources */,
@@ -439,8 +467,8 @@
 				9A0000000000000000000005 /* GeneralView.swift in Sources */,
 				9A0000000000000000000009 /* InfoView.swift in Sources */,
 				9A0000000000000000000006 /* OnboardingView.swift in Sources */,
-				8B000000000000000000000C /* VMView.swift in Sources */,
-				8B000000000000000000000D /* USBAccessoryView.swift in Sources */,
+				8B000000000000000000000C /* VirtualMachineView.swift in Sources */,
+				8B000000000000000000000D /* USBDevicesView.swift in Sources */,
 				8B000000000000000000000E /* ConsoleView.swift in Sources */,
 				8B000000000000000000000F /* WireGuardView.swift in Sources */,
 				8B0000000000000000000011 /* SharedViews.swift in Sources */,
@@ -450,7 +478,7 @@
 				B10000000000000000000004 /* VMAssetDownloadService.swift in Sources */,
 				B10000000000000000000005 /* VMAssetInstallService.swift in Sources */,
 				B10000000000000000000006 /* VMAssetSelectionStore.swift in Sources */,
-				B10000000000000000000007 /* VMAssetController.swift in Sources */,
+				B10000000000000000000007 /* VMAssetWorkflowCoordinator.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

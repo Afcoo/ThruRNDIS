@@ -21,7 +21,7 @@ final class USBAccessoryCoordinator {
     var onUnexpectedDetach: ((UInt64, String) -> Void)?
     var runtimeStateProvider: (() -> VMRuntimeState)?
 
-    private let monitor = USBAccessoryMonitor()
+    private let monitor: any USBAccessoryMonitoring
     private var accessoryObjects: [UInt64: AAUSBAccessory] = [:]
     private var attachedDevice: VZUSBPassthroughDevice?
     private var pendingDetachDevice: VZUSBPassthroughDevice?
@@ -48,7 +48,8 @@ final class USBAccessoryCoordinator {
     private(set) var attachedAccessoryID: UInt64?
     private(set) var vmSessionAccessoryID: UInt64?
 
-    init() {
+    init(monitor: any USBAccessoryMonitoring) {
+        self.monitor = monitor
         configureAccessoryMonitor()
     }
 

@@ -7,7 +7,7 @@ import SwiftUI
 
 struct OnboardingView: View {
     @EnvironmentObject private var store: TetheringStore
-    @EnvironmentObject private var assetController: VMAssetController
+    @EnvironmentObject private var assetWorkflowCoordinator: VMAssetWorkflowCoordinator
     @State private var step = 0
     @State private var alert: OnboardingAlert?
 
@@ -70,17 +70,17 @@ struct OnboardingView: View {
                 } else {
                     Button("Finish") {
                         store.completeOnboarding()
-                        if assetController.hasConfiguredAssets {
+                        if assetWorkflowCoordinator.hasConfiguredAssets {
                             onFinish()
                         }
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(!assetController.hasConfiguredAssets || assetController.isBusy)
+                    .disabled(!assetWorkflowCoordinator.hasConfiguredAssets || assetWorkflowCoordinator.isBusy)
                 }
             }
             .padding(12)
         }
-        .onReceive(assetController.$errorMessage.compactMap { $0 }) { message in
+        .onReceive(assetWorkflowCoordinator.$errorMessage.compactMap { $0 }) { message in
             alert = OnboardingAlert(message: message)
         }
         .onChange(of: step) { _, newStep in
@@ -91,7 +91,7 @@ struct OnboardingView: View {
                 title: Text("VM Asset Error"),
                 message: Text(alert.message),
                 dismissButton: .default(Text("OK")) {
-                    assetController.clearError()
+                    assetWorkflowCoordinator.clearError()
                 }
             )
         }
@@ -142,36 +142,36 @@ struct OnboardingView: View {
 
             GroupBox {
                 VStack(alignment: .leading, spacing: 10) {
-                    Label(assetController.installState.statusText, systemImage: assetStatusImage)
+                    Label(assetWorkflowCoordinator.installState.statusText, systemImage: assetStatusImage)
                         .foregroundStyle(assetStatusColor)
 
-                    if let progress = assetController.installState.progress {
+                    if let progress = assetWorkflowCoordinator.installState.progress {
                         ProgressView(value: progress)
                     }
 
-                    if assetController.hasConfiguredAssets {
+                    if assetWorkflowCoordinator.hasConfiguredAssets {
                         Label("ThruRNDIS is ready to continue.", systemImage: "checkmark.circle.fill")
                             .foregroundStyle(.green)
 
-                        if let release = assetController.installedRelease {
+                        if let release = assetWorkflowCoordinator.installedRelease {
                             LabeledContent("Installed version", value: release.displayName)
                         } else {
                             Label("Using manually selected files", systemImage: "folder")
                                 .foregroundStyle(.secondary)
                         }
-                    } else if !assetController.isBusy {
+                    } else if !assetWorkflowCoordinator.isBusy {
                         Label("Install or choose valid files to continue.", systemImage: "exclamationmark.triangle")
                             .foregroundStyle(.orange)
                     }
 
                     HStack(spacing: 8) {
-                        if assetController.isBusy {
+                        if assetWorkflowCoordinator.isBusy {
                             Button("Cancel") {
-                                assetController.cancelInstall()
+                                assetWorkflowCoordinator.cancelInstall()
                             }
                         } else {
-                            Button(assetController.hasConfiguredAssets ? "Check & Install Latest" : "Download & Install Latest") {
-                                assetController.installLatest()
+                            Button(assetWorkflowCoordinator.hasConfiguredAssets ? "Check & Install Latest" : "Download & Install Latest") {
+                                assetWorkflowCoordinator.installLatest()
                             }
                             .buttonStyle(.borderedProminent)
                             .disabled(!store.canEditVMConfiguration)
@@ -186,24 +186,24 @@ struct OnboardingView: View {
                         Button("Choose Downloaded Assets…") {
                             guard let url = FilePicker.chooseDirectory(
                                 title: "Choose downloaded VM assets",
-                                initialURL: assetController.selectedFolderURL
+                                initialURL: assetWorkflowCoordinator.selectedFolderURL
                             ) else {
                                 return
                             }
-                            if let error = assetController.selectManualFolder(url) {
+                            if let error = assetWorkflowCoordinator.selectManualFolder(url) {
                                 alert = OnboardingAlert(message: error.localizedDescription)
                             }
                         }
 
-                        if !assetController.installedReleases.isEmpty {
+                        if !assetWorkflowCoordinator.installedReleases.isEmpty {
                             Button("Use Installed Assets") {
-                                if let error = assetController.useMostRecentInstalledAssets() {
+                                if let error = assetWorkflowCoordinator.useMostRecentInstalledAssets() {
                                     alert = OnboardingAlert(message: error.localizedDescription)
                                 }
                             }
                         }
                     }
-                    .disabled(!store.canEditVMConfiguration || assetController.isBusy)
+                    .disabled(!store.canEditVMConfiguration || assetWorkflowCoordinator.isBusy)
                 }
                 .padding(.vertical, 2)
             }
@@ -272,7 +272,7 @@ struct OnboardingView: View {
         guard step == 1 else {
             return true
         }
-        return assetController.hasConfiguredAssets && !assetController.isBusy
+        return assetWorkflowCoordinator.hasConfiguredAssets && !assetWorkflowCoordinator.isBusy
     }
 
     private func onboardingInstruction(
@@ -298,7 +298,7 @@ struct OnboardingView: View {
     }
 
     private var assetStatusImage: String {
-        switch assetController.installState {
+        switch assetWorkflowCoordinator.installState {
         case .ready:
             return "checkmark.circle.fill"
         case .failed:
@@ -311,7 +311,7 @@ struct OnboardingView: View {
     }
 
     private var assetStatusColor: Color {
-        switch assetController.installState {
+        switch assetWorkflowCoordinator.installState {
         case .ready:
             return .green
         case .failed:

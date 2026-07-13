@@ -5,18 +5,6 @@ Copyright (C) 2026 Afcoo.
 import AppKit
 import Foundation
 
-private enum AlpineBootDefaults {
-    static let initramfsModules = "virtio_pci,virtio_mmio,virtio_console"
-    static let initramfsKernelCommandLine = "console=hvc0 rdinit=/sbin/init modules=\(initramfsModules)"
-}
-
-private enum VMMemoryDefaults {
-    static let minimumMiB = 256
-    static let maximumMiB = 16 * 1024
-    static let defaultMiB = 1024
-    static let stepMiB = 256
-}
-
 struct OnboardingPresentationRequest {
     let sequence: Int
     let restart: Bool
@@ -24,39 +12,10 @@ struct OnboardingPresentationRequest {
 
 @MainActor
 final class TetheringStore: ObservableObject {
-    @Published var diskImageURL: URL? {
-        didSet { persistFileURL(diskImageURL, forKey: DefaultsKey.diskImageURLPath) }
-    }
-    @Published var cpuCount = 1 {
-        didSet { UserDefaults.standard.set(cpuCount, forKey: DefaultsKey.cpuCount) }
-    }
-    @Published var memorySizeMiB = VMMemoryDefaults.defaultMiB {
-        didSet { UserDefaults.standard.set(memorySizeMiB, forKey: DefaultsKey.memorySizeMiB) }
-    }
-    @Published var kernelCommandLine = AlpineBootDefaults.initramfsKernelCommandLine {
-        didSet { UserDefaults.standard.set(kernelCommandLine, forKey: DefaultsKey.kernelCommandLine) }
-    }
-
     @Published private(set) var runtimeState: VMRuntimeState = .idle
     @Published private(set) var isRestartingVirtualMachine = false
     @Published private(set) var statusMessage = "Install or select VM assets to begin."
     @Published private(set) var runtimeEntitlements = RuntimeEntitlementSnapshot.current
-    @Published private(set) var accessories: [USBAccessoryRecord] = []
-    @Published private(set) var isAccessoryMonitoring = false
-    @Published var selectedAccessoryID: UInt64? {
-        didSet {
-            guard !isSyncingUSBState else { return }
-            usbCoordinator.selectAccessory(id: selectedAccessoryID)
-        }
-    }
-    @Published private(set) var attachedAccessoryID: UInt64?
-    @Published private(set) var vmSessionAccessoryID: UInt64?
-    @Published private(set) var usbAttachmentPrompt: USBAttachmentPrompt?
-    @Published private(set) var consoleText = ""
-    @Published private(set) var consoleOutputData = Data()
-    @Published private(set) var consoleOutputSequence = 0
-    @Published private(set) var consoleResetSequence = 0
-    @Published private(set) var eventLog = ""
     @Published private(set) var wireGuardSettings: WireGuardSettings
     @Published private(set) var wireGuardStatusMessage = "Loading WireGuard configuration from Application Support."
     @Published private(set) var hasCompletedOnboarding = false
@@ -68,15 +27,17 @@ final class TetheringStore: ObservableObject {
     @Published private(set) var preferencesStatusMessage = ""
 
     let guestMACAddress = "02:00:5E:10:00:02"
+    let consoleSession: ConsoleSessionStore
+    let usbSession: USBSessionStore
+    let vmConfiguration: VMConfigurationStore
 
-    private let vmCoordinator = VMCoordinator()
-    private let usbCoordinator = USBAccessoryCoordinator()
+    private let vmCoordinator: any VMCoordinating
+    private let usbCoordinator: USBAccessoryCoordinator
     private let assetProvider: VMAssetProviding
-    private let wireGuardConfStore: WireGuardConfStore
+    private let wireGuardConfStore: any WireGuardConfigurationStoring
     private let wireGuardConfBuilder: WireGuardConfBuilder
     private var wireGuardKeyMaterial: WireGuardKeyMaterial?
     private var didRequestLaunchAccessoryMonitoring = false
-    private var isSyncingUSBState = false
     private var pendingAttachmentAccessoryID: UInt64?
     private var pendingAttachmentToken: UUID?
     private var pendingAttachmentStartedVM = false
@@ -88,6 +49,30 @@ final class TetheringStore: ObservableObject {
 
     private var attachmentRequiresVMStopRetry: Bool {
         runtimeState == .failed && vmCoordinator.hasVirtualMachine
+    }
+
+    var accessories: [USBAccessoryRecord] {
+        usbSession.accessories
+    }
+
+    var isAccessoryMonitoring: Bool {
+        usbSession.isAccessoryMonitoring
+    }
+
+    var selectedAccessoryID: UInt64? {
+        usbSession.selectedAccessoryID
+    }
+
+    var attachedAccessoryID: UInt64? {
+        usbSession.attachedAccessoryID
+    }
+
+    var vmSessionAccessoryID: UInt64? {
+        usbSession.vmSessionAccessoryID
+    }
+
+    var usbAttachmentPrompt: USBAttachmentPrompt? {
+        usbSession.attachmentPrompt
     }
 
     var vmDisplayState: VMDisplayState {
@@ -132,36 +117,6 @@ final class TetheringStore: ObservableObject {
 
     var shouldPresentOnboardingOnLaunch: Bool {
         !hasCompletedOnboarding
-    }
-
-    var memorySizeRangeMiB: ClosedRange<Int> {
-        VMMemoryDefaults.minimumMiB...VMMemoryDefaults.maximumMiB
-    }
-
-    var memorySizeStepMiB: Int {
-        VMMemoryDefaults.stepMiB
-    }
-
-    var memorySizeLabel: String {
-        guard memorySizeMiB >= 1024 else {
-            return "\(memorySizeMiB) MiB"
-        }
-
-        let wholeGiB = memorySizeMiB / 1024
-        let remainderMiB = memorySizeMiB % 1024
-
-        switch remainderMiB {
-        case 0:
-            return "\(wholeGiB) GiB"
-        case 256:
-            return "\(wholeGiB).25 GiB"
-        case 512:
-            return "\(wholeGiB).5 GiB"
-        case 768:
-            return "\(wholeGiB).75 GiB"
-        default:
-            return "\(memorySizeMiB) MiB"
-        }
     }
 
     var canStartAccessoryMonitoring: Bool {
@@ -239,16 +194,26 @@ final class TetheringStore: ObservableObject {
         )
     }
 
-    init(assetProvider: VMAssetProviding) {
-        let wireGuardConfStore = WireGuardConfStore()
-        let wireGuardConfBuilder = WireGuardConfBuilder(elements: .defaults)
+    init(
+        assetProvider: VMAssetProviding,
+        vmCoordinator: any VMCoordinating,
+        usbCoordinator: USBAccessoryCoordinator,
+        wireGuardConfStore: any WireGuardConfigurationStoring,
+        wireGuardConfBuilder: WireGuardConfBuilder,
+        consoleSession: ConsoleSessionStore,
+        usbSession: USBSessionStore,
+        vmConfiguration: VMConfigurationStore
+    ) {
         self.assetProvider = assetProvider
+        self.vmCoordinator = vmCoordinator
+        self.usbCoordinator = usbCoordinator
         self.wireGuardConfStore = wireGuardConfStore
         self.wireGuardConfBuilder = wireGuardConfBuilder
+        self.consoleSession = consoleSession
+        self.usbSession = usbSession
+        self.vmConfiguration = vmConfiguration
         self.wireGuardSettings = wireGuardConfBuilder.settings()
         configureCoordinators()
-        restoreDiskImageSelection()
-        restoreVMSettings()
         prepareWireGuardConfiguration()
         restoreOnboardingState()
         appendRuntimeEntitlementSummary()
@@ -345,19 +310,19 @@ final class TetheringStore: ObservableObject {
         usbCoordinator.resetForVMStart()
         syncUSBState()
 
-        let bootCommandLine = normalizedBootCommandLine()
-        if bootCommandLine != kernelCommandLine {
-            kernelCommandLine = bootCommandLine
+        let bootCommandLine = vmConfiguration.normalizedBootCommandLine()
+        if bootCommandLine != vmConfiguration.kernelCommandLine {
+            vmConfiguration.kernelCommandLine = bootCommandLine
             appendEvent("Adjusted kernel arguments for initramfs-only boot.")
         }
 
         let input = VMCoordinatorStartInput(
             kernelURL: bootAssets.kernelURL,
             initialRamdiskURL: bootAssets.initialRamdiskURL,
-            diskImageURL: diskImageURL,
+            diskImageURL: vmConfiguration.diskImageURL,
             wireGuardConfigurationDirectoryURL: wireGuardConfStore.sharedDirectoryURL,
-            cpuCount: cpuCount,
-            memorySizeMiB: memorySizeMiB,
+            cpuCount: vmConfiguration.cpuCount,
+            memorySizeMiB: vmConfiguration.memorySizeMiB,
             bootCommandLine: bootCommandLine,
             guestMACAddress: guestMACAddress
         )
@@ -395,6 +360,10 @@ final class TetheringStore: ObservableObject {
         }
 
         requestAttachAccessory(id: selectedAccessoryID)
+    }
+
+    func selectAccessory(id: UInt64?) {
+        usbCoordinator.selectAccessory(id: id)
     }
 
     func requestAttachAccessory(id accessoryID: UInt64) {
@@ -457,11 +426,9 @@ final class TetheringStore: ObservableObject {
     }
 
     func resolveUSBAttachmentPrompt(accepted: Bool) {
-        guard let prompt = usbAttachmentPrompt else {
+        guard let prompt = usbSession.takeAttachmentPrompt() else {
             return
         }
-
-        usbAttachmentPrompt = nil
         promptedAccessoryIDs.remove(prompt.accessory.id)
 
         if accepted {
@@ -559,10 +526,7 @@ final class TetheringStore: ObservableObject {
     }
 
     func clearConsole() {
-        consoleText = ""
-        consoleOutputData = Data()
-        consoleOutputSequence = 0
-        consoleResetSequence &+= 1
+        consoleSession.clear()
     }
 
     @discardableResult
@@ -571,7 +535,7 @@ final class TetheringStore: ObservableObject {
     }
 
     func clearEventLog() {
-        eventLog = ""
+        consoleSession.clearEventLog()
     }
 
     func setLaunchAtLoginEnabled(_ isEnabled: Bool) {
@@ -645,17 +609,10 @@ final class TetheringStore: ObservableObject {
         queuedUSBAttachmentPrompts.removeAll()
         promptedAccessoryIDs.removeAll()
         accessoriesAwaitingAssetSetup.removeAll()
-        usbAttachmentPrompt = nil
+        usbSession.clearAttachmentPrompt()
 
-        diskImageURL = nil
-        cpuCount = 1
-        memorySizeMiB = VMMemoryDefaults.defaultMiB
-        kernelCommandLine = AlpineBootDefaults.initramfsKernelCommandLine
+        vmConfiguration.reset()
 
-        UserDefaults.standard.removeObject(forKey: DefaultsKey.diskImageURLPath)
-        UserDefaults.standard.removeObject(forKey: DefaultsKey.cpuCount)
-        UserDefaults.standard.removeObject(forKey: DefaultsKey.memorySizeMiB)
-        UserDefaults.standard.removeObject(forKey: DefaultsKey.kernelCommandLine)
         UserDefaults.standard.removeObject(forKey: DefaultsKey.onboardingVersion)
 
         hasCompletedOnboarding = false
@@ -818,7 +775,7 @@ final class TetheringStore: ObservableObject {
             }
 
             queuedUSBAttachmentPrompts.removeFirst()
-            usbAttachmentPrompt = attachmentPrompt(for: currentRecord)
+            usbSession.present(attachmentPrompt(for: currentRecord))
             return
         }
     }
@@ -901,7 +858,7 @@ final class TetheringStore: ObservableObject {
             return
         }
 
-        selectedAccessoryID = accessoryID
+        usbCoordinator.selectAccessory(id: accessoryID)
         pendingAttachmentAccessoryID = accessoryID
         pendingAttachmentToken = UUID()
         pendingAttachmentStartedVM = false
@@ -1109,41 +1066,15 @@ final class TetheringStore: ObservableObject {
     }
 
     private func syncUSBState() {
-        isSyncingUSBState = true
-        accessories = usbCoordinator.accessories
-        isAccessoryMonitoring = usbCoordinator.isAccessoryMonitoring
-        selectedAccessoryID = usbCoordinator.selectedAccessoryID
-        attachedAccessoryID = usbCoordinator.attachedAccessoryID
-        vmSessionAccessoryID = usbCoordinator.vmSessionAccessoryID
-        isSyncingUSBState = false
-    }
-
-    private func restoreDiskImageSelection() {
-        if let restoredDiskURL = restoredFileURL(forKey: DefaultsKey.diskImageURLPath),
-           restoredDiskURL.pathExtension.localizedCaseInsensitiveCompare("iso") != .orderedSame {
-            diskImageURL = restoredDiskURL
-        } else {
-            diskImageURL = nil
-        }
-    }
-
-    private func restoreVMSettings() {
-        let defaults = UserDefaults.standard
-
-        if defaults.object(forKey: DefaultsKey.cpuCount) != nil {
-            cpuCount = min(max(defaults.integer(forKey: DefaultsKey.cpuCount), 1), 8)
-        }
-
-        if defaults.object(forKey: DefaultsKey.memorySizeMiB) != nil {
-            let restoredMemory = defaults.integer(forKey: DefaultsKey.memorySizeMiB)
-            let clampedMemory = min(max(restoredMemory, VMMemoryDefaults.minimumMiB), VMMemoryDefaults.maximumMiB)
-            memorySizeMiB = (clampedMemory / VMMemoryDefaults.stepMiB) * VMMemoryDefaults.stepMiB
-        }
-
-        if let restoredCommandLine = defaults.string(forKey: DefaultsKey.kernelCommandLine),
-           !restoredCommandLine.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            kernelCommandLine = restoredCommandLine
-        }
+        usbSession.apply(
+            USBSessionSnapshot(
+                accessories: usbCoordinator.accessories,
+                isAccessoryMonitoring: usbCoordinator.isAccessoryMonitoring,
+                selectedAccessoryID: usbCoordinator.selectedAccessoryID,
+                attachedAccessoryID: usbCoordinator.attachedAccessoryID,
+                vmSessionAccessoryID: usbCoordinator.vmSessionAccessoryID
+            )
+        )
     }
 
     private func restoreOnboardingState() {
@@ -1153,48 +1084,8 @@ final class TetheringStore: ObservableObject {
         hasCompletedOnboarding = completedVersion >= Self.currentOnboardingVersion
     }
 
-    private func normalizedBootCommandLine() -> String {
-        let blockedKeys: Set<String> = [
-            "alpine_repo",
-            "ip",
-            "modules",
-            "panic",
-            "pkgs",
-            "quiet",
-            "ro",
-            "root",
-            "rootflags",
-            "rootfstype",
-            "rw"
-        ]
-
-        var tokens = kernelCommandLine
-            .split(whereSeparator: \.isWhitespace)
-            .map(String.init)
-            .filter { token in
-                let key = token.split(separator: "=", maxSplits: 1).first.map(String.init) ?? token
-                return !blockedKeys.contains(key) && key != "rdinit"
-            }
-
-        if !tokens.contains(where: { $0.hasPrefix("console=") }) {
-            tokens.insert("console=hvc0", at: 0)
-        }
-
-        let rdinitInsertIndex = min(tokens.lastIndex(where: { $0.hasPrefix("console=") }).map { $0 + 1 } ?? 0, tokens.count)
-        tokens.insert("rdinit=/sbin/init", at: rdinitInsertIndex)
-
-        let moduleToken = "modules=\(AlpineBootDefaults.initramfsModules)"
-        let insertIndex = min(
-            tokens.lastIndex(where: { $0.hasPrefix("console=") || $0.hasPrefix("rdinit=") }).map { $0 + 1 } ?? tokens.count,
-            tokens.count
-        )
-        tokens.insert(moduleToken, at: insertIndex)
-
-        return tokens.joined(separator: " ")
-    }
-
     private func appendScratchDiskSelectionSummaryIfNeeded() {
-        if let diskImageURL {
+        if let diskImageURL = vmConfiguration.diskImageURL {
             appendEvent("Restored optional scratch disk selection: \(diskImageURL.path).")
         }
     }
@@ -1253,21 +1144,6 @@ final class TetheringStore: ObservableObject {
         }
     }
 
-    private func restoredFileURL(forKey key: String) -> URL? {
-        guard let path = UserDefaults.standard.string(forKey: key), !path.isEmpty else {
-            return nil
-        }
-        return URL(fileURLWithPath: path)
-    }
-
-    private func persistFileURL(_ url: URL?, forKey key: String) {
-        if let path = url?.standardizedFileURL.path {
-            UserDefaults.standard.set(path, forKey: key)
-        } else {
-            UserDefaults.standard.removeObject(forKey: key)
-        }
-    }
-
     private func refreshRuntimeEntitlements() {
         let snapshot = RuntimeEntitlementSnapshot.current
         if snapshot != runtimeEntitlements {
@@ -1300,20 +1176,8 @@ final class TetheringStore: ObservableObject {
         appendEvent("WireGuard endpoint cleared: \(reason).")
     }
 
-    private func updateWireGuardEndpoint(from text: String) {
-        let marker = "THRURNDIS_WG_ENDPOINT="
-        guard let markerRange = text.range(of: marker, options: [.backwards]) else {
-            return
-        }
-
-        let suffix = text[markerRange.upperBound...]
-        guard let token = suffix.split(whereSeparator: \.isWhitespace).first else {
-            return
-        }
-
-        let endpoint = String(token).trimmingCharacters(in: CharacterSet(charactersIn: "\r\n"))
-        guard endpoint.contains(":"),
-              endpoint != wireGuardSettings.endpoint else {
+    private func updateWireGuardEndpoint(_ endpoint: String) {
+        guard endpoint != wireGuardSettings.endpoint else {
             return
         }
 
@@ -1325,64 +1189,18 @@ final class TetheringStore: ObservableObject {
     }
 
     private func clearConsoleForVMStart() {
-        consoleText = ""
-        consoleOutputData = Data()
-        consoleOutputSequence = 0
-        consoleResetSequence &+= 1
+        consoleSession.clear()
     }
 
     private func appendConsole(_ data: Data) {
-        appendConsoleOutputData(data)
-
-        if let text = String(data: data, encoding: .utf8) {
-            consoleText.append(text)
-            updateWireGuardEndpoint(from: consoleText)
-        } else {
-            consoleText.append(data.map { String(format: "%02X", $0) }.joined(separator: " "))
-            consoleText.append("\n")
+        if let endpoint = consoleSession.append(data) {
+            updateWireGuardEndpoint(endpoint)
         }
-        trimConsoleIfNeeded()
     }
 
     private func appendEvent(_ message: String) {
-        let timestamp = Self.timestampFormatter.string(from: Date())
-        eventLog.append("[\(timestamp)] \(message)\n")
-        trimEventLogIfNeeded()
+        consoleSession.appendEvent(message)
     }
-
-    private func trimConsoleIfNeeded() {
-        let maximumCharacters = 200_000
-        if consoleText.count > maximumCharacters {
-            consoleText.removeFirst(consoleText.count - maximumCharacters)
-        }
-    }
-
-    private func appendConsoleOutputData(_ data: Data) {
-        var outputData = consoleOutputData
-        outputData.append(data)
-
-        let maximumBytes = 4_000_000
-        if outputData.count > maximumBytes {
-            outputData.removeFirst(outputData.count - maximumBytes)
-            consoleResetSequence &+= 1
-        }
-
-        consoleOutputData = outputData
-        consoleOutputSequence &+= 1
-    }
-
-    private func trimEventLogIfNeeded() {
-        let maximumCharacters = 60_000
-        if eventLog.count > maximumCharacters {
-            eventLog.removeFirst(eventLog.count - maximumCharacters)
-        }
-    }
-
-    private static let timestampFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm:ss"
-        return formatter
-    }()
 
     private static let currentOnboardingVersion = 2
 
@@ -1391,10 +1209,6 @@ final class TetheringStore: ObservableObject {
     }
 
     private enum DefaultsKey {
-        static let diskImageURLPath = "VMAssets.diskImageURLPath"
-        static let cpuCount = "VM.cpuCount"
-        static let memorySizeMiB = "VM.memorySizeMiB"
-        static let kernelCommandLine = "VM.kernelCommandLine"
         static let onboardingVersion = "Onboarding.completedVersion"
     }
 }

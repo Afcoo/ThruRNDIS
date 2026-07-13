@@ -10,6 +10,7 @@ final class ConsoleWindowController: NSWindowController {
     init(store: TetheringStore) {
         let rootView = ConsoleView()
             .environmentObject(store)
+            .environmentObject(store.consoleSession)
         let hostingController = NSHostingController(rootView: rootView)
         let window = NSWindow(contentViewController: hostingController)
 

@@ -31,23 +31,27 @@ WireGuard-over-VZNAT architecture as the baseline.
 
 ## Architecture
 
-- `TetheringStore` owns the general SwiftUI-facing app state, WireGuard
-  configuration state, onboarding/preferences, optional scratch-disk
-  selection, USB approval workflow, and console/event logs. It does not own VM
-  Asset selection, persistence, or installation. VM lifecycle work belongs in
-  `VMCoordinator`; USB AccessoryAccess selection and passthrough policy belong
-  in `USBAccessoryCoordinator`.
-- `AppDelegate` owns one shared `VMAssetController` and one shared
-  `TetheringStore(assetProvider:)`, starts AccessoryAccess monitoring at app
-  launch, and injects the same controller into onboarding, Settings, and the
-  menu bar. Keep the dependency one-way: `TetheringStore` sees only the
-  read-only `VMAssetProviding` boundary, and `VMAssetController` must not
-  reference `TetheringStore`.
-- `VMAssetController` is the `@MainActor` UI/workflow owner for the current
+- `TetheringStore` owns cross-feature orchestration, general app state,
+  WireGuard presentation state, onboarding/preferences, and the serialized USB
+  approval/start/restart workflow. High-frequency or independently observed
+  state lives in child stores: `ConsoleSessionStore` owns console/event output,
+  `USBSessionStore` owns the atomic USB UI snapshot and pending prompt, and
+  `VMConfigurationStore` owns persisted VM settings including the optional
+  scratch disk. VM lifecycle work belongs in `VMCoordinator`; USB
+  AccessoryAccess selection and passthrough policy belong in
+  `USBAccessoryCoordinator`.
+- `AppDelegate` is the composition root. It owns one shared
+  `VMAssetWorkflowCoordinator`, constructs the VM, USB, and WireGuard adapters
+  and the three child state stores, injects them into one shared `TetheringStore`,
+  starts AccessoryAccess monitoring at app launch, and passes the same objects
+  to onboarding, Settings, and the menu bar. Keep the dependency one-way:
+  `TetheringStore` sees only the read-only `VMAssetProviding` boundary, and
+  `VMAssetWorkflowCoordinator` must not reference `TetheringStore`.
+- `VMAssetWorkflowCoordinator` is the `@MainActor` workflow owner for the current
   selection, installed releases, install state, progress, errors, cancellation,
   and stale-operation protection. It orchestrates protocol-injected release,
   download, install, and selection services; do not put `URLSession`,
-  `FileManager`, `Process`, or hashing work directly in the controller.
+  `FileManager`, `Process`, or hashing work directly in the coordinator.
 - `GitHubVMAssetReleaseService` resolves the latest published release and
   requires exactly one `vm_assets.zip` and one `SHA256SUMS` attachment.
   `VMAssetDownloadService` owns HTTP validation, reported-size checks,
@@ -55,8 +59,9 @@ WireGuard-over-VZNAT architecture as the baseline.
   `VMAssetInstallService` owns checksum/archive validation, extraction, atomic
   promotion, metadata, and managed-release cleanup. `VMAssetSelectionStore`
   owns UserDefaults restoration and persistence for managed/manual selections
-  and kernel/initramfs overrides. `VMAssetFolderResolver` is the shared,
-  file-only folder resolver and validator.
+  and kernel/initramfs overrides. `VMAssetStorageLayout` defines the shared
+  Application Support staging/release paths. `VMAssetFolderResolver` is the
+  shared, file-only folder resolver and validator.
 - `WireGuardConfStore` owns the app-local WireGuard directory and creates the
   server/client private-key files on first launch. `WireGuardConfBuilder`
   accepts editable configuration elements, uses defaults for now, generates
@@ -112,8 +117,9 @@ WireGuard-over-VZNAT architecture as the baseline.
   the release root or its `boot/` directory layout and requires readable regular
   boot files. `VMConfigurationFactory` must receive only the validated effective
   boot URLs from `VMAssetProviding` immediately before VM start.
-- The optional scratch disk remains `TetheringStore` state and is neither
-  downloaded nor deleted by VM Asset installation or selection changes.
+- The optional scratch disk remains `VMConfigurationStore` state owned by the
+  shared `TetheringStore` and is neither downloaded nor deleted by VM Asset
+  installation or selection changes.
   WireGuard keys/configuration likewise remain in the separate Application
   Support `WireGuard/` tree and never come from a VM Asset release.
 
@@ -186,42 +192,57 @@ macOS WireGuard client
 
 ## Directory Guide
 
-- `ThruRNDIS/App`: SwiftUI app entrypoint, AppKit menu-bar controller, and
-  onboarding window controller.
-- `ThruRNDIS/Controllers`: `VMAssetController`, the shared VM Asset UI state and
-  installation-workflow owner.
-- `ThruRNDIS/Views`: setup, USB, console, and WireGuard views.
-- `ThruRNDIS/Coordinators`: `VMCoordinator` for Virtualization VM lifecycle and
-  `USBAccessoryCoordinator` for AccessoryAccess USB selection/passthrough
-  policy.
-- `ThruRNDIS/Stores`: `TetheringStore` orchestration/general app state and
-  `VMAssetSelectionStore` selection persistence.
-- `ThruRNDIS/Services`: VM Asset release lookup, download, verification/install,
-  `USBAccessoryMonitor`, VM configuration factory, and VM delegate glue.
-- `ThruRNDIS/Support`: file picker, clipboard, runtime entitlement reader helpers,
-  `VMAssetFolderResolver`, `WireGuardConfStore` key creation/validation, and
-  `WireGuardConfBuilder` server/client configuration rendering.
-- `ThruRNDIS/GuestScripts`: currently empty. Published guest boot assets are owned
-  by the separate `Afcoo/ThruRNDIS_VM_Assets` repository. No WireGuard
-  configuration or private key is included in its release assets.
-- `ThruRNDIS/Models`: VM Asset values/protocol boundaries, USB accessory records
-  and approval prompts, VM state, and WireGuard settings.
-- `script`: local app build/run/debug/verify entrypoints and host-side
-  validation helpers. VM asset production and release belong to the separate
-  public asset repository.
+The project uses a layer-oriented source tree. Keep physical directories and
+Xcode groups aligned, and keep each file in the narrowest layer that owns its
+primary responsibility.
+
+- `ThruRNDIS/App`: executable entrypoint and `AppDelegate` composition/lifecycle
+  only. Do not place menu or window controllers here.
+- `ThruRNDIS/Presentation`: AppKit presentation owners: the menu-bar controller
+  and the window controllers that host SwiftUI onboarding, Settings, and console
+  views.
+- `ThruRNDIS/Views`: SwiftUI views. Settings tabs remain under
+  `ThruRNDIS/Views/Settings`; reusable view-only components stay in
+  `SharedViews.swift`.
+- `ThruRNDIS/Coordinators`: long-running workflows. `VMCoordinator` owns
+  Virtualization lifecycle, `USBAccessoryCoordinator` owns AccessoryAccess
+  selection and passthrough policy, and `VMAssetWorkflowCoordinator` owns VM
+  Asset installation and selection workflow state. `VMCoordinating` remains a
+  protocol boundary because tests provide a replacement implementation;
+  `USBAccessoryCoordinator` stays concrete until a narrower tested boundary is
+  required.
+- `ThruRNDIS/Stores`: `@MainActor`/observable UI-facing state owners.
+  `TetheringStore` owns cross-feature orchestration, `ConsoleSessionStore` owns
+  console/event output, `USBSessionStore` owns the USB UI projection, and
+  `VMConfigurationStore` owns editable VM settings and their UserDefaults
+  persistence.
+- `ThruRNDIS/Persistence`: non-observable durable-storage adapters and path
+  definitions. `VMAssetSelectionStore` persists Asset selection,
+  `WireGuardConfStore` owns Application Support keys/configuration, and
+  `VMAssetStorageLayout` defines VM Asset staging and release locations.
+- `ThruRNDIS/Services`: external/system operations such as GitHub release
+  lookup, downloads, archive verification/install, AccessoryAccess monitoring,
+  launch-at-login integration, and Virtualization configuration creation.
+- `ThruRNDIS/Models`: value types and protocol boundaries shared across layers,
+  including VM Asset values, USB records/prompts, VM state, and WireGuard
+  settings.
+- `ThruRNDIS/Support`: small stateless helpers and narrow platform edges:
+  clipboard/file panels, runtime entitlement reads, VM Asset folder validation,
+  and WireGuard configuration rendering.
+- `ThruRNDISTests`: mirrors production ownership with `Coordinators`,
+  `Persistence`, `Services`, and `Stores` groups. Cross-layer fixtures live in
+  `TestSupport`.
+- `Configuration`: checked-in shared build settings and the local-signing
+  template. `Configuration/LocalSigning.xcconfig` is local and ignored.
+
+This repository intentionally has no `GuestScripts/` or `script/` directory.
+Published guest boot assets and their build/release tooling belong to the
+separate `Afcoo/ThruRNDIS_VM_Assets` repository.
 
 ## Build And Run
 
 - Local compile/UI iteration should not treat signing as the default blocker.
-- Default run:
-
-```sh
-./script/build_and_run.sh
-```
-
-- The default script builds the `ThruRNDIS` scheme,
-  `Debug` configuration, with `CODE_SIGNING_ALLOWED=NO`, then opens the app.
-- For direct builds, prefer the Xcode beta `xcodebuild`:
+- For the default unsigned compile, use the Xcode beta `xcodebuild` directly:
 
 ```sh
 /Applications/Xcode-beta.app/Contents/Developer/usr/bin/xcodebuild \
@@ -238,11 +259,16 @@ macOS WireGuard client
   included in the provisioning profile.
 
 ```sh
-./script/build_and_run.sh --runtime
+/Applications/Xcode-beta.app/Contents/Developer/usr/bin/xcodebuild \
+  -project "ThruRNDIS.xcodeproj" \
+  -scheme "ThruRNDIS Runtime" \
+  -configuration RuntimeDebug \
+  -destination "platform=macOS" \
+  -derivedDataPath /tmp/ThruRNDIS-RuntimeDerivedData \
+  build
 ```
 
-- `--runtime` uses the `ThruRNDIS Runtime` scheme and
-  the `RuntimeDebug` configuration, and does not disable signing.
+- The runtime command does not disable signing.
 
 ## Signing And Entitlements
 
@@ -288,8 +314,8 @@ macOS WireGuard client
 - VM assets are installed during first-run onboarding and can later be checked,
   activated, manually selected, overridden, or cleared in Settings. Keep these
   controls disabled while VM configuration cannot be edited or an Asset
-  operation is active. VM/USB start paths must reject requests while the
-  controller is busy and must revalidate the effective kernel/initramfs URLs.
+  operation is active. VM/USB start paths must reject requests while the Asset
+  workflow is active and must revalidate the effective kernel/initramfs URLs.
 - Asset selection and validation must not require WireGuard configuration files;
   release assets never contain WireGuard keys or configuration. Before VM start,
   validate the separate app-local key pair, regenerate `Shared/wg0.conf`, and
@@ -330,14 +356,15 @@ macOS WireGuard client
   VirtioFS, and netfilter/NAT module closure, must not perform runtime guest
   `apk add`, and must keep automatic forwarding scoped to IPv4 `wg0` traffic
   leaving through fixed RNDIS `usb0`.
-- `script/wg_host_setup` has no asset-relative client-config fallback. Set
-  `THRURNDIS_CLIENT_CONF` to the client config path saved or exported from the app
-  before asking the helper to create a runtime host configuration.
+- The repository contains no host WireGuard setup helper. Save or export the
+  client configuration from the app and use the user-managed host WireGuard
+  client for validation.
 - Real USB/WireGuard runtime validation requires macOS 27 beta, an approved
   provisioning profile for USB/Virtualization, a real RNDIS USB device, and a
   host WireGuard client.
 - Signing/provisioning failures should not block compile builds, UI work, or
   documentation work.
-- After code changes, the minimum verification is a
-  `CODE_SIGNING_ALLOWED=NO` Xcode build. If app launch verification is needed,
-  use `DERIVED_DATA=/tmp/ThruRNDIS-Check ./script/build_and_run.sh --verify`.
+- After code changes, the minimum verification is the unsigned Xcode build shown
+  above. If app launch verification is needed, open the built
+  `/tmp/ThruRNDIS-DerivedData/Build/Products/Debug/ThruRNDIS.app` after a
+  successful build.

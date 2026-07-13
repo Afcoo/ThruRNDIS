@@ -5,6 +5,14 @@ Copyright (C) 2026 Afcoo.
 import AccessoryAccess
 import Foundation
 
+protocol USBAccessoryMonitoring: AnyObject {
+    var onConnect: ((AAUSBAccessory) -> Void)? { get set }
+    var onDisconnect: ((AAUSBAccessory) -> Void)? { get set }
+
+    func start(completion: @escaping (Result<[AAUSBAccessory], Error>) -> Void)
+    func stop(completion: (() -> Void)?)
+}
+
 final class USBAccessoryMonitor: NSObject {
     var onConnect: ((AAUSBAccessory) -> Void)?
     var onDisconnect: ((AAUSBAccessory) -> Void)?
@@ -40,6 +48,8 @@ final class USBAccessoryMonitor: NSObject {
         }
     }
 }
+
+extension USBAccessoryMonitor: USBAccessoryMonitoring {}
 
 extension USBAccessoryMonitor: AAUSBAccessoryListener {
     func usbAccessoryDidConnect(_ usbAccessory: AAUSBAccessory) {

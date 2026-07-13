@@ -8,6 +8,7 @@ import SwiftUI
 
 struct ConsoleView: View {
     @EnvironmentObject private var store: TetheringStore
+    @EnvironmentObject private var consoleSession: ConsoleSessionStore
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -27,9 +28,9 @@ struct ConsoleView: View {
             }
 
             SwiftTermConsoleView(
-                outputData: store.consoleOutputData,
-                outputSequence: store.consoleOutputSequence,
-                resetSequence: store.consoleResetSequence,
+                outputData: consoleSession.output.data,
+                outputSequence: consoleSession.output.outputSequence,
+                resetSequence: consoleSession.output.resetSequence,
                 isInputEnabled: store.canSendConsoleInput,
                 sendInput: { data in
                     store.sendConsoleBytes(data)

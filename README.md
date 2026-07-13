@@ -109,13 +109,14 @@ VM Asset 제작과 GitHub Release 배포는 별도
 
 ## 디렉터리
 
-- `ThruRNDIS/App`: 앱 진입점과 AppKit 메뉴바/윈도우 연결.
-- `ThruRNDIS/Controllers`: VM Asset UI 상태와 설치 workflow.
-- `ThruRNDIS/Coordinators`: VM lifecycle과 USB passthrough orchestration.
+- `ThruRNDIS/App`: 앱 진입점과 의존성 조립.
+- `ThruRNDIS/Presentation`: AppKit 메뉴바와 SwiftUI 호스팅 윈도우.
+- `ThruRNDIS/Models`: 계층 간에 공유하는 값 타입과 protocol 경계.
+- `ThruRNDIS/Coordinators`: VM lifecycle, USB passthrough, VM Asset 설치/선택 workflow.
 - `ThruRNDIS/Services`: VM Asset release/download/install, USB monitor, VM configuration.
-- `ThruRNDIS/Stores`: 앱 상태와 VM Asset 선택 persistence.
-- `ThruRNDIS/Support`: VM Asset 폴더 검사, WireGuard configuration storage,
-  file picker와 runtime helper.
+- `ThruRNDIS/Stores`: SwiftUI에 제공되는 observable 앱/세션/VM 설정 상태.
+- `ThruRNDIS/Persistence`: VM Asset 선택, 저장 경로, WireGuard 파일 persistence.
+- `ThruRNDIS/Support`: VM Asset 폴더 검사, WireGuard configuration rendering,
+  file picker와 stateless runtime helper.
 - `ThruRNDIS/Views`: 온보딩과 Settings/console UI.
-- `script`: 앱 build/run/debug와 host WireGuard 검증 helper.
 - `Configuration`: signing 설정 template.

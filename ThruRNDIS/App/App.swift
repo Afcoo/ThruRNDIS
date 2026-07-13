@@ -29,8 +29,17 @@ enum App {
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    lazy var assetController = VMAssetController()
-    lazy var store = TetheringStore(assetProvider: assetController)
+    lazy var assetWorkflowCoordinator = VMAssetWorkflowCoordinator()
+    lazy var store = TetheringStore(
+        assetProvider: assetWorkflowCoordinator,
+        vmCoordinator: VMCoordinator(),
+        usbCoordinator: USBAccessoryCoordinator(monitor: USBAccessoryMonitor()),
+        wireGuardConfStore: WireGuardConfStore(),
+        wireGuardConfBuilder: WireGuardConfBuilder(elements: .defaults),
+        consoleSession: ConsoleSessionStore(),
+        usbSession: USBSessionStore(),
+        vmConfiguration: VMConfigurationStore()
+    )
 
     private var menuBarController: MenuBarController?
     private var settingsWindowController: SettingsWindowController?
@@ -53,22 +62,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         NSApp.setActivationPolicy(.accessory)
 
-        assetController.onEvent = { [weak self] message in
+        assetWorkflowCoordinator.onEvent = { [weak self] message in
             self?.store.recordVMAssetEvent(message)
         }
 
         menuBarController = MenuBarController(
             store: store,
-            assetController: assetController,
+            assetWorkflowCoordinator: assetWorkflowCoordinator,
             openSettings: { [weak self] in self?.showSettingsWindow() }
         )
 
-        store.$usbAttachmentPrompt
+        store.usbSession.$attachmentPrompt
             .compactMap { $0 }
             .sink { [weak self] prompt in
                 DispatchQueue.main.async { [weak self] in
                     guard let self,
-                          self.store.usbAttachmentPrompt?.id == prompt.id else {
+                          self.store.usbSession.attachmentPrompt?.id == prompt.id else {
                         return
                     }
 
@@ -79,7 +88,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .store(in: &cancellables)
 
-        assetController.$installState
+        assetWorkflowCoordinator.$installState
             .sink { [weak self] _ in
                 guard let self else {
                     return
@@ -103,7 +112,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         store.startAccessoryMonitoringOnLaunch()
 
-        if store.shouldPresentOnboardingOnLaunch || !assetController.hasConfiguredAssets {
+        if store.shouldPresentOnboardingOnLaunch || !assetWorkflowCoordinator.hasConfiguredAssets {
             DispatchQueue.main.async { [weak self] in
                 self?.showOnboardingWindow()
             }
@@ -117,13 +126,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         prepareStoreForTerminationIfNeeded()
 
-        guard assetController.isBusy else {
-            assetController.prepareForApplicationTermination()
+        guard assetWorkflowCoordinator.isBusy else {
+            assetWorkflowCoordinator.prepareForApplicationTermination()
             return .terminateNow
         }
 
         pendingTerminationApplication = sender
-        assetController.prepareForApplicationTermination()
+        assetWorkflowCoordinator.prepareForApplicationTermination()
         return .terminateLater
     }
 
@@ -142,7 +151,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if settingsWindowController == nil {
             settingsWindowController = SettingsWindowController(
                 store: store,
-                assetController: assetController,
+                assetWorkflowCoordinator: assetWorkflowCoordinator,
                 openConsole: { [weak self] in
                     self?.showConsoleWindow()
                 },
@@ -167,7 +176,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard store.resetAppSettings() else {
             return
         }
-        assetController.clearSelection()
+        assetWorkflowCoordinator.clearSelection()
 
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.createsNewApplicationInstance = true
@@ -207,7 +216,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             onboardingWindowController?.close()
             onboardingWindowController = OnboardingWindowController(
                 store: store,
-                assetController: assetController,
+                assetWorkflowCoordinator: assetWorkflowCoordinator,
                 onFinish: { [weak self] in
                     self?.onboardingWindowController?.close()
                 }
@@ -227,7 +236,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func finishPendingTerminationIfPossible() {
         guard let application = pendingTerminationApplication,
-              !assetController.isBusy else {
+              !assetWorkflowCoordinator.isBusy else {
             return
         }
         pendingTerminationApplication = nil

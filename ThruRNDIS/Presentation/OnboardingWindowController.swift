@@ -86,7 +86,7 @@ private final class OnboardingWindowResizeBridge {
 final class OnboardingWindowController: NSWindowController {
     init(
         store: TetheringStore,
-        assetController: VMAssetController,
+        assetWorkflowCoordinator: VMAssetWorkflowCoordinator,
         onFinish: @escaping () -> Void
     ) {
         let resizeBridge = OnboardingWindowResizeBridge()
@@ -97,7 +97,7 @@ final class OnboardingWindowController: NSWindowController {
             }
         )
             .environmentObject(store)
-            .environmentObject(assetController)
+            .environmentObject(assetWorkflowCoordinator)
         let hostingController = NSHostingController(rootView: rootView)
         let window = NSWindow(contentViewController: hostingController)
 

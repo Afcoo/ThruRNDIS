@@ -102,7 +102,7 @@ private final class StatusMenuItemView: NSView {
 @MainActor
 final class MenuBarController: NSObject, NSMenuDelegate {
     private let store: TetheringStore
-    private let assetController: VMAssetController
+    private let assetWorkflowCoordinator: VMAssetWorkflowCoordinator
     private let openSettings: () -> Void
     private let statusItem: NSStatusItem
     private let menu = NSMenu()
@@ -112,11 +112,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     init(
         store: TetheringStore,
-        assetController: VMAssetController,
+        assetWorkflowCoordinator: VMAssetWorkflowCoordinator,
         openSettings: @escaping () -> Void
     ) {
         self.store = store
-        self.assetController = assetController
+        self.assetWorkflowCoordinator = assetWorkflowCoordinator
         self.openSettings = openSettings
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         super.init()
@@ -127,17 +127,16 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         updateStatusButton()
         rebuildMenu()
 
-        cancellable = Publishers.CombineLatest4(
+        cancellable = Publishers.CombineLatest3(
             store.$runtimeState,
             store.$isRestartingVirtualMachine,
-            store.$attachedAccessoryID,
-            store.$accessories
+            store.usbSession.$snapshot
         )
-        .map { runtimeState, isRestartingVirtualMachine, attachedAccessoryID, accessories in
-            let attachedDescription = accessories
-                .first(where: { $0.id == attachedAccessoryID })?
+        .map { runtimeState, isRestartingVirtualMachine, usbSnapshot in
+            let attachedDescription = usbSnapshot.accessories
+                .first(where: { $0.id == usbSnapshot.attachedAccessoryID })?
                 .usbIDText ?? "none"
-            return "\(runtimeState.rawValue)|\(isRestartingVirtualMachine)|\(attachedAccessoryID ?? 0)|\(attachedDescription)"
+            return "\(runtimeState.rawValue)|\(isRestartingVirtualMachine)|\(usbSnapshot.attachedAccessoryID ?? 0)|\(attachedDescription)"
         }
         .removeDuplicates()
         .sink { [weak self] _ in
@@ -147,8 +146,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         }
 
         assetCancellable = Publishers.CombineLatest(
-            assetController.$currentSelection,
-            assetController.$installState
+            assetWorkflowCoordinator.$currentSelection,
+            assetWorkflowCoordinator.$installState
         )
         .sink { [weak self] _ in
             self?.updateStatusButton()
@@ -197,7 +196,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private func rebuildMenu() {
         menu.removeAllItems()
 
-        if assetController.hasConfiguredAssets {
+        if assetWorkflowCoordinator.hasConfiguredAssets {
             menu.addItem(statusItemLine(
                 title: "VM: \(store.vmDisplayState.rawValue)",
                 dotColor: vmStatusColor
@@ -247,11 +246,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     private var usbStatusTitle: String {
-        guard let attachedAccessoryID = store.attachedAccessoryID else {
+        guard let attachedAccessoryID = store.usbSession.attachedAccessoryID else {
             return "USB: Not attached"
         }
 
-        let usbID = store.accessories.first { $0.id == attachedAccessoryID }?.usbIDText
+        let usbID = store.usbSession.accessories.first { $0.id == attachedAccessoryID }?.usbIDText
             ?? Self.registryIDText(attachedAccessoryID)
         return "USB: \(usbID)"
     }
@@ -268,10 +267,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     private var usbStatusColor: NSColor {
-        if store.attachedAccessoryID != nil {
+        if store.usbSession.attachedAccessoryID != nil {
             return .systemGreen
         }
-        return store.accessories.isEmpty ? .systemRed : .systemYellow
+        return store.usbSession.accessories.isEmpty ? .systemRed : .systemYellow
     }
 
     private func statusItemLine(title: String, dotColor: NSColor) -> NSMenuItem {
@@ -293,18 +292,18 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         let submenu = NSMenu(title: "Attach USB")
         submenu.autoenablesItems = false
 
-        if store.accessories.isEmpty {
+        if store.usbSession.accessories.isEmpty {
             let emptyItem = NSMenuItem(title: "No USB devices", action: nil, keyEquivalent: "")
             emptyItem.isEnabled = false
             submenu.addItem(emptyItem)
         } else {
-            for accessory in store.accessories {
+            for accessory in store.usbSession.accessories {
                 let item = actionItem(
                     title: Self.shortDeviceTitle(accessory),
                     action: #selector(attachUSB(_:))
                 )
                 item.representedObject = NSNumber(value: accessory.id)
-                item.state = accessory.id == store.attachedAccessoryID ? .on : .off
+                item.state = accessory.id == store.usbSession.attachedAccessoryID ? .on : .off
                 item.isEnabled = store.canChooseAccessoryForAttachment(accessory.id)
                 submenu.addItem(item)
             }

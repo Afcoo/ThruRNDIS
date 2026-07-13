@@ -111,13 +111,14 @@ repository.
 
 ## Layout
 
-- `ThruRNDIS/App`: app entrypoint and AppKit menu-bar/window integration.
-- `ThruRNDIS/Controllers`: VM Asset UI state and installation workflow.
-- `ThruRNDIS/Coordinators`: VM lifecycle and USB passthrough orchestration.
+- `ThruRNDIS/App`: app entrypoint and dependency composition.
+- `ThruRNDIS/Presentation`: AppKit menu bar and SwiftUI-hosting windows.
+- `ThruRNDIS/Models`: value types and protocol boundaries shared across layers.
+- `ThruRNDIS/Coordinators`: VM lifecycle, USB passthrough, and VM Asset installation/selection workflows.
 - `ThruRNDIS/Services`: VM Asset release/download/install, USB monitoring, and VM configuration.
-- `ThruRNDIS/Stores`: app state and VM Asset selection persistence.
-- `ThruRNDIS/Support`: VM Asset folder validation, WireGuard configuration storage,
-  file picker, and runtime helpers.
+- `ThruRNDIS/Stores`: observable app, session, and VM configuration state exposed to SwiftUI.
+- `ThruRNDIS/Persistence`: VM Asset selection, storage paths, and WireGuard file persistence.
+- `ThruRNDIS/Support`: VM Asset folder validation, WireGuard configuration rendering,
+  file pickers, and stateless runtime helpers.
 - `ThruRNDIS/Views`: onboarding, Settings, and console UI.
-- `script`: app build/run/debug and host WireGuard validation helpers.
 - `Configuration`: signing configuration templates.

@@ -5,7 +5,7 @@ Copyright (C) 2026 Afcoo.
 import Foundation
 
 @MainActor
-final class VMAssetController: ObservableObject, VMAssetProviding {
+final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
     @Published private(set) var currentSelection: VMAssetSelection?
     @Published private(set) var installedReleases: [InstalledVMAssetRelease] = []
     @Published private(set) var installState: VMAssetInstallState = .idle
@@ -116,7 +116,7 @@ final class VMAssetController: ObservableObject, VMAssetProviding {
 
     func validatedBootAssets() throws -> VMAssetBootAssets {
         guard let currentSelection else {
-            throw VMAssetControllerError.noSelection
+            throw VMAssetWorkflowCoordinatorError.noSelection
         }
         return try selectionStore.validate(currentSelection)
     }
@@ -150,7 +150,7 @@ final class VMAssetController: ObservableObject, VMAssetProviding {
     @discardableResult
     func selectManualFolder(_ directoryURL: URL) -> Error? {
         guard !isBusy else {
-            return VMAssetControllerError.operationInProgress
+            return VMAssetWorkflowCoordinatorError.operationInProgress
         }
         do {
             let selection = try selectionStore.selectManualFolder(directoryURL)
@@ -182,12 +182,12 @@ final class VMAssetController: ObservableObject, VMAssetProviding {
     @discardableResult
     func useMostRecentInstalledAssets() -> Error? {
         guard !isBusy else {
-            return VMAssetControllerError.operationInProgress
+            return VMAssetWorkflowCoordinatorError.operationInProgress
         }
         do {
             installedReleases = try installService.installedReleases()
             guard let release = installedReleases.first else {
-                throw VMAssetControllerError.noInstalledRelease
+                throw VMAssetWorkflowCoordinatorError.noInstalledRelease
             }
             let selection = try selectionStore.selectManagedRelease(release)
             currentSelection = selection
@@ -384,10 +384,10 @@ final class VMAssetController: ObservableObject, VMAssetProviding {
         _ update: (VMAssetSelection) throws -> VMAssetSelection
     ) -> Error? {
         guard !isBusy else {
-            return VMAssetControllerError.operationInProgress
+            return VMAssetWorkflowCoordinatorError.operationInProgress
         }
         guard let currentSelection else {
-            let error = VMAssetControllerError.noSelection
+            let error = VMAssetWorkflowCoordinatorError.noSelection
             reportFailure(error)
             return error
         }
@@ -419,7 +419,7 @@ final class VMAssetController: ObservableObject, VMAssetProviding {
     }
 }
 
-enum VMAssetControllerError: LocalizedError {
+enum VMAssetWorkflowCoordinatorError: LocalizedError {
     case noSelection
     case noInstalledRelease
     case operationInProgress

@@ -6,6 +6,7 @@ import SwiftUI
 
 struct USBDevicesView: View {
     @EnvironmentObject private var store: TetheringStore
+    @EnvironmentObject private var usbSession: USBSessionStore
 
     var body: some View {
         Form {
@@ -27,8 +28,8 @@ struct USBDevicesView: View {
             Section {
                 LabeledContent("Status") {
                     Label(
-                        store.isAccessoryMonitoring ? "Listening" : "Stopped",
-                        systemImage: store.isAccessoryMonitoring
+                        usbSession.isAccessoryMonitoring ? "Listening" : "Stopped",
+                        systemImage: usbSession.isAccessoryMonitoring
                             ? "dot.radiowaves.left.and.right"
                             : "stop.circle"
                     )
@@ -57,14 +58,14 @@ struct USBDevicesView: View {
             }
 
             Section("USB Devices") {
-                if store.accessories.isEmpty {
+                if usbSession.accessories.isEmpty {
                     LabeledContent("Available devices", value: "None")
                 } else {
-                    List(selection: $store.selectedAccessoryID) {
-                        ForEach(store.accessories) { accessory in
+                    List(selection: selectedAccessoryBinding) {
+                        ForEach(usbSession.accessories) { accessory in
                             USBAccessoryRow(
                                 accessory: accessory,
-                                isAttached: accessory.id == store.attachedAccessoryID
+                                isAttached: accessory.id == usbSession.attachedAccessoryID
                             )
                             .tag(accessory.id)
                         }
@@ -85,6 +86,13 @@ struct USBDevicesView: View {
                 }
             }
         }
+    }
+
+    private var selectedAccessoryBinding: Binding<UInt64?> {
+        Binding(
+            get: { usbSession.selectedAccessoryID },
+            set: { store.selectAccessory(id: $0) }
+        )
     }
 }
 
