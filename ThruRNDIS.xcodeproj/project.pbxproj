@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		7A0000000000000000000001 /* ThruRNDIS.icon in Resources */ = {isa = PBXBuildFile; fileRef = 7A0000000000000000000101 /* ThruRNDIS.icon */; };
+		7B0000000000000000000001 /* ThruRNDISMenuBarIcon.svg in Resources */ = {isa = PBXBuildFile; fileRef = 7B0000000000000000000101 /* ThruRNDISMenuBarIcon.svg */; };
 		8B0000000000000000000001 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000000000000000000101 /* App.swift */; };
 		8B0000000000000000000003 /* USBAccessoryRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000000000000000000103 /* USBAccessoryRecord.swift */; };
 		8B0000000000000000000004 /* VMRuntimeState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000000000000000000104 /* VMRuntimeState.swift */; };
@@ -75,6 +76,7 @@
 		3B6662F3321F8749BDBDDB08 /* LICENSE.txt */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; path = LICENSE.txt; sourceTree = "<group>"; };
 		415EB883448D759F3C023B32 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		7A0000000000000000000101 /* ThruRNDIS.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = ThruRNDIS.icon; sourceTree = "<group>"; };
+		7B0000000000000000000101 /* ThruRNDISMenuBarIcon.svg */ = {isa = PBXFileReference; lastKnownFileType = image.svg; path = ThruRNDISMenuBarIcon.svg; sourceTree = "<group>"; };
 		8B0000000000000000000101 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
 		8B0000000000000000000103 /* USBAccessoryRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBAccessoryRecord.swift; sourceTree = "<group>"; };
 		8B0000000000000000000104 /* VMRuntimeState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMRuntimeState.swift; sourceTree = "<group>"; };
@@ -174,6 +176,7 @@
 			isa = PBXGroup;
 			children = (
 				7A0000000000000000000101 /* ThruRNDIS.icon */,
+				7B0000000000000000000101 /* ThruRNDISMenuBarIcon.svg */,
 				8B0000000000000000000201 /* App */,
 				D10000000000000000000201 /* Presentation */,
 				8B0000000000000000000202 /* Models */,
@@ -468,6 +471,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				7A0000000000000000000001 /* ThruRNDIS.icon in Resources */,
+				7B0000000000000000000001 /* ThruRNDISMenuBarIcon.svg in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

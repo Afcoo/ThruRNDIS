@@ -101,6 +101,19 @@ private final class StatusMenuItemView: NSView {
 
 @MainActor
 final class MenuBarController: NSObject, NSMenuDelegate {
+    private static let statusBarImage: NSImage? = {
+        guard let imageURL = Bundle.main.url(
+            forResource: "ThruRNDISMenuBarIcon",
+            withExtension: "svg"
+        ), let image = NSImage(contentsOf: imageURL) else {
+            return nil
+        }
+
+        image.size = NSSize(width: 18, height: 18)
+        image.isTemplate = true
+        return image
+    }()
+
     private let store: TetheringStore
     private let assetWorkflowCoordinator: VMAssetWorkflowCoordinator
     private let openSettings: () -> Void
@@ -184,12 +197,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             return
         }
 
-        let image = NSImage(
-            systemSymbolName: "server.rack",
-            accessibilityDescription: "ThruRNDIS status"
-        )
-        image?.isTemplate = true
-        button.image = image
+        button.image = Self.statusBarImage
+        button.setAccessibilityLabel("ThruRNDIS status")
         button.toolTip = "ThruRNDIS — VM \(store.vmDisplayState.rawValue), \(usbStatusTitle)"
     }
 
