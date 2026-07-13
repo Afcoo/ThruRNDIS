@@ -173,18 +173,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             return
         }
 
-        let symbolName: String
-        switch store.vmDisplayState {
-        case .running:
-            symbolName = store.attachedAccessoryID == nil ? "server.rack" : "cable.connector"
-        case .restarting:
-            symbolName = "arrow.trianglehead.2.clockwise.rotate.90"
-        case .stopped:
-            symbolName = "server.rack"
-        }
-
         let image = NSImage(
-            systemSymbolName: symbolName,
+            systemSymbolName: "server.rack",
             accessibilityDescription: "ThruRNDIS status"
         )
         image?.isTemplate = true
