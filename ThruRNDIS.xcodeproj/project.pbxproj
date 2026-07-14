@@ -22,11 +22,6 @@
 		8B000000000000000000000D /* USBDevicesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B000000000000000000010D /* USBDevicesView.swift */; };
 		8B000000000000000000000E /* ConsoleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B000000000000000000010E /* ConsoleView.swift */; };
 		8B000000000000000000000F /* WireGuardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B000000000000000000010F /* WireGuardView.swift */; };
-		E20000000000000000000001 /* ReplayableVideoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20000000000000000000101 /* ReplayableVideoView.swift */; };
-		E20000000000000000000002 /* HeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20000000000000000000102 /* HeaderView.swift */; };
-		E20000000000000000000003 /* CommandBlock.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20000000000000000000103 /* CommandBlock.swift */; };
-		E20000000000000000000004 /* LogTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20000000000000000000104 /* LogTextView.swift */; };
-		E20000000000000000000005 /* EventLogGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20000000000000000000105 /* EventLogGroup.swift */; };
 		8B0000000000000000000012 /* RuntimeEntitlements.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000000000000000000112 /* RuntimeEntitlements.swift */; };
 		8E0000000000000000000001 /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = 8E0000000000000000000102 /* SwiftTerm */; };
 		8F0000000000000000000001 /* WireGuardSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F0000000000000000000101 /* WireGuardSettings.swift */; };
@@ -62,6 +57,11 @@
 		D10000000000000000000005 /* SessionStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10000000000000000000105 /* SessionStoreTests.swift */; };
 		D10000000000000000000006 /* VMAssetStorageLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10000000000000000000106 /* VMAssetStorageLayout.swift */; };
 		E10000000000000000000001 /* USBDeviceNameResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10000000000000000000101 /* USBDeviceNameResolver.swift */; };
+		E20000000000000000000001 /* ReplayableVideoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20000000000000000000101 /* ReplayableVideoView.swift */; };
+		E20000000000000000000002 /* HeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20000000000000000000102 /* HeaderView.swift */; };
+		E20000000000000000000003 /* CommandBlock.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20000000000000000000103 /* CommandBlock.swift */; };
+		E20000000000000000000004 /* LogTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20000000000000000000104 /* LogTextView.swift */; };
+		E20000000000000000000005 /* EventLogGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20000000000000000000105 /* EventLogGroup.swift */; };
 		F10000000000000000000001 /* AccessoryAccessOnboarding.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000101 /* AccessoryAccessOnboarding.mp4 */; };
 		F20000000000000000000001 /* VideoPlaybackStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000101 /* VideoPlaybackStore.swift */; };
 /* End PBXBuildFile section */
@@ -97,11 +97,6 @@
 		8B000000000000000000010D /* USBDevicesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBDevicesView.swift; sourceTree = "<group>"; };
 		8B000000000000000000010E /* ConsoleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsoleView.swift; sourceTree = "<group>"; };
 		8B000000000000000000010F /* WireGuardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardView.swift; sourceTree = "<group>"; };
-		E20000000000000000000101 /* ReplayableVideoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReplayableVideoView.swift; sourceTree = "<group>"; };
-		E20000000000000000000102 /* HeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeaderView.swift; sourceTree = "<group>"; };
-		E20000000000000000000103 /* CommandBlock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandBlock.swift; sourceTree = "<group>"; };
-		E20000000000000000000104 /* LogTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogTextView.swift; sourceTree = "<group>"; };
-		E20000000000000000000105 /* EventLogGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventLogGroup.swift; sourceTree = "<group>"; };
 		8B0000000000000000000112 /* RuntimeEntitlements.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeEntitlements.swift; sourceTree = "<group>"; };
 		8B0000000000000000000113 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		8F0000000000000000000101 /* WireGuardSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardSettings.swift; sourceTree = "<group>"; };
@@ -138,6 +133,11 @@
 		D10000000000000000000105 /* SessionStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStoreTests.swift; sourceTree = "<group>"; };
 		D10000000000000000000106 /* VMAssetStorageLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMAssetStorageLayout.swift; sourceTree = "<group>"; };
 		E10000000000000000000101 /* USBDeviceNameResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBDeviceNameResolver.swift; sourceTree = "<group>"; };
+		E20000000000000000000101 /* ReplayableVideoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReplayableVideoView.swift; sourceTree = "<group>"; };
+		E20000000000000000000102 /* HeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeaderView.swift; sourceTree = "<group>"; };
+		E20000000000000000000103 /* CommandBlock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandBlock.swift; sourceTree = "<group>"; };
+		E20000000000000000000104 /* LogTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogTextView.swift; sourceTree = "<group>"; };
+		E20000000000000000000105 /* EventLogGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventLogGroup.swift; sourceTree = "<group>"; };
 		E3865CF619CB3E4197A4D3AA /* LocalSigning.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = LocalSigning.xcconfig.example; path = Configuration/LocalSigning.xcconfig.example; sourceTree = "<group>"; };
 		E3865CF719CB3E4197A4D3A9 /* BuildSettings.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = BuildSettings.xcconfig; path = Configuration/BuildSettings.xcconfig; sourceTree = "<group>"; };
 		F10000000000000000000101 /* AccessoryAccessOnboarding.mp4 */ = {isa = PBXFileReference; lastKnownFileType = video.mp4; path = AccessoryAccessOnboarding.mp4; sourceTree = "<group>"; };
@@ -295,18 +295,6 @@
 			path = Views;
 			sourceTree = "<group>";
 		};
-		E20000000000000000000201 /* SharedViews */ = {
-			isa = PBXGroup;
-			children = (
-				E20000000000000000000101 /* ReplayableVideoView.swift */,
-				E20000000000000000000102 /* HeaderView.swift */,
-				E20000000000000000000103 /* CommandBlock.swift */,
-				E20000000000000000000104 /* LogTextView.swift */,
-				E20000000000000000000105 /* EventLogGroup.swift */,
-			);
-			path = SharedViews;
-			sourceTree = "<group>";
-		};
 		8C0000000000000000000202 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
@@ -410,6 +398,18 @@
 				C10000000000000000000101 /* VMAssetTestSupport.swift */,
 			);
 			path = TestSupport;
+			sourceTree = "<group>";
+		};
+		E20000000000000000000201 /* SharedViews */ = {
+			isa = PBXGroup;
+			children = (
+				E20000000000000000000101 /* ReplayableVideoView.swift */,
+				E20000000000000000000102 /* HeaderView.swift */,
+				E20000000000000000000103 /* CommandBlock.swift */,
+				E20000000000000000000104 /* LogTextView.swift */,
+				E20000000000000000000105 /* EventLogGroup.swift */,
+			);
+			path = SharedViews;
 			sourceTree = "<group>";
 		};
 		F10000000000000000000201 /* Resources */ = {
@@ -725,7 +725,7 @@
 				CODE_SIGN_ENTITLEMENTS = ThruRNDIS/ThruRNDIS.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 0.0.2;
+				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ThruRNDIS/Info.plist;
@@ -735,7 +735,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 27.0;
-				MARKETING_VERSION = 0.0.2;
+				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "$(THRURNDIS_APP_BUNDLE_IDENTIFIER)";
 				PRODUCT_NAME = ThruRNDIS;
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -751,7 +751,7 @@
 				CODE_SIGN_ENTITLEMENTS = ThruRNDIS/ThruRNDIS.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 0.0.2;
+				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ThruRNDIS/Info.plist;
@@ -761,7 +761,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 27.0;
-				MARKETING_VERSION = 0.0.2;
+				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "$(THRURNDIS_APP_BUNDLE_IDENTIFIER)";
 				PRODUCT_NAME = ThruRNDIS;
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -839,7 +839,7 @@
 				CODE_SIGN_ENTITLEMENTS = ThruRNDIS/Runtime.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 0.0.2;
+				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ThruRNDIS/Info.plist;
@@ -849,7 +849,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 27.0;
-				MARKETING_VERSION = 0.0.2;
+				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "$(THRURNDIS_APP_BUNDLE_IDENTIFIER)";
 				PRODUCT_NAME = ThruRNDIS;
 				PROVISIONING_PROFILE_SPECIFIER = "";
