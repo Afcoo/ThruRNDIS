@@ -15,8 +15,8 @@ struct InfoView: View {
     private let projectURL = URL(
         string: "https://github.com/Afcoo/ThruRNDIS"
     )!
-    private let vmAssetsGuideURL = URL(
-        string: "https://github.com/Afcoo/ThruRNDIS/blob/main/README.en.md#vm-assets"
+    private let vmAssetReleasesURL = URL(
+        string: "https://github.com/Afcoo/ThruRNDIS_VM_Assets/releases"
     )!
 
     var body: some View {
@@ -42,7 +42,7 @@ struct InfoView: View {
                 HStack(spacing: 16) {
                     Link("Project Website", destination: projectURL)
 
-                    Link("VM Assets Guide", destination: vmAssetsGuideURL)
+                    Link("VM Asset Releases", destination: vmAssetReleasesURL)
                 }
             }
 
