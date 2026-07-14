@@ -4,7 +4,7 @@
 
 
 > [!WARNING]
-> The current WireGuard connection works correctly **only with `wg-quick`.** The official WireGuard macOS app may fail to bring up this connection.
+> The current WireGuard connection works correctly **only with `wg-quick`.**
 >
 > ThruRNDIS does not yet install, start, stop, or manage the WireGuard tunnel itself.
 
@@ -17,12 +17,12 @@
 
 ## Overview
 
-ThruRNDIS is a Swift app that uses the Virtualization framework's USB passthrough feature to enable Android RNDIS USB tethering on macOS.
+ThruRNDIS is a Swift app based on the Virtualization framework that enables Android RNDIS USB tethering on macOS.
 
 ## Requirements
 
 - macOS 27 beta 2 or later
-- An Android device that supports RNDIS USB tethering and a data-capable USB cable
+- A device that supports RNDIS USB tethering (ex. an Android device)
 - An internet connection to download the VM Assets on first launch
 - [`wg-quick`](https://www.wireguard.com/quickstart/) for the network connection
 
@@ -37,28 +37,35 @@ macOS WireGuard client
 -> RNDIS USB tethering device
 ```
 
-ThruRNDIS runs a lightweight Linux VM and passes the Android RNDIS device connected to macOS through to the VM using USB passthrough. The VM recognizes it as a standard USB network device and uses Android USB tethering as its internet connection.
+*Reference: [`Virtualization Framework: VZUSBPassthroughDevice`](https://developer.apple.com/documentation/virtualization/vzusbpassthroughdevice)*
+
+ThruRNDIS runs a lightweight Linux VM and attaches the Android RNDIS device connected to the Mac to the VM using USB passthrough. The VM recognizes the device as a standard USB network device and uses Android USB tethering as its internet connection.
 
 macOS connects to the VM over WireGuard and sends traffic to it. The VM forwards that traffic through the passed-through RNDIS device, acting as a gateway.
 
-## Download
+## How to Use
 
 ### ThruRNDIS
 
-1. Download the app from the [latest ThruRNDIS Release](https://github.com/Afcoo/ThruRNDIS/releases/latest).
+1. Download the app from the [latest ThruRNDIS release](https://github.com/Afcoo/ThruRNDIS/releases/latest).
 2. Unzip it, move `ThruRNDIS.app` to `/Applications`, and launch it. ThruRNDIS runs in the menu bar rather than the Dock.
 
-Older versions and release notes are available on the [Releases page](https://github.com/Afcoo/ThruRNDIS/releases).
+> [!NOTE]
+> If macOS blocks the app with a warning that the developer cannot be verified, go to `System Settings → Privacy & Security`, set `Allow apps downloaded from` to `App Store and identified developers`, then open the app again and click `Open Anyway`.
+
+---
 
 ### VM Assets
 
 VM Assets consist of an Alpine Linux-based kernel and a RAM disk for running the gateway program.
 
-ThruRNDIS installs and activates prebuilt VM Assets from [VM Asset Releases](https://github.com/Afcoo/ThruRNDIS_VM_Assets).
+ThruRNDIS installs and activates prebuilt VM Assets from the [VM Assets releases](https://github.com/Afcoo/ThruRNDIS_VM_Assets/releases).
 
 You can also use a kernel and RAM disk that you built yourself.
 
-### WireGuard Connection
+---
+
+### WireGuard
 
 Install the WireGuard tools.
 
@@ -66,7 +73,9 @@ Install the WireGuard tools.
 brew install wireguard-tools wireguard-go
 ```
 
-Enable USB tethering on the Android device and connect it, then approve the device in ThruRNDIS and start the VM. Once the VM endpoint appears, save the host `.conf` from the WireGuard screen and connect with `wg-quick`.
+Enable USB tethering on the Android device and connect it, then approve the device in ThruRNDIS and start the VM.
+
+Once the VM endpoint appears, save the host `.conf` file from the WireGuard screen and connect with `wg-quick`.
 
 ```sh
 sudo wg-quick up ./thrurndis.conf
