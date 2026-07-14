@@ -1,124 +1,81 @@
-# ThruRNDIS
+# ThruRNDIS: USB Tethering via VM USB Passthrough
 
 [한국어](./README.md) | [English](./README.en.md)
 
-A Swift app that lets macOS use the RNDIS protocol used by Android devices for USB tethering.
 
-It uses Virtualization framework USB passthrough to connect an RNDIS device to a Linux VM. macOS then connects to the VM with WireGuard to use the tethering network.
+> [!WARNING]
+> The current WireGuard connection works correctly **only with `wg-quick`.** The official WireGuard macOS app may fail to bring up this connection.
+>
+> ThruRNDIS does not yet install, start, stop, or manage the WireGuard tunnel itself.
+
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./images/introduction-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="./images/introduction-light.png">
+  <img alt="ThruRNDIS — Bring Android USB tethering to your Mac" src="./images/introduction-light.png">
+</picture>
+
+## Overview
+
+ThruRNDIS is a Swift app that uses the Virtualization framework's USB passthrough feature to enable Android RNDIS USB tethering on macOS.
 
 ## Requirements
 
-- macOS 27 beta 2 or newer.
+- macOS 27 beta 2 or later
+- An Android device that supports RNDIS USB tethering and a data-capable USB cable
+- An internet connection to download the VM Assets on first launch
+- [`wg-quick`](https://www.wireguard.com/quickstart/) for the network connection
 
-## Usage
+## How It Works
 
-1. Run `ThruRNDIS.app`.
-
-   If macOS blocks launch, run:
-
-```sh
-sudo xattr -dr com.apple.quarantine "/Applications/ThruRNDIS.app"
+```text
+macOS WireGuard client
+-> VZNAT guest endpoint UDP/<ListenPort>
+-> Linux VM wg0
+-> nftables masquerade
+-> Linux VM usb0
+-> RNDIS USB tethering device
 ```
 
-2. Select `Download & Install Latest` during first-run onboarding. The app
-   downloads and installs the latest VM Asset from the
-   [VM Asset releases](https://github.com/Afcoo/ThruRNDIS_VM_Assets/releases),
-   then selects the installation immediately.
+ThruRNDIS runs a lightweight Linux VM and passes the Android RNDIS device connected to macOS through to the VM using USB passthrough. The VM recognizes it as a standard USB network device and uses Android USB tethering as its internet connection.
 
-3. Connect the USB tethering device to the Mac, then select the VM to use the device from the menu bar.
+macOS connects to the VM over WireGuard and sends traffic to it. The VM forwards that traffic through the passed-through RNDIS device, acting as a gateway.
 
-   <video src="https://github.com/user-attachments/assets/d285ed13-9bf3-4030-ad34-f04cd9de4e34" width="120" controls></video>
+## Download
 
-4. Press `Start VM`, select the passthrough device in `USB Devices`, and press `Attach`.
+### ThruRNDIS
 
-   <video src="https://github.com/user-attachments/assets/4d10e732-7510-4555-84c5-1f16ef412a00" width="120" controls></video>
+1. Download the app from the [latest ThruRNDIS Release](https://github.com/Afcoo/ThruRNDIS/releases/latest).
+2. Unzip it, move `ThruRNDIS.app` to `/Applications`, and launch it. ThruRNDIS runs in the menu bar rather than the Dock.
 
-5. Copy or save the host `.conf` from `WireGuard`.
+Older versions and release notes are available on the [Releases page](https://github.com/Afcoo/ThruRNDIS/releases).
 
-6. Install WireGuard tools.
+### VM Assets
+
+VM Assets consist of an Alpine Linux-based kernel and a RAM disk for running the gateway program.
+
+ThruRNDIS installs and activates prebuilt VM Assets from [VM Asset Releases](https://github.com/Afcoo/ThruRNDIS_VM_Assets).
+
+You can also use a kernel and RAM disk that you built yourself.
+
+### WireGuard Connection
+
+Install the WireGuard tools.
 
 ```sh
 brew install wireguard-tools wireguard-go
 ```
 
-7. Configure WireGuard with the saved `.conf` file.
+Enable USB tethering on the Android device and connect it, then approve the device in ThruRNDIS and start the VM. Once the VM endpoint appears, save the host `.conf` from the WireGuard screen and connect with `wg-quick`.
 
 ```sh
 sudo wg-quick up ./thrurndis.conf
 sudo wg show
-# On exit
+
+# Disconnect
 sudo wg-quick down ./thrurndis.conf
 ```
 
-The official WireGuard app may currently fail to bring up this connection, so `wireguard-go` is recommended for macOS validation.
+## License
 
-## Architecture
-
-```text
-macOS host WireGuard client
--> VZNAT UDP/51820
--> Alpine VM wg0
--> nftables masquerade
--> Alpine VM usb0
--> RNDIS USB tethering device
-```
-
-- `eth0`: VM VZNAT network used as the host-to-guest WireGuard endpoint path.
-- `wg0`: WireGuard overlay. Defaults are guest `10.100.0.1/24` and host `10.100.0.2/24`.
-- `usb0`: RNDIS tethering interface inside the VM.
-
-The generated client configuration is an IPv4 full tunnel:
-
-```text
-AllowedIPs = 10.100.0.0/24, 0.0.0.0/1, 128.0.0.0/1
-```
-
-## VM Assets
-
-The normal installation path is `Download & Install Latest` during onboarding,
-or `VM Assets` > `Check & Install Latest` in Settings. The app checks for a
-release only after an explicit button press; it does not update in the
-background or retry automatically.
-
-VM Assets come from the
-[Afcoo/ThruRNDIS_VM_Assets](https://github.com/Afcoo/ThruRNDIS_VM_Assets)
-repository's [Releases](https://github.com/Afcoo/ThruRNDIS_VM_Assets/releases).
-
-You can also manually select a VM Asset folder containing your own kernel and
-initramfs. With an existing VM Asset selected, Settings > `Asset Overrides`
-lets you choose the kernel and initramfs files individually.
-
-## Build
-
-For a normal UI and compile check:
-
-```sh
-./script/build_and_run.sh
-```
-
-For runtime signing validation:
-
-```sh
-cp Configuration/LocalSigning.xcconfig.example Configuration/LocalSigning.xcconfig
-./script/build_and_run.sh --runtime
-```
-
-Put your local `DEVELOPMENT_TEAM` and bundle identifier in `Configuration/LocalSigning.xcconfig`.
-
-VM Asset production and GitHub Release publication belong to the separate
-[`Afcoo/ThruRNDIS_VM_Assets`](https://github.com/Afcoo/ThruRNDIS_VM_Assets)
-repository.
-
-## Layout
-
-- `ThruRNDIS/App`: app entrypoint and dependency composition.
-- `ThruRNDIS/Presentation`: AppKit menu bar and SwiftUI-hosting windows.
-- `ThruRNDIS/Models`: value types and protocol boundaries shared across layers.
-- `ThruRNDIS/Coordinators`: VM lifecycle, USB passthrough, and VM Asset installation/selection workflows.
-- `ThruRNDIS/Services`: VM Asset release/download/install, USB monitoring, and VM configuration.
-- `ThruRNDIS/Stores`: observable app, session, and VM configuration state exposed to SwiftUI.
-- `ThruRNDIS/Persistence`: VM Asset selection, storage paths, and WireGuard file persistence.
-- `ThruRNDIS/Support`: VM Asset folder validation, WireGuard configuration rendering,
-  file pickers, and stateless runtime helpers.
-- `ThruRNDIS/Views`: onboarding, Settings, and console UI.
-- `Configuration`: signing configuration templates.
+ThruRNDIS source code is distributed under the [MIT License](./LICENSE.txt).
