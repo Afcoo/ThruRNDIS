@@ -58,6 +58,8 @@
 		D10000000000000000000005 /* SessionStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10000000000000000000105 /* SessionStoreTests.swift */; };
 		D10000000000000000000006 /* VMAssetStorageLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10000000000000000000106 /* VMAssetStorageLayout.swift */; };
 		E10000000000000000000001 /* USBDeviceNameResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10000000000000000000101 /* USBDeviceNameResolver.swift */; };
+		F10000000000000000000001 /* AccessoryAccessOnboarding.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000101 /* AccessoryAccessOnboarding.mp4 */; };
+		F20000000000000000000001 /* VideoPlaybackStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000101 /* VideoPlaybackStore.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -130,6 +132,8 @@
 		E10000000000000000000101 /* USBDeviceNameResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBDeviceNameResolver.swift; sourceTree = "<group>"; };
 		E3865CF619CB3E4197A4D3AA /* LocalSigning.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = LocalSigning.xcconfig.example; path = Configuration/LocalSigning.xcconfig.example; sourceTree = "<group>"; };
 		E3865CF719CB3E4197A4D3A9 /* BuildSettings.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = BuildSettings.xcconfig; path = Configuration/BuildSettings.xcconfig; sourceTree = "<group>"; };
+		F10000000000000000000101 /* AccessoryAccessOnboarding.mp4 */ = {isa = PBXFileReference; lastKnownFileType = video.mp4; path = AccessoryAccessOnboarding.mp4; sourceTree = "<group>"; };
+		F20000000000000000000101 /* VideoPlaybackStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoPlaybackStore.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -188,6 +192,7 @@
 				D10000000000000000000202 /* Persistence */,
 				8B0000000000000000000205 /* Support */,
 				8B0000000000000000000206 /* Views */,
+				F10000000000000000000201 /* Resources */,
 				8B0000000000000000000113 /* Info.plist */,
 				374FD26124CBAE6700890848 /* ThruRNDIS.entitlements */,
 				374FD26224CBAE6700890848 /* Runtime.entitlements */,
@@ -253,6 +258,7 @@
 				D10000000000000000000101 /* ConsoleSessionStore.swift */,
 				D10000000000000000000102 /* USBSessionStore.swift */,
 				D10000000000000000000103 /* VMConfigurationStore.swift */,
+				F20000000000000000000101 /* VideoPlaybackStore.swift */,
 			);
 			path = Stores;
 			sourceTree = "<group>";
@@ -386,6 +392,14 @@
 			path = TestSupport;
 			sourceTree = "<group>";
 		};
+		F10000000000000000000201 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				F10000000000000000000101 /* AccessoryAccessOnboarding.mp4 */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -475,6 +489,7 @@
 			files = (
 				7A0000000000000000000001 /* ThruRNDIS.icon in Resources */,
 				7B0000000000000000000001 /* ThruRNDISMenuBarIcon.svg in Resources */,
+				F10000000000000000000001 /* AccessoryAccessOnboarding.mp4 in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -501,6 +516,7 @@
 				D10000000000000000000001 /* ConsoleSessionStore.swift in Sources */,
 				D10000000000000000000002 /* USBSessionStore.swift in Sources */,
 				D10000000000000000000003 /* VMConfigurationStore.swift in Sources */,
+				F20000000000000000000001 /* VideoPlaybackStore.swift in Sources */,
 				D10000000000000000000004 /* VMCoordinating.swift in Sources */,
 				D10000000000000000000006 /* VMAssetStorageLayout.swift in Sources */,
 				E10000000000000000000001 /* USBDeviceNameResolver.swift in Sources */,

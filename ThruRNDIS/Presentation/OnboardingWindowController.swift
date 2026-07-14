@@ -6,7 +6,7 @@ import AppKit
 import SwiftUI
 
 private enum OnboardingWindowLayout {
-    static let width: CGFloat = 640
+    static let width: CGFloat = 680
     static let compactHeight: CGFloat = 360
     static let expandedHeight: CGFloat = 600
     static let minimumHeight: CGFloat = 240

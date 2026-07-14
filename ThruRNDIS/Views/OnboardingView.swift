@@ -99,11 +99,7 @@ struct OnboardingView: View {
 
     private var welcomeStep: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Image(systemName: "cable.connector.horizontal")
-                .font(.system(size: 44))
-                .foregroundStyle(.tint)
-
-            Text("Welcome to ThruRNDIS")
+            Label("Welcome to ThruRNDIS", systemImage: "cable.connector.horizontal")
                 .font(.largeTitle.bold())
 
             Text("Set up ThruRNDIS once, then use the menu bar whenever you want to connect a USB tethering device.")
@@ -220,7 +216,7 @@ struct OnboardingView: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            connectionVideoPlaceholder
+            connectionVideo
 
             VStack(alignment: .leading, spacing: 12) {
                 onboardingInstruction(
@@ -242,30 +238,26 @@ struct OnboardingView: View {
         }
     }
 
-    private var connectionVideoPlaceholder: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.secondary.opacity(0.08))
-
+    private var connectionVideo: some View {
+        ReplayableVideoView(
+            url: Bundle.main.url(
+                forResource: "AccessoryAccessOnboarding",
+                withExtension: "mp4"
+            ),
+            replayAppearanceDelay: .seconds(2),
+            loadingText: "Preparing device connection video…",
+            unavailableText: "Device connection video unavailable",
+            replayAccessibilityLabel: "Replay device connection video"
+        )
+        .frame(width: 400, height: 400 * 410 / 620)
+        .background(.black)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .strokeBorder(Color.secondary.opacity(0.2))
-
-            VStack(spacing: 8) {
-                Image(systemName: "play.rectangle")
-                    .font(.system(size: 34))
-                    .foregroundStyle(.secondary)
-
-                Text("Device connection video")
-                    .font(.headline)
-
-                Text("A connection walkthrough will appear here.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
         }
-        .frame(width: 400, height: 225)
         .frame(maxWidth: .infinity)
-        .accessibilityElement(children: .combine)
+        .accessibilityLabel("How to connect a tethering device to ThruRNDIS")
     }
 
     private var canContinue: Bool {
