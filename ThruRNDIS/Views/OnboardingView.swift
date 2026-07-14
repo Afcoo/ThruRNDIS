@@ -18,7 +18,7 @@ struct OnboardingView: View {
         string: "https://github.com/Afcoo/ThruRNDIS_VM_Assets/releases"
     )!
     private let vmAssetsDocumentationURL = URL(
-        string: "https://github.com/Afcoo/ThruRNDIS#vm-assets"
+        string: "https://github.com/Afcoo/ThruRNDIS_VM_Assets"
     )!
 
     var body: some View {
