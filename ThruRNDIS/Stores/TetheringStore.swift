@@ -410,7 +410,7 @@ final class TetheringStore: ObservableObject {
                     accessory: record,
                     kind: .replace(
                         previousAccessoryID: sessionAccessoryID,
-                        previousUSBIDText: previousRecord?.usbIDText ?? Self.registryIDText(sessionAccessoryID),
+                        previousDeviceName: previousRecord?.deviceName ?? "USB Device",
                         isCurrentlyAttached: attachedAccessoryID == sessionAccessoryID
                     )
                 )
@@ -793,7 +793,7 @@ final class TetheringStore: ObservableObject {
                 accessory: record,
                 kind: .replace(
                     previousAccessoryID: sessionAccessoryID,
-                    previousUSBIDText: previousRecord?.usbIDText ?? Self.registryIDText(sessionAccessoryID),
+                    previousDeviceName: previousRecord?.deviceName ?? "USB Device",
                     isCurrentlyAttached: attachedAccessoryID == sessionAccessoryID
                 )
             )
@@ -850,7 +850,7 @@ final class TetheringStore: ObservableObject {
                     accessory: record,
                     kind: .replace(
                         previousAccessoryID: sessionAccessoryID,
-                        previousUSBIDText: previousRecord?.usbIDText ?? Self.registryIDText(sessionAccessoryID),
+                        previousDeviceName: previousRecord?.deviceName ?? "USB Device",
                         isCurrentlyAttached: attachedAccessoryID == sessionAccessoryID
                     )
                 )

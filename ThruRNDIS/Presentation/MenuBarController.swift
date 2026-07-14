@@ -61,15 +61,22 @@ private final class StatusDotView: NSView {
 }
 
 private final class StatusMenuItemView: NSView {
+    private static let width: CGFloat = {
+        let font = NSFont.menuFont(ofSize: 0)
+        let referenceTitle = "USB: FFFF:FFFF"
+        let titleWidth = (referenceTitle as NSString).size(withAttributes: [.font: font]).width
+        return ceil((titleWidth + 43) * 1.3)
+    }()
+
     init(title: String, dotColor: NSColor) {
         let font = NSFont.menuFont(ofSize: 0)
-        let titleSize = (title as NSString).size(withAttributes: [.font: font])
         super.init(frame: NSRect(
             x: 0,
             y: 0,
-            width: ceil(titleSize.width) + 43,
+            width: Self.width,
             height: 22
         ))
+        autoresizingMask = [.width]
 
         let dotView = StatusDotView(color: dotColor)
         dotView.translatesAutoresizingMaskIntoConstraints = false
@@ -78,6 +85,8 @@ private final class StatusMenuItemView: NSView {
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         titleLabel.font = font
         titleLabel.textColor = .secondaryLabelColor
+        titleLabel.lineBreakMode = .byTruncatingTail
+        titleLabel.maximumNumberOfLines = 1
 
         addSubview(dotView)
         addSubview(titleLabel)
@@ -148,7 +157,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         .map { runtimeState, isRestartingVirtualMachine, usbSnapshot in
             let attachedDescription = usbSnapshot.accessories
                 .first(where: { $0.id == usbSnapshot.attachedAccessoryID })?
-                .usbIDText ?? "none"
+                .deviceName ?? "none"
             return "\(runtimeState.rawValue)|\(isRestartingVirtualMachine)|\(usbSnapshot.attachedAccessoryID ?? 0)|\(attachedDescription)"
         }
         .removeDuplicates()
@@ -259,9 +268,9 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             return "USB: Not attached"
         }
 
-        let usbID = store.usbSession.accessories.first { $0.id == attachedAccessoryID }?.usbIDText
-            ?? Self.registryIDText(attachedAccessoryID)
-        return "USB: \(usbID)"
+        let deviceName = store.usbSession.accessories.first { $0.id == attachedAccessoryID }?.deviceName
+            ?? "USB Device"
+        return "USB: \(deviceName)"
     }
 
     private var vmStatusColor: NSColor {

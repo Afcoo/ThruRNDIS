@@ -7,7 +7,7 @@ import Foundation
 struct USBAttachmentPrompt: Identifiable {
     enum Kind {
         case attach
-        case replace(previousAccessoryID: UInt64, previousUSBIDText: String, isCurrentlyAttached: Bool)
+        case replace(previousAccessoryID: UInt64, previousDeviceName: String, isCurrentlyAttached: Bool)
         case assetsRequired
     }
 
@@ -29,12 +29,12 @@ struct USBAttachmentPrompt: Identifiable {
     var message: String {
         switch kind {
         case .attach:
-            return "USB device \(accessory.usbIDText) is available to ThruRNDIS. Start the VM if needed and attach this device?"
-        case .replace(_, let previousUSBIDText, let isCurrentlyAttached):
+            return "USB device \(accessory.deviceName) is available to ThruRNDIS. Start the VM if needed and attach this device?"
+        case .replace(_, let previousDeviceName, let isCurrentlyAttached):
             let previousState = isCurrentlyAttached ? "is attached" : "was already used in this VM session"
-            return "USB device \(previousUSBIDText) \(previousState). ThruRNDIS will detach it if needed, restart the VM, and attach \(accessory.usbIDText). Continue?"
+            return "USB device \(previousDeviceName) \(previousState). ThruRNDIS will detach it if needed, restart the VM, and attach \(accessory.deviceName). Continue?"
         case .assetsRequired:
-            return "USB device \(accessory.usbIDText) is ready, but VM assets have not been configured. Open onboarding to install the latest release or select an extracted vm_assets folder."
+            return "USB device \(accessory.deviceName) is ready, but VM assets have not been configured. Open onboarding to install the latest release or select an extracted vm_assets folder."
         }
     }
 

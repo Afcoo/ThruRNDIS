@@ -21,6 +21,7 @@
 		D10000000000000000000004 /* VMCoordinating.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10000000000000000000104 /* VMCoordinating.swift */; };
 		D10000000000000000000005 /* SessionStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10000000000000000000105 /* SessionStoreTests.swift */; };
 		D10000000000000000000006 /* VMAssetStorageLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10000000000000000000106 /* VMAssetStorageLayout.swift */; };
+		E10000000000000000000001 /* USBDeviceNameResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10000000000000000000101 /* USBDeviceNameResolver.swift */; };
 		8B0000000000000000000009 /* Clipboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000000000000000000109 /* Clipboard.swift */; };
 		8B000000000000000000000A /* FilePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B000000000000000000010A /* FilePicker.swift */; };
 		8B000000000000000000000B /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B000000000000000000010B /* SettingsView.swift */; };
@@ -89,6 +90,7 @@
 		D10000000000000000000104 /* VMCoordinating.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMCoordinating.swift; sourceTree = "<group>"; };
 		D10000000000000000000105 /* SessionStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStoreTests.swift; sourceTree = "<group>"; };
 		D10000000000000000000106 /* VMAssetStorageLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMAssetStorageLayout.swift; sourceTree = "<group>"; };
+		E10000000000000000000101 /* USBDeviceNameResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBDeviceNameResolver.swift; sourceTree = "<group>"; };
 		8B0000000000000000000109 /* Clipboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Clipboard.swift; sourceTree = "<group>"; };
 		8B000000000000000000010A /* FilePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilePicker.swift; sourceTree = "<group>"; };
 		8B000000000000000000010B /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -261,6 +263,7 @@
 				8B0000000000000000000109 /* Clipboard.swift */,
 				8B000000000000000000010A /* FilePicker.swift */,
 				8B0000000000000000000112 /* RuntimeEntitlements.swift */,
+				E10000000000000000000101 /* USBDeviceNameResolver.swift */,
 				8F0000000000000000000102 /* WireGuardConfBuilder.swift */,
 				B10000000000000000000102 /* VMAssetFolderResolver.swift */,
 			);
@@ -500,6 +503,7 @@
 				D10000000000000000000003 /* VMConfigurationStore.swift in Sources */,
 				D10000000000000000000004 /* VMCoordinating.swift in Sources */,
 				D10000000000000000000006 /* VMAssetStorageLayout.swift in Sources */,
+				E10000000000000000000001 /* USBDeviceNameResolver.swift in Sources */,
 				8B0000000000000000000009 /* Clipboard.swift in Sources */,
 				8B000000000000000000000A /* FilePicker.swift in Sources */,
 				8B0000000000000000000012 /* RuntimeEntitlements.swift in Sources */,

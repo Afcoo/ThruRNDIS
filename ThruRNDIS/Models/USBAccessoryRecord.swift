@@ -28,6 +28,7 @@ struct USBInterfaceSummary: Hashable {
 
 struct USBAccessoryRecord: Identifiable, Hashable {
     let id: UInt64
+    let deviceName: String
     let vendorID: Int?
     let productID: Int?
     let bcdUSB: Int?
@@ -48,6 +49,7 @@ struct USBAccessoryRecord: Identifiable, Hashable {
         let bytes = [UInt8](accessory.deviceDescriptorData)
         let configurationBytes = accessory.configurationDescriptorData.map { [UInt8]($0) }
         self.id = accessory.registryID
+        self.deviceName = USBDeviceNameResolver.productName(registryID: accessory.registryID) ?? "USB Device"
         self.vendorID = Self.littleEndianUInt16(bytes, offset: 8)
         self.productID = Self.littleEndianUInt16(bytes, offset: 10)
         self.bcdUSB = Self.littleEndianUInt16(bytes, offset: 2)
