@@ -202,8 +202,8 @@ primary responsibility.
   and the window controllers that host SwiftUI onboarding, Settings, and console
   views.
 - `ThruRNDIS/Views`: SwiftUI views. Settings tabs remain under
-  `ThruRNDIS/Views/Settings`; reusable view-only components stay in
-  `SharedViews.swift`.
+  `ThruRNDIS/Views/Settings`; reusable view-only components stay under
+  `ThruRNDIS/Views/SharedViews`.
 - `ThruRNDIS/Coordinators`: long-running workflows. `VMCoordinator` owns
   Virtualization lifecycle, `USBAccessoryCoordinator` owns AccessoryAccess
   selection and passthrough policy, and `VMAssetWorkflowCoordinator` owns VM
