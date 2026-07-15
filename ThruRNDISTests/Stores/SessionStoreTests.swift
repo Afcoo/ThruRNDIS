@@ -70,6 +70,43 @@ final class ConsoleSessionStoreTests: XCTestCase {
 }
 
 @MainActor
+final class EventLogStoreTests: XCTestCase {
+    func testAppendIncludesSourceAndNotifiesObservers() {
+        let store = EventLogStore()
+        var changeCount = 0
+        let cancellable = store.objectWillChange.sink {
+            changeCount += 1
+        }
+
+        store.append(
+            "VM started.",
+            source: .virtualMachine,
+            at: Date(timeIntervalSince1970: 0)
+        )
+
+        XCTAssertEqual(changeCount, 1)
+        XCTAssertTrue(store.text.contains("[VM] VM started."))
+        withExtendedLifetime(cancellable) {}
+    }
+
+    func testTrimDropsOldestCompleteLineAndClearResetsText() {
+        let store = EventLogStore(maximumCharacters: 70)
+        let date = Date(timeIntervalSince1970: 0)
+
+        store.append("old entry", source: .app, at: date)
+        store.append(String(repeating: "x", count: 50), source: .virtualMachine, at: date)
+
+        XCTAssertLessThanOrEqual(store.text.count, 70)
+        XCTAssertFalse(store.text.contains("old entry"))
+        XCTAssertTrue(store.text.contains(String(repeating: "x", count: 50)))
+
+        store.clear()
+
+        XCTAssertTrue(store.text.isEmpty)
+    }
+}
+
+@MainActor
 final class USBSessionStoreTests: XCTestCase {
     func testSnapshotIsAppliedAtomicallyAndDuplicatesAreIgnored() {
         let model = USBSessionStore()
@@ -151,6 +188,7 @@ final class TetheringStoreObservationTests: XCTestCase {
         defer { defaults.removePersistentDomain(forName: suiteName) }
         let vmCoordinator = ObservationTestVMCoordinator()
         let consoleSession = ConsoleSessionStore()
+        let eventLog = EventLogStore()
         let store = TetheringStore(
             assetProvider: ObservationTestAssetProvider(),
             vmCoordinator: vmCoordinator,
@@ -159,31 +197,79 @@ final class TetheringStoreObservationTests: XCTestCase {
             ),
             wireGuardConfStore: ObservationTestWireGuardStore(),
             wireGuardConfBuilder: WireGuardConfBuilder(elements: .defaults),
+            eventLog: eventLog,
             consoleSession: consoleSession,
             usbSession: USBSessionStore(),
             vmConfiguration: VMConfigurationStore(defaults: defaults)
         )
         var storeChangeCount = 0
         var consoleChangeCount = 0
+        var eventLogChangeCount = 0
         let storeCancellable = store.objectWillChange.sink {
             storeChangeCount += 1
         }
         let consoleCancellable = consoleSession.objectWillChange.sink {
             consoleChangeCount += 1
         }
+        let eventLogCancellable = eventLog.objectWillChange.sink {
+            eventLogChangeCount += 1
+        }
 
         vmCoordinator.onConsoleOutput?(Data("guest output".utf8))
 
         XCTAssertEqual(consoleChangeCount, 1)
+        XCTAssertEqual(eventLogChangeCount, 0)
         XCTAssertEqual(storeChangeCount, 0)
-        withExtendedLifetime((storeCancellable, consoleCancellable)) {}
+        withExtendedLifetime((storeCancellable, consoleCancellable, eventLogCancellable)) {}
+    }
+
+    func testVMEventLogOnlyInvalidatesEventLogStore() throws {
+        let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let vmCoordinator = ObservationTestVMCoordinator()
+        let consoleSession = ConsoleSessionStore()
+        let eventLog = EventLogStore()
+        let store = TetheringStore(
+            assetProvider: ObservationTestAssetProvider(),
+            vmCoordinator: vmCoordinator,
+            usbCoordinator: USBAccessoryCoordinator(
+                monitor: ObservationTestUSBMonitor()
+            ),
+            wireGuardConfStore: ObservationTestWireGuardStore(),
+            wireGuardConfBuilder: WireGuardConfBuilder(elements: .defaults),
+            eventLog: eventLog,
+            consoleSession: consoleSession,
+            usbSession: USBSessionStore(),
+            vmConfiguration: VMConfigurationStore(defaults: defaults)
+        )
+        var storeChangeCount = 0
+        var consoleChangeCount = 0
+        var eventLogChangeCount = 0
+        let storeCancellable = store.objectWillChange.sink {
+            storeChangeCount += 1
+        }
+        let consoleCancellable = consoleSession.objectWillChange.sink {
+            consoleChangeCount += 1
+        }
+        let eventLogCancellable = eventLog.objectWillChange.sink {
+            eventLogChangeCount += 1
+        }
+
+        vmCoordinator.onEventLog?("VM started.")
+
+        XCTAssertEqual(eventLogChangeCount, 1)
+        XCTAssertEqual(consoleChangeCount, 0)
+        XCTAssertEqual(storeChangeCount, 0)
+        XCTAssertTrue(eventLog.text.contains("[VM] VM started."))
+        withExtendedLifetime((storeCancellable, consoleCancellable, eventLogCancellable)) {}
     }
 }
 
 @MainActor
 private final class ObservationTestVMCoordinator: VMCoordinating {
     var onStateChange: ((VMRuntimeState, String) -> Void)?
-    var onEvent: ((String) -> Void)?
+    var onEventLog: ((String) -> Void)?
     var onConsoleOutput: ((Data) -> Void)?
     var onUSBPassthroughDisconnect: ((VZUSBPassthroughDevice) -> Void)?
     var onStopped: (() -> Void)?

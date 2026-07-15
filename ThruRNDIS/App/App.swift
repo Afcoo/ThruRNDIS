@@ -30,12 +30,14 @@ enum App {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     lazy var assetWorkflowCoordinator = VMAssetWorkflowCoordinator()
+    lazy var eventLog = EventLogStore()
     lazy var store = TetheringStore(
         assetProvider: assetWorkflowCoordinator,
         vmCoordinator: VMCoordinator(),
         usbCoordinator: USBAccessoryCoordinator(monitor: USBAccessoryMonitor()),
         wireGuardConfStore: WireGuardConfStore(),
         wireGuardConfBuilder: WireGuardConfBuilder(elements: .defaults),
+        eventLog: eventLog,
         consoleSession: ConsoleSessionStore(),
         usbSession: USBSessionStore(),
         vmConfiguration: VMConfigurationStore()
@@ -62,9 +64,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         NSApp.setActivationPolicy(.accessory)
 
-        assetWorkflowCoordinator.onEvent = { [weak self] message in
-            self?.store.recordVMAssetEvent(message)
+        assetWorkflowCoordinator.onEventLog = { [weak self] message in
+            self?.eventLog.append(message, source: .vmAssets)
         }
+        assetWorkflowCoordinator.reportCurrentStateToEventLog()
 
         menuBarController = MenuBarController(
             store: store,

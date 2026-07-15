@@ -34,7 +34,8 @@ WireGuard-over-VZNAT architecture as the baseline.
 - `TetheringStore` owns cross-feature orchestration, general app state,
   WireGuard presentation state, onboarding/preferences, and the serialized USB
   approval/start/restart workflow. High-frequency or independently observed
-  state lives in child stores: `ConsoleSessionStore` owns console/event output,
+  state lives in child stores: `EventLogStore` owns the bounded app event log,
+  `ConsoleSessionStore` owns only VM serial-console output and endpoint scanning,
   `USBSessionStore` owns the atomic USB UI snapshot and pending prompt, and
   `VMConfigurationStore` owns persisted VM settings including the optional
   scratch disk. VM lifecycle work belongs in `VMCoordinator`; USB
@@ -42,7 +43,7 @@ WireGuard-over-VZNAT architecture as the baseline.
   `USBAccessoryCoordinator`.
 - `AppDelegate` is the composition root. It owns one shared
   `VMAssetWorkflowCoordinator`, constructs the VM, USB, and WireGuard adapters
-  and the three child state stores, injects them into one shared `TetheringStore`,
+  and the four child state stores, injects them into one shared `TetheringStore`,
   starts AccessoryAccess monitoring at app launch, and passes the same objects
   to onboarding, Settings, and the menu bar. Keep the dependency one-way:
   `TetheringStore` sees only the read-only `VMAssetProviding` boundary, and
@@ -212,10 +213,10 @@ primary responsibility.
   `USBAccessoryCoordinator` stays concrete until a narrower tested boundary is
   required.
 - `ThruRNDIS/Stores`: `@MainActor`/observable UI-facing state owners.
-  `TetheringStore` owns cross-feature orchestration, `ConsoleSessionStore` owns
-  console/event output, `USBSessionStore` owns the USB UI projection, and
-  `VMConfigurationStore` owns editable VM settings and their UserDefaults
-  persistence.
+  `TetheringStore` owns cross-feature orchestration, `EventLogStore` owns the
+  app event log, `ConsoleSessionStore` owns VM serial-console state,
+  `USBSessionStore` owns the USB UI projection, and `VMConfigurationStore` owns
+  editable VM settings and their UserDefaults persistence.
 - `ThruRNDIS/Persistence`: non-observable durable-storage adapters and path
   definitions. `VMAssetSelectionStore` persists Asset selection,
   `WireGuardConfStore` owns Application Support keys/configuration, and

@@ -6,31 +6,32 @@ import SwiftUI
 
 struct EventLogGroup: View {
     let text: String
-    var height: CGFloat? = nil
-    var minHeight: CGFloat? = nil
-    let eraseAction: () -> Void
+    let clearAction: () -> Void
+    let copyAction: () -> Void
+    let saveAction: () -> Void
 
     var body: some View {
-        GroupBox {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Text("Event Log")
-                        .font(.headline)
+        VStack(alignment: .leading, spacing: 10) {
+            LogTextView(text: text.isEmpty ? String(localized: "No events.") : text)
+                .frame(height: 260)
 
-                    Spacer()
+            HStack(spacing: 8) {
+                Button(action: clearAction) {
+                    Label("Clear", systemImage: "trash")
+                }
+                .help("Clear event log")
 
-                    Button(action: eraseAction) {
-                        Label("Clear", systemImage: "trash")
-                    }
-                    .disabled(text.isEmpty)
-                    .help("Clear event log")
+                Spacer()
+
+                Button(action: copyAction) {
+                    Label("Copy", systemImage: "doc.on.doc")
                 }
 
-                LogTextView(text: text.isEmpty ? String(localized: "No events.") : text)
-                    .frame(height: height)
-                    .frame(minHeight: minHeight)
+                Button(action: saveAction) {
+                    Label("Save…", systemImage: "square.and.arrow.down")
+                }
             }
-            .padding(.vertical, 4)
+            .disabled(text.isEmpty)
         }
     }
 }

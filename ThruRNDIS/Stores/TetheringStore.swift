@@ -27,6 +27,7 @@ final class TetheringStore: ObservableObject {
     @Published private(set) var preferencesStatusMessage = ""
 
     let guestMACAddress = "02:00:5E:10:00:02"
+    let eventLog: EventLogStore
     let consoleSession: ConsoleSessionStore
     let usbSession: USBSessionStore
     let vmConfiguration: VMConfigurationStore
@@ -198,6 +199,7 @@ final class TetheringStore: ObservableObject {
         usbCoordinator: USBAccessoryCoordinator,
         wireGuardConfStore: any WireGuardConfigurationStoring,
         wireGuardConfBuilder: WireGuardConfBuilder,
+        eventLog: EventLogStore,
         consoleSession: ConsoleSessionStore,
         usbSession: USBSessionStore,
         vmConfiguration: VMConfigurationStore
@@ -207,6 +209,7 @@ final class TetheringStore: ObservableObject {
         self.usbCoordinator = usbCoordinator
         self.wireGuardConfStore = wireGuardConfStore
         self.wireGuardConfBuilder = wireGuardConfBuilder
+        self.eventLog = eventLog
         self.consoleSession = consoleSession
         self.usbSession = usbSession
         self.vmConfiguration = vmConfiguration
@@ -276,7 +279,10 @@ final class TetheringStore: ObservableObject {
             bootAssets = try assetProvider.validatedBootAssets()
         } catch {
             statusMessage = error.localizedDescription
-            appendEvent("VM asset validation failed before VM start: \(error.localizedDescription)")
+            appendEventLog(
+                "VM asset validation failed before VM start: \(error.localizedDescription)",
+                source: .vmAssets
+            )
             return false
         }
 
@@ -311,7 +317,7 @@ final class TetheringStore: ObservableObject {
         let bootCommandLine = vmConfiguration.normalizedBootCommandLine()
         if bootCommandLine != vmConfiguration.kernelCommandLine {
             vmConfiguration.kernelCommandLine = bootCommandLine
-            appendEvent("Adjusted kernel arguments for initramfs-only boot.")
+            appendEventLog("Adjusted kernel arguments for initramfs-only boot.", source: .virtualMachine)
         }
 
         let input = VMCoordinatorStartInput(
@@ -325,9 +331,9 @@ final class TetheringStore: ObservableObject {
             guestMACAddress: guestMACAddress
         )
 
-        appendEvent("Kernel asset: \(bootAssets.kernelURL.path)")
-        appendEvent("Initramfs asset: \(bootAssets.initialRamdiskURL.path)")
-        appendEvent("Kernel arguments: \(bootCommandLine)")
+        appendEventLog("Kernel asset: \(bootAssets.kernelURL.path)", source: .virtualMachine)
+        appendEventLog("Initramfs asset: \(bootAssets.initialRamdiskURL.path)", source: .virtualMachine)
+        appendEventLog("Kernel arguments: \(bootCommandLine)", source: .virtualMachine)
         vmCoordinator.start(input: input)
         return true
     }
@@ -440,14 +446,17 @@ final class TetheringStore: ObservableObject {
                 requestOnboardingPresentation(restart: false)
             }
         } else {
-            appendEvent("USB attach declined for registry \(prompt.accessory.registryIDText).")
+            appendEventLog(
+                "USB attach declined for registry \(prompt.accessory.registryIDText).",
+                source: .accessoryAccess
+            )
         }
 
         presentNextUSBAttachmentPromptIfNeeded()
     }
 
     func prepareForApplicationTermination() {
-        appendEvent("Application terminating.")
+        appendEventLog("Application terminating.")
         usbCoordinator.prepareForIntentionalVMStop()
         vmCoordinator.invalidate()
         usbCoordinator.stopMonitoring(reason: "Application terminating.")
@@ -469,36 +478,42 @@ final class TetheringStore: ObservableObject {
             isDirectory: &isDirectory
         ), isDirectory.boolValue else {
             wireGuardStatusMessage = String(localized: "WireGuard configuration folder was not found.")
-            appendEvent("WireGuard configuration folder not opened because it does not exist: \(directoryURL.path)")
+            appendEventLog(
+                "WireGuard configuration folder not opened because it does not exist: \(directoryURL.path)",
+                source: .wireGuard
+            )
             return
         }
 
         guard NSWorkspace.shared.open(directoryURL) else {
             wireGuardStatusMessage = String(localized: "Could not open the WireGuard configuration folder.")
-            appendEvent("WireGuard configuration folder open failed: \(directoryURL.path)")
+            appendEventLog(
+                "WireGuard configuration folder open failed: \(directoryURL.path)",
+                source: .wireGuard
+            )
             return
         }
 
         wireGuardStatusMessage = String(localized: "Opened the WireGuard configuration folder.")
-        appendEvent("Opened WireGuard configuration folder: \(directoryURL.path)")
+        appendEventLog("Opened WireGuard configuration folder: \(directoryURL.path)", source: .wireGuard)
     }
 
     func copyWireGuardConfiguration() {
         guard canExportWireGuardConfiguration else {
             wireGuardStatusMessage = String(localized: "Wait for THRURNDIS_WG_ENDPOINT before copying the host configuration.")
-            appendEvent("WireGuard configuration not copied: VM endpoint is unknown.")
+            appendEventLog("WireGuard configuration not copied: VM endpoint is unknown.", source: .wireGuard)
             return
         }
 
         Clipboard.copy(wireGuardHostConfiguration)
         wireGuardStatusMessage = String(localized: "WireGuard host configuration copied.")
-        appendEvent("WireGuard host configuration copied to clipboard.")
+        appendEventLog("WireGuard host configuration copied to clipboard.", source: .wireGuard)
     }
 
     func saveWireGuardConfiguration() {
         guard canExportWireGuardConfiguration else {
             wireGuardStatusMessage = String(localized: "Wait for THRURNDIS_WG_ENDPOINT before saving the host configuration.")
-            appendEvent("WireGuard configuration not saved: VM endpoint is unknown.")
+            appendEventLog("WireGuard configuration not saved: VM endpoint is unknown.", source: .wireGuard)
             return
         }
 
@@ -512,10 +527,13 @@ final class TetheringStore: ObservableObject {
         do {
             try wireGuardHostConfiguration.write(to: url, atomically: true, encoding: .utf8)
             wireGuardStatusMessage = String(localized: "WireGuard host configuration saved.")
-            appendEvent("WireGuard host configuration saved to \(url.path).")
+            appendEventLog("WireGuard host configuration saved to \(url.path).", source: .wireGuard)
         } catch {
             wireGuardStatusMessage = error.localizedDescription
-            appendEvent("WireGuard configuration save failed: \(error.localizedDescription)")
+            appendEventLog(
+                "WireGuard configuration save failed: \(error.localizedDescription)",
+                source: .wireGuard
+            )
         }
     }
 
@@ -532,10 +550,6 @@ final class TetheringStore: ObservableObject {
         vmCoordinator.sendConsoleBytes(data)
     }
 
-    func clearEventLog() {
-        consoleSession.clearEventLog()
-    }
-
     func setLaunchAtLoginEnabled(_ isEnabled: Bool) {
         do {
             launchAtLoginSnapshot = try LaunchAtLoginService.setEnabled(isEnabled)
@@ -543,17 +557,13 @@ final class TetheringStore: ObservableObject {
         } catch {
             launchAtLoginSnapshot = LaunchAtLoginService.snapshot()
             preferencesStatusMessage = String(localized: "Could not update Launch at Login: \(error.localizedDescription)")
-            appendEvent("Could not update Launch at Login: \(error.localizedDescription)")
+            appendEventLog("Could not update Launch at Login: \(error.localizedDescription)")
         }
     }
 
     func refreshLaunchAtLoginStatus() {
         launchAtLoginSnapshot = LaunchAtLoginService.snapshot()
         preferencesStatusMessage = ""
-    }
-
-    func openLoginItemsSettings() {
-        LaunchAtLoginService.openSystemSettings()
     }
 
     func requestOnboardingPresentation(restart: Bool = true) {
@@ -571,7 +581,7 @@ final class TetheringStore: ObservableObject {
 
         UserDefaults.standard.set(Self.currentOnboardingVersion, forKey: DefaultsKey.onboardingVersion)
         hasCompletedOnboarding = true
-        appendEvent("Onboarding completed.")
+        appendEventLog("Onboarding completed.")
 
         let waitingAccessoryIDs = accessoriesAwaitingAssetSetup
         accessoriesAwaitingAssetSetup.removeAll()
@@ -599,7 +609,7 @@ final class TetheringStore: ObservableObject {
         } catch {
             preferencesStatusMessage = String(localized: "Could not remove WireGuard configuration: \(error.localizedDescription)")
             wireGuardStatusMessage = preferencesStatusMessage
-            appendEvent("App settings reset cancelled: Could not remove WireGuard configuration: \(error.localizedDescription)")
+            appendEventLog("App settings reset cancelled: Could not remove WireGuard configuration: \(error.localizedDescription)")
             return false
         }
 
@@ -627,12 +637,8 @@ final class TetheringStore: ObservableObject {
             preferencesStatusMessage = String(localized: "Settings reset, but Launch at Login could not be disabled: \(error.localizedDescription)")
         }
 
-        appendEvent("App settings and WireGuard configuration were reset; VM asset files were not deleted.")
+        appendEventLog("App settings and WireGuard configuration were reset; VM asset files were not deleted.")
         return true
-    }
-
-    func recordVMAssetEvent(_ message: String) {
-        appendEvent(message)
     }
 
     func assetAvailabilityDidChange() {
@@ -660,8 +666,8 @@ final class TetheringStore: ObservableObject {
                 break
             }
         }
-        vmCoordinator.onEvent = { [weak self] message in
-            self?.appendEvent(message)
+        vmCoordinator.onEventLog = { [weak self] message in
+            self?.appendEventLog(message, source: .virtualMachine)
         }
         vmCoordinator.onConsoleOutput = { [weak self] data in
             self?.appendConsole(data)
@@ -712,8 +718,8 @@ final class TetheringStore: ObservableObject {
         usbCoordinator.onStatusMessage = { [weak self] message in
             self?.statusMessage = message
         }
-        usbCoordinator.onEvent = { [weak self] message in
-            self?.appendEvent(message)
+        usbCoordinator.onEventLog = { [weak self] message in
+            self?.appendEventLog(message, source: .accessoryAccess)
         }
         usbCoordinator.onAccessoryAvailable = { [weak self] record in
             self?.offerAttachmentForAvailableAccessory(record)
@@ -939,7 +945,10 @@ final class TetheringStore: ObservableObject {
                 self.syncUSBState()
 
                 if !success {
-                    self.appendEvent("Approved USB attach did not complete for registry \(Self.registryIDText(accessoryID)).")
+                    self.appendEventLog(
+                        "Approved USB attach did not complete for registry \(Self.registryIDText(accessoryID)).",
+                        source: .accessoryAccess
+                    )
                 }
                 self.presentNextUSBAttachmentPromptIfNeeded()
             }
@@ -1019,7 +1028,10 @@ final class TetheringStore: ObservableObject {
         }
 
         if pendingAttachmentAccessoryID != nil {
-            appendEvent("Replacing the pending USB attachment after an unexpected USB detach.")
+            appendEventLog(
+                "Replacing the pending USB attachment after an unexpected USB detach.",
+                source: .accessoryAccess
+            )
         }
         pendingAttachmentAccessoryID = accessories.contains(where: { $0.id == accessoryID })
             ? accessoryID
@@ -1046,7 +1058,7 @@ final class TetheringStore: ObservableObject {
         pendingAttachmentToken = nil
         pendingAttachmentStartedVM = false
         shouldStartPendingAttachmentAfterStop = false
-        appendEvent("Pending USB attachment cancelled: \(reason).")
+        appendEventLog("Pending USB attachment cancelled: \(reason).", source: .accessoryAccess)
         if presentNextPrompt {
             presentNextUSBAttachmentPromptIfNeeded()
         }
@@ -1084,7 +1096,10 @@ final class TetheringStore: ObservableObject {
 
     private func appendScratchDiskSelectionSummaryIfNeeded() {
         if let diskImageURL = vmConfiguration.diskImageURL {
-            appendEvent("Restored optional scratch disk selection: \(diskImageURL.path).")
+            appendEventLog(
+                "Restored optional scratch disk selection: \(diskImageURL.path).",
+                source: .virtualMachine
+            )
         }
     }
 
@@ -1099,14 +1114,20 @@ final class TetheringStore: ObservableObject {
                 endpoint: wireGuardSettings.endpoint
             )
             wireGuardStatusMessage = String(localized: "WireGuard configuration is ready.")
-            appendEvent("Prepared WireGuard configuration from Application Support keys: \(prepared.files.wireGuardDirectoryURL.path).")
+            appendEventLog(
+                "Prepared WireGuard configuration from Application Support keys: \(prepared.files.wireGuardDirectoryURL.path).",
+                source: .wireGuard
+            )
         } catch {
             wireGuardKeyMaterial = nil
             wireGuardSettings = wireGuardConfBuilder.settings(
                 endpoint: wireGuardSettings.endpoint
             )
             wireGuardStatusMessage = error.localizedDescription
-            appendEvent("WireGuard key/configuration initialization failed without replacing existing keys: \(error.localizedDescription)")
+            appendEventLog(
+                "WireGuard key/configuration initialization failed without replacing existing keys: \(error.localizedDescription)",
+                source: .wireGuard
+            )
         }
     }
 
@@ -1129,7 +1150,10 @@ final class TetheringStore: ObservableObject {
                 endpoint: wireGuardSettings.endpoint
             )
             wireGuardStatusMessage = String(localized: "Generated WireGuard configuration from Application Support keys.")
-            appendEvent("Regenerated WireGuard configuration from keys in \(prepared.files.wireGuardDirectoryURL.path): \(reason).")
+            appendEventLog(
+                "Regenerated WireGuard configuration from keys in \(prepared.files.wireGuardDirectoryURL.path): \(reason).",
+                source: .wireGuard
+            )
             return true
         } catch {
             wireGuardKeyMaterial = nil
@@ -1137,7 +1161,10 @@ final class TetheringStore: ObservableObject {
                 endpoint: wireGuardSettings.endpoint
             )
             wireGuardStatusMessage = error.localizedDescription
-            appendEvent("WireGuard configuration load failed: \(error.localizedDescription)")
+            appendEventLog(
+                "WireGuard configuration load failed: \(error.localizedDescription)",
+                source: .wireGuard
+            )
             return false
         }
     }
@@ -1154,12 +1181,12 @@ final class TetheringStore: ObservableObject {
         let summary = RuntimeEntitlement.allCases.map { entitlement in
             "\(entitlement.rawValue)=\(runtimeEntitlements.has(entitlement) ? "present" : "missing")"
         }
-        appendEvent("Runtime entitlements: \(summary.joined(separator: ", ")).")
+        appendEventLog("Runtime entitlements: \(summary.joined(separator: ", ")).")
     }
 
     private func reportMissingEntitlement(_ entitlement: RuntimeEntitlement, action: String) {
         statusMessage = String(localized: "\(entitlement.label) entitlement missing.")
-        appendEvent("\(action) not started: missing \(entitlement.rawValue). The default ThruRNDIS scheme is for local UI builds; run the ThruRNDIS Runtime scheme with an approved provisioning profile to exercise this runtime path.")
+        appendEventLog("\(action) not started: missing \(entitlement.rawValue). The default ThruRNDIS scheme is for local UI builds; run the ThruRNDIS Runtime scheme with an approved provisioning profile to exercise this runtime path.")
     }
 
     private func clearWireGuardEndpoint(reason: String) {
@@ -1171,7 +1198,7 @@ final class TetheringStore: ObservableObject {
         settings.endpoint = nil
         wireGuardSettings = settings
         wireGuardStatusMessage = String(localized: "Waiting for THRURNDIS_WG_ENDPOINT from guest.")
-        appendEvent("WireGuard endpoint cleared: \(reason).")
+        appendEventLog("WireGuard endpoint cleared: \(reason).", source: .wireGuard)
     }
 
     private func updateWireGuardEndpoint(_ endpoint: String) {
@@ -1183,7 +1210,10 @@ final class TetheringStore: ObservableObject {
         settings.endpoint = endpoint
         wireGuardSettings = settings
         wireGuardStatusMessage = String(localized: "WireGuard guest address discovered: \(endpoint).")
-        appendEvent("WireGuard guest address discovered from guest console: \(endpoint).")
+        appendEventLog(
+            "WireGuard guest address discovered from guest console: \(endpoint).",
+            source: .wireGuard
+        )
     }
 
     private func clearConsoleForVMStart() {
@@ -1196,8 +1226,11 @@ final class TetheringStore: ObservableObject {
         }
     }
 
-    private func appendEvent(_ message: String) {
-        consoleSession.appendEvent(message)
+    private func appendEventLog(
+        _ message: String,
+        source: EventLogSource = .app
+    ) {
+        eventLog.append(message, source: source)
     }
 
     private static let currentOnboardingVersion = 2

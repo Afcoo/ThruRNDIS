@@ -18,6 +18,7 @@ final class SettingsWindowController: NSWindowController {
             resetAndRestart: resetAndRestart
         )
             .environmentObject(store)
+            .environmentObject(store.eventLog)
             .environmentObject(store.usbSession)
             .environmentObject(store.vmConfiguration)
             .environmentObject(assetWorkflowCoordinator)

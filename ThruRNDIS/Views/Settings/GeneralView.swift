@@ -6,10 +6,12 @@ import SwiftUI
 
 struct GeneralView: View {
     @EnvironmentObject private var store: TetheringStore
+    @EnvironmentObject private var eventLog: EventLogStore
+    @State private var eventLogSaveError: EventLogSaveError?
 
     var body: some View {
         Form {
-            Section {
+            Section("앱") {
                 Toggle(
                     "Open ThruRNDIS at Login",
                     isOn: Binding(
@@ -17,13 +19,48 @@ struct GeneralView: View {
                         set: { store.setLaunchAtLoginEnabled($0) }
                     )
                 )
+            }
 
-                if store.launchAtLoginSnapshot.requiresApproval {
-                    Button("Open Login Items Settings") {
-                        store.openLoginItemsSettings()
-                    }
-                }
+            Section("Event Log") {
+                EventLogGroup(
+                    text: eventLog.text,
+                    clearAction: {
+                        eventLog.clear()
+                    },
+                    copyAction: {
+                        Clipboard.copy(eventLog.text)
+                    },
+                    saveAction: saveEventLog
+                )
             }
         }
+        .alert(item: $eventLogSaveError) { error in
+            Alert(
+                title: Text("Event Log"),
+                message: Text(error.message),
+                dismissButton: .default(Text("OK"))
+            )
+        }
     }
+
+    private func saveEventLog() {
+        guard !eventLog.text.isEmpty,
+              let url = FilePicker.chooseSaveFile(
+                title: String(localized: "Event Log"),
+                defaultName: "ThruRNDIS Event Log.txt"
+              ) else {
+            return
+        }
+
+        do {
+            try eventLog.text.write(to: url, atomically: true, encoding: .utf8)
+        } catch {
+            eventLogSaveError = EventLogSaveError(message: error.localizedDescription)
+        }
+    }
+}
+
+private struct EventLogSaveError: Identifiable {
+    let id = UUID()
+    let message: String
 }

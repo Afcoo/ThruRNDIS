@@ -15,24 +15,18 @@ struct ConsoleOutputState: Equatable {
 final class ConsoleSessionStore: ObservableObject {
     @Published private(set) var output = ConsoleOutputState()
 
-    private(set) var eventLog = ""
-
     private let maximumOutputBytes: Int
     private let maximumScanCharacters: Int
-    private let maximumEventLogCharacters: Int
     private var endpointScanBuffer = ""
 
     init(
         maximumOutputBytes: Int = 4_000_000,
-        maximumScanCharacters: Int = 200_000,
-        maximumEventLogCharacters: Int = 60_000
+        maximumScanCharacters: Int = 200_000
     ) {
         precondition(maximumOutputBytes > 0)
         precondition(maximumScanCharacters > 0)
-        precondition(maximumEventLogCharacters > 0)
         self.maximumOutputBytes = maximumOutputBytes
         self.maximumScanCharacters = maximumScanCharacters
-        self.maximumEventLogCharacters = maximumEventLogCharacters
     }
 
     @discardableResult
@@ -49,19 +43,6 @@ final class ConsoleSessionStore: ObservableObject {
             outputSequence: 0,
             resetSequence: output.resetSequence &+ 1
         )
-    }
-
-    func appendEvent(_ message: String, at date: Date = Date()) {
-        let timestamp = Self.timestampFormatter.string(from: date)
-        eventLog.append("[\(timestamp)] \(message)\n")
-
-        if eventLog.count > maximumEventLogCharacters {
-            eventLog.removeFirst(eventLog.count - maximumEventLogCharacters)
-        }
-    }
-
-    func clearEventLog() {
-        eventLog = ""
     }
 
     private func appendOutput(_ data: Data) {
@@ -113,10 +94,4 @@ final class ConsoleSessionStore: ObservableObject {
         )
         return endpoint.contains(":") ? endpoint : nil
     }
-
-    private static let timestampFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm:ss"
-        return formatter
-    }()
 }

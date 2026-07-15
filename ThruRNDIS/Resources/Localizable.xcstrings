@@ -1125,16 +1125,6 @@
         }
       }
     },
-    "Open Login Items Settings": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "‘로그인 항목 및 확장 프로그램’ 설정 열기"
-          }
-        }
-      }
-    },
     "Open Onboarding": {
       "localizations": {
         "ko": {
@@ -2754,7 +2744,8 @@
           }
         }
       }
-    }
+    },
+    "앱": {}
   },
   "version": "1.0"
 }

@@ -8,7 +8,7 @@ import Foundation
 @MainActor
 protocol VMCoordinating: AnyObject {
     var onStateChange: ((VMRuntimeState, String) -> Void)? { get set }
-    var onEvent: ((String) -> Void)? { get set }
+    var onEventLog: ((String) -> Void)? { get set }
     var onConsoleOutput: ((Data) -> Void)? { get set }
     var onUSBPassthroughDisconnect: ((VZUSBPassthroughDevice) -> Void)? { get set }
     var onStopped: (() -> Void)? { get set }

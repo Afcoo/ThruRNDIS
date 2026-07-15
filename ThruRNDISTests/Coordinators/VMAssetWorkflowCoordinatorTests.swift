@@ -196,6 +196,48 @@ final class VMAssetWorkflowCoordinatorTests: XCTestCase {
         )
     }
 
+    func testInstallEmitsHighSignalStageEvents() async throws {
+        let installed = VMAssetTestSupport.installedRelease(
+            at: URL(fileURLWithPath: "/managed/42-100", isDirectory: true)
+        )
+        let coordinator = VMAssetWorkflowCoordinator(
+            releaseService: FakeReleaseService(result: .success(VMAssetTestSupport.release())),
+            downloadService: FakeDownloader(),
+            installService: FakeInstaller(installed: [installed], matching: nil),
+            selectionStore: FakeSelectionStore()
+        )
+        var events: [String] = []
+        coordinator.onEventLog = { events.append($0) }
+
+        coordinator.installLatest()
+        try await waitUntilIdle(coordinator)
+        await Task.yield()
+
+        XCTAssertTrue(events.contains { $0.contains("Checking the latest VM asset release") })
+        XCTAssertTrue(events.contains { $0.contains("Downloading VM assets") })
+        XCTAssertTrue(events.contains { $0.contains("Downloaded VM assets") })
+        XCTAssertTrue(events.contains { $0.contains("Verifying the downloaded VM assets") })
+        XCTAssertTrue(events.contains { $0.contains("Extracting the verified VM assets") })
+        XCTAssertTrue(events.contains { $0.contains("Activating VM assets") })
+        XCTAssertTrue(events.contains { $0.contains("Installed and activated VM assets") })
+    }
+
+    func testCurrentStateReportIncludesRestoredManualSelection() {
+        let coordinator = VMAssetWorkflowCoordinator(
+            releaseService: FakeReleaseService(result: .success(VMAssetTestSupport.release())),
+            downloadService: FakeDownloader(),
+            installService: FakeInstaller(installed: [], matching: nil),
+            selectionStore: FakeSelectionStore(initialSelection: FakeSelectionStore.manualSelection)
+        )
+        var events: [String] = []
+        coordinator.onEventLog = { events.append($0) }
+
+        coordinator.reportCurrentStateToEventLog()
+
+        XCTAssertEqual(events.count, 1)
+        XCTAssertTrue(events[0].contains(FakeSelectionStore.manualSelection.folderURL.path))
+    }
+
     private func waitUntilIdle(_ coordinator: VMAssetWorkflowCoordinator) async throws {
         try await waitUntil { !coordinator.isBusy }
     }
@@ -403,6 +445,8 @@ private final class FakeInstaller: VMAssetInstalling {
         guard let release = installed.first else {
             throw URLError(.fileDoesNotExist)
         }
+        progress(.verifying)
+        progress(.extracting)
         return release
     }
 

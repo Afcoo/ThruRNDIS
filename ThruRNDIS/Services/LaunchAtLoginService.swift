@@ -62,8 +62,4 @@ enum LaunchAtLoginService {
 
         return snapshot()
     }
-
-    static func openSystemSettings() {
-        SMAppService.openSystemSettingsLoginItems()
-    }
 }

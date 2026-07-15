@@ -51,6 +51,7 @@
 		C10000000000000000000004 /* VMAssetWorkflowCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000000000000000000104 /* VMAssetWorkflowCoordinatorTests.swift */; };
 		C10000000000000000000005 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C10000000000000000000106 /* XCTest.framework */; };
 		D10000000000000000000001 /* ConsoleSessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10000000000000000000101 /* ConsoleSessionStore.swift */; };
+		H10000000000000000000001 /* EventLogStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = H10000000000000000000101 /* EventLogStore.swift */; };
 		D10000000000000000000002 /* USBSessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10000000000000000000102 /* USBSessionStore.swift */; };
 		D10000000000000000000003 /* VMConfigurationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10000000000000000000103 /* VMConfigurationStore.swift */; };
 		D10000000000000000000004 /* VMCoordinating.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10000000000000000000104 /* VMCoordinating.swift */; };
@@ -128,6 +129,7 @@
 		C10000000000000000000105 /* ThruRNDISTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ThruRNDISTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C10000000000000000000106 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = System/Library/Frameworks/XCTest.framework; sourceTree = SDKROOT; };
 		D10000000000000000000101 /* ConsoleSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsoleSessionStore.swift; sourceTree = "<group>"; };
+		H10000000000000000000101 /* EventLogStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventLogStore.swift; sourceTree = "<group>"; };
 		D10000000000000000000102 /* USBSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBSessionStore.swift; sourceTree = "<group>"; };
 		D10000000000000000000103 /* VMConfigurationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMConfigurationStore.swift; sourceTree = "<group>"; };
 		D10000000000000000000104 /* VMCoordinating.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMCoordinating.swift; sourceTree = "<group>"; };
@@ -265,6 +267,7 @@
 			isa = PBXGroup;
 			children = (
 				8B0000000000000000000108 /* TetheringStore.swift */,
+				H10000000000000000000101 /* EventLogStore.swift */,
 				D10000000000000000000101 /* ConsoleSessionStore.swift */,
 				D10000000000000000000102 /* USBSessionStore.swift */,
 				D10000000000000000000103 /* VMConfigurationStore.swift */,
@@ -538,6 +541,7 @@
 				8B0000000000000000000005 /* USBAccessoryMonitor.swift in Sources */,
 				8B0000000000000000000007 /* VMConfigurationFactory.swift in Sources */,
 				8B0000000000000000000008 /* TetheringStore.swift in Sources */,
+				H10000000000000000000001 /* EventLogStore.swift in Sources */,
 				D10000000000000000000001 /* ConsoleSessionStore.swift in Sources */,
 				D10000000000000000000002 /* USBSessionStore.swift in Sources */,
 				D10000000000000000000003 /* VMConfigurationStore.swift in Sources */,
