@@ -102,10 +102,10 @@ struct InfoView: View {
 
     private var versionText: String {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
-            ?? "Unknown"
+            ?? String(localized: "Unknown")
         let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String
-            ?? "Unknown"
-        return "\(version) (\(build))"
+            ?? String(localized: "Unknown")
+        return String(localized: "\(version) (\(build))")
     }
 }
 
@@ -142,7 +142,7 @@ private struct OpenSourceAcknowledgementsView: View {
             Divider()
 
             ScrollView {
-                Text(Self.licenseText)
+                Text(verbatim: Self.licenseText)
                     .font(.system(.caption, design: .monospaced))
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)

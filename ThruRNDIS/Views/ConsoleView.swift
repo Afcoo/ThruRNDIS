@@ -15,7 +15,7 @@ struct ConsoleView: View {
             HStack {
                 Label("VM serial terminal", systemImage: "terminal")
 
-                Text(store.vmDisplayState.rawValue)
+                Text(store.vmDisplayState.localizedName)
                     .foregroundStyle(.secondary)
 
                 Spacer()

@@ -121,9 +121,9 @@ enum VMConfigurationError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidMACAddress(let value):
-            return "Invalid MAC address: \(value)"
+            return String(localized: "Invalid MAC address: \(value)")
         case .unsupportedScratchDisk(let value):
-            return "Scratch disk must be a writable raw disk image, not ISO media: \(value)"
+            return String(localized: "Scratch disk must be a writable raw disk image, not ISO media: \(value)")
         }
     }
 }

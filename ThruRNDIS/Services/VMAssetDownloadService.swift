@@ -12,11 +12,11 @@ enum VMAssetDownloadError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidResponse(let name):
-            return "The download response for \(name) was invalid."
+            return String(localized: "The download response for \(name) was invalid.")
         case .httpStatus(let status, let name):
-            return "Downloading \(name) failed with HTTP \(status)."
+            return String(localized: "Downloading \(name) failed with HTTP \(status).")
         case .sizeMismatch(let name, let expected, let actual):
-            return "Downloaded \(name) has an unexpected size (expected \(expected) bytes, received \(actual))."
+            return String(localized: "Downloaded \(name) has an unexpected size (expected \(expected) bytes, received \(actual)).")
         }
     }
 }

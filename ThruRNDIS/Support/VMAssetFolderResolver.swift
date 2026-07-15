@@ -18,13 +18,13 @@ enum VMAssetFolderError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .notDirectory(let url):
-            return "Selected VM asset path is not a folder: \(url.path)"
+            return String(localized: "Selected VM asset path is not a folder: \(url.path)")
         case .missingKernel(let url):
-            return "No Image-* kernel was found in the VM asset folder: \(url.path)"
+            return String(localized: "No Image-* kernel was found in the VM asset folder: \(url.path)")
         case .missingInitramfs(let url):
-            return "No initramfs-thrurndis-* ramdisk was found in the VM asset folder: \(url.path)"
+            return String(localized: "No initramfs-thrurndis-* ramdisk was found in the VM asset folder: \(url.path)")
         case .notRegularFile(let label, let url):
-            return "The selected \(label) is not a readable regular file: \(url.path)"
+            return String(localized: "The selected \(label) is not a readable regular file: \(url.path)")
         }
     }
 }

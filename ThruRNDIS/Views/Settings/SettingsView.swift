@@ -53,7 +53,7 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
 
     var id: Self { self }
 
-    var title: String {
+    var title: LocalizedStringKey {
         switch self {
         case .general:
             "General"

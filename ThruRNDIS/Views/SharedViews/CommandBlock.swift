@@ -5,7 +5,7 @@ Copyright (C) 2026 Afcoo.
 import SwiftUI
 
 struct CommandBlock: View {
-    let title: String
+    let title: LocalizedStringKey
     let command: String
     var copyEnabled = true
 
@@ -26,7 +26,7 @@ struct CommandBlock: View {
                     .disabled(!copyEnabled)
                 }
 
-                Text(command)
+                Text(verbatim: command)
                     .font(.system(.body, design: .monospaced))
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)

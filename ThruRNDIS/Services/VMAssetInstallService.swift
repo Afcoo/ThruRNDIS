@@ -21,30 +21,30 @@ enum VMAssetInstallError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidChecksums:
-            return "SHA256SUMS is malformed."
+            return String(localized: "SHA256SUMS is malformed.")
         case .missingChecksum(let name):
-            return "SHA256SUMS does not contain an entry for \(name)."
+            return String(localized: "SHA256SUMS does not contain an entry for \(name).")
         case .duplicateChecksum(let name):
-            return "SHA256SUMS contains more than one entry for \(name)."
+            return String(localized: "SHA256SUMS contains more than one entry for \(name).")
         case .checksumMismatch(let expected, let actual):
-            return "The VM asset checksum does not match (expected \(expected), calculated \(actual))."
+            return String(localized: "The VM asset checksum does not match (expected \(expected), calculated \(actual)).")
         case .unsafeArchiveEntry(let name):
-            return "The VM asset archive contains an unsafe path: \(name)"
+            return String(localized: "The VM asset archive contains an unsafe path: \(name)")
         case .duplicateArchiveEntry(let name):
-            return "The VM asset archive contains a duplicate path: \(name)"
+            return String(localized: "The VM asset archive contains a duplicate path: \(name)")
         case .invalidArchiveRoot(let name):
-            return "The VM asset archive contains an unexpected top-level path: \(name)"
+            return String(localized: "The VM asset archive contains an unexpected top-level path: \(name)")
         case .symbolicLink(let name):
-            return "The VM asset archive contains a symbolic link: \(name)"
+            return String(localized: "The VM asset archive contains a symbolic link: \(name)")
         case .commandFailed(let command, let output):
             let detail = output.trimmingCharacters(in: .whitespacesAndNewlines)
             return detail.isEmpty
-                ? "\(command) failed while installing VM assets."
-                : "\(command) failed while installing VM assets: \(detail)"
+                ? String(localized: "\(command) failed while installing VM assets.")
+                : String(localized: "\(command) failed while installing VM assets: \(detail)")
         case .invalidInstalledRelease(let url):
-            return "The installed VM asset release is incomplete or damaged: \(url.path)"
+            return String(localized: "The installed VM asset release is incomplete or damaged: \(url.path)")
         case .unsafeManagedReleasePath(let url):
-            return "Refusing to modify a VM asset path outside managed storage: \(url.path)"
+            return String(localized: "Refusing to modify a VM asset path outside managed storage: \(url.path)")
         }
     }
 }

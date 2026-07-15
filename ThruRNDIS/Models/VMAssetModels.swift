@@ -52,7 +52,9 @@ struct InstalledVMAssetRelease: Equatable {
     }
 
     var displayName: String {
-        metadata.tagName.isEmpty ? "Release \(metadata.releaseID)" : metadata.tagName
+        metadata.tagName.isEmpty
+            ? String(localized: "Release \(metadata.releaseID)")
+            : metadata.tagName
     }
 }
 
@@ -104,17 +106,17 @@ enum VMAssetInstallState: Equatable {
     var statusText: String {
         switch self {
         case .idle:
-            return "VM assets are not selected."
+            return String(localized: "VM assets are not selected.")
         case .checking:
-            return "Checking the latest VM asset release…"
+            return String(localized: "Checking the latest VM asset release…")
         case .downloading(let progress):
-            return "Downloading VM assets… \(Int(progress * 100))%"
+            return String(localized: "Downloading VM assets… \(Int(progress * 100))%")
         case .verifying:
-            return "Verifying the downloaded VM assets…"
+            return String(localized: "Verifying the downloaded VM assets…")
         case .extracting:
-            return "Installing the downloaded VM assets…"
+            return String(localized: "Installing the downloaded VM assets…")
         case .activating:
-            return "Activating the installed VM assets…"
+            return String(localized: "Activating the installed VM assets…")
         case .ready(let message), .failed(let message):
             return message
         }

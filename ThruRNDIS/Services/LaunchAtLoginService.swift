@@ -17,31 +17,31 @@ enum LaunchAtLoginService {
             return LaunchAtLoginSnapshot(
                 isEnabled: true,
                 requiresApproval: false,
-                statusText: "ThruRNDIS will open automatically when you log in."
+                statusText: String(localized: "ThruRNDIS will open automatically when you log in.")
             )
         case .requiresApproval:
             return LaunchAtLoginSnapshot(
                 isEnabled: false,
                 requiresApproval: true,
-                statusText: "Allow ThruRNDIS in System Settings > General > Login Items."
+                statusText: String(localized: "Allow ThruRNDIS in System Settings > General > Login Items.")
             )
         case .notFound:
             return LaunchAtLoginSnapshot(
                 isEnabled: false,
                 requiresApproval: false,
-                statusText: "The login item could not be found. Run ThruRNDIS from its app bundle."
+                statusText: String(localized: "The login item could not be found. Run ThruRNDIS from its app bundle.")
             )
         case .notRegistered:
             return LaunchAtLoginSnapshot(
                 isEnabled: false,
                 requiresApproval: false,
-                statusText: "ThruRNDIS will not open automatically at login."
+                statusText: String(localized: "ThruRNDIS will not open automatically at login.")
             )
         @unknown default:
             return LaunchAtLoginSnapshot(
                 isEnabled: false,
                 requiresApproval: false,
-                statusText: "Login item status is unavailable."
+                statusText: String(localized: "Login item status is unavailable.")
             )
         }
     }

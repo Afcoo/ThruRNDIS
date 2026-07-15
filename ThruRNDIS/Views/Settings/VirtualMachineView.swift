@@ -16,7 +16,7 @@ struct VirtualMachineView: View {
     var body: some View {
         Form {
             Section {
-                LabeledContent("Status", value: store.vmDisplayState.rawValue)
+                LabeledContent("Status", value: store.vmDisplayState.localizedName)
 
                 Text(store.statusMessage)
                     .foregroundStyle(.secondary)
@@ -82,7 +82,13 @@ struct VirtualMachineView: View {
                 }
 
                 LabeledContent("Asset folder") {
-                    Text(assetWorkflowCoordinator.selectedFolderURL?.path ?? "Not selected")
+                    Group {
+                        if let selectedFolderURL = assetWorkflowCoordinator.selectedFolderURL {
+                            Text(verbatim: selectedFolderURL.path)
+                        } else {
+                            Text("Not selected")
+                        }
+                    }
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                         .truncationMode(.middle)
@@ -103,7 +109,7 @@ struct VirtualMachineView: View {
 
                     Button("Choose Folder…") {
                         if let url = FilePicker.chooseDirectory(
-                            title: "Choose extracted vm_assets folder",
+                            title: String(localized: "Choose extracted vm_assets folder"),
                             initialURL: assetWorkflowCoordinator.selectedFolderURL
                         ), let error = assetWorkflowCoordinator.selectManualFolder(url) {
                             assetAlert = VMAssetAlert(message: error.localizedDescription)
@@ -136,7 +142,7 @@ struct VirtualMachineView: View {
                     systemImage: "doc",
                     choose: {
                         if let url = FilePicker.chooseFile(
-                            title: "Choose Linux kernel override",
+                            title: String(localized: "Choose Linux kernel override"),
                             initialURL: assetWorkflowCoordinator.kernelURL
                         ), let error = assetWorkflowCoordinator.setKernelOverride(url) {
                             assetAlert = VMAssetAlert(message: error.localizedDescription)
@@ -155,7 +161,7 @@ struct VirtualMachineView: View {
                     systemImage: "doc.zipper",
                     choose: {
                         if let url = FilePicker.chooseFile(
-                            title: "Choose initial ramdisk override",
+                            title: String(localized: "Choose initial ramdisk override"),
                             initialURL: assetWorkflowCoordinator.initialRamdiskURL
                         ), let error = assetWorkflowCoordinator.setInitialRamdiskOverride(url) {
                             assetAlert = VMAssetAlert(message: error.localizedDescription)
@@ -177,7 +183,7 @@ struct VirtualMachineView: View {
                     systemImage: "internaldrive",
                     choose: {
                         if let url = FilePicker.chooseFile(
-                            title: "Choose optional scratch disk image",
+                            title: String(localized: "Choose optional scratch disk image"),
                             initialURL: vmConfiguration.diskImageURL
                         ) {
                             vmConfiguration.diskImageURL = url
@@ -196,7 +202,7 @@ struct VirtualMachineView: View {
         .alert(item: $assetAlert) { alert in
             Alert(
                 title: Text("VM Asset Error"),
-                message: Text(alert.message),
+                message: Text(verbatim: alert.message),
                 dismissButton: .default(Text("OK")) {
                     assetWorkflowCoordinator.clearError()
                 }
@@ -222,7 +228,7 @@ private struct VMAssetAlert: Identifiable {
 }
 
 private struct SettingsAssetRow: View {
-    let title: String
+    let title: LocalizedStringKey
     let url: URL?
     let systemImage: String
     let choose: () -> Void
@@ -235,10 +241,14 @@ private struct SettingsAssetRow: View {
 
                 Spacer()
 
-                Text(url?.lastPathComponent ?? "Not selected")
-                    .foregroundStyle(url == nil ? .secondary : .primary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+                if let url {
+                    Text(verbatim: url.lastPathComponent)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                } else {
+                    Text("Not selected")
+                        .foregroundStyle(.secondary)
+                }
 
                 Button("Choose…", action: choose)
 
@@ -248,7 +258,7 @@ private struct SettingsAssetRow: View {
             }
 
             if let url {
-                Text(url.deletingLastPathComponent().path)
+                Text(verbatim: url.deletingLastPathComponent().path)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)

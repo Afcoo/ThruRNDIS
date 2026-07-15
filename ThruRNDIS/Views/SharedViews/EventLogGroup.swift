@@ -26,7 +26,7 @@ struct EventLogGroup: View {
                     .help("Clear event log")
                 }
 
-                LogTextView(text: text.isEmpty ? "No events." : text)
+                LogTextView(text: text.isEmpty ? String(localized: "No events.") : text)
                     .frame(height: height)
                     .frame(minHeight: minHeight)
             }

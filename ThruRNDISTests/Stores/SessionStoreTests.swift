@@ -4,6 +4,31 @@ import XCTest
 @preconcurrency import Virtualization
 @testable import ThruRNDIS
 
+final class LocalizationResourceTests: XCTestCase {
+    func testKoreanLocalizationIsBundled() throws {
+        let localizationURL = try XCTUnwrap(
+            Bundle.main.url(forResource: "ko", withExtension: "lproj")
+        )
+        let koreanBundle = try XCTUnwrap(Bundle(url: localizationURL))
+
+        XCTAssertEqual(Bundle.main.developmentLocalization, "en")
+        XCTAssertEqual(
+            koreanBundle.localizedString(forKey: "Start VM", value: nil, table: nil),
+            "VM 시작"
+        )
+
+        let statusFormat = koreanBundle.localizedString(
+            forKey: "ThruRNDIS — VM %@, %@",
+            value: nil,
+            table: nil
+        )
+        XCTAssertEqual(
+            String(format: statusFormat, "실행 중", "USB: 연결 안 됨"),
+            "ThruRNDIS — VM 실행 중, USB: 연결 안 됨"
+        )
+    }
+}
+
 @MainActor
 final class ConsoleSessionStoreTests: XCTestCase {
     func testEndpointAcrossChunksAndOutputState() {

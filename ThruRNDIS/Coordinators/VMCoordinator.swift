@@ -98,7 +98,7 @@ final class VMCoordinator {
             self.vmDelegate = delegate
             self.usbDelegate = usbDelegate
             self.runtimeResources = result.resources
-            transition(to: .starting, message: "Starting VM.")
+            transition(to: .starting, message: String(localized: "Starting VM."))
             onEvent?("Starting ephemeral Alpine ThruRNDIS guest with NAT setup NIC, USB RNDIS upstream, and WireGuard peer support.")
 
             virtualMachine.start { [weak self] startResult in
@@ -116,7 +116,7 @@ final class VMCoordinator {
 
                     switch startResult {
                     case .success:
-                        self.transition(to: .running, message: "VM running.")
+                        self.transition(to: .running, message: String(localized: "VM running."))
                         self.onEvent?("VM started.")
                         self.scheduleConsoleOutputWatchdog(generation: generation)
                     case .failure(let error):
@@ -142,7 +142,7 @@ final class VMCoordinator {
         }
         let generation = self.generation
 
-        transition(to: .stopping, message: "Stopping VM.")
+        transition(to: .stopping, message: String(localized: "Stopping VM."))
         onEvent?("Stopping VM.")
 
         virtualMachine.stop { [weak self] error in
@@ -157,7 +157,10 @@ final class VMCoordinator {
                     self.transition(to: .failed, message: error.localizedDescription)
                     self.onEvent?("VM stop failed: \(error.localizedDescription)")
                 } else {
-                    self.markStopped(message: "VM stopped.")
+                    self.markStopped(
+                        message: String(localized: "VM stopped."),
+                        eventMessage: "VM stopped."
+                    )
                 }
             }
         }
@@ -182,7 +185,7 @@ final class VMCoordinator {
 
         isRestarting = true
         restartContinuation = startAgain
-        transition(to: .stopping, message: "Restarting VM.")
+        transition(to: .stopping, message: String(localized: "Restarting VM."))
         onEvent?("Restarting VM to recreate the fixed usb0 RNDIS session (\(reason)).")
 
         virtualMachine.stop { [weak self] error in
@@ -201,7 +204,10 @@ final class VMCoordinator {
                     return
                 }
 
-                self.markStopped(message: "VM stopped for restart.")
+                self.markStopped(
+                    message: String(localized: "VM stopped for restart."),
+                    eventMessage: "VM stopped for restart."
+                )
             }
         }
     }
@@ -239,7 +245,10 @@ final class VMCoordinator {
                       self.isCurrent(callbackVirtualMachine, generation: generation) else {
                     return
                 }
-                self.markStopped(message: "Guest shut down.")
+                self.markStopped(
+                    message: String(localized: "Guest shut down."),
+                    eventMessage: "Guest shut down."
+                )
             }
         }
 
@@ -295,7 +304,7 @@ final class VMCoordinator {
         return delegate
     }
 
-    private func markStopped(message: String) {
+    private func markStopped(message: String, eventMessage: String) {
         let continuation = restartContinuation
         restartContinuation = nil
         isRestarting = false
@@ -306,7 +315,7 @@ final class VMCoordinator {
         releaseRuntimeResources()
         transition(to: .stopped, message: message)
         onStopped?()
-        onEvent?(message)
+        onEvent?(eventMessage)
         continuation?()
     }
 

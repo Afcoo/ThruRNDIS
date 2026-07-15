@@ -18,34 +18,36 @@ struct USBAttachmentPrompt: Identifiable {
     var title: String {
         switch kind {
         case .attach:
-            return "Attach USB Device?"
+            return String(localized: "Attach USB Device?")
         case .replace:
-            return "Replace USB Device?"
+            return String(localized: "Replace USB Device?")
         case .assetsRequired:
-            return "VM Assets Required"
+            return String(localized: "VM Assets Required")
         }
     }
 
     var message: String {
         switch kind {
         case .attach:
-            return "USB device \(accessory.deviceName) is available to ThruRNDIS. Start the VM if needed and attach this device?"
+            return String(localized: "USB device \(accessory.deviceName) is available to ThruRNDIS. Start the VM if needed and attach this device?")
         case .replace(_, let previousDeviceName, let isCurrentlyAttached):
-            let previousState = isCurrentlyAttached ? "is attached" : "was already used in this VM session"
-            return "USB device \(previousDeviceName) \(previousState). ThruRNDIS will detach it if needed, restart the VM, and attach \(accessory.deviceName). Continue?"
+            if isCurrentlyAttached {
+                return String(localized: "USB device \(previousDeviceName) is attached. ThruRNDIS will detach it if needed, restart the VM, and attach \(accessory.deviceName). Continue?")
+            }
+            return String(localized: "USB device \(previousDeviceName) was already used in this VM session. ThruRNDIS will detach it if needed, restart the VM, and attach \(accessory.deviceName). Continue?")
         case .assetsRequired:
-            return "USB device \(accessory.deviceName) is ready, but VM assets have not been configured. Open onboarding to install the latest release or select an extracted vm_assets folder."
+            return String(localized: "USB device \(accessory.deviceName) is ready, but VM assets have not been configured. Open onboarding to install the latest release or select an extracted vm_assets folder.")
         }
     }
 
     var primaryButtonTitle: String {
         switch kind {
         case .attach:
-            return "Attach"
+            return String(localized: "Attach")
         case .replace:
-            return "Replace & Restart"
+            return String(localized: "Replace & Restart")
         case .assetsRequired:
-            return "Open Onboarding"
+            return String(localized: "Open Onboarding")
         }
     }
 }

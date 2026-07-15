@@ -5,8 +5,8 @@ Copyright (C) 2026 Afcoo.
 import SwiftUI
 
 struct HeaderView: View {
-    let title: String
-    let subtitle: String
+    let title: LocalizedStringKey
+    let subtitle: LocalizedStringKey
     let systemImage: String
 
     var body: some View {

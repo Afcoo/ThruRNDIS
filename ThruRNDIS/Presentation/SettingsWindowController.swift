@@ -24,7 +24,7 @@ final class SettingsWindowController: NSWindowController {
         let hostingController = NSHostingController(rootView: rootView)
         let window = NSWindow(contentViewController: hostingController)
 
-        window.title = "ThruRNDIS Settings"
+        window.title = String(localized: "ThruRNDIS Settings")
         window.styleMask = [.titled, .closable]
         window.setContentSize(NSSize(width: 800, height: 520))
         window.isReleasedWhenClosed = false

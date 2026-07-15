@@ -151,9 +151,9 @@ enum WireGuardConfBuilderError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .missingValue(let field):
-            return "Missing WireGuard configuration value: \(field)."
+            return String(localized: "Missing WireGuard configuration value: \(field).")
         case .invalidInteger(let field, let value):
-            return "Invalid WireGuard configuration integer for \(field): \(value)."
+            return String(localized: "Invalid WireGuard configuration integer for \(field): \(value).")
         }
     }
 }

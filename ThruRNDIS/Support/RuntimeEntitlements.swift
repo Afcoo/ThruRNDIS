@@ -12,9 +12,9 @@ enum RuntimeEntitlement: String, CaseIterable {
     var label: String {
         switch self {
         case .accessoryAccessUSB:
-            return "AccessoryAccess USB"
+            return String(localized: "AccessoryAccess USB")
         case .virtualization:
-            return "Virtualization"
+            return String(localized: "Virtualization")
         }
     }
 }

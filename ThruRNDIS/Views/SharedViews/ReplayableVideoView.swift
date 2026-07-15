@@ -9,10 +9,10 @@ struct ReplayableVideoView: View {
     private let url: URL?
     private let replayAppearanceDelay: Duration
     private let isMuted: Bool
-    private let loadingText: String
-    private let unavailableText: String
-    private let replayButtonTitle: String
-    private let replayAccessibilityLabel: String
+    private let loadingText: LocalizedStringKey
+    private let unavailableText: LocalizedStringKey
+    private let replayButtonTitle: LocalizedStringKey
+    private let replayAccessibilityLabel: LocalizedStringKey
 
     @StateObject private var playback = VideoPlaybackStore()
 
@@ -20,10 +20,10 @@ struct ReplayableVideoView: View {
         url: URL?,
         replayAppearanceDelay: Duration = .zero,
         isMuted: Bool = true,
-        loadingText: String = "Preparing video…",
-        unavailableText: String = "Video unavailable",
-        replayButtonTitle: String = "Replay",
-        replayAccessibilityLabel: String = "Replay video"
+        loadingText: LocalizedStringKey = "Preparing video…",
+        unavailableText: LocalizedStringKey = "Video unavailable",
+        replayButtonTitle: LocalizedStringKey = "Replay",
+        replayAccessibilityLabel: LocalizedStringKey = "Replay video"
     ) {
         self.url = url
         self.replayAppearanceDelay = replayAppearanceDelay

@@ -18,7 +18,7 @@ struct USBDevicesView: View {
                     )
                     .foregroundStyle(.orange)
 
-                    Text(RuntimeEntitlement.accessoryAccessUSB.rawValue)
+                    Text(verbatim: RuntimeEntitlement.accessoryAccessUSB.rawValue)
                         .font(.system(.caption, design: .monospaced))
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
@@ -28,7 +28,9 @@ struct USBDevicesView: View {
             Section {
                 LabeledContent("Status") {
                     Label(
-                        usbSession.isAccessoryMonitoring ? "Listening" : "Stopped",
+                        usbSession.isAccessoryMonitoring
+                            ? String(localized: "Listening")
+                            : String(localized: "Stopped"),
                         systemImage: usbSession.isAccessoryMonitoring
                             ? "dot.radiowaves.left.and.right"
                             : "stop.circle"
@@ -59,7 +61,7 @@ struct USBDevicesView: View {
 
             Section("USB Devices") {
                 if usbSession.accessories.isEmpty {
-                    LabeledContent("Available devices", value: "None")
+                    LabeledContent("Available devices", value: String(localized: "None"))
                 } else {
                     List(selection: selectedAccessoryBinding) {
                         ForEach(usbSession.accessories) { accessory in
@@ -106,7 +108,7 @@ private struct USBAccessoryRow: View {
                 .foregroundStyle(isAttached ? .green : .secondary)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(accessory.usbIDText)
+                Text(verbatim: accessory.usbIDText)
 
                 Text("Class \(accessory.classText) · Registry \(accessory.registryIDText)")
                     .font(.caption)

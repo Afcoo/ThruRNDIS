@@ -49,7 +49,8 @@ struct USBAccessoryRecord: Identifiable, Hashable {
         let bytes = [UInt8](accessory.deviceDescriptorData)
         let configurationBytes = accessory.configurationDescriptorData.map { [UInt8]($0) }
         self.id = accessory.registryID
-        self.deviceName = USBDeviceNameResolver.productName(registryID: accessory.registryID) ?? "USB Device"
+        self.deviceName = USBDeviceNameResolver.productName(registryID: accessory.registryID)
+            ?? String(localized: "USB Device")
         self.vendorID = Self.littleEndianUInt16(bytes, offset: 8)
         self.productID = Self.littleEndianUInt16(bytes, offset: 10)
         self.bcdUSB = Self.littleEndianUInt16(bytes, offset: 2)
@@ -73,7 +74,7 @@ struct USBAccessoryRecord: Identifiable, Hashable {
 
     var usbIDText: String {
         guard let vendorID, let productID else {
-            return "Unknown VID:PID"
+            return String(localized: "Unknown VID:PID")
         }
         return String(format: "%04X:%04X", vendorID, productID)
     }

@@ -63,9 +63,16 @@ private final class StatusDotView: NSView {
 private final class StatusMenuItemView: NSView {
     private static let width: CGFloat = {
         let font = NSFont.menuFont(ofSize: 0)
-        let referenceTitle = "USB: FFFF:FFFF"
-        let titleWidth = (referenceTitle as NSString).size(withAttributes: [.font: font]).width
-        return ceil((titleWidth + 43) * 1.3)
+        let referenceUSBID = "FFFF:FFFF"
+        let referenceTitles = [
+            String(localized: "USB: \(referenceUSBID)"),
+            String(localized: "USB: Not attached"),
+            String(localized: "Set Up VM Assets First"),
+        ]
+        let titleWidth = referenceTitles
+            .map { ($0 as NSString).size(withAttributes: [.font: font]).width }
+            .max() ?? 0
+        return ceil(titleWidth + 43)
     }()
 
     init(title: String, dotColor: NSColor) {
@@ -194,7 +201,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         alert.informativeText = prompt.message
         alert.alertStyle = isReplacementPrompt(prompt) ? .warning : .informational
         alert.addButton(withTitle: prompt.primaryButtonTitle)
-        alert.addButton(withTitle: "Not Now")
+        alert.addButton(withTitle: String(localized: "Not Now"))
 
         let response = alert.runModal()
         isPresentingPrompt = false
@@ -207,8 +214,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         }
 
         button.image = Self.statusBarImage
-        button.setAccessibilityLabel("ThruRNDIS status")
-        button.toolTip = "ThruRNDIS — VM \(store.vmDisplayState.rawValue), \(usbStatusTitle)"
+        button.setAccessibilityLabel(String(localized: "ThruRNDIS status"))
+        button.toolTip = String(
+            localized: "ThruRNDIS — VM \(store.vmDisplayState.localizedName), \(usbStatusTitle)"
+        )
     }
 
     private func rebuildMenu() {
@@ -216,7 +225,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
         if assetWorkflowCoordinator.hasConfiguredAssets {
             menu.addItem(statusItemLine(
-                title: "VM: \(store.vmDisplayState.rawValue)",
+                title: String(localized: "VM: \(store.vmDisplayState.localizedName)"),
                 dotColor: vmStatusColor
             ))
             menu.addItem(statusItemLine(
@@ -225,7 +234,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             ))
         } else {
             menu.addItem(statusItemLine(
-                title: "Set Up VM Assets First",
+                title: String(localized: "Set Up VM Assets First"),
                 systemImage: "exclamationmark.triangle"
             ))
         }
@@ -234,43 +243,57 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
         let vmActionItem: NSMenuItem
         if store.runtimeState == .running {
-            vmActionItem = actionItem(title: "Restart VM", action: #selector(startOrRestartVM))
+            vmActionItem = actionItem(
+                title: String(localized: "Restart VM"),
+                action: #selector(startOrRestartVM)
+            )
             vmActionItem.isEnabled = store.canRestartVirtualMachine
         } else {
-            vmActionItem = actionItem(title: "Start VM", action: #selector(startOrRestartVM))
+            vmActionItem = actionItem(
+                title: String(localized: "Start VM"),
+                action: #selector(startOrRestartVM)
+            )
             vmActionItem.isEnabled = store.canStartVirtualMachine
         }
         menu.addItem(vmActionItem)
 
-        let stopItem = actionItem(title: "Stop VM", action: #selector(stopVM))
+        let stopItem = actionItem(title: String(localized: "Stop VM"), action: #selector(stopVM))
         stopItem.isEnabled = store.canStopVirtualMachine
         menu.addItem(stopItem)
 
         menu.addItem(.separator())
         menu.addItem(attachMenuItem())
 
-        let detachItem = actionItem(title: "Detach USB", action: #selector(detachUSB))
+        let detachItem = actionItem(title: String(localized: "Detach USB"), action: #selector(detachUSB))
         detachItem.isEnabled = store.canDetachAccessory
         menu.addItem(detachItem)
 
         menu.addItem(.separator())
 
-        let settingsItem = actionItem(title: "Settings…", action: #selector(showSettings), keyEquivalent: ",")
+        let settingsItem = actionItem(
+            title: String(localized: "Settings…"),
+            action: #selector(showSettings),
+            keyEquivalent: ","
+        )
         settingsItem.keyEquivalentModifierMask = [.command]
         menu.addItem(settingsItem)
 
         menu.addItem(.separator())
-        menu.addItem(actionItem(title: "Quit ThruRNDIS", action: #selector(quit), keyEquivalent: "q"))
+        menu.addItem(actionItem(
+            title: String(localized: "Quit ThruRNDIS"),
+            action: #selector(quit),
+            keyEquivalent: "q"
+        ))
     }
 
     private var usbStatusTitle: String {
         guard let attachedAccessoryID = store.usbSession.attachedAccessoryID else {
-            return "USB: Not attached"
+            return String(localized: "USB: Not attached")
         }
 
         let deviceName = store.usbSession.accessories.first { $0.id == attachedAccessoryID }?.deviceName
-            ?? "USB Device"
-        return "USB: \(deviceName)"
+            ?? String(localized: "USB Device")
+        return String(localized: "USB: \(deviceName)")
     }
 
     private var vmStatusColor: NSColor {
@@ -306,12 +329,17 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     private func attachMenuItem() -> NSMenuItem {
-        let parent = NSMenuItem(title: "Attach USB", action: nil, keyEquivalent: "")
-        let submenu = NSMenu(title: "Attach USB")
+        let attachUSBTitle = String(localized: "Attach USB")
+        let parent = NSMenuItem(title: attachUSBTitle, action: nil, keyEquivalent: "")
+        let submenu = NSMenu(title: attachUSBTitle)
         submenu.autoenablesItems = false
 
         if store.usbSession.accessories.isEmpty {
-            let emptyItem = NSMenuItem(title: "No USB devices", action: nil, keyEquivalent: "")
+            let emptyItem = NSMenuItem(
+                title: String(localized: "No USB devices"),
+                action: nil,
+                keyEquivalent: ""
+            )
             emptyItem.isEnabled = false
             submenu.addItem(emptyItem)
         } else {

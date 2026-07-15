@@ -64,6 +64,7 @@
 		E20000000000000000000005 /* EventLogGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20000000000000000000105 /* EventLogGroup.swift */; };
 		F10000000000000000000001 /* AccessoryAccessOnboarding.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000101 /* AccessoryAccessOnboarding.mp4 */; };
 		F20000000000000000000001 /* VideoPlaybackStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000101 /* VideoPlaybackStore.swift */; };
+		G10000000000000000000001 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = G10000000000000000000101 /* Localizable.xcstrings */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -142,6 +143,7 @@
 		E3865CF719CB3E4197A4D3A9 /* BuildSettings.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = BuildSettings.xcconfig; path = Configuration/BuildSettings.xcconfig; sourceTree = "<group>"; };
 		F10000000000000000000101 /* AccessoryAccessOnboarding.mp4 */ = {isa = PBXFileReference; lastKnownFileType = video.mp4; path = AccessoryAccessOnboarding.mp4; sourceTree = "<group>"; };
 		F20000000000000000000101 /* VideoPlaybackStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoPlaybackStore.swift; sourceTree = "<group>"; };
+		G10000000000000000000101 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -416,6 +418,7 @@
 			isa = PBXGroup;
 			children = (
 				F10000000000000000000101 /* AccessoryAccessOnboarding.mp4 */,
+				G10000000000000000000101 /* Localizable.xcstrings */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -486,6 +489,7 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
+				ko,
 				Base,
 			);
 			mainGroup = 374FD24E24CBADD100890848;
@@ -510,6 +514,7 @@
 				7A0000000000000000000001 /* ThruRNDIS.icon in Resources */,
 				7B0000000000000000000001 /* ThruRNDISMenuBarIcon.svg in Resources */,
 				F10000000000000000000001 /* AccessoryAccessOnboarding.mp4 in Resources */,
+				G10000000000000000000001 /* Localizable.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

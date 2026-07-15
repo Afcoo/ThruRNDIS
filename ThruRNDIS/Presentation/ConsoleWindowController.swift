@@ -14,7 +14,7 @@ final class ConsoleWindowController: NSWindowController {
         let hostingController = NSHostingController(rootView: rootView)
         let window = NSWindow(contentViewController: hostingController)
 
-        window.title = "VM Console"
+        window.title = String(localized: "VM Console")
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
         window.setContentSize(NSSize(width: 960, height: 600))
         window.minSize = NSSize(width: 680, height: 420)

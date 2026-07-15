@@ -89,7 +89,7 @@ struct OnboardingView: View {
         .alert(item: $alert) { alert in
             Alert(
                 title: Text("VM Asset Error"),
-                message: Text(alert.message),
+                message: Text(verbatim: alert.message),
                 dismissButton: .default(Text("OK")) {
                     assetWorkflowCoordinator.clearError()
                 }
@@ -166,7 +166,11 @@ struct OnboardingView: View {
                                 assetWorkflowCoordinator.cancelInstall()
                             }
                         } else {
-                            Button(assetWorkflowCoordinator.hasConfiguredAssets ? "Check & Install Latest" : "Download & Install Latest") {
+                            Button(
+                                assetWorkflowCoordinator.hasConfiguredAssets
+                                    ? String(localized: "Check & Install Latest")
+                                    : String(localized: "Download & Install Latest")
+                            ) {
                                 assetWorkflowCoordinator.installLatest()
                             }
                             .buttonStyle(.borderedProminent)
@@ -181,7 +185,7 @@ struct OnboardingView: View {
                     HStack {
                         Button("Choose Downloaded Assets…") {
                             guard let url = FilePicker.chooseDirectory(
-                                title: "Choose downloaded VM assets",
+                                title: String(localized: "Choose downloaded VM assets"),
                                 initialURL: assetWorkflowCoordinator.selectedFolderURL
                             ) else {
                                 return
@@ -268,8 +272,8 @@ struct OnboardingView: View {
     }
 
     private func onboardingInstruction(
-        _ title: String,
-        detail: String,
+        _ title: LocalizedStringKey,
+        detail: LocalizedStringKey,
         image: String
     ) -> some View {
         HStack(alignment: .top, spacing: 10) {
@@ -313,7 +317,7 @@ struct OnboardingView: View {
         }
     }
 
-    private func onboardingPoint(_ title: String, image: String) -> some View {
+    private func onboardingPoint(_ title: LocalizedStringKey, image: String) -> some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: image)
                 .font(.system(size: 16, weight: .semibold))

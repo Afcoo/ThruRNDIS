@@ -17,4 +17,15 @@ enum VMDisplayState: String {
     case stopped = "Stopped"
     case running = "Running"
     case restarting = "Restarting"
+
+    var localizedName: String {
+        switch self {
+        case .stopped:
+            return String(localized: "Stopped")
+        case .running:
+            return String(localized: "Running")
+        case .restarting:
+            return String(localized: "Restarting")
+        }
+    }
 }

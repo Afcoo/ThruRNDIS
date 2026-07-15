@@ -9,7 +9,7 @@ struct LogTextView: View {
 
     var body: some View {
         ScrollView {
-            Text(text)
+            Text(verbatim: text)
                 .font(.system(.caption, design: .monospaced))
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)

@@ -199,10 +199,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func presentRestartFailure(_ error: Error?) {
         let alert = NSAlert()
         alert.alertStyle = .critical
-        alert.messageText = "ThruRNDIS Could Not Restart"
+        alert.messageText = String(localized: "ThruRNDIS Could Not Restart")
         alert.informativeText = error?.localizedDescription
-            ?? "Settings were reset, but a new ThruRNDIS instance could not be opened."
-        alert.addButton(withTitle: "OK")
+            ?? String(localized: "Settings were reset, but a new ThruRNDIS instance could not be opened.")
+        alert.addButton(withTitle: String(localized: "OK"))
 
         if let window = settingsWindowController?.window {
             alert.beginSheetModal(for: window)

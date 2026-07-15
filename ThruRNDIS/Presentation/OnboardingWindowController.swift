@@ -101,7 +101,7 @@ final class OnboardingWindowController: NSWindowController {
         let hostingController = NSHostingController(rootView: rootView)
         let window = NSWindow(contentViewController: hostingController)
 
-        window.title = "Welcome to ThruRNDIS"
+        window.title = String(localized: "Welcome to ThruRNDIS")
         window.styleMask = [.titled, .closable, .miniaturizable]
         let preferredContentSize = NSSize(
             width: OnboardingWindowLayout.width,

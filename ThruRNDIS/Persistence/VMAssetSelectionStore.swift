@@ -39,8 +39,14 @@ struct VMAssetSelectionStore: VMAssetSelectionStoring {
                   let restoredInitialRamdiskURL else {
                 throw error
             }
-            try resolver.validateRegularFile(restoredKernelURL, label: "Linux kernel")
-            try resolver.validateRegularFile(restoredInitialRamdiskURL, label: "initial ramdisk")
+            try resolver.validateRegularFile(
+                restoredKernelURL,
+                label: String(localized: "Linux kernel")
+            )
+            try resolver.validateRegularFile(
+                restoredInitialRamdiskURL,
+                label: String(localized: "initial ramdisk")
+            )
             contents = VMAssetFolderContents(
                 kernelURL: restoredKernelURL,
                 initialRamdiskURL: restoredInitialRamdiskURL
@@ -55,10 +61,16 @@ struct VMAssetSelectionStore: VMAssetSelectionStoring {
             ?? inferredOverride(restoredInitialRamdiskURL, baseURL: contents.initialRamdiskURL)
 
         if let kernelOverrideURL {
-            try resolver.validateRegularFile(kernelOverrideURL, label: "Linux kernel override")
+            try resolver.validateRegularFile(
+                kernelOverrideURL,
+                label: String(localized: "Linux kernel override")
+            )
         }
         if let initialRamdiskOverrideURL {
-            try resolver.validateRegularFile(initialRamdiskOverrideURL, label: "initial ramdisk override")
+            try resolver.validateRegularFile(
+                initialRamdiskOverrideURL,
+                label: String(localized: "initial ramdisk override")
+            )
         }
 
         let managedRelease = restoredManagedRelease(folderURL: folderURL)
@@ -108,7 +120,10 @@ struct VMAssetSelectionStore: VMAssetSelectionStoring {
 
     func setKernelOverride(_ url: URL?, for selection: VMAssetSelection) throws -> VMAssetSelection {
         if let url {
-            try resolver.validateRegularFile(url, label: "Linux kernel override")
+            try resolver.validateRegularFile(
+                url,
+                label: String(localized: "Linux kernel override")
+            )
         }
         let updated = VMAssetSelection(
             source: selection.source,
@@ -125,7 +140,10 @@ struct VMAssetSelectionStore: VMAssetSelectionStoring {
 
     func setInitialRamdiskOverride(_ url: URL?, for selection: VMAssetSelection) throws -> VMAssetSelection {
         if let url {
-            try resolver.validateRegularFile(url, label: "initial ramdisk override")
+            try resolver.validateRegularFile(
+                url,
+                label: String(localized: "initial ramdisk override")
+            )
         }
         let updated = VMAssetSelection(
             source: selection.source,
@@ -143,8 +161,14 @@ struct VMAssetSelectionStore: VMAssetSelectionStoring {
     func validate(_ selection: VMAssetSelection) throws -> VMAssetBootAssets {
         let kernelURL = selection.effectiveKernelURL.standardizedFileURL
         let initialRamdiskURL = selection.effectiveInitialRamdiskURL.standardizedFileURL
-        try resolver.validateRegularFile(kernelURL, label: "Linux kernel")
-        try resolver.validateRegularFile(initialRamdiskURL, label: "initial ramdisk")
+        try resolver.validateRegularFile(
+            kernelURL,
+            label: String(localized: "Linux kernel")
+        )
+        try resolver.validateRegularFile(
+            initialRamdiskURL,
+            label: String(localized: "initial ramdisk")
+        )
         return VMAssetBootAssets(
             kernelURL: kernelURL,
             initialRamdiskURL: initialRamdiskURL

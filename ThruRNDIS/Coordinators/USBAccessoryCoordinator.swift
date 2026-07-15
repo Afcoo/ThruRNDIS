@@ -137,7 +137,7 @@ final class USBAccessoryCoordinator {
                     }
 
                     connectedAccessories.forEach { self.addAccessory($0) }
-                    self.onStatusMessage?("USB listener registered.")
+                    self.onStatusMessage?(String(localized: "USB listener registered."))
                     self.onEvent?("USB listener registered with \(connectedAccessories.count) existing device(s).")
                     self.notifyStateChanged()
                     completion?()
@@ -238,26 +238,26 @@ final class USBAccessoryCoordinator {
         completion: ((Bool) -> Void)? = nil
     ) {
         guard let virtualMachine else {
-            onStatusMessage?("Start the VM before attaching USB.")
+            onStatusMessage?(String(localized: "Start the VM before attaching USB."))
             completion?(false)
             return
         }
         guard let accessory = accessoryObjects[accessoryID] else {
-            onStatusMessage?("The selected USB accessory is no longer available.")
+            onStatusMessage?(String(localized: "The selected USB accessory is no longer available."))
             completion?(false)
             return
         }
 
         let record = USBAccessoryRecord(accessory: accessory)
         guard record.hasConfigurationDescriptor else {
-            onStatusMessage?("USB descriptor is incomplete.")
+            onStatusMessage?(String(localized: "USB descriptor is incomplete."))
             onEvent?("USB attach not started for registry \(record.registryIDText): AccessoryAccess reported no configuration descriptor. Reconnect the device after enabling USB tethering, then attach when the configuration and interfaces appear.")
             completion?(false)
             return
         }
 
         if let remaining = attachSuppressionRemaining(for: record) {
-            onStatusMessage?("USB attach cooling down.")
+            onStatusMessage?(String(localized: "USB attach cooling down."))
             onEvent?("USB attach not started for registry \(record.registryIDText): retry allowed in \(Self.secondsText(remaining)).")
             completion?(false)
             return
@@ -333,7 +333,7 @@ final class USBAccessoryCoordinator {
                 } else {
                     self.attachedAccessoryID = nil
                     self.attachedDevice = nil
-                    self.onStatusMessage?("USB accessory detached from VM.")
+                    self.onStatusMessage?(String(localized: "USB accessory detached from VM."))
                     self.onEvent?("USB accessory detached from VM by user.")
                 }
                 self.notifyStateChanged()
@@ -410,7 +410,7 @@ final class USBAccessoryCoordinator {
         }
 
         if let vmSessionAccessoryID, vmSessionAccessoryID != registryID {
-            onStatusMessage?("Restart the VM before attaching a different USB accessory.")
+            onStatusMessage?(String(localized: "Restart the VM before attaching a different USB accessory."))
             onEvent?("USB attach skipped for registry \(record.registryIDText): this VM session is reserved for registry \(Self.registryIDText(vmSessionAccessoryID)).")
             completion?(false)
             return
@@ -418,7 +418,7 @@ final class USBAccessoryCoordinator {
 
         guard attachedAccessoryID == nil, attachedDevice == nil else {
             let attachedRegistry = attachedAccessoryID.map(Self.registryIDText) ?? "unknown"
-            onStatusMessage?("Only one USB passthrough accessory is supported per VM session.")
+            onStatusMessage?(String(localized: "Only one USB passthrough accessory is supported per VM session."))
             onEvent?("USB attach skipped for registry \(record.registryIDText): single passthrough device limit is already active with registry \(attachedRegistry).")
             completion?(false)
             return
@@ -445,7 +445,7 @@ final class USBAccessoryCoordinator {
                 pendingAttachAccessoryID = nil
                 pendingAttachToken = nil
                 notifyStateChanged()
-                onStatusMessage?("VM has no USB controller.")
+                onStatusMessage?(String(localized: "VM has no USB controller."))
                 onEvent?("USB attach failed: VM has no USB controller for registry \(record.registryIDText).")
                 completion?(false)
                 return
@@ -477,7 +477,7 @@ final class USBAccessoryCoordinator {
                         self.attachedAccessoryID = registryID
                         self.attachedDevice = device
                         self.vmSessionAccessoryID = registryID
-                        self.onStatusMessage?("USB accessory attached.")
+                        self.onStatusMessage?(String(localized: "USB accessory attached."))
                         self.onEvent?("USB accessory attached: registry \(record.registryIDText).")
                     }
                     self.notifyStateChanged()

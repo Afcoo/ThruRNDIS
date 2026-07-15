@@ -16,21 +16,21 @@ enum VMAssetReleaseServiceError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidResponse:
-            return "GitHub returned an invalid response while checking VM assets."
+            return String(localized: "GitHub returned an invalid response while checking VM assets.")
         case .httpStatus(403):
-            return "GitHub rejected the release request. The unauthenticated API rate limit may have been reached."
+            return String(localized: "GitHub rejected the release request. The unauthenticated API rate limit may have been reached.")
         case .httpStatus(let status):
-            return "GitHub returned HTTP \(status) while checking VM assets."
+            return String(localized: "GitHub returned HTTP \(status) while checking VM assets.")
         case .unavailableRelease:
-            return "GitHub did not return a published VM asset release."
+            return String(localized: "GitHub did not return a published VM asset release.")
         case .missingAsset(let name):
-            return "The latest VM asset release does not contain \(name)."
+            return String(localized: "The latest VM asset release does not contain \(name).")
         case .duplicateAsset(let name):
-            return "The latest VM asset release contains more than one \(name) attachment."
+            return String(localized: "The latest VM asset release contains more than one \(name) attachment.")
         case .invalidAssetURL(let name):
-            return "The latest VM asset release contains an invalid download URL for \(name)."
+            return String(localized: "The latest VM asset release contains an invalid download URL for \(name).")
         case .invalidAssetDigest(let name):
-            return "The latest VM asset release contains an invalid SHA-256 digest for \(name)."
+            return String(localized: "The latest VM asset release contains an invalid SHA-256 digest for \(name).")
         }
     }
 }

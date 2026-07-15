@@ -31,7 +31,7 @@ struct WireGuardSettings: Equatable {
     }
 
     var endpointDisplay: String {
-        endpoint ?? "Waiting for THRURNDIS_WG_ENDPOINT from guest"
+        endpoint ?? String(localized: "Waiting for THRURNDIS_WG_ENDPOINT from guest")
     }
 
     var serverInterfaceAddress: String {

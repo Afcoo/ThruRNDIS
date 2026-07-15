@@ -317,17 +317,17 @@ enum WireGuardConfStoreError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .missingKey(let url):
-            return "WireGuard private key is missing: \(url.path)"
+            return String(localized: "WireGuard private key is missing: \(url.path)")
         case .partialKeyPair(let missingURL):
-            return "WireGuard key pair is incomplete. Restore the missing key without replacing the existing key: \(missingURL.path)"
+            return String(localized: "WireGuard key pair is incomplete. Restore the missing key without replacing the existing key: \(missingURL.path)")
         case .invalidPrivateKey(let label):
-            return "Invalid WireGuard X25519 private key: \(label)."
+            return String(localized: "Invalid WireGuard X25519 private key: \(label).")
         case .couldNotCreateFile(let url, let errorNumber):
-            return "Could not securely create WireGuard file at \(url.path): \(String(cString: strerror(errorNumber)))"
+            return String(localized: "Could not securely create WireGuard file at \(url.path): \(String(cString: strerror(errorNumber)))")
         case .couldNotWriteFile(let url, let errorNumber):
-            return "Could not write WireGuard file at \(url.path): \(String(cString: strerror(errorNumber)))"
+            return String(localized: "Could not write WireGuard file at \(url.path): \(String(cString: strerror(errorNumber)))")
         case .couldNotReplaceFile(let url, let errorNumber):
-            return "Could not atomically replace WireGuard configuration at \(url.path): \(String(cString: strerror(errorNumber)))"
+            return String(localized: "Could not atomically replace WireGuard configuration at \(url.path): \(String(cString: strerror(errorNumber)))")
         }
     }
 }

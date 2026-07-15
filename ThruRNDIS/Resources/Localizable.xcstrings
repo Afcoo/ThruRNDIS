@@ -1,0 +1,2760 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "%@ (%@)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@ (%2$@)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ (%2$@)"
+          }
+        }
+      }
+    },
+    "%@ entitlement missing.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 권한이 없습니다."
+          }
+        }
+      }
+    },
+    "%@ failed while installing VM assets.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM 에셋 설치 중 %@ 명령이 실패했습니다."
+          }
+        }
+      }
+    },
+    "%@ failed while installing VM assets: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@ failed while installing VM assets: %2$@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM 에셋 설치 중 %1$@ 명령이 실패했습니다: %2$@"
+          }
+        }
+      }
+    },
+    "AccessoryAccess Listener": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AccessoryAccess 리스너"
+          }
+        }
+      }
+    },
+    "AccessoryAccess USB": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AccessoryAccess USB"
+          }
+        }
+      }
+    },
+    "Activating the installed VM assets…": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "설치된 VM 에셋을 활성화하는 중…"
+          }
+        }
+      }
+    },
+    "Allow ThruRNDIS in System Settings > General > Login Items.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "시스템 설정 > 일반 > 로그인 항목 및 확장 프로그램에서 ThruRNDIS를 허용하세요."
+          }
+        }
+      }
+    },
+    "App settings reset. Install or select VM assets to continue.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "앱 설정이 재설정되었습니다. 계속하려면 VM 에셋을 설치하거나 선택하세요."
+          }
+        }
+      }
+    },
+    "App settings were reset.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "앱 설정이 재설정되었습니다."
+          }
+        }
+      }
+    },
+    "Asset Overrides": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "에셋 재정의"
+          }
+        }
+      }
+    },
+    "Asset folder": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "에셋 폴더"
+          }
+        }
+      }
+    },
+    "Attach": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "연결"
+          }
+        }
+      }
+    },
+    "Attach Selected": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "선택 항목 연결"
+          }
+        }
+      }
+    },
+    "Attach USB": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "USB 연결"
+          }
+        }
+      }
+    },
+    "Attach USB Device?": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "USB 기기를 연결할까요?"
+          }
+        }
+      }
+    },
+    "Attached": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "연결됨"
+          }
+        }
+      }
+    },
+    "Available devices": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "사용 가능한 기기"
+          }
+        }
+      }
+    },
+    "Back": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "뒤로"
+          }
+        }
+      }
+    },
+    "CPUs": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CPU"
+          }
+        }
+      }
+    },
+    "Cancel": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "취소"
+          }
+        }
+      }
+    },
+    "Check & Install Latest": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "최신 버전 확인 및 설치"
+          }
+        }
+      }
+    },
+    "Checking the latest VM asset release…": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "최신 VM 에셋 릴리스를 확인하는 중…"
+          }
+        }
+      }
+    },
+    "Choose Downloaded Assets…": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다운로드한 에셋 선택…"
+          }
+        }
+      }
+    },
+    "Choose Folder…": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "폴더 선택…"
+          }
+        }
+      }
+    },
+    "Choose Linux kernel override": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "재정의할 Linux 커널 선택"
+          }
+        }
+      }
+    },
+    "Choose downloaded VM assets": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다운로드한 VM 에셋 선택"
+          }
+        }
+      }
+    },
+    "Choose extracted vm_assets folder": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "압축을 푼 vm_assets 폴더 선택"
+          }
+        }
+      }
+    },
+    "Choose initial ramdisk override": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "재정의할 초기 램디스크 선택"
+          }
+        }
+      }
+    },
+    "Choose optional scratch disk image": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "선택적 스크래치 디스크 이미지 선택"
+          }
+        }
+      }
+    },
+    "Choose…": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "선택…"
+          }
+        }
+      }
+    },
+    "Class %@ · Registry %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Class %1$@ · Registry %2$@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "클래스 %1$@ · 레지스트리 %2$@"
+          }
+        }
+      }
+    },
+    "Clear": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "지우기"
+          }
+        }
+      }
+    },
+    "Clear Endpoint": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "엔드포인트 지우기"
+          }
+        }
+      }
+    },
+    "Clear event log": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이벤트 로그 지우기"
+          }
+        }
+      }
+    },
+    "Clear the selected VM asset paths without deleting managed release files.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "관리형 릴리스 파일은 삭제하지 않고 선택한 VM 에셋 경로만 지웁니다."
+          }
+        }
+      }
+    },
+    "Click the USB device icon in the menu bar and choose the tethering device you want to use.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "메뉴 막대에서 USB 기기 아이콘을 클릭하고 사용할 테더링 기기를 선택하세요."
+          }
+        }
+      }
+    },
+    "Connect Your Tethering Device": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "테더링 기기 연결"
+          }
+        }
+      }
+    },
+    "Connect your device": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기기 연결"
+          }
+        }
+      }
+    },
+    "Continue": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "계속"
+          }
+        }
+      }
+    },
+    "Copy": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "복사"
+          }
+        }
+      }
+    },
+    "Could not atomically replace WireGuard configuration at %@: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Could not atomically replace WireGuard configuration at %1$@: %2$@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@에서 WireGuard 구성을 원자적으로 교체할 수 없습니다: %2$@"
+          }
+        }
+      }
+    },
+    "Could not open the WireGuard configuration folder.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard 구성 폴더를 열 수 없습니다."
+          }
+        }
+      }
+    },
+    "Could not remove WireGuard configuration: %@": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard 구성을 제거할 수 없습니다: %@"
+          }
+        }
+      }
+    },
+    "Could not securely create WireGuard file at %@: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Could not securely create WireGuard file at %1$@: %2$@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@에 WireGuard 파일을 안전하게 만들 수 없습니다: %2$@"
+          }
+        }
+      }
+    },
+    "Could not update Launch at Login: %@": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "로그인 시 열기 설정을 업데이트할 수 없습니다: %@"
+          }
+        }
+      }
+    },
+    "Could not write WireGuard file at %@: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Could not write WireGuard file at %1$@: %2$@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@에 WireGuard 파일을 쓸 수 없습니다: %2$@"
+          }
+        }
+      }
+    },
+    "Detach": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "연결 해제"
+          }
+        }
+      }
+    },
+    "Detach USB": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "USB 연결 해제"
+          }
+        }
+      }
+    },
+    "Device connection video unavailable": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기기 연결 동영상을 사용할 수 없음"
+          }
+        }
+      }
+    },
+    "Done": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "완료"
+          }
+        }
+      }
+    },
+    "Download & Install Latest": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "최신 버전 다운로드 및 설치"
+          }
+        }
+      }
+    },
+    "Download and install the VM Assets ThruRNDIS needs.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ThruRNDIS에 필요한 VM 에셋을 다운로드하고 설치하세요."
+          }
+        }
+      }
+    },
+    "Downloaded %@ has an unexpected size (expected %lld bytes, received %lld).": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Downloaded %1$@ has an unexpected size (expected %2$lld bytes, received %3$lld)."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다운로드한 %1$@의 크기가 올바르지 않습니다(예상: %2$lld바이트, 수신: %3$lld바이트)."
+          }
+        }
+      }
+    },
+    "Downloading %@ failed with HTTP %lld.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Downloading %1$@ failed with HTTP %2$lld."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HTTP %2$lld 응답으로 %1$@ 다운로드에 실패했습니다."
+          }
+        }
+      }
+    },
+    "Downloading VM assets… %lld%%": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM 에셋 다운로드 중… %lld%%"
+          }
+        }
+      }
+    },
+    "Entitlement": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "권한"
+          }
+        }
+      }
+    },
+    "Event Log": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이벤트 로그"
+          }
+        }
+      }
+    },
+    "Finish": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "완료"
+          }
+        }
+      }
+    },
+    "Fix the WireGuard configuration error before starting the VM.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM을 시작하기 전에 WireGuard 구성 오류를 해결하세요."
+          }
+        }
+      }
+    },
+    "General": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "일반"
+          }
+        }
+      }
+    },
+    "Generated WireGuard configuration from Application Support keys.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Application Support의 키로 WireGuard 구성을 생성했습니다."
+          }
+        }
+      }
+    },
+    "GitHub did not return a published VM asset release.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub에서 게시된 VM 에셋 릴리스를 찾을 수 없습니다."
+          }
+        }
+      }
+    },
+    "GitHub rejected the release request. The unauthenticated API rate limit may have been reached.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub가 릴리스 요청을 거부했습니다. 인증되지 않은 API 요청 한도에 도달했을 수 있습니다."
+          }
+        }
+      }
+    },
+    "GitHub returned HTTP %lld while checking VM assets.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM 에셋 확인 중 GitHub가 HTTP %lld 응답을 반환했습니다."
+          }
+        }
+      }
+    },
+    "GitHub returned an invalid response while checking VM assets.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM 에셋 확인 중 GitHub에서 잘못된 응답을 반환했습니다."
+          }
+        }
+      }
+    },
+    "Guest shut down.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "게스트가 종료되었습니다."
+          }
+        }
+      }
+    },
+    "Help": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "도움말"
+          }
+        }
+      }
+    },
+    "Host Configuration": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "호스트 구성"
+          }
+        }
+      }
+    },
+    "How to connect a tethering device to ThruRNDIS": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "테더링 기기를 ThruRNDIS에 연결하는 방법"
+          }
+        }
+      }
+    },
+    "Info": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "정보"
+          }
+        }
+      }
+    },
+    "Install or choose valid files to continue.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "계속하려면 올바른 파일을 설치하거나 선택하세요."
+          }
+        }
+      }
+    },
+    "Install or select VM assets to begin.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "시작하려면 VM 에셋을 설치하거나 선택하세요."
+          }
+        }
+      }
+    },
+    "Install or select valid VM assets before finishing onboarding.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "온보딩을 완료하려면 먼저 유효한 VM 에셋을 설치하거나 선택하세요."
+          }
+        }
+      }
+    },
+    "Install or select valid VM assets before starting the USB listener.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "USB 리스너를 시작하기 전에 유효한 VM 에셋을 설치하거나 선택하세요."
+          }
+        }
+      }
+    },
+    "Install the Required Files": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "필수 파일 설치"
+          }
+        }
+      }
+    },
+    "Install the required files in the next step.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다음 단계에서 필요한 파일을 설치하세요."
+          }
+        }
+      }
+    },
+    "Installation cancelled. %@": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "설치가 취소되었습니다. %@"
+          }
+        }
+      }
+    },
+    "Installed and activated VM assets %@.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM 에셋을 설치하고 활성화했습니다: %@"
+          }
+        }
+      }
+    },
+    "Installed version": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "설치된 버전"
+          }
+        }
+      }
+    },
+    "Installing the downloaded VM assets…": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다운로드한 VM 에셋을 설치하는 중…"
+          }
+        }
+      }
+    },
+    "Invalid MAC address: %@": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "잘못된 MAC 주소: %@"
+          }
+        }
+      }
+    },
+    "Invalid WireGuard X25519 private key: %@.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard X25519 개인 키가 잘못되었습니다: %@."
+          }
+        }
+      }
+    },
+    "Invalid WireGuard configuration integer for %@: %lld.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Invalid WireGuard configuration integer for %1$@: %2$lld."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard 구성의 %1$@ 정숫값이 잘못되었습니다: %2$lld."
+          }
+        }
+      }
+    },
+    "Kernel arguments": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "커널 인수"
+          }
+        }
+      }
+    },
+    "Linux kernel": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Linux 커널"
+          }
+        }
+      }
+    },
+    "Linux kernel override": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Linux 커널 재정의"
+          }
+        }
+      }
+    },
+    "Listening": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "감지 중"
+          }
+        }
+      }
+    },
+    "Loading WireGuard configuration from Application Support.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Application Support에서 WireGuard 구성을 불러오는 중입니다."
+          }
+        }
+      }
+    },
+    "Login item status is unavailable.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "로그인 항목 상태를 확인할 수 없습니다."
+          }
+        }
+      }
+    },
+    "MIT License": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MIT 라이선스"
+          }
+        }
+      }
+    },
+    "Managed release": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "관리형 릴리스"
+          }
+        }
+      }
+    },
+    "Manually selected VM assets are ready.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "직접 선택한 VM 에셋을 사용할 준비가 되었습니다."
+          }
+        }
+      }
+    },
+    "Memory": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "메모리"
+          }
+        }
+      }
+    },
+    "Missing WireGuard configuration value: %@.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard 구성 값이 없습니다: %@."
+          }
+        }
+      }
+    },
+    "New devices require approval, and only one USB device can be attached during a VM session.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "새 기기는 승인이 필요하며, 한 VM 세션에는 USB 기기 한 대만 연결할 수 있습니다."
+          }
+        }
+      }
+    },
+    "No Image-* kernel was found in the VM asset folder: %@": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM 에셋 폴더에서 Image-* 커널을 찾을 수 없습니다: %@"
+          }
+        }
+      }
+    },
+    "No USB devices": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "USB 기기 없음"
+          }
+        }
+      }
+    },
+    "No events.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이벤트가 없습니다."
+          }
+        }
+      }
+    },
+    "No initramfs-thrurndis-* ramdisk was found in the VM asset folder: %@": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM 에셋 폴더에서 initramfs-thrurndis-* 램디스크를 찾을 수 없습니다: %@"
+          }
+        }
+      }
+    },
+    "No managed VM asset release is installed.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "설치된 관리형 VM 에셋 릴리스가 없습니다."
+          }
+        }
+      }
+    },
+    "None": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "없음"
+          }
+        }
+      }
+    },
+    "Not Now": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "나중에"
+          }
+        }
+      }
+    },
+    "Not selected": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "선택 안 됨"
+          }
+        }
+      }
+    },
+    "OK": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "확인"
+          }
+        }
+      }
+    },
+    "Only one USB passthrough accessory is supported per VM session.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM 세션마다 하나의 USB 패스스루 액세서리만 지원됩니다."
+          }
+        }
+      }
+    },
+    "Open Config Folder": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "구성 폴더 열기"
+          }
+        }
+      }
+    },
+    "Open Login Items Settings": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "‘로그인 항목 및 확장 프로그램’ 설정 열기"
+          }
+        }
+      }
+    },
+    "Open Onboarding": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "온보딩 열기"
+          }
+        }
+      }
+    },
+    "Open Source Acknowledgements": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "오픈 소스 고지"
+          }
+        }
+      }
+    },
+    "Open ThruRNDIS at Login": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "로그인 시 ThruRNDIS 열기"
+          }
+        }
+      }
+    },
+    "Open VM Console…": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM 콘솔 열기…"
+          }
+        }
+      }
+    },
+    "Open Virtual Machine Accessories": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "가상 머신 액세서리 열기"
+          }
+        }
+      }
+    },
+    "Opened the WireGuard configuration folder.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard 구성 폴더를 열었습니다."
+          }
+        }
+      }
+    },
+    "Optional Storage": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "선택적 저장 공간"
+          }
+        }
+      }
+    },
+    "Preparing device connection video…": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기기 연결 동영상 준비 중…"
+          }
+        }
+      }
+    },
+    "Preparing video…": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "동영상 준비 중…"
+          }
+        }
+      }
+    },
+    "Project Website": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "프로젝트 웹사이트"
+          }
+        }
+      }
+    },
+    "Quit ThruRNDIS": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ThruRNDIS 종료"
+          }
+        }
+      }
+    },
+    "Refusing to modify a VM asset path outside managed storage: %@": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "관리형 저장소 외부의 VM 에셋 경로는 변경할 수 없습니다: %@"
+          }
+        }
+      }
+    },
+    "Release %lld": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "릴리스 %lld"
+          }
+        }
+      }
+    },
+    "Reload": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다시 불러오기"
+          }
+        }
+      }
+    },
+    "Replace & Restart": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "교체 후 다시 시작"
+          }
+        }
+      }
+    },
+    "Replace USB Device?": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "USB 기기를 교체할까요?"
+          }
+        }
+      }
+    },
+    "Replay": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다시 재생"
+          }
+        }
+      }
+    },
+    "Replay device connection video": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기기 연결 동영상 다시 재생"
+          }
+        }
+      }
+    },
+    "Replay video": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "동영상 다시 재생"
+          }
+        }
+      }
+    },
+    "Reset": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "재설정"
+          }
+        }
+      }
+    },
+    "Reset All Settings?": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "모든 설정을 재설정하시겠습니까?"
+          }
+        }
+      }
+    },
+    "Reset All Settings…": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "모든 설정 재설정…"
+          }
+        }
+      }
+    },
+    "Reset and Restart": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "재설정 후 다시 시작"
+          }
+        }
+      }
+    },
+    "Restart": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다시 시작"
+          }
+        }
+      }
+    },
+    "Restart Onboarding…": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "온보딩 다시 시작…"
+          }
+        }
+      }
+    },
+    "Restart VM": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM 다시 시작"
+          }
+        }
+      }
+    },
+    "Restart the VM before attaching a different USB accessory.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다른 USB 액세서리를 연결하기 전에 VM을 다시 시작하세요."
+          }
+        }
+      }
+    },
+    "Restarting": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다시 시작 중"
+          }
+        }
+      }
+    },
+    "Restarting VM.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM을 다시 시작하는 중입니다."
+          }
+        }
+      }
+    },
+    "Running": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "실행 중"
+          }
+        }
+      }
+    },
+    "Runtime": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "런타임"
+          }
+        }
+      }
+    },
+    "SHA256SUMS contains more than one entry for %@.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SHA256SUMS에 %@ 항목이 두 개 이상 있습니다."
+          }
+        }
+      }
+    },
+    "SHA256SUMS does not contain an entry for %@.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SHA256SUMS에 %@ 항목이 없습니다."
+          }
+        }
+      }
+    },
+    "SHA256SUMS is malformed.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SHA256SUMS 형식이 잘못되었습니다."
+          }
+        }
+      }
+    },
+    "Save WireGuard Configuration": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard 구성 저장"
+          }
+        }
+      }
+    },
+    "Saved asset selections, VM runtime preferences, onboarding state, and Launch at Login will be reset. Managed VM asset files will be preserved.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "저장된 에셋 선택, VM 런타임 설정, 온보딩 상태 및 ‘로그인 시 열기’ 설정이 재설정됩니다. 관리형 VM 에셋 파일은 유지됩니다."
+          }
+        }
+      }
+    },
+    "Save…": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "저장…"
+          }
+        }
+      }
+    },
+    "Scratch disk": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "스크래치 디스크"
+          }
+        }
+      }
+    },
+    "Scratch disk must be a writable raw disk image, not ISO media: %@": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "스크래치 디스크는 쓰기 가능한 raw 디스크 이미지여야 하며 ISO 미디어는 사용할 수 없습니다: %@"
+          }
+        }
+      }
+    },
+    "Select a USB accessory.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "USB 액세서리를 선택하세요."
+          }
+        }
+      }
+    },
+    "Select or install VM assets first.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "먼저 VM 에셋을 선택하거나 설치하세요."
+          }
+        }
+      }
+    },
+    "Select “Use with ThruRNDIS,” then choose “Attach” when ThruRNDIS asks.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“ThruRNDIS에서 사용”을 선택한 다음, ThruRNDIS가 묻는 메시지에서 “연결”을 선택하세요."
+          }
+        }
+      }
+    },
+    "Selected VM asset path is not a folder: %@": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "선택한 VM 에셋 경로가 폴더가 아닙니다: %@"
+          }
+        }
+      }
+    },
+    "Set Up VM Assets First": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "먼저 VM 에셋 설정"
+          }
+        }
+      }
+    },
+    "Set up ThruRNDIS once, then use the menu bar whenever you want to connect a USB tethering device.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ThruRNDIS를 한 번 설정한 뒤, USB 테더링 기기를 연결할 때마다 메뉴 막대에서 사용하세요."
+          }
+        }
+      }
+    },
+    "Settings reset, but Launch at Login could not be disabled: %@": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "설정은 재설정되었지만 로그인 시 열기를 비활성화할 수 없습니다: %@"
+          }
+        }
+      }
+    },
+    "Settings were reset, but a new ThruRNDIS instance could not be opened.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "설정은 재설정되었지만 새 ThruRNDIS 앱을 열 수 없습니다."
+          }
+        }
+      }
+    },
+    "Settings…": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "설정…"
+          }
+        }
+      }
+    },
+    "Start": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "시작"
+          }
+        }
+      }
+    },
+    "Start VM": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM 시작"
+          }
+        }
+      }
+    },
+    "Start the VM before attaching USB.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "USB를 연결하기 전에 VM을 시작하세요."
+          }
+        }
+      }
+    },
+    "Starting VM.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM을 시작하는 중입니다."
+          }
+        }
+      }
+    },
+    "Status": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "상태"
+          }
+        }
+      }
+    },
+    "Stop": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "중지"
+          }
+        }
+      }
+    },
+    "Stop VM": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM 중지"
+          }
+        }
+      }
+    },
+    "Stop the VM before resetting app settings.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "앱 설정을 재설정하기 전에 VM을 중지하세요."
+          }
+        }
+      }
+    },
+    "Stopped": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "중지됨"
+          }
+        }
+      }
+    },
+    "Stopping VM.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM을 중지하는 중입니다."
+          }
+        }
+      }
+    },
+    "SwiftTerm": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SwiftTerm"
+          }
+        }
+      }
+    },
+    "The USB accessory became unavailable before it could be attached.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "연결하기 전에 USB 액세서리를 사용할 수 없게 되었습니다."
+          }
+        }
+      }
+    },
+    "The VM asset archive contains a duplicate path: %@": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM 에셋 아카이브에 중복된 경로가 있습니다: %@"
+          }
+        }
+      }
+    },
+    "The VM asset archive contains a symbolic link: %@": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM 에셋 아카이브에 심볼릭 링크가 있습니다: %@"
+          }
+        }
+      }
+    },
+    "The VM asset archive contains an unexpected top-level path: %@": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM 에셋 아카이브에 예상하지 못한 최상위 경로가 있습니다: %@"
+          }
+        }
+      }
+    },
+    "The VM asset archive contains an unsafe path: %@": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM 에셋 아카이브에 안전하지 않은 경로가 있습니다: %@"
+          }
+        }
+      }
+    },
+    "The VM asset checksum does not match (expected %@, calculated %@).": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "The VM asset checksum does not match (expected %1$@, calculated %2$@)."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM 에셋 체크섬이 일치하지 않습니다(예상: %1$@, 계산: %2$@)."
+          }
+        }
+      }
+    },
+    "The VM did not stop cleanly. Retry Stop before attaching a USB accessory.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM이 정상적으로 중지되지 않았습니다. USB 액세서리를 연결하기 전에 VM 중지를 다시 시도하세요."
+          }
+        }
+      }
+    },
+    "The download response for %@ was invalid.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@의 다운로드 응답이 올바르지 않습니다."
+          }
+        }
+      }
+    },
+    "The installed VM asset release is incomplete or damaged: %@": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "설치된 VM 에셋 릴리스가 불완전하거나 손상되었습니다: %@"
+          }
+        }
+      }
+    },
+    "The latest VM asset release contains an invalid SHA-256 digest for %@.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "최신 VM 에셋 릴리스에 포함된 %@의 SHA-256 다이제스트가 잘못되었습니다."
+          }
+        }
+      }
+    },
+    "The latest VM asset release contains an invalid download URL for %@.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "최신 VM 에셋 릴리스에 포함된 %@의 다운로드 URL이 잘못되었습니다."
+          }
+        }
+      }
+    },
+    "The latest VM asset release contains more than one %@ attachment.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "최신 VM 에셋 릴리스에 %@ 첨부 파일이 두 개 이상 있습니다."
+          }
+        }
+      }
+    },
+    "The latest VM asset release does not contain %@.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "최신 VM 에셋 릴리스에 %@ 첨부 파일이 없습니다."
+          }
+        }
+      }
+    },
+    "The login item could not be found. Run ThruRNDIS from its app bundle.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "로그인 항목을 찾을 수 없습니다. ThruRNDIS를 앱 번들에서 실행하세요."
+          }
+        }
+      }
+    },
+    "The selected %@ is not a readable regular file: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "The selected %1$@ is not a readable regular file: %2$@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "선택한 %1$@ 파일은 읽을 수 있는 일반 파일이 아닙니다: %2$@"
+          }
+        }
+      }
+    },
+    "The selected USB accessory is already attached.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "선택한 USB 액세서리가 이미 연결되어 있습니다."
+          }
+        }
+      }
+    },
+    "The selected USB accessory is no longer available.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "선택한 USB 액세서리를 더 이상 사용할 수 없습니다."
+          }
+        }
+      }
+    },
+    "ThruRNDIS": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ThruRNDIS"
+          }
+        }
+      }
+    },
+    "ThruRNDIS Could Not Restart": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ThruRNDIS를 다시 시작할 수 없음"
+          }
+        }
+      }
+    },
+    "ThruRNDIS Settings": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ThruRNDIS 설정"
+          }
+        }
+      }
+    },
+    "ThruRNDIS Will Restart": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ThruRNDIS가 다시 시작됩니다"
+          }
+        }
+      }
+    },
+    "ThruRNDIS initramfs": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ThruRNDIS initramfs"
+          }
+        }
+      }
+    },
+    "ThruRNDIS is ready to continue.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다음 단계로 진행할 준비가 되었습니다."
+          }
+        }
+      }
+    },
+    "ThruRNDIS status": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ThruRNDIS 상태"
+          }
+        }
+      }
+    },
+    "ThruRNDIS will not open automatically at login.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ThruRNDIS는 로그인 시 자동으로 열리지 않습니다."
+          }
+        }
+      }
+    },
+    "ThruRNDIS will open automatically when you log in.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ThruRNDIS는 로그인 시 자동으로 열립니다."
+          }
+        }
+      }
+    },
+    "ThruRNDIS will restart immediately after resetting. Onboarding will appear again; preserved managed VM assets can be selected without downloading them again.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "재설정 후 ThruRNDIS가 즉시 다시 시작됩니다. 온보딩이 다시 표시되며, 보존된 관리형 VM 에셋은 다시 다운로드하지 않고 선택할 수 있습니다."
+          }
+        }
+      }
+    },
+    "ThruRNDIS — VM %@, %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "ThruRNDIS — VM %1$@, %2$@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ThruRNDIS — VM %1$@, %2$@"
+          }
+        }
+      }
+    },
+    "Turn on USB tethering and connect your device to this Mac.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "USB 테더링을 켠 다음 기기를 이 Mac에 연결하세요."
+          }
+        }
+      }
+    },
+    "Turn on USB tethering, then connect the device to this Mac with USB.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "USB 테더링을 켠 다음, USB 케이블로 기기를 이 Mac에 연결하세요."
+          }
+        }
+      }
+    },
+    "USB Device": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "USB 기기"
+          }
+        }
+      }
+    },
+    "USB Devices": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "USB 기기"
+          }
+        }
+      }
+    },
+    "USB accessory attached.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "USB 액세서리가 연결되었습니다."
+          }
+        }
+      }
+    },
+    "USB accessory detached from VM.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM에서 USB 액세서리 연결이 해제되었습니다."
+          }
+        }
+      }
+    },
+    "USB attach cooling down.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "USB 연결을 다시 시도할 때까지 기다리는 중입니다."
+          }
+        }
+      }
+    },
+    "USB descriptor is incomplete.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "USB 설명자 정보가 완전하지 않습니다."
+          }
+        }
+      }
+    },
+    "USB device %@ is attached. ThruRNDIS will detach it if needed, restart the VM, and attach %@. Continue?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "USB device %1$@ is attached. ThruRNDIS will detach it if needed, restart the VM, and attach %2$@. Continue?"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "연결된 USB 기기: %1$@. 필요한 경우 ThruRNDIS가 연결을 해제하고 VM을 다시 시작한 후 %2$@ 기기를 연결합니다. 계속할까요?"
+          }
+        }
+      }
+    },
+    "USB device %@ is available to ThruRNDIS. Start the VM if needed and attach this device?": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ThruRNDIS에서 사용할 수 있는 USB 기기: %@. 필요한 경우 VM을 시작하고 이 기기를 연결할까요?"
+          }
+        }
+      }
+    },
+    "USB device %@ is ready, but VM assets have not been configured. Open onboarding to install the latest release or select an extracted vm_assets folder.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "USB 기기 %@ 준비가 완료되었지만 VM 에셋이 구성되지 않았습니다. 온보딩을 열어 최신 릴리스를 설치하거나 압축을 푼 vm_assets 폴더를 선택하세요."
+          }
+        }
+      }
+    },
+    "USB device %@ was already used in this VM session. ThruRNDIS will detach it if needed, restart the VM, and attach %@. Continue?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "USB device %1$@ was already used in this VM session. ThruRNDIS will detach it if needed, restart the VM, and attach %2$@. Continue?"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 VM 세션에서 이미 사용한 USB 기기: %1$@. 필요한 경우 ThruRNDIS가 연결을 해제하고 VM을 다시 시작한 후 %2$@ 기기를 연결합니다. 계속할까요?"
+          }
+        }
+      }
+    },
+    "USB listener registered.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "USB 리스너가 등록되었습니다."
+          }
+        }
+      }
+    },
+    "USB monitoring is unavailable in this unsigned build.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서명되지 않은 빌드에서는 USB 모니터링을 사용할 수 없습니다."
+          }
+        }
+      }
+    },
+    "USB target disconnected; VM restart cancelled.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "USB 대상의 연결이 끊겨 VM 다시 시작이 취소되었습니다."
+          }
+        }
+      }
+    },
+    "USB: %@": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "USB: %@"
+          }
+        }
+      }
+    },
+    "USB: Not attached": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "USB: 연결 안 됨"
+          }
+        }
+      }
+    },
+    "Unknown": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "알 수 없음"
+          }
+        }
+      }
+    },
+    "Unknown VID:PID": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "알 수 없는 VID:PID"
+          }
+        }
+      }
+    },
+    "Use Installed": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "설치된 항목 사용"
+          }
+        }
+      }
+    },
+    "Use Installed Assets": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "설치된 에셋 사용"
+          }
+        }
+      }
+    },
+    "Use Virtual Machine Accessories in the menu bar to connect the device to ThruRNDIS.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "메뉴 막대의 가상 머신 액세서리에서 기기를 ThruRNDIS에 연결하세요."
+          }
+        }
+      }
+    },
+    "Use it with ThruRNDIS": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ThruRNDIS에서 사용"
+          }
+        }
+      }
+    },
+    "Use the macOS menu bar to make your USB tethering device available to ThruRNDIS.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS 메뉴 막대를 사용하여 USB 테더링 기기를 ThruRNDIS에 연결하세요."
+          }
+        }
+      }
+    },
+    "Using manually selected files": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "직접 선택한 파일 사용 중"
+          }
+        }
+      }
+    },
+    "VM Asset Error": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM 에셋 오류"
+          }
+        }
+      }
+    },
+    "VM Asset Releases": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM 에셋 릴리스"
+          }
+        }
+      }
+    },
+    "VM Assets": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM 에셋"
+          }
+        }
+      }
+    },
+    "VM Assets Required": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM 에셋이 필요합니다"
+          }
+        }
+      }
+    },
+    "VM Console": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM 콘솔"
+          }
+        }
+      }
+    },
+    "VM assets %@ are already installed and ready.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM 에셋 설치가 이미 완료되어 사용할 수 있습니다: %@"
+          }
+        }
+      }
+    },
+    "VM assets %@ are ready.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM 에셋 준비가 완료되었습니다: %@"
+          }
+        }
+      }
+    },
+    "VM assets are not selected.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM 에셋이 선택되지 않았습니다."
+          }
+        }
+      }
+    },
+    "VM has no USB controller.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM에 USB 컨트롤러가 없습니다."
+          }
+        }
+      }
+    },
+    "VM running.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM이 실행 중입니다."
+          }
+        }
+      }
+    },
+    "VM serial terminal": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM 직렬 터미널"
+          }
+        }
+      }
+    },
+    "VM stopped for restart.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다시 시작하기 위해 VM을 중지했습니다."
+          }
+        }
+      }
+    },
+    "VM stopped.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM이 중지되었습니다."
+          }
+        }
+      }
+    },
+    "VM: %@": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM: %@"
+          }
+        }
+      }
+    },
+    "VT100/Xterm terminal emulator used by the VM console.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM 콘솔에서 사용하는 VT100/Xterm 터미널 에뮬레이터입니다."
+          }
+        }
+      }
+    },
+    "VT100/Xterm terminal emulator · MIT License": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VT100/Xterm 터미널 에뮬레이터 · MIT 라이선스"
+          }
+        }
+      }
+    },
+    "Verifying the downloaded VM assets…": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다운로드한 VM 에셋을 검증하는 중…"
+          }
+        }
+      }
+    },
+    "Version": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "버전"
+          }
+        }
+      }
+    },
+    "Video unavailable": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "동영상을 사용할 수 없음"
+          }
+        }
+      }
+    },
+    "View VM Asset Release": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM 에셋 릴리스 보기"
+          }
+        }
+      }
+    },
+    "Virtual Machine": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "가상 머신"
+          }
+        }
+      }
+    },
+    "Virtualization": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Virtualization"
+          }
+        }
+      }
+    },
+    "Wait for THRURNDIS_WG_ENDPOINT before copying the host configuration.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "THRURNDIS_WG_ENDPOINT를 받을 때까지 기다린 후 호스트 구성을 복사하세요."
+          }
+        }
+      }
+    },
+    "Wait for THRURNDIS_WG_ENDPOINT before saving the host configuration.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "THRURNDIS_WG_ENDPOINT를 받을 때까지 기다린 후 호스트 구성을 저장하세요."
+          }
+        }
+      }
+    },
+    "Wait for VM asset installation to finish before attaching USB.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "USB를 연결하기 전에 VM 에셋 설치가 끝날 때까지 기다리세요."
+          }
+        }
+      }
+    },
+    "Wait for VM asset installation to finish before starting the USB listener.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "USB 리스너를 시작하기 전에 VM 에셋 설치가 끝날 때까지 기다리세요."
+          }
+        }
+      }
+    },
+    "Wait for VM asset installation to finish before starting the VM.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM을 시작하기 전에 VM 에셋 설치가 끝날 때까지 기다리세요."
+          }
+        }
+      }
+    },
+    "Wait for the current USB attachment workflow before reloading the listener.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "USB 리스너를 다시 불러오기 전에 현재 USB 연결 작업이 끝날 때까지 기다리세요."
+          }
+        }
+      }
+    },
+    "Wait for the current USB attachment workflow before stopping the listener.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "USB 리스너를 중지하기 전에 현재 USB 연결 작업이 끝날 때까지 기다리세요."
+          }
+        }
+      }
+    },
+    "Wait for the current USB attachment workflow to finish.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "현재 USB 연결 작업이 끝날 때까지 기다리세요."
+          }
+        }
+      }
+    },
+    "Wait for the current VM asset operation to finish.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "현재 VM 에셋 작업이 끝날 때까지 기다리세요."
+          }
+        }
+      }
+    },
+    "Wait for the current VM transition to finish.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "현재 VM 전환이 끝날 때까지 기다리세요."
+          }
+        }
+      }
+    },
+    "Waiting for THRURNDIS_WG_ENDPOINT from guest": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "게스트의 THRURNDIS_WG_ENDPOINT를 기다리는 중"
+          }
+        }
+      }
+    },
+    "Waiting for THRURNDIS_WG_ENDPOINT from guest.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "게스트의 THRURNDIS_WG_ENDPOINT를 기다리는 중입니다."
+          }
+        }
+      }
+    },
+    "Welcome to ThruRNDIS": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ThruRNDIS에 오신 것을 환영합니다"
+          }
+        }
+      }
+    },
+    "What are VM Assets": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VM 에셋이란?"
+          }
+        }
+      }
+    },
+    "WireGuard": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard"
+          }
+        }
+      }
+    },
+    "WireGuard configuration folder was not found.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard 구성 폴더를 찾을 수 없습니다."
+          }
+        }
+      }
+    },
+    "WireGuard configuration is ready.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard 구성이 준비되었습니다."
+          }
+        }
+      }
+    },
+    "WireGuard configuration removed; new keys will be created after restart.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard 구성이 제거되었습니다. 다시 시작하면 새 키가 생성됩니다."
+          }
+        }
+      }
+    },
+    "WireGuard guest address discovered: %@.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard 게스트 주소를 확인했습니다: %@."
+          }
+        }
+      }
+    },
+    "WireGuard host configuration copied.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard 호스트 구성을 복사했습니다."
+          }
+        }
+      }
+    },
+    "WireGuard host configuration saved.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard 호스트 구성을 저장했습니다."
+          }
+        }
+      }
+    },
+    "WireGuard key pair is incomplete. Restore the missing key without replacing the existing key: %@": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard 키 쌍이 불완전합니다. 기존 키를 교체하지 말고 누락된 키를 복원하세요: %@"
+          }
+        }
+      }
+    },
+    "WireGuard private key is missing: %@": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard 개인 키가 없습니다: %@"
+          }
+        }
+      }
+    },
+    "initial ramdisk": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "초기 램디스크"
+          }
+        }
+      }
+    },
+    "initial ramdisk override": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "초기 램디스크 재정의"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

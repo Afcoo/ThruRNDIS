@@ -246,7 +246,8 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
                 finishOperation(operationID)
                 finishSuccessfully(
                     release: installed,
-                    message: "VM assets \(installed.displayName) are already installed and ready."
+                    message: String(localized: "VM assets \(installed.displayName) are already installed and ready."),
+                    eventMessage: "VM assets \(installed.displayName) are already installed and ready."
                 )
                 return
             }
@@ -304,7 +305,8 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
             finishOperation(operationID)
             finishSuccessfully(
                 release: installed,
-                message: "Installed and activated VM assets \(installed.displayName)."
+                message: String(localized: "Installed and activated VM assets \(installed.displayName)."),
+                eventMessage: "Installed and activated VM assets \(installed.displayName)."
             )
         } catch {
             guard self.operationID == operationID else {
@@ -321,7 +323,7 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
                 finishOperation(operationID)
                 errorMessage = nil
                 installState = currentSelection.map {
-                    .ready(message: "Installation cancelled. \(readyMessage(for: $0))")
+                    .ready(message: String(localized: "Installation cancelled. \(readyMessage(for: $0))"))
                 } ?? .idle
                 onEvent?("VM asset installation cancelled.")
                 return
@@ -353,11 +355,12 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
 
     private func finishSuccessfully(
         release: InstalledVMAssetRelease,
-        message: String
+        message: String,
+        eventMessage: String
     ) {
         errorMessage = nil
         installState = .ready(message: message)
-        onEvent?(message)
+        onEvent?(eventMessage)
     }
 
     private func finishOperation(_ operationID: UUID) {
@@ -413,9 +416,9 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
 
     private func readyMessage(for selection: VMAssetSelection) -> String {
         if let release = selection.managedRelease {
-            return "VM assets \(release.displayName) are ready."
+            return String(localized: "VM assets \(release.displayName) are ready.")
         }
-        return "Manually selected VM assets are ready."
+        return String(localized: "Manually selected VM assets are ready.")
     }
 }
 
@@ -427,11 +430,11 @@ enum VMAssetWorkflowCoordinatorError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .noSelection:
-            return "Select or install VM assets first."
+            return String(localized: "Select or install VM assets first.")
         case .noInstalledRelease:
-            return "No managed VM asset release is installed."
+            return String(localized: "No managed VM asset release is installed.")
         case .operationInProgress:
-            return "Wait for the current VM asset operation to finish."
+            return String(localized: "Wait for the current VM asset operation to finish.")
         }
     }
 }

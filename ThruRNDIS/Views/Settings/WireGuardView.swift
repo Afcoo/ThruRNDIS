@@ -16,7 +16,7 @@ struct WireGuardView: View {
 
             Section("Host Configuration") {
                 ScrollView([.horizontal, .vertical]) {
-                    Text(store.wireGuardHostConfiguration)
+                    Text(verbatim: store.wireGuardHostConfiguration)
                         .font(.system(.body, design: .monospaced))
                         .textSelection(.enabled)
                         .fixedSize(horizontal: true, vertical: false)
