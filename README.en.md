@@ -50,9 +50,6 @@ macOS connects to the VM over WireGuard and sends traffic to it. The VM forwards
 1. Download the app from the [latest ThruRNDIS release](https://github.com/Afcoo/ThruRNDIS/releases/latest).
 2. Unzip it, move `ThruRNDIS.app` to `/Applications`, and launch it. ThruRNDIS runs in the menu bar rather than the Dock.
 
-> [!NOTE]
-> If macOS blocks the app with a warning that the developer cannot be verified, go to `System Settings → Privacy & Security`, set `Allow apps downloaded from` to `App Store and identified developers`, then open the app again and click `Open Anyway`.
-
 ---
 
 ### VM Assets
