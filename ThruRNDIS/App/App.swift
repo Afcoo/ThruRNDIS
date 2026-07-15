@@ -23,7 +23,51 @@ enum App {
         let appDelegate = AppDelegate()
 
         application.delegate = appDelegate
+        application.mainMenu = makeMainMenu(for: application)
         application.run()
+    }
+
+    private static func makeMainMenu(for application: NSApplication) -> NSMenu {
+        let mainMenu = NSMenu()
+
+        let applicationMenuItem = NSMenuItem(
+            title: "ThruRNDIS",
+            action: nil,
+            keyEquivalent: ""
+        )
+        let applicationMenu = NSMenu(title: "ThruRNDIS")
+        applicationMenuItem.submenu = applicationMenu
+        mainMenu.addItem(applicationMenuItem)
+
+        let quitItem = NSMenuItem(
+            title: String(localized: "Quit ThruRNDIS"),
+            action: #selector(NSApplication.terminate(_:)),
+            keyEquivalent: "q"
+        )
+        quitItem.keyEquivalentModifierMask = [.command]
+        quitItem.target = application
+        applicationMenu.addItem(quitItem)
+
+        let fileTitle = String(localized: "File")
+        let fileMenuItem = NSMenuItem(
+            title: fileTitle,
+            action: nil,
+            keyEquivalent: ""
+        )
+        let fileMenu = NSMenu(title: fileTitle)
+        fileMenuItem.submenu = fileMenu
+        mainMenu.addItem(fileMenuItem)
+
+        let closeWindowItem = NSMenuItem(
+            title: String(localized: "Close Window"),
+            action: #selector(NSWindow.performClose(_:)),
+            keyEquivalent: "w"
+        )
+        closeWindowItem.keyEquivalentModifierMask = [.command]
+        closeWindowItem.target = nil
+        fileMenu.addItem(closeWindowItem)
+
+        return mainMenu
     }
 }
 

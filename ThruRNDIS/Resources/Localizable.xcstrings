@@ -379,6 +379,16 @@
         }
       }
     },
+    "Close Window": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "창 닫기"
+          }
+        }
+      }
+    },
     "Click the USB device icon in the menu bar and choose the tethering device you want to use.": {
       "localizations": {
         "ko": {
@@ -625,6 +635,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "이벤트 로그"
+          }
+        }
+      }
+    },
+    "File": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "파일"
           }
         }
       }
