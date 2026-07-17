@@ -738,7 +738,7 @@ final class TetheringStore: ObservableObject {
 
     @discardableResult
     func sendConsoleBytes(_ data: Data) -> Bool {
-        vmCoordinator.sendConsoleBytes(data)
+        return vmCoordinator.sendConsoleBytes(data)
     }
 
     func setLaunchAtLoginEnabled(_ isEnabled: Bool) {

@@ -30,13 +30,6 @@ struct WireGuardConfElements: Equatable {
     )
 }
 
-struct WireGuardKeyMaterial: Equatable {
-    let serverPrivateKey: String
-    let serverPublicKey: String
-    let clientPrivateKey: String
-    let clientPublicKey: String
-}
-
 struct WireGuardConfBuilder {
     let elements: WireGuardConfElements
 
@@ -117,27 +110,6 @@ struct WireGuardConfBuilder {
         Endpoint = \(resolvedEndpoint)
         PersistentKeepalive = \(elements.persistentKeepalive)
         """
-    }
-
-    func settings(
-        keyMaterial: WireGuardKeyMaterial? = nil,
-        endpoint: String? = nil
-    ) -> WireGuardSettings {
-        WireGuardSettings(
-            serverPrivateKey: keyMaterial?.serverPrivateKey ?? "",
-            serverPublicKey: keyMaterial?.serverPublicKey ?? "",
-            clientPrivateKey: keyMaterial?.clientPrivateKey ?? "",
-            clientPublicKey: keyMaterial?.clientPublicKey ?? "",
-            endpoint: endpoint,
-            serverAddress: elements.serverAddress,
-            hostTunnelAddress: elements.clientAddress,
-            hostPeerAllowedIP: elements.serverPeerAllowedIPs,
-            listenPort: elements.listenPort,
-            mtu: elements.clientMTU,
-            dnsServers: elements.dnsServers,
-            persistentKeepalive: elements.persistentKeepalive,
-            allowedIPs: elements.clientAllowedIPs
-        )
     }
 
     private func requireValue(_ value: String, field: String) throws {

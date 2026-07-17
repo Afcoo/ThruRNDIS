@@ -24,7 +24,7 @@
 		8B000000000000000000000F /* WireGuardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B000000000000000000010F /* WireGuardView.swift */; };
 		8B0000000000000000000012 /* RuntimeEntitlements.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000000000000000000112 /* RuntimeEntitlements.swift */; };
 		8E0000000000000000000001 /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = 8E0000000000000000000102 /* SwiftTerm */; };
-		8F0000000000000000000001 /* WireGuardSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F0000000000000000000101 /* WireGuardSettings.swift */; };
+		8F0000000000000000000001 /* WireGuardKeyMaterial.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F0000000000000000000101 /* WireGuardKeyMaterial.swift */; };
 		8F0000000000000000000002 /* WireGuardConfBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F0000000000000000000102 /* WireGuardConfBuilder.swift */; };
 		8F0000000000000000000003 /* VMCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F0000000000000000000103 /* VMCoordinator.swift */; };
 		8F0000000000000000000004 /* USBAccessoryCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F0000000000000000000104 /* USBAccessoryCoordinator.swift */; };
@@ -155,7 +155,7 @@
 		8B000000000000000000010F /* WireGuardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardView.swift; sourceTree = "<group>"; };
 		8B0000000000000000000112 /* RuntimeEntitlements.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeEntitlements.swift; sourceTree = "<group>"; };
 		8B0000000000000000000113 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		8F0000000000000000000101 /* WireGuardSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardSettings.swift; sourceTree = "<group>"; };
+		8F0000000000000000000101 /* WireGuardKeyMaterial.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardKeyMaterial.swift; sourceTree = "<group>"; };
 		8F0000000000000000000102 /* WireGuardConfBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardConfBuilder.swift; sourceTree = "<group>"; };
 		8F0000000000000000000103 /* VMCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMCoordinator.swift; sourceTree = "<group>"; };
 		8F0000000000000000000104 /* USBAccessoryCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBAccessoryCoordinator.swift; sourceTree = "<group>"; };
@@ -328,7 +328,7 @@
 			children = (
 				8B0000000000000000000103 /* USBAccessoryRecord.swift */,
 				8B0000000000000000000104 /* VMRuntimeState.swift */,
-				8F0000000000000000000101 /* WireGuardSettings.swift */,
+				8F0000000000000000000101 /* WireGuardKeyMaterial.swift */,
 				DA1000000000000000000101 /* HostWireGuardTunnelStatus.swift */,
 				9A0000000000000000000103 /* USBAttachmentPrompt.swift */,
 				B10000000000000000000101 /* VMAssetModels.swift */,
@@ -727,7 +727,7 @@
 				8B0000000000000000000009 /* Clipboard.swift in Sources */,
 				8B000000000000000000000A /* FilePicker.swift in Sources */,
 				8B0000000000000000000012 /* RuntimeEntitlements.swift in Sources */,
-				8F0000000000000000000001 /* WireGuardSettings.swift in Sources */,
+				8F0000000000000000000001 /* WireGuardKeyMaterial.swift in Sources */,
 				DA1000000000000000000001 /* HostWireGuardTunnelStatus.swift in Sources */,
 				8F0000000000000000000005 /* WireGuardConfStore.swift in Sources */,
 				8F0000000000000000000002 /* WireGuardConfBuilder.swift in Sources */,
