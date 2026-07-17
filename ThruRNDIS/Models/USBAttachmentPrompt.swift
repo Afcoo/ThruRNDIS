@@ -29,12 +29,9 @@ struct USBAttachmentPrompt: Identifiable {
     var message: String {
         switch kind {
         case .attach:
-            return String(localized: "USB device \(accessory.deviceName) is available to ThruRNDIS. Start the VM if needed and attach this device?")
-        case .replace(_, let previousDeviceName, let isCurrentlyAttached):
-            if isCurrentlyAttached {
-                return String(localized: "USB device \(previousDeviceName) is attached. ThruRNDIS will detach it if needed, restart the VM, and attach \(accessory.deviceName). Continue?")
-            }
-            return String(localized: "USB device \(previousDeviceName) was already used in this VM session. ThruRNDIS will detach it if needed, restart the VM, and attach \(accessory.deviceName). Continue?")
+            return String(localized: "\(accessory.deviceName) has been connected.\nStart the VM and attach this device?")
+        case .replace(_, let previousDeviceName, _):
+            return String(localized: "Disconnect \(previousDeviceName) and attach \(accessory.deviceName)?\nThe VM will restart.")
         case .assetsRequired:
             return String(localized: "USB device \(accessory.deviceName) is ready, but VM assets have not been configured. Open onboarding to install the latest release or select an extracted vm_assets folder.")
         }

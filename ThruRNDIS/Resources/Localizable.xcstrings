@@ -53,6 +53,16 @@
         }
       }
     },
+    "%@ has been connected.\nStart the VM and attach this device?" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@이 연결되었습니다.\nVM을 시작하고 이 기기를 연결할까요?"
+          }
+        }
+      }
+    },
     "A newer WireGuard tunnel operation superseded this request." : {
       "localizations" : {
         "ko" : {
@@ -653,6 +663,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "연결 해제"
+          }
+        }
+      }
+    },
+    "Disconnect %@ and attach %@?\nThe VM will restart." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Disconnect %1$@ and attach %2$@?\nThe VM will restart."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ 연결을 해제하고 %2$@를 연결할까요?\nVM이 재시작됩니다."
           }
         }
       }
@@ -2433,54 +2459,12 @@
         }
       }
     },
-    "USB device %@ is attached. ThruRNDIS will detach it if needed, restart the VM, and attach %@. Continue?" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "USB device %1$@ is attached. ThruRNDIS will detach it if needed, restart the VM, and attach %2$@. Continue?"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "연결된 USB 기기: %1$@. 필요한 경우 ThruRNDIS가 연결을 해제하고 VM을 다시 시작한 후 %2$@ 기기를 연결합니다. 계속할까요?"
-          }
-        }
-      }
-    },
-    "USB device %@ is available to ThruRNDIS. Start the VM if needed and attach this device?" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ThruRNDIS에서 사용할 수 있는 USB 기기: %@. 필요한 경우 VM을 시작하고 이 기기를 연결할까요?"
-          }
-        }
-      }
-    },
     "USB device %@ is ready, but VM assets have not been configured. Open onboarding to install the latest release or select an extracted vm_assets folder." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "USB 기기 %@ 준비가 완료되었지만 VM 에셋이 구성되지 않았습니다. 온보딩을 열어 최신 릴리스를 설치하거나 압축을 푼 vm_assets 폴더를 선택하세요."
-          }
-        }
-      }
-    },
-    "USB device %@ was already used in this VM session. ThruRNDIS will detach it if needed, restart the VM, and attach %@. Continue?" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "USB device %1$@ was already used in this VM session. ThruRNDIS will detach it if needed, restart the VM, and attach %2$@. Continue?"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "이 VM 세션에서 이미 사용한 USB 기기: %1$@. 필요한 경우 ThruRNDIS가 연결을 해제하고 VM을 다시 시작한 후 %2$@ 기기를 연결합니다. 계속할까요?"
           }
         }
       }
