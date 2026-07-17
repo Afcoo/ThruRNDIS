@@ -176,6 +176,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return .terminateNow
         }
 
+        guard pendingTerminationApplication == nil else {
+            return .terminateLater
+        }
+
+        guard confirmApplicationTerminationIfNeeded() else {
+            return .terminateCancel
+        }
+
         pendingTerminationApplication = sender
         prepareForTerminationIfNeeded()
         finishPendingTerminationIfPossible()
@@ -296,6 +304,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         onboardingWindowController?.show()
+    }
+
+    private func confirmApplicationTerminationIfNeeded() -> Bool {
+        guard store.shouldConfirmApplicationTermination else {
+            return true
+        }
+
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = String(
+            localized: "USB and WireGuard will disconnect. Quit anyway?"
+        )
+        alert.addButton(withTitle: String(localized: "Quit ThruRNDIS"))
+        alert.addButton(withTitle: String(localized: "Cancel"))
+        return alert.runModal() == .alertFirstButtonReturn
     }
 
     private func prepareForTerminationIfNeeded() {

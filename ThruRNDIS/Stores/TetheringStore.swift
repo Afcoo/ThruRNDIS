@@ -263,6 +263,11 @@ final class TetheringStore: ObservableObject {
         hostWireGuardTunnelStatus.canRequestStop
     }
 
+    var shouldConfirmApplicationTermination: Bool {
+        attachedAccessoryID != nil
+            && hostWireGuardTunnelStatus.isConnectingOrConnected
+    }
+
     var wireGuardClientConfiguration: String {
         guard let wireGuardKeyMaterial else {
             return "# WireGuard key material is unavailable in Application Support."

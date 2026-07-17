@@ -2167,6 +2167,16 @@
         }
       }
     },
+    "USB and WireGuard will disconnect. Quit anyway?" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "USB 디바이스와 연결이 해제됩니다.\n정말 종료하시겠어요?"
+          }
+        }
+      }
+    },
     "The VM asset archive contains a duplicate path: %@" : {
       "localizations" : {
         "ko" : {

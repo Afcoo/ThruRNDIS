@@ -39,6 +39,14 @@ final class LocalizationResourceTests: XCTestCase {
             ),
             "값이 올바르게 입력되었는지 확인하세요"
         )
+        XCTAssertEqual(
+            koreanBundle.localizedString(
+                forKey: "USB and WireGuard will disconnect. Quit anyway?",
+                value: nil,
+                table: nil
+            ),
+            "USB 디바이스와 연결이 해제됩니다.\n정말 종료하시겠어요?"
+        )
     }
 }
 
@@ -195,6 +203,48 @@ final class VMConfigurationStoreTests: XCTestCase {
 
 @MainActor
 final class TetheringStoreObservationTests: XCTestCase {
+    func testTerminationConfirmationRequiresAttachedUSBAndActiveWireGuard() throws {
+        let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let usbSession = USBSessionStore()
+        let tunnelController = ObservationTestHostWireGuardTunnelController()
+        let store = TetheringStore(
+            assetProvider: ObservationTestAssetProvider(),
+            vmCoordinator: ObservationTestVMCoordinator(),
+            usbCoordinator: USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor()),
+            wireGuardConfStore: ObservationTestWireGuardStore(),
+            wireGuardConfBuilder: WireGuardConfBuilder(elements: .defaults),
+            eventLog: EventLogStore(),
+            consoleSession: ConsoleSessionStore(),
+            usbSession: usbSession,
+            vmConfiguration: VMConfigurationStore(defaults: defaults),
+            hostWireGuardTunnelController: tunnelController,
+            defaults: defaults
+        )
+
+        XCTAssertFalse(store.shouldConfirmApplicationTermination)
+
+        usbSession.apply(USBSessionSnapshot(attachedAccessoryID: 11))
+        XCTAssertFalse(store.shouldConfirmApplicationTermination)
+
+        tunnelController.onStatusChange?(.connecting)
+        XCTAssertTrue(store.shouldConfirmApplicationTermination)
+
+        tunnelController.onStatusChange?(.connected)
+        XCTAssertTrue(store.shouldConfirmApplicationTermination)
+
+        tunnelController.onStatusChange?(.reasserting)
+        XCTAssertTrue(store.shouldConfirmApplicationTermination)
+
+        tunnelController.onStatusChange?(.disconnecting)
+        XCTAssertFalse(store.shouldConfirmApplicationTermination)
+
+        tunnelController.onStatusChange?(.connected)
+        usbSession.apply(USBSessionSnapshot())
+        XCTAssertFalse(store.shouldConfirmApplicationTermination)
+    }
+
     func testVMStopCancelsPendingTunnelAndClearsDiscoveredEndpoint() async throws {
         let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
