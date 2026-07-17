@@ -32,9 +32,9 @@ ThruRNDIS WireGuard Network System Extension
 
 *참조: [`Virtualization Framework: VZUSBPassthroughDevice`](https://developer.apple.com/documentation/virtualization/vzusbpassthroughdevice)*
 
-ThruRNDIS는 경량 Linux VM을 실행하고 macOS에 연결된 안드로이드 RNDIS 장치를 USB passthrough로 VM에 전달합니다. VM은 이 장치를 일반 USB 네트워크 장치로 인식하고 안드로이드의 USB 테더링을 인터넷 연결로 사용합니다.
+ThruRNDIS는 경량 Linux VM을 실행하고 macOS에 연결된 RNDIS 장치를 USB passthrough로 VM에 전달합니다.
 
-macOS는 WireGuard를 통해 VM에 트래픽을 보내고, VM은 해당 트래픽을 USB passthrough로 연결된 RNDIS 장치에 전달하여 게이트웨이 역할을 합니다.
+macOS와 VM은 VZNAT을 통해 WireGuard 터널로 연결되며, VM은 WireGuard를 통해 전달된 macOS의 트래픽을 인식된 RNDIS 장치에 전달합니다.
 
 ## 사용 방법
 

@@ -32,9 +32,9 @@ ThruRNDIS WireGuard Network System Extension
 
 *Reference: [`Virtualization Framework: VZUSBPassthroughDevice`](https://developer.apple.com/documentation/virtualization/vzusbpassthroughdevice)*
 
-ThruRNDIS runs a lightweight Linux VM and attaches the Android RNDIS device connected to the Mac to the VM using USB passthrough. The VM recognizes the device as a standard USB network device and uses Android USB tethering as its internet connection.
+ThruRNDIS runs a lightweight Linux VM and passes the RNDIS device connected to macOS through to the VM using USB passthrough.
 
-macOS connects to the VM over WireGuard and sends traffic to it. The VM forwards that traffic through the passed-through RNDIS device, acting as a gateway.
+macOS and the VM are connected by a WireGuard tunnel over VZNAT, and the VM forwards macOS traffic received through WireGuard to the recognized RNDIS device.
 
 ## How to Use
 
