@@ -12,8 +12,10 @@ WireGuard-over-VZNAT architecture as the baseline.
   first-run onboarding.
 - The Xcode project is `ThruRNDIS.xcodeproj`.
 - The main app target is `ThruRNDIS` and builds a macOS app bundle.
-- There is no host packet-tunnel extension target. The app does not create a
-  host VPN, and does not inspect or forward packet payloads.
+- `ThruRNDISWireGuardNetworkExtension` is a WireGuardKit-backed Network System
+  Extension embedded under `Contents/Library/SystemExtensions`. The app manages
+  one host packet-tunnel profile and session, but does not inspect or relay
+  packet payloads itself.
 - Linux assets are not bundled with the app. The baseline user flow is the
   explicit `Download & Install Latest` action in onboarding, or
   `Check & Install Latest` in Settings. The app downloads the exact
@@ -80,11 +82,14 @@ WireGuard-over-VZNAT architecture as the baseline.
 - The guest owns packet forwarding by running a normal WireGuard peer on the
   Virtualization NAT private network and masquerading WireGuard client traffic
   out the USB RNDIS interface.
-- The host side is intentionally manual: users configure the host WireGuard
-  client from the generated client `.conf`. The official WireGuard macOS client
-  currently has a connection bring-up issue in this validation flow; recommend
-  `wireguard-go` for macOS validation. This app must not start, stop, or manage
-  the host WireGuard tunnel.
+- `HostWireGuardTunnelController` activates the Network System Extension,
+  creates the single `NETunnelProviderManager` profile, and starts/stops the
+  session. It passes the rendered client configuration only in the in-memory
+  `startTunnel(options:)` payload; do not persist the client private key in
+  `providerConfiguration` or a system-wide location.
+- The app does not inject WireGuard diagnostics into the VM console. Keep the
+  console available for user-driven troubleshooting, independent of provider
+  connection management.
 
 ## VM Asset Installation
 
@@ -129,14 +134,14 @@ WireGuard-over-VZNAT architecture as the baseline.
 The current baseline data path is:
 
 ```text
-macOS WireGuard client
+ThruRNDIS WireGuardKit Network System Extension
 -> VZNAT guest endpoint UDP/<ListenPort>
 -> guest wg0
 -> guest nftables masquerade
 -> USB RNDIS upstream
 ```
 
-- The current manual WireGuard test addresses are guest `10.100.0.1/24` and
+- The current WireGuard test addresses are guest `10.100.0.1/24` and
   macOS host tunnel `10.100.0.2/24`; the guest peer should allow
   `10.100.0.2/32`.
   This is the WireGuard overlay address, not the guest `usb0` RNDIS DHCP
@@ -165,14 +170,11 @@ macOS WireGuard client
   is nonempty. `init-network` starts the interface directly from the shared
   config with `wg-quick`; host file changes do not alter an already-running
   interface and take effect on the next VM start.
-- The app-generated client `.conf` acts as a WireGuard client and uses
-  `<THRURNDIS_WG_ENDPOINT>` as a placeholder for the discovered guest VZNAT address.
-  The client `.conf` uses IPv4 full-tunnel routing with
-  `AllowedIPs = 10.100.0.0/24, 0.0.0.0/1, 128.0.0.0/1`. Keep the explicit
-  overlay route so `10.100.0.1` remains reachable, and prefer split internet
-  routes over `0.0.0.0/0` on macOS to avoid a bad `wg-quick` direct route over
-  the VZNAT endpoint. IPv6 tunneling remains out of scope until RNDIS IPv6 is
-  tested.
+- The app-generated client configuration lets the user override DNS servers,
+  Endpoint, and Allowed IPs in Settings. A blank Endpoint falls back to the
+  discovered guest VZNAT address, and blank Allowed IPs fall back to
+  `0.0.0.0/0`. The default DNS servers are `1.1.1.1`, `1.0.0.1`, `8.8.8.8`,
+  and `8.8.4.4`. IPv6 routing remains out of scope.
 - The BusyBox init network one-shot brings up the VZNAT NIC `eth0`, runs
   `udhcpc`, reads the endpoint port from the runtime server configuration, and
   derives the source policy-routing prefix from the connected IPv4 CIDR on the
@@ -187,9 +189,8 @@ macOS WireGuard client
   the old guest session.
 - Guest NAT is based on `nftables` masquerade from `wg0` traffic to `usb0`.
 - The setup NAT NIC provides the private host-to-guest network used for the
-  WireGuard endpoint. Do not
-  replace it with vmnet, bridged networking, route-command UI, or a host-side
-  packet-tunnel provider.
+  WireGuard endpoint. Do not replace it with vmnet, bridged networking,
+  route-command UI, or an app-local packet relay.
 
 ## Directory Guide
 
@@ -223,7 +224,8 @@ primary responsibility.
   `VMAssetStorageLayout` defines VM Asset staging and release locations.
 - `ThruRNDIS/Services`: external/system operations such as GitHub release
   lookup, downloads, archive verification/install, AccessoryAccess monitoring,
-  launch-at-login integration, and Virtualization configuration creation.
+  launch-at-login integration, Network System Extension activation, host
+  WireGuard tunnel management, and Virtualization configuration creation.
 - `ThruRNDIS/Models`: value types and protocol boundaries shared across layers,
   including VM Asset values, USB records/prompts, VM state, and WireGuard
   settings.
@@ -235,6 +237,10 @@ primary responsibility.
   `TestSupport`.
 - `Configuration`: checked-in shared build settings and the local-signing
   template. `Configuration/LocalSigning.xcconfig` is local and ignored.
+- `ThruRNDISWireGuardNetworkExtension`: the system-extension executable entry,
+  `NEPacketTunnelProvider`, Info.plist, and development/distribution
+  entitlements. Shared parser/constants files remain under `ThruRNDIS/Support`
+  and are compiled into both targets.
 
 This repository intentionally has no `GuestScripts/` or `script/` directory.
 Published guest boot assets and their build/release tooling belong to the
@@ -257,7 +263,8 @@ separate `Afcoo/ThruRNDIS_VM_Assets` repository.
 ```
 
 - Runtime signing checks are meaningful only after the required entitlements are
-  included in the provisioning profile.
+  included in the provisioning profiles for both the app and Network System
+  Extension.
 
 ```sh
 /Applications/Xcode-beta.app/Contents/Developer/usr/bin/xcodebuild \
@@ -273,8 +280,8 @@ separate `Afcoo/ThruRNDIS_VM_Assets` repository.
 
 ## Signing And Entitlements
 
-- The current baseline is WireGuard-over-VZNAT. Do not reintroduce host
-  packet-tunnel extension code, app-local packet relays, virtio-socket packet
+- The current baseline is WireGuardKit in a Network System Extension over the
+  VZNAT guest endpoint. Do not add app-local packet relays, virtio-socket packet
   bridges, vmnet, `VZVmnetNetworkDeviceAttachment`, or
   `VZBridgedNetworkDeviceAttachment`.
 - Checked-in signing defaults live in `Configuration/BuildSettings.xcconfig`.
@@ -289,21 +296,27 @@ separate `Afcoo/ThruRNDIS_VM_Assets` repository.
 - `ThruRNDIS.entitlements` is the main app entitlement file used by
   the standard app target configurations and includes:
   - `com.apple.developer.accessory-access.usb`
+  - `com.apple.developer.networking.networkextension` with
+    `packet-tunnel-provider`
+  - `com.apple.developer.system-extension.install`
   - `com.apple.security.virtualization`
 - `Runtime.entitlements` mirrors the same runtime entitlement set for
-  `RuntimeDebug` validation and includes:
-  - `com.apple.developer.accessory-access.usb`
-  - `com.apple.security.virtualization`
+  `RuntimeDebug` validation. `Distribution.entitlements` uses the Developer ID
+  `packet-tunnel-provider-systemextension` suffix.
+- The Network System Extension uses `Development.entitlements` for development
+  signing and `Distribution.entitlements` with the same system-extension suffix
+  for Developer ID distribution. Direct distribution must embed a
+  `.systemextension`, not an App Store `.appex` packet-tunnel provider.
 - If restricted entitlements are missing from the provisioning profile, the
   runtime path fails. Do not use ad hoc signing as a substitute for restricted
   entitlement runtime validation.
 
 ## Development Notes
 
-- The host WireGuard client is user-managed outside this app. The app may
-  generate/copy/save `.conf` files but must not install or activate host VPN
-  configurations. For macOS validation, prefer `wireguard-go` over the official
-  WireGuard macOS GUI client until the current bring-up issue is understood.
+- The app owns one WireGuard `NETunnelProviderManager` profile and exposes
+  Connect, Disconnect, and Refresh controls. Keep `.conf` copy/save as a
+  diagnostic fallback; do not hand the persistent private-key files to the
+  provider or store plaintext configuration in preferences.
 - AccessoryAccess monitoring starts with the app even when no Settings or
   onboarding window is visible. Settings may stop or sequentially reload the
   listener for the current session, but a later app launch starts it again.
@@ -327,10 +340,12 @@ separate `Afcoo/ThruRNDIS_VM_Assets` repository.
   is stopped; it preserves managed Asset releases. If WireGuard deletion fails,
   report the error and do not restart the app. A successful reset creates fresh
   key files and a generated server config on the next launch.
-- Keep the WireGuard screen read-only: preview, copy, save/export, and reload
-  use `WireGuardConfBuilder`. Its `WireGuardConfElements` input is ready for a
-  future editor but currently uses defaults. Configuration editing and applying
-  changes to an already-running `wg0` are follow-up work.
+- Keep WireGuard key material and server configuration read-only. The Connection
+  section may edit and persist only the client DNS servers, Endpoint override,
+  and Allowed IPs; preview, copy, save/export, and provider connection must all
+  use the same effective values rendered by `WireGuardConfBuilder`. Applying
+  edited server configuration to an already-running guest `wg0` remains
+  follow-up work.
 - WireGuard private/public keys are generated by the app with CryptoKit, not by
   the external VM asset builder or the host `wg` command. Neither
   `vm_assets.zip` nor its corresponding-source release asset may contain a
@@ -357,12 +372,11 @@ separate `Afcoo/ThruRNDIS_VM_Assets` repository.
   VirtioFS, and netfilter/NAT module closure, must not perform runtime guest
   `apk add`, and must keep automatic forwarding scoped to IPv4 `wg0` traffic
   leaving through fixed RNDIS `usb0`.
-- The repository contains no host WireGuard setup helper. Save or export the
-  client configuration from the app and use the user-managed host WireGuard
-  client for validation.
 - Real USB/WireGuard runtime validation requires macOS 27 beta, an approved
-  provisioning profile for USB/Virtualization, a real RNDIS USB device, and a
-  host WireGuard client.
+  app profile for USB/Virtualization/NetworkExtension/System Extension install,
+  an approved Network System Extension profile, a valid signing identity, a
+  real RNDIS USB device, and approval in System Settings. Install the signed app
+  in `/Applications` before testing activation.
 - Signing/provisioning failures should not block compile builds, UI work, or
   documentation work.
 - After code changes, the minimum verification is the unsigned Xcode build shown

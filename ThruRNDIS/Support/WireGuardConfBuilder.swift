@@ -20,11 +20,11 @@ struct WireGuardConfElements: Equatable {
         serverAddress: "10.100.0.1/24",
         clientAddress: "10.100.0.2/24",
         serverPeerAllowedIPs: "10.100.0.2/32",
-        clientAllowedIPs: "10.100.0.0/24, 0.0.0.0/1, 128.0.0.0/1",
+        clientAllowedIPs: "0.0.0.0/0",
         listenPort: 51820,
         serverMTU: 1420,
         clientMTU: 1420,
-        dnsServers: [],
+        dnsServers: ["1.1.1.1", "1.0.0.1", "8.8.8.8", "8.8.4.4"],
         persistentKeepalive: 25,
         endpointPlaceholder: "<THRURNDIS_WG_ENDPOINT>"
     )
@@ -95,12 +95,15 @@ struct WireGuardConfBuilder {
 
     func clientConfiguration(
         keyMaterial: WireGuardKeyMaterial,
-        endpoint: String?
+        endpoint: String?,
+        dnsServers: [String]? = nil,
+        allowedIPs: String? = nil
     ) -> String {
-        let dnsLine = elements.dnsServers.isEmpty
-            ? ""
-            : "DNS = \(elements.dnsServers.joined(separator: ", "))\n"
+        let resolvedDNSServers = dnsServers.flatMap { $0.isEmpty ? nil : $0 }
+            ?? elements.dnsServers
+        let dnsLine = "DNS = \(resolvedDNSServers.joined(separator: ", "))\n"
         let resolvedEndpoint = endpoint ?? elements.endpointPlaceholder
+        let resolvedAllowedIPs = allowedIPs ?? elements.clientAllowedIPs
 
         return """
         [Interface]
@@ -110,7 +113,7 @@ struct WireGuardConfBuilder {
         \(dnsLine)
         [Peer]
         PublicKey = \(keyMaterial.serverPublicKey)
-        AllowedIPs = \(elements.clientAllowedIPs)
+        AllowedIPs = \(resolvedAllowedIPs)
         Endpoint = \(resolvedEndpoint)
         PersistentKeepalive = \(elements.persistentKeepalive)
         """

@@ -67,6 +67,7 @@ private final class StatusMenuItemView: NSView {
         let referenceTitles = [
             String(localized: "USB: \(referenceUSBID)"),
             String(localized: "USB: Not attached"),
+            String(localized: "WireGuard: Provider connected"),
             String(localized: "Set Up VM Assets First"),
         ]
         let titleWidth = referenceTitles
@@ -137,6 +138,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private let menu = NSMenu()
     private var cancellable: AnyCancellable?
     private var assetCancellable: AnyCancellable?
+    private var wireGuardCancellable: AnyCancellable?
     private var isPresentingPrompt = false
 
     init(
@@ -181,6 +183,12 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         .sink { [weak self] _ in
             self?.updateStatusButton()
         }
+
+        wireGuardCancellable = store.$hostWireGuardTunnelStatus
+            .removeDuplicates()
+            .sink { [weak self] _ in
+                self?.updateStatusButton()
+            }
     }
 
     func menuWillOpen(_ menu: NSMenu) {
@@ -216,7 +224,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         button.image = Self.statusBarImage
         button.setAccessibilityLabel(String(localized: "ThruRNDIS status"))
         button.toolTip = String(
-            localized: "ThruRNDIS — VM \(store.vmDisplayState.localizedName), \(usbStatusTitle)"
+            localized: "ThruRNDIS — VM \(store.vmDisplayState.localizedName), \(usbStatusTitle), \(wireGuardStatusTitle)"
         )
     }
 
@@ -231,6 +239,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             menu.addItem(statusItemLine(
                 title: usbStatusTitle,
                 dotColor: usbStatusColor
+            ))
+            menu.addItem(statusItemLine(
+                title: wireGuardStatusTitle,
+                dotColor: wireGuardStatusColor
             ))
         } else {
             menu.addItem(statusItemLine(
@@ -260,6 +272,22 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         let stopItem = actionItem(title: String(localized: "Stop VM"), action: #selector(stopVM))
         stopItem.isEnabled = store.canStopVirtualMachine
         menu.addItem(stopItem)
+
+        let wireGuardItem: NSMenuItem
+        if store.canDisconnectHostWireGuardTunnel {
+            wireGuardItem = actionItem(
+                title: String(localized: "Disconnect WireGuard"),
+                action: #selector(disconnectWireGuard)
+            )
+            wireGuardItem.isEnabled = store.canDisconnectHostWireGuardTunnel
+        } else {
+            wireGuardItem = actionItem(
+                title: String(localized: "Connect WireGuard"),
+                action: #selector(connectWireGuard)
+            )
+            wireGuardItem.isEnabled = store.canConnectHostWireGuardTunnel
+        }
+        menu.addItem(wireGuardItem)
 
         menu.addItem(.separator())
         menu.addItem(attachMenuItem())
@@ -296,6 +324,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         return String(localized: "USB: \(deviceName)")
     }
 
+    private var wireGuardStatusTitle: String {
+        String(localized: "WireGuard: \(store.hostWireGuardTunnelStatus.title)")
+    }
+
     private var vmStatusColor: NSColor {
         switch store.vmDisplayState {
         case .running:
@@ -312,6 +344,17 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             return .systemGreen
         }
         return store.usbSession.accessories.isEmpty ? .systemRed : .systemYellow
+    }
+
+    private var wireGuardStatusColor: NSColor {
+        switch store.hostWireGuardTunnelStatus {
+        case .connected:
+            return .systemGreen
+        case .activatingSystemExtension, .connecting, .disconnecting, .reasserting:
+            return .systemYellow
+        case .unconfigured, .disconnected, .failed:
+            return .systemRed
+        }
     }
 
     private func statusItemLine(title: String, dotColor: NSColor) -> NSMenuItem {
@@ -386,6 +429,14 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     @objc private func stopVM() {
         store.stopVirtualMachine()
+    }
+
+    @objc private func connectWireGuard() {
+        store.connectHostWireGuardTunnel()
+    }
+
+    @objc private func disconnectWireGuard() {
+        store.disconnectHostWireGuardTunnel()
     }
 
     @objc private func attachUSB(_ sender: NSMenuItem) {

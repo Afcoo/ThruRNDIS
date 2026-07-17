@@ -9,14 +9,87 @@ struct WireGuardView: View {
 
     var body: some View {
         Form {
-            Section("Status") {
-                Text(store.wireGuardStatusMessage)
-                    .foregroundStyle(.secondary)
+            Section("Connection") {
+                LabeledContent("Endpoint") {
+                    VStack(alignment: .leading, spacing: 4) {
+                        TextField(
+                            "Endpoint",
+                            text: $store.wireGuardEndpointText,
+                            prompt: Text(verbatim: store.wireGuardEndpointPrompt)
+                        )
+                        .labelsHidden()
+                        .monospaced()
+                        .frame(minWidth: 320)
+
+                        if store.hasWireGuardEndpointValidationError {
+                            connectionValidationError
+                        }
+                    }
+                }
+
+                LabeledContent("Allowed IPs") {
+                    VStack(alignment: .leading, spacing: 4) {
+                        TextField(
+                            "Allowed IPs",
+                            text: $store.wireGuardAllowedIPsText,
+                            prompt: Text(verbatim: "0.0.0.0/0")
+                        )
+                        .labelsHidden()
+                        .monospaced()
+                        .frame(minWidth: 320)
+
+                        if store.hasWireGuardAllowedIPsValidationError {
+                            connectionValidationError
+                        }
+                    }
+                }
+
+                LabeledContent("DNS Servers") {
+                    VStack(alignment: .leading, spacing: 4) {
+                        TextField(
+                            "DNS Servers",
+                            text: $store.wireGuardDNSServersText,
+                            prompt: Text(verbatim: store.defaultWireGuardDNSServersText)
+                        )
+                        .labelsHidden()
+                        .monospaced()
+                        .frame(minWidth: 320)
+
+                        if store.hasWireGuardDNSServersValidationError {
+                            connectionValidationError
+                        }
+                    }
+                }
+
+                HStack {
+                    Button {
+                        store.connectHostWireGuardTunnel()
+                    } label: {
+                        Text(
+                            store.hostWireGuardTunnelStatus.isConnectingOrConnected
+                                ? String(localized: "Reconnect")
+                                : String(localized: "Connect")
+                        )
+                    }
+                    .disabled(!store.canConnectHostWireGuardTunnel)
+
+                    Button("Disconnect") {
+                        store.disconnectHostWireGuardTunnel()
+                    }
+                    .disabled(!store.canDisconnectHostWireGuardTunnel)
+
+                    Button("Refresh") {
+                        store.refreshHostWireGuardTunnelStatus()
+                    }
+                    .disabled(store.hostWireGuardTunnelStatus.isTransitioning)
+
+                    Spacer()
+                }
             }
 
-            Section("Host Configuration") {
+            Section("Host Configuration (Debug / Export)") {
                 ScrollView([.horizontal, .vertical]) {
-                    Text(verbatim: store.wireGuardHostConfiguration)
+                    Text(verbatim: store.wireGuardClientConfiguration)
                         .font(.system(.body, design: .monospaced))
                         .textSelection(.enabled)
                         .fixedSize(horizontal: true, vertical: false)
@@ -51,12 +124,18 @@ struct WireGuardView: View {
 
                     Spacer()
 
-                    Button("Clear Endpoint") {
+                    Button("Clear Discovered Endpoint") {
                         store.clearWireGuardEndpoint()
                     }
-                    .disabled(!store.canExportWireGuardConfiguration)
+                    .disabled(!store.hasDiscoveredWireGuardEndpoint)
                 }
             }
         }
+    }
+
+    private var connectionValidationError: some View {
+        Text("Check that the value is entered correctly")
+            .font(.caption)
+            .foregroundStyle(.red)
     }
 }

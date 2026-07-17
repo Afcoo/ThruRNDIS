@@ -18,13 +18,26 @@ final class LocalizationResourceTests: XCTestCase {
         )
 
         let statusFormat = koreanBundle.localizedString(
-            forKey: "ThruRNDIS — VM %@, %@",
+            forKey: "ThruRNDIS — VM %@, %@, %@",
             value: nil,
             table: nil
         )
         XCTAssertEqual(
-            String(format: statusFormat, "실행 중", "USB: 연결 안 됨"),
-            "ThruRNDIS — VM 실행 중, USB: 연결 안 됨"
+            String(
+                format: statusFormat,
+                "실행 중",
+                "USB: 연결 안 됨",
+                "WireGuard: 연결 안 됨"
+            ),
+            "ThruRNDIS — VM 실행 중, USB: 연결 안 됨, WireGuard: 연결 안 됨"
+        )
+        XCTAssertEqual(
+            koreanBundle.localizedString(
+                forKey: "Check that the value is entered correctly",
+                value: nil,
+                table: nil
+            ),
+            "값이 올바르게 입력되었는지 확인하세요"
         )
     }
 }
@@ -182,6 +195,302 @@ final class VMConfigurationStoreTests: XCTestCase {
 
 @MainActor
 final class TetheringStoreObservationTests: XCTestCase {
+    func testVMStopCancelsPendingTunnelAndClearsDiscoveredEndpoint() async throws {
+        let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let vmCoordinator = ObservationTestVMCoordinator()
+        let tunnelController = ObservationTestHostWireGuardTunnelController()
+        let store = TetheringStore(
+            assetProvider: ObservationTestAssetProvider(),
+            vmCoordinator: vmCoordinator,
+            usbCoordinator: USBAccessoryCoordinator(
+                monitor: ObservationTestUSBMonitor()
+            ),
+            wireGuardConfStore: ObservationTestWireGuardStore(),
+            wireGuardConfBuilder: WireGuardConfBuilder(elements: .defaults),
+            eventLog: EventLogStore(),
+            consoleSession: ConsoleSessionStore(),
+            usbSession: USBSessionStore(),
+            vmConfiguration: VMConfigurationStore(defaults: defaults),
+            hostWireGuardTunnelController: tunnelController,
+            defaults: defaults
+        )
+
+        vmCoordinator.onStateChange?(.running, "VM running")
+        vmCoordinator.onConsoleOutput?(
+            Data("THRURNDIS_WG_ENDPOINT=192.168.64.2:51820\n".utf8)
+        )
+        store.wireGuardEndpointText = "manual.example.com:51820"
+        let providerStatus = HostWireGuardTunnelStatus.activatingSystemExtension
+        tunnelController.onStatusChange?(providerStatus)
+        XCTAssertEqual(store.discoveredWireGuardEndpoint, "192.168.64.2:51820")
+        XCTAssertTrue(
+            store.eventLog.text.contains(
+                "Provider: \(providerStatus.eventLogDescription)"
+            )
+        )
+
+        vmCoordinator.onStateChange?(.stopping, "VM stopping")
+        vmCoordinator.onStopped?()
+        await Task.yield()
+
+        XCTAssertNil(store.discoveredWireGuardEndpoint)
+        XCTAssertEqual(store.resolvedWireGuardEndpoint, "manual.example.com:51820")
+        XCTAssertEqual(tunnelController.disconnectCallCount, 1)
+        XCTAssertEqual(tunnelController.lastDisconnectWaitUntilStopped, false)
+    }
+
+    func testWireGuardConnectionValuesUseFallbacksAndPersistOverrides() throws {
+        let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let vmCoordinator = ObservationTestVMCoordinator()
+        let store = TetheringStore(
+            assetProvider: ObservationTestAssetProvider(),
+            vmCoordinator: vmCoordinator,
+            usbCoordinator: USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor()),
+            wireGuardConfStore: ObservationTestWireGuardStore(),
+            wireGuardConfBuilder: WireGuardConfBuilder(elements: .defaults),
+            eventLog: EventLogStore(),
+            consoleSession: ConsoleSessionStore(),
+            usbSession: USBSessionStore(),
+            vmConfiguration: VMConfigurationStore(defaults: defaults),
+            hostWireGuardTunnelController: ObservationTestHostWireGuardTunnelController(),
+            defaults: defaults
+        )
+
+        vmCoordinator.onConsoleOutput?(
+            Data("THRURNDIS_WG_ENDPOINT=192.168.64.2:51820\n".utf8)
+        )
+
+        XCTAssertEqual(store.resolvedWireGuardEndpoint, "192.168.64.2:51820")
+        XCTAssertEqual(store.resolvedWireGuardAllowedIPs, "0.0.0.0/0")
+        XCTAssertEqual(
+            store.resolvedWireGuardDNSServers,
+            ["1.1.1.1", "1.0.0.1", "8.8.8.8", "8.8.4.4"]
+        )
+
+        store.wireGuardEndpointText = " vpn.example.com:12345 "
+        store.wireGuardAllowedIPsText = " 10.0.0.0/8 "
+        store.wireGuardDNSServersText = "9.9.9.9,\n149.112.112.112"
+
+        XCTAssertEqual(store.resolvedWireGuardEndpoint, "vpn.example.com:12345")
+        XCTAssertEqual(store.resolvedWireGuardAllowedIPs, "10.0.0.0/8")
+        XCTAssertEqual(store.resolvedWireGuardDNSServers, ["9.9.9.9", "149.112.112.112"])
+        XCTAssertTrue(store.wireGuardClientConfiguration.contains("Endpoint = vpn.example.com:12345"))
+        XCTAssertTrue(store.wireGuardClientConfiguration.contains("AllowedIPs = 10.0.0.0/8"))
+        XCTAssertTrue(store.wireGuardClientConfiguration.contains("DNS = 9.9.9.9, 149.112.112.112"))
+        XCTAssertEqual(defaults.string(forKey: "WireGuard.endpointOverride"), " vpn.example.com:12345 ")
+        XCTAssertEqual(defaults.string(forKey: "WireGuard.allowedIPs"), " 10.0.0.0/8 ")
+        XCTAssertEqual(defaults.string(forKey: "WireGuard.dnsServers"), "9.9.9.9,\n149.112.112.112")
+
+        store.wireGuardDNSServersText = " \n "
+
+        XCTAssertEqual(
+            store.resolvedWireGuardDNSServers,
+            ["1.1.1.1", "1.0.0.1", "8.8.8.8", "8.8.4.4"]
+        )
+        XCTAssertFalse(store.hasWireGuardDNSServersValidationError)
+        XCTAssertTrue(
+            store.wireGuardClientConfiguration.contains(
+                "DNS = 1.1.1.1, 1.0.0.1, 8.8.8.8, 8.8.4.4"
+            )
+        )
+    }
+
+    func testConnectionValuesAreValidatedLiveAndBlockConnect() throws {
+        let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let vmCoordinator = ObservationTestVMCoordinator()
+        vmCoordinator.canSendConsoleInput = true
+        let tunnelController = ObservationTestHostWireGuardTunnelController()
+        let eventLog = EventLogStore()
+        let store = TetheringStore(
+            assetProvider: ObservationTestAssetProvider(),
+            vmCoordinator: vmCoordinator,
+            usbCoordinator: USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor()),
+            wireGuardConfStore: ObservationTestWireGuardStore(),
+            wireGuardConfBuilder: WireGuardConfBuilder(elements: .defaults),
+            eventLog: eventLog,
+            consoleSession: ConsoleSessionStore(),
+            usbSession: USBSessionStore(),
+            vmConfiguration: VMConfigurationStore(defaults: defaults),
+            hostWireGuardTunnelController: tunnelController,
+            defaults: defaults
+        )
+        vmCoordinator.onStateChange?(.running, "VM running")
+        XCTAssertTrue(store.invalidWireGuardConnectionFields.isEmpty)
+        store.wireGuardEndpointText = "1:51820"
+        XCTAssertTrue(store.hasWireGuardEndpointValidationError)
+        store.wireGuardAllowedIPsText = "1"
+        XCTAssertTrue(store.hasWireGuardAllowedIPsValidationError)
+        store.wireGuardDNSServersText = "1"
+        XCTAssertTrue(store.hasWireGuardDNSServersValidationError)
+        XCTAssertEqual(
+            store.invalidWireGuardConnectionFields,
+            Set(WireGuardConnectionField.allCases)
+        )
+
+        store.connectHostWireGuardTunnel()
+
+        XCTAssertEqual(tunnelController.connectCallCount, 0)
+        XCTAssertTrue(
+            eventLog.text.contains(
+                "invalid connection values (Endpoint, Allowed IPs, DNS Servers)"
+            )
+        )
+
+        store.wireGuardEndpointText = "vpn.example.com:51820"
+        XCTAssertFalse(store.hasWireGuardEndpointValidationError)
+        store.wireGuardAllowedIPsText = "0.0.0.0/0"
+        XCTAssertFalse(store.hasWireGuardAllowedIPsValidationError)
+        store.wireGuardDNSServersText = "1.1.1.1, 8.8.8.8"
+        XCTAssertFalse(store.hasWireGuardDNSServersValidationError)
+        XCTAssertTrue(store.invalidWireGuardConnectionFields.isEmpty)
+
+        store.wireGuardEndpointText = "invalid"
+        XCTAssertTrue(store.hasWireGuardEndpointValidationError)
+        store.wireGuardEndpointText = ""
+        XCTAssertFalse(store.hasWireGuardEndpointValidationError)
+        store.wireGuardAllowedIPsText = ""
+        XCTAssertFalse(store.hasWireGuardAllowedIPsValidationError)
+        store.wireGuardDNSServersText = ""
+        XCTAssertFalse(store.hasWireGuardDNSServersValidationError)
+        XCTAssertEqual(
+            store.resolvedWireGuardDNSServers,
+            ["1.1.1.1", "1.0.0.1", "8.8.8.8", "8.8.4.4"]
+        )
+
+        vmCoordinator.onConsoleOutput?(
+            Data("THRURNDIS_WG_ENDPOINT=1:51820\n".utf8)
+        )
+        XCTAssertTrue(store.hasWireGuardEndpointValidationError)
+    }
+
+    func testPersistedInvalidConnectionValuesAreValidatedDuringInitialization() throws {
+        let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        defaults.set("vpn.example.com", forKey: "WireGuard.endpointOverride")
+        defaults.set("10.100.0.2/33", forKey: "WireGuard.allowedIPs")
+        defaults.set("1.1.1.1,", forKey: "WireGuard.dnsServers")
+
+        let store = TetheringStore(
+            assetProvider: ObservationTestAssetProvider(),
+            vmCoordinator: ObservationTestVMCoordinator(),
+            usbCoordinator: USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor()),
+            wireGuardConfStore: ObservationTestWireGuardStore(),
+            wireGuardConfBuilder: WireGuardConfBuilder(elements: .defaults),
+            eventLog: EventLogStore(),
+            consoleSession: ConsoleSessionStore(),
+            usbSession: USBSessionStore(),
+            vmConfiguration: VMConfigurationStore(defaults: defaults),
+            hostWireGuardTunnelController: ObservationTestHostWireGuardTunnelController(),
+            defaults: defaults
+        )
+
+        XCTAssertEqual(
+            store.invalidWireGuardConnectionFields,
+            Set(WireGuardConnectionField.allCases)
+        )
+    }
+
+    func testConnectIsRejectedWhileVMIsNotRunning() throws {
+        let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let tunnelController = ObservationTestHostWireGuardTunnelController()
+        let eventLog = EventLogStore()
+        let store = TetheringStore(
+            assetProvider: ObservationTestAssetProvider(),
+            vmCoordinator: ObservationTestVMCoordinator(),
+            usbCoordinator: USBAccessoryCoordinator(
+                monitor: ObservationTestUSBMonitor()
+            ),
+            wireGuardConfStore: ObservationTestWireGuardStore(),
+            wireGuardConfBuilder: WireGuardConfBuilder(elements: .defaults),
+            eventLog: eventLog,
+            consoleSession: ConsoleSessionStore(),
+            usbSession: USBSessionStore(),
+            vmConfiguration: VMConfigurationStore(defaults: defaults),
+            hostWireGuardTunnelController: tunnelController,
+            defaults: defaults
+        )
+
+        store.connectHostWireGuardTunnel()
+
+        XCTAssertEqual(tunnelController.connectCallCount, 0)
+        XCTAssertFalse(store.canConnectHostWireGuardTunnel)
+        XCTAssertTrue(eventLog.text.contains("VM is not running"))
+        XCTAssertTrue(
+            eventLog.text.contains(
+                "Provider: Not configured — " +
+                    "Start the VM and wait for its WireGuard endpoint."
+            )
+        )
+    }
+
+    func testResetSkipsProfileAndConfigurationRemovalWhenTunnelCannotStop() async throws {
+        let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let tunnelController = ObservationTestHostWireGuardTunnelController()
+        tunnelController.disconnectSucceeds = false
+        let wireGuardStore = ObservationTestWireGuardStore()
+        let store = TetheringStore(
+            assetProvider: ObservationTestAssetProvider(),
+            vmCoordinator: ObservationTestVMCoordinator(),
+            usbCoordinator: USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor()),
+            wireGuardConfStore: wireGuardStore,
+            wireGuardConfBuilder: WireGuardConfBuilder(elements: .defaults),
+            eventLog: EventLogStore(),
+            consoleSession: ConsoleSessionStore(),
+            usbSession: USBSessionStore(),
+            vmConfiguration: VMConfigurationStore(defaults: defaults),
+            hostWireGuardTunnelController: tunnelController,
+            defaults: defaults
+        )
+
+        let didReset = await store.resetAppSettings()
+
+        XCTAssertFalse(didReset)
+        XCTAssertEqual(tunnelController.disconnectCallCount, 1)
+        XCTAssertEqual(tunnelController.lastDisconnectWaitUntilStopped, true)
+        XCTAssertEqual(tunnelController.removeSavedTunnelCallCount, 0)
+        XCTAssertEqual(wireGuardStore.removeConfigurationDirectoryCallCount, 0)
+    }
+
+    func testResetPreservesConfigurationWhenTunnelProfileRemovalFails() async throws {
+        let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let tunnelController = ObservationTestHostWireGuardTunnelController()
+        tunnelController.savedTunnelRemovalSucceeds = false
+        let wireGuardStore = ObservationTestWireGuardStore()
+        let store = TetheringStore(
+            assetProvider: ObservationTestAssetProvider(),
+            vmCoordinator: ObservationTestVMCoordinator(),
+            usbCoordinator: USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor()),
+            wireGuardConfStore: wireGuardStore,
+            wireGuardConfBuilder: WireGuardConfBuilder(elements: .defaults),
+            eventLog: EventLogStore(),
+            consoleSession: ConsoleSessionStore(),
+            usbSession: USBSessionStore(),
+            vmConfiguration: VMConfigurationStore(defaults: defaults),
+            hostWireGuardTunnelController: tunnelController,
+            defaults: defaults
+        )
+
+        let didReset = await store.resetAppSettings()
+
+        XCTAssertFalse(didReset)
+        XCTAssertEqual(tunnelController.disconnectCallCount, 1)
+        XCTAssertEqual(tunnelController.removeSavedTunnelCallCount, 1)
+        XCTAssertEqual(wireGuardStore.removeConfigurationDirectoryCallCount, 0)
+    }
+
     func testConsoleOutputOnlyInvalidatesConsoleSession() throws {
         let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
@@ -200,7 +509,9 @@ final class TetheringStoreObservationTests: XCTestCase {
             eventLog: eventLog,
             consoleSession: consoleSession,
             usbSession: USBSessionStore(),
-            vmConfiguration: VMConfigurationStore(defaults: defaults)
+            vmConfiguration: VMConfigurationStore(defaults: defaults),
+            hostWireGuardTunnelController: ObservationTestHostWireGuardTunnelController(),
+            defaults: defaults
         )
         var storeChangeCount = 0
         var consoleChangeCount = 0
@@ -241,7 +552,9 @@ final class TetheringStoreObservationTests: XCTestCase {
             eventLog: eventLog,
             consoleSession: consoleSession,
             usbSession: USBSessionStore(),
-            vmConfiguration: VMConfigurationStore(defaults: defaults)
+            vmConfiguration: VMConfigurationStore(defaults: defaults),
+            hostWireGuardTunnelController: ObservationTestHostWireGuardTunnelController(),
+            defaults: defaults
         )
         var storeChangeCount = 0
         var consoleChangeCount = 0
@@ -303,6 +616,36 @@ private final class ObservationTestUSBMonitor: USBAccessoryMonitoring {
 }
 
 @MainActor
+private final class ObservationTestHostWireGuardTunnelController: HostWireGuardTunnelControlling {
+    var onStatusChange: ((HostWireGuardTunnelStatus) -> Void)?
+    var onEventLog: ((String) -> Void)?
+    private(set) var connectCallCount = 0
+    private(set) var disconnectCallCount = 0
+    private(set) var lastDisconnectWaitUntilStopped: Bool?
+    private(set) var removeSavedTunnelCallCount = 0
+    var disconnectSucceeds = true
+    var savedTunnelRemovalSucceeds = true
+
+    func refreshStatus() async {}
+    func connect(wgQuickConfiguration: String) async {
+        connectCallCount += 1
+    }
+
+    @discardableResult
+    func disconnect(waitUntilStopped: Bool) async -> Bool {
+        disconnectCallCount += 1
+        lastDisconnectWaitUntilStopped = waitUntilStopped
+        return disconnectSucceeds
+    }
+
+    @discardableResult
+    func removeSavedTunnelIfNeeded() async -> Bool {
+        removeSavedTunnelCallCount += 1
+        return savedTunnelRemovalSucceeds
+    }
+}
+
+@MainActor
 private final class ObservationTestAssetProvider: VMAssetProviding {
     var hasConfiguredAssets = true
     var isBusy = false
@@ -315,8 +658,9 @@ private final class ObservationTestAssetProvider: VMAssetProviding {
     }
 }
 
-private struct ObservationTestWireGuardStore: WireGuardConfigurationStoring {
+private final class ObservationTestWireGuardStore: WireGuardConfigurationStoring {
     let files: WireGuardConfigurationFiles
+    private(set) var removeConfigurationDirectoryCallCount = 0
 
     var sharedDirectoryURL: URL {
         files.sharedDirectoryURL
@@ -345,7 +689,9 @@ private struct ObservationTestWireGuardStore: WireGuardConfigurationStoring {
         preparedConfiguration()
     }
 
-    func removeConfigurationDirectory() throws {}
+    func removeConfigurationDirectory() throws {
+        removeConfigurationDirectoryCallCount += 1
+    }
 
     private func preparedConfiguration() -> PreparedWireGuardConfiguration {
         PreparedWireGuardConfiguration(

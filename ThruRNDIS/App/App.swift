@@ -84,7 +84,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         eventLog: eventLog,
         consoleSession: ConsoleSessionStore(),
         usbSession: USBSessionStore(),
-        vmConfiguration: VMConfigurationStore()
+        vmConfiguration: VMConfigurationStore(),
+        hostWireGuardTunnelController: HostWireGuardTunnelController(
+            systemExtensionActivator: WireGuardSystemExtensionActivator()
+        )
     )
 
     private var menuBarController: MenuBarController?
@@ -94,6 +97,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var cancellables: Set<AnyCancellable> = []
     private var pendingTerminationApplication: NSApplication?
     private var didPrepareForTermination = false
+    private var storeTerminationTask: Task<Void, Never>?
+    private var resetAndRestartTask: Task<Void, Never>?
     private let isRunningUnderXCTest: Bool
 
     override init() {
@@ -171,15 +176,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return .terminateNow
         }
 
-        prepareStoreForTerminationIfNeeded()
-
-        guard assetWorkflowCoordinator.isBusy else {
-            assetWorkflowCoordinator.prepareForApplicationTermination()
-            return .terminateNow
-        }
-
         pendingTerminationApplication = sender
-        assetWorkflowCoordinator.prepareForApplicationTermination()
+        prepareForTerminationIfNeeded()
+        finishPendingTerminationIfPossible()
         return .terminateLater
     }
 
@@ -220,26 +219,52 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func resetAppSettingsAndRestart() {
-        guard store.resetAppSettings() else {
+        guard resetAndRestartTask == nil else {
             return
         }
-        assetWorkflowCoordinator.clearSelection()
 
-        let configuration = NSWorkspace.OpenConfiguration()
-        configuration.createsNewApplicationInstance = true
-
-        NSWorkspace.shared.openApplication(
-            at: Bundle.main.bundleURL,
-            configuration: configuration
-        ) { [weak self] application, error in
-            DispatchQueue.main.async { [weak self] in
-                guard application != nil, error == nil else {
-                    self?.presentRestartFailure(error)
-                    return
-                }
-
-                NSApp.terminate(nil)
+        resetAndRestartTask = Task { @MainActor [weak self] in
+            guard let self else {
+                return
             }
+            guard await self.store.resetAppSettings() else {
+                self.resetAndRestartTask = nil
+                self.presentResetFailure()
+                return
+            }
+            self.assetWorkflowCoordinator.clearSelection()
+
+            let configuration = NSWorkspace.OpenConfiguration()
+            configuration.createsNewApplicationInstance = true
+
+            NSWorkspace.shared.openApplication(
+                at: Bundle.main.bundleURL,
+                configuration: configuration
+            ) { [weak self] application, error in
+                DispatchQueue.main.async { [weak self] in
+                    self?.resetAndRestartTask = nil
+                    guard application != nil, error == nil else {
+                        self?.presentRestartFailure(error)
+                        return
+                    }
+
+                    NSApp.terminate(nil)
+                }
+            }
+        }
+    }
+
+    private func presentResetFailure() {
+        let alert = NSAlert()
+        alert.alertStyle = .critical
+        alert.messageText = String(localized: "ThruRNDIS Could Not Reset Settings")
+        alert.informativeText = store.preferencesStatusMessage
+        alert.addButton(withTitle: String(localized: "OK"))
+
+        if let window = settingsWindowController?.window {
+            alert.beginSheetModal(for: window)
+        } else {
+            alert.runModal()
         }
     }
 
@@ -273,17 +298,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         onboardingWindowController?.show()
     }
 
-    private func prepareStoreForTerminationIfNeeded() {
+    private func prepareForTerminationIfNeeded() {
         guard !didPrepareForTermination else {
             return
         }
         didPrepareForTermination = true
-        store.prepareForApplicationTermination()
+        assetWorkflowCoordinator.prepareForApplicationTermination()
+        storeTerminationTask = Task { @MainActor [weak self] in
+            guard let self else {
+                return
+            }
+            await self.store.prepareForApplicationTermination()
+            self.storeTerminationTask = nil
+            self.finishPendingTerminationIfPossible()
+        }
     }
 
     private func finishPendingTerminationIfPossible() {
         guard let application = pendingTerminationApplication,
-              !assetWorkflowCoordinator.isBusy else {
+              !assetWorkflowCoordinator.isBusy,
+              storeTerminationTask == nil else {
             return
         }
         pendingTerminationApplication = nil
