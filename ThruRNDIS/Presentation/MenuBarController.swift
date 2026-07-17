@@ -459,10 +459,6 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     private static func shortDeviceTitle(_ accessory: USBAccessoryRecord) -> String {
-        "\(accessory.usbIDText) · \(accessory.registryIDText)"
-    }
-
-    private static func registryIDText(_ registryID: UInt64) -> String {
-        "0x" + String(registryID, radix: 16, uppercase: true)
+        "\(accessory.usbIDText) ⋅ \(accessory.deviceName)"
     }
 }
