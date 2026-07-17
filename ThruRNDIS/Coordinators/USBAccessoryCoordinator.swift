@@ -144,7 +144,9 @@ final class USBAccessoryCoordinator {
                 case .failure(let error):
                     self.isAccessoryMonitoring = false
                     self.onStatusMessage?(error.localizedDescription)
-                    self.onEventLog?("USB listener failed: \(error.localizedDescription)")
+                    self.onEventLog?(
+                        "USB listener failed: " + EventLogErrorFormatter.description(for: error)
+                    )
                     self.notifyStateChanged()
                     completion?()
                 }
@@ -331,7 +333,9 @@ final class USBAccessoryCoordinator {
                     }
                     self.manualPassthroughDisconnectSuppressedUntil = nil
                     self.onStatusMessage?(error.localizedDescription)
-                    self.onEventLog?("USB detach failed: \(error.localizedDescription)")
+                    self.onEventLog?(
+                        "USB detach failed: " + EventLogErrorFormatter.description(for: error)
+                    )
                 } else {
                     self.attachedAccessoryID = nil
                     self.attachedDevice = nil
@@ -468,12 +472,13 @@ final class USBAccessoryCoordinator {
                     self.pendingAttachToken = nil
 
                     if let error {
+                        let eventLogError = EventLogErrorFormatter.description(for: error)
                         self.onStatusMessage?(error.localizedDescription)
-                        self.onEventLog?("USB attach failed: \(error.localizedDescription)")
+                        self.onEventLog?("USB attach failed: \(eventLogError)")
                         self.suppressAttach(
                             for: record,
                             interval: USBPassthroughPolicy.attachFailureSuppressionInterval,
-                            reason: "VZ USB controller attach failed: \(error.localizedDescription)"
+                            reason: "VZ USB controller attach failed: \(eventLogError)"
                         )
                     } else {
                         self.attachedAccessoryID = registryID
@@ -487,15 +492,19 @@ final class USBAccessoryCoordinator {
                 }
             }
         } catch {
+            let eventLogError = EventLogErrorFormatter.description(for: error)
             pendingAttachAccessoryID = nil
             pendingAttachToken = nil
             notifyStateChanged()
             onStatusMessage?(error.localizedDescription)
-            onEventLog?("USB passthrough device creation failed for registry \(record.registryIDText): \(error.localizedDescription)")
+            onEventLog?(
+                "USB passthrough device creation failed for registry " +
+                    "\(record.registryIDText): \(eventLogError)"
+            )
             suppressAttach(
                 for: record,
                 interval: USBPassthroughPolicy.attachFailureSuppressionInterval,
-                reason: "VZ passthrough device creation failed: \(error.localizedDescription)"
+                reason: "VZ passthrough device creation failed: \(eventLogError)"
             )
             completion?(false)
         }

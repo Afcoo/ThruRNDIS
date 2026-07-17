@@ -386,7 +386,8 @@ final class TetheringStore: ObservableObject {
         } catch {
             statusMessage = error.localizedDescription
             appendEventLog(
-                "VM asset validation failed before VM start: \(error.localizedDescription)",
+                "VM asset validation failed before VM start: " +
+                    EventLogErrorFormatter.description(for: error),
                 source: .vmAssets
             )
             return false
@@ -633,7 +634,8 @@ final class TetheringStore: ObservableObject {
             appendEventLog("WireGuard host configuration saved to \(url.path).", source: .wireGuard)
         } catch {
             appendEventLog(
-                "WireGuard configuration save failed: \(error.localizedDescription)",
+                "WireGuard configuration save failed: " +
+                    EventLogErrorFormatter.description(for: error),
                 source: .wireGuard
             )
         }
@@ -656,9 +658,7 @@ final class TetheringStore: ObservableObject {
             return
         }
         guard runtimeEntitlements.packetTunnelProvider else {
-            setHostWireGuardTunnelStatus(
-                .failed(String(localized: "NetworkExtension packet tunnel entitlement is missing."))
-            )
+            setHostWireGuardTunnelStatus(.missingPacketTunnelEntitlement)
             appendEventLog(
                 "Host WireGuard status not refreshed: missing NetworkExtension entitlement.",
                 source: .wireGuard
@@ -687,16 +687,12 @@ final class TetheringStore: ObservableObject {
         }
         guard runtimeEntitlements.packetTunnelProvider else {
             reportMissingEntitlement(.packetTunnelProvider, action: "Host WireGuard tunnel start")
-            setHostWireGuardTunnelStatus(
-                .failed(String(localized: "NetworkExtension packet tunnel entitlement is missing."))
-            )
+            setHostWireGuardTunnelStatus(.missingPacketTunnelEntitlement)
             return
         }
         guard runtimeEntitlements.systemExtensionInstall else {
             reportMissingEntitlement(.systemExtensionInstall, action: "Host WireGuard tunnel start")
-            setHostWireGuardTunnelStatus(
-                .failed(String(localized: "System Extension installation entitlement is missing."))
-            )
+            setHostWireGuardTunnelStatus(.missingSystemExtensionInstallEntitlement)
             return
         }
         guard canExportWireGuardConfiguration else {
@@ -753,7 +749,8 @@ final class TetheringStore: ObservableObject {
             launchAtLoginSnapshot = LaunchAtLoginService.snapshot()
             preferencesStatusMessage = String(localized: "Could not update Launch at Login: \(error.localizedDescription)")
             appendEventLog(
-                "Could not update Launch at Login: \(error.localizedDescription)"
+                "Could not update Launch at Login: " +
+                    EventLogErrorFormatter.description(for: error)
             )
         }
     }
@@ -833,7 +830,7 @@ final class TetheringStore: ObservableObject {
             preferencesStatusMessage = String(localized: "Could not remove WireGuard configuration: \(error.localizedDescription)")
             appendEventLog(
                 "App settings reset cancelled: Could not remove WireGuard configuration: " +
-                    error.localizedDescription
+                    EventLogErrorFormatter.description(for: error)
             )
             return false
         }
@@ -1386,7 +1383,7 @@ final class TetheringStore: ObservableObject {
             wireGuardKeyMaterial = nil
             appendEventLog(
                 "WireGuard key/configuration initialization failed without replacing existing keys: " +
-                    error.localizedDescription,
+                    EventLogErrorFormatter.description(for: error),
                 source: .wireGuard
             )
         }
@@ -1414,7 +1411,8 @@ final class TetheringStore: ObservableObject {
         } catch {
             wireGuardKeyMaterial = nil
             appendEventLog(
-                "WireGuard configuration load failed: \(error.localizedDescription)",
+                "WireGuard configuration load failed: " +
+                    EventLogErrorFormatter.description(for: error),
                 source: .wireGuard
             )
             return false

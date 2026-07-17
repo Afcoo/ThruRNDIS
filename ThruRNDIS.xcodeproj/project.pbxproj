@@ -84,6 +84,7 @@
 		DB1000000000000000000001 /* WireGuardConfBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB1000000000000000000101 /* WireGuardConfBuilderTests.swift */; };
 		DB1000000000000000000002 /* WireGuardConnectionValidatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB1000000000000000000102 /* WireGuardConnectionValidatorTests.swift */; };
 		DB1000000000000000000003 /* HostWireGuardTunnelControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB1000000000000000000103 /* HostWireGuardTunnelControllerTests.swift */; };
+		DC1000000000000000000001 /* EventLogErrorFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC1000000000000000000101 /* EventLogErrorFormatter.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -217,6 +218,7 @@
 		DB1000000000000000000101 /* WireGuardConfBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardConfBuilderTests.swift; sourceTree = "<group>"; };
 		DB1000000000000000000102 /* WireGuardConnectionValidatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardConnectionValidatorTests.swift; sourceTree = "<group>"; };
 		DB1000000000000000000103 /* HostWireGuardTunnelControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostWireGuardTunnelControllerTests.swift; sourceTree = "<group>"; };
+		DC1000000000000000000101 /* EventLogErrorFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventLogErrorFormatter.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -366,6 +368,7 @@
 			isa = PBXGroup;
 			children = (
 				8B0000000000000000000109 /* Clipboard.swift */,
+				DC1000000000000000000101 /* EventLogErrorFormatter.swift */,
 				8B000000000000000000010A /* FilePicker.swift */,
 				8B0000000000000000000112 /* RuntimeEntitlements.swift */,
 				DA1000000000000000000108 /* NETunnelProviderProtocol+ThruRNDIS.swift */,
@@ -733,6 +736,7 @@
 				DA1000000000000000000011 /* ThruRNDISTunnel.swift in Sources */,
 				DA1000000000000000000007 /* TunnelConfiguration+WgQuickConfig.swift in Sources */,
 				DA1000000000000000000013 /* WireGuardConnectionValidator.swift in Sources */,
+				DC1000000000000000000001 /* EventLogErrorFormatter.swift in Sources */,
 				DA1000000000000000000008 /* NETunnelProviderProtocol+ThruRNDIS.swift in Sources */,
 				8F0000000000000000000003 /* VMCoordinator.swift in Sources */,
 				8F0000000000000000000004 /* USBAccessoryCoordinator.swift in Sources */,

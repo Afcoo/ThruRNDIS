@@ -17,6 +17,7 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
     private let downloadService: VMAssetDownloading
     private let installService: VMAssetInstalling
     private let selectionStore: VMAssetSelectionStoring
+    private var eventLogErrorDescription: String?
     private var operationTask: Task<Void, Never>?
     private var operationID: UUID?
 
@@ -74,6 +75,9 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
         if let initializationError {
             errorMessage = initializationError.localizedDescription
             installState = .failed(message: initializationError.localizedDescription)
+            eventLogErrorDescription = EventLogErrorFormatter.description(
+                for: initializationError
+            )
         } else if let currentSelection {
             installState = .ready(message: readyMessage(for: currentSelection))
         }
@@ -122,8 +126,9 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
     }
 
     func reportCurrentStateToEventLog() {
-        if let errorMessage {
-            onEventLog?("VM asset state could not be loaded: \(errorMessage)")
+        if errorMessage != nil {
+            let diagnostic = eventLogErrorDescription ?? "No error diagnostic is available."
+            onEventLog?("VM asset state could not be loaded: \(diagnostic)")
         } else if let currentSelection {
             switch currentSelection.source {
             case .managed:
@@ -147,6 +152,7 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
         }
 
         errorMessage = nil
+        eventLogErrorDescription = nil
         let operationID = UUID()
         self.operationID = operationID
         let task = Task { [weak self] in
@@ -177,6 +183,7 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
             let selection = try selectionStore.selectManualFolder(directoryURL)
             currentSelection = selection
             errorMessage = nil
+            eventLogErrorDescription = nil
             installState = .ready(message: readyMessage(for: selection))
             onEventLog?("Selected VM assets manually: \(selection.folderURL.path).")
             return nil
@@ -213,6 +220,7 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
             let selection = try selectionStore.selectManagedRelease(release)
             currentSelection = selection
             errorMessage = nil
+            eventLogErrorDescription = nil
             installState = .ready(message: readyMessage(for: selection))
             onEventLog?("Activated installed VM asset release \(release.displayName).")
             return nil
@@ -229,12 +237,14 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
         selectionStore.clearSelection()
         currentSelection = nil
         errorMessage = nil
+        eventLogErrorDescription = nil
         installState = .idle
         onEventLog?("Cleared the VM asset selection; managed release files were preserved.")
     }
 
     func clearError() {
         errorMessage = nil
+        eventLogErrorDescription = nil
         guard case .failed = installState else {
             return
         }
@@ -355,6 +365,7 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
                 }
                 finishOperation(operationID)
                 errorMessage = nil
+                eventLogErrorDescription = nil
                 installState = currentSelection.map {
                     .ready(message: String(localized: "Installation cancelled. \(readyMessage(for: $0))"))
                 } ?? .idle
@@ -382,7 +393,10 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
             )
             installedReleases = try installService.installedReleases()
         } catch {
-            onEventLog?("VM asset cleanup failed after activation: \(error.localizedDescription)")
+            onEventLog?(
+                "VM asset cleanup failed after activation: " +
+                    EventLogErrorFormatter.description(for: error)
+            )
         }
     }
 
@@ -392,6 +406,7 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
         eventMessage: String
     ) {
         errorMessage = nil
+        eventLogErrorDescription = nil
         installState = .ready(message: message)
         onEventLog?(eventMessage)
     }
@@ -431,6 +446,7 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
             let selection = try update(currentSelection)
             self.currentSelection = selection
             errorMessage = nil
+            eventLogErrorDescription = nil
             installState = .ready(message: readyMessage(for: selection))
             onEventLog?("Updated VM asset overrides.")
             return nil
@@ -442,9 +458,11 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
 
     private func reportFailure(_ error: Error) {
         let message = error.localizedDescription
+        let eventLogDescription = EventLogErrorFormatter.description(for: error)
         errorMessage = message
+        eventLogErrorDescription = eventLogDescription
         installState = .failed(message: message)
-        onEventLog?("VM asset operation failed: \(message)")
+        onEventLog?("VM asset operation failed: \(eventLogDescription)")
     }
 
     private func readyMessage(for selection: VMAssetSelection) -> String {

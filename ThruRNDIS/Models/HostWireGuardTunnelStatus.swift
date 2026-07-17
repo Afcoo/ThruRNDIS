@@ -14,6 +14,13 @@ enum HostWireGuardTunnelStatus: Equatable {
     case reasserting
     case failed(String)
 
+    static let missingPacketTunnelEntitlement = Self.failed(
+        "NetworkExtension packet tunnel entitlement is missing."
+    )
+    static let missingSystemExtensionInstallEntitlement = Self.failed(
+        "System Extension installation entitlement is missing."
+    )
+
     var title: String {
         switch self {
         case .unconfigured:

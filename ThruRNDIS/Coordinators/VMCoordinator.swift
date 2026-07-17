@@ -121,7 +121,9 @@ final class VMCoordinator {
                         self.scheduleConsoleOutputWatchdog(generation: generation)
                     case .failure(let error):
                         self.transition(to: .failed, message: error.localizedDescription)
-                        self.onEventLog?("VM start failed: \(error.localizedDescription)")
+                        self.onEventLog?(
+                            "VM start failed: " + EventLogErrorFormatter.description(for: error)
+                        )
                         self.generation &+= 1
                         self.virtualMachine = nil
                         self.vmDelegate = nil
@@ -132,7 +134,9 @@ final class VMCoordinator {
             }
         } catch {
             transition(to: .failed, message: error.localizedDescription)
-            onEventLog?("VM configuration failed: \(error.localizedDescription)")
+            onEventLog?(
+                "VM configuration failed: " + EventLogErrorFormatter.description(for: error)
+            )
         }
     }
 
@@ -155,7 +159,9 @@ final class VMCoordinator {
 
                 if let error {
                     self.transition(to: .failed, message: error.localizedDescription)
-                    self.onEventLog?("VM stop failed: \(error.localizedDescription)")
+                    self.onEventLog?(
+                        "VM stop failed: " + EventLogErrorFormatter.description(for: error)
+                    )
                 } else {
                     self.markStopped(
                         message: String(localized: "VM stopped."),
@@ -200,7 +206,10 @@ final class VMCoordinator {
                     self.isRestarting = false
                     self.restartContinuation = nil
                     self.transition(to: .failed, message: error.localizedDescription)
-                    self.onEventLog?("VM restart failed while stopping VM: \(error.localizedDescription)")
+                    self.onEventLog?(
+                        "VM restart failed while stopping VM: " +
+                            EventLogErrorFormatter.description(for: error)
+                    )
                     return
                 }
 
@@ -268,7 +277,9 @@ final class VMCoordinator {
                 self.vmDelegate = nil
                 self.usbDelegate = nil
                 self.onStopped?()
-                self.onEventLog?("VM stopped with error: \(error.localizedDescription)")
+                self.onEventLog?(
+                    "VM stopped with error: " + EventLogErrorFormatter.description(for: error)
+                )
             }
         }
 
@@ -278,7 +289,10 @@ final class VMCoordinator {
                       self.isCurrent(callbackVirtualMachine, generation: generation) else {
                     return
                 }
-                self.onEventLog?("VM network attachment disconnected: \(error.localizedDescription)")
+                self.onEventLog?(
+                    "VM network attachment disconnected: " +
+                        EventLogErrorFormatter.description(for: error)
+                )
             }
         }
 

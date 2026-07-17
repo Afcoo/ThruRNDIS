@@ -512,9 +512,13 @@ final class HostWireGuardTunnelController: HostWireGuardTunnelControlling {
     }
 
     private func fail(action: String, error: Error) {
-        let diagnostic = error.localizedDescription
+        let diagnostic = Self.diagnosticDescription(for: error)
         setStatus(.failed(diagnostic))
         onEventLog?("Host WireGuard tunnel \(action) failed: \(diagnostic)")
+    }
+
+    static func diagnosticDescription(for error: Error) -> String {
+        EventLogErrorFormatter.description(for: error)
     }
 
     private nonisolated static func status(
