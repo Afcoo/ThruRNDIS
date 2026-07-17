@@ -3,12 +3,6 @@
 [한국어](./README.md) | [English](./README.en.md)
 
 
-> [!WARNING]
-> The current WireGuard connection works correctly **only with `wg-quick`.**
->
-> ThruRNDIS does not yet install, start, stop, or manage the WireGuard tunnel itself.
-
-
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./images/introduction-dark.png">
   <source media="(prefers-color-scheme: light)" srcset="./images/introduction-light.png">
@@ -24,12 +18,11 @@ ThruRNDIS is a Swift app based on the Virtualization framework that enables Andr
 - macOS 27 beta 2 or later
 - A device that supports RNDIS USB tethering (ex. an Android device)
 - An internet connection to download the VM Assets on first launch
-- [`wg-quick`](https://www.wireguard.com/quickstart/) for the network connection
 
 ## How It Works
 
 ```text
-macOS WireGuard client
+ThruRNDIS WireGuard Network System Extension
 -> VZNAT guest endpoint UDP/<ListenPort>
 -> Linux VM wg0
 -> nftables masquerade
@@ -64,23 +57,9 @@ You can also use a kernel and RAM disk that you built yourself.
 
 ### WireGuard
 
-Install the WireGuard tools.
-
-```sh
-brew install wireguard-tools wireguard-go
-```
-
 Enable USB tethering on the Android device and connect it, then approve the device in ThruRNDIS and start the VM.
 
-Once the VM endpoint appears, save the host `.conf` file from the WireGuard screen and connect with `wg-quick`.
-
-```sh
-sudo wg-quick up ./thrurndis.conf
-sudo wg show
-
-# Disconnect
-sudo wg-quick down ./thrurndis.conf
-```
+Once the VM endpoint appears, choose **Connect WireGuard** in WireGuard Settings or the menu bar. Choose **Disconnect WireGuard** to end the connection. ThruRNDIS manages the WireGuard connection through its embedded Network System Extension.
 
 ## License
 

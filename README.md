@@ -3,12 +3,6 @@
 [한국어](./README.md) | [English](./README.en.md)
 
 
-> [!WARNING]
-> 현재 WireGuard 연결은 **`wg-quick`으로만 정상 동작합니다.**
->
-> 아직 ThruRNDIS는 WireGuard 터널을 직접 설치하거나 시작·중지·관리하지 않습니다.
-
-
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./images/introduction-dark.png">
   <source media="(prefers-color-scheme: light)" srcset="./images/introduction-light.png">
@@ -24,12 +18,11 @@ ThruRNDIS는 macOS에서 안드로이드의 RNDIS 방식 USB 테더링을 사용
 - macOS 27 beta 2 이상
 - RNDIS 방식 USB 테더링을 지원하는 장치(예: 안드로이드 기기)
 - 첫 실행 시 VM Assets를 내려받기 위한 인터넷 연결
-- 네트워크 연결용 [`wg-quick`](https://www.wireguard.com/quickstart/)
 
 ## 작동 원리
 
 ```text
-macOS WireGuard client
+ThruRNDIS WireGuard Network System Extension
 -> VZNAT guest endpoint UDP/<ListenPort>
 -> Linux VM wg0
 -> nftables masquerade
@@ -64,23 +57,9 @@ ThruRNDIS는 [VM Assets 릴리스](https://github.com/Afcoo/ThruRNDIS_VM_Assets/
 
 ### WireGuard
 
-WireGuard 도구를 설치합니다.
-
-```sh
-brew install wireguard-tools wireguard-go
-```
-
 안드로이드에서 USB 테더링을 켜고 장치를 연결한 뒤, ThruRNDIS의 승인을 거쳐 VM을 시작합니다.
 
-VM 엔드포인트가 표시되면 WireGuard 화면에서 호스트용 `.conf` 파일을 저장하고 `wg-quick`으로 연결합니다.
-
-```sh
-sudo wg-quick up ./thrurndis.conf
-sudo wg show
-
-# 연결 종료
-sudo wg-quick down ./thrurndis.conf
-```
+VM 엔드포인트가 표시되면 설정의 WireGuard 화면이나 메뉴 막대에서 **Connect WireGuard**를 선택합니다. 연결을 끝내려면 **Disconnect WireGuard**를 선택합니다. ThruRNDIS가 내장된 Network System Extension을 통해 WireGuard 연결을 관리합니다.
 
 ## 라이선스
 
