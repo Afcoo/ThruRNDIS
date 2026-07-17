@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 54;
+	objectVersion = 60;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -66,6 +66,10 @@
 		F20000000000000000000001 /* VideoPlaybackStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000101 /* VideoPlaybackStore.swift */; };
 		G10000000000000000000001 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = G10000000000000000000101 /* Localizable.xcstrings */; };
 		H10000000000000000000001 /* EventLogStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = H10000000000000000000101 /* EventLogStore.swift */; };
+		DA1000000000000000000009 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA100000000000000000010A /* main.swift */; };
+		DA100000000000000000000E /* WireGuardKit in Frameworks */ = {isa = PBXBuildFile; productRef = DA1000000000000000000802 /* WireGuardKit */; };
+		DA100000000000000000000F /* WireGuardKit in Frameworks */ = {isa = PBXBuildFile; productRef = DA1000000000000000000802 /* WireGuardKit */; };
+		DA1000000000000000000010 /* ThruRNDISWireGuardNetworkExtension.systemextension in Embed System Extensions */ = {isa = PBXBuildFile; fileRef = DA100000000000000000010F /* ThruRNDISWireGuardNetworkExtension.systemextension */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -76,7 +80,42 @@
 			remoteGlobalIDString = 374FD25624CBADD100890848;
 			remoteInfo = ThruRNDIS;
 		};
+		DA1000000000000000000301 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 374FD24F24CBADD100890848 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = DA1000000000000000000601;
+			remoteInfo = ThruRNDISWireGuardNetworkExtension;
+		};
+		DA1000000000000000000302 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 374FD24F24CBADD100890848 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = DA1000000000000000000602;
+			remoteInfo = WireGuardGoBridgemacOS;
+		};
+		DA1000000000000000000303 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 374FD24F24CBADD100890848 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = DA1000000000000000000602;
+			remoteInfo = WireGuardGoBridgemacOS;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		DA1000000000000000000201 /* Embed System Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(SYSTEM_EXTENSIONS_FOLDER_PATH)";
+			dstSubfolderSpec = 16;
+			files = (
+				DA1000000000000000000010 /* ThruRNDISWireGuardNetworkExtension.systemextension in Embed System Extensions */,
+			);
+			name = "Embed System Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		374FD25724CBADD100890848 /* ThruRNDIS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ThruRNDIS.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -146,6 +185,12 @@
 		F20000000000000000000101 /* VideoPlaybackStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoPlaybackStore.swift; sourceTree = "<group>"; };
 		G10000000000000000000101 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		H10000000000000000000101 /* EventLogStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventLogStore.swift; sourceTree = "<group>"; };
+		DA1000000000000000000109 /* Distribution.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Distribution.entitlements; sourceTree = "<group>"; };
+		DA100000000000000000010A /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
+		DA100000000000000000010C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		DA100000000000000000010D /* Development.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Development.entitlements; sourceTree = "<group>"; };
+		DA100000000000000000010E /* Distribution.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Distribution.entitlements; sourceTree = "<group>"; };
+		DA100000000000000000010F /* ThruRNDISWireGuardNetworkExtension.systemextension */ = {isa = PBXFileReference; explicitFileType = "wrapper.system-extension"; includeInIndex = 0; path = ThruRNDISWireGuardNetworkExtension.systemextension; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -154,6 +199,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				8E0000000000000000000001 /* SwiftTerm in Frameworks */,
+				DA100000000000000000000E /* WireGuardKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -165,6 +211,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		DA1000000000000000000501 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DA100000000000000000000F /* WireGuardKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -173,6 +227,7 @@
 			children = (
 				415EB883448D759F3C023B32 /* README.md */,
 				374FD25924CBADD100890848 /* ThruRNDIS */,
+				DA1000000000000000000901 /* ThruRNDISWireGuardNetworkExtension */,
 				C10000000000000000000201 /* ThruRNDISTests */,
 				8C0000000000000000000202 /* Frameworks */,
 				374FD25824CBADD100890848 /* Products */,
@@ -185,6 +240,7 @@
 			isa = PBXGroup;
 			children = (
 				374FD25724CBADD100890848 /* ThruRNDIS.app */,
+				DA100000000000000000010F /* ThruRNDISWireGuardNetworkExtension.systemextension */,
 				C10000000000000000000105 /* ThruRNDISTests.xctest */,
 			);
 			name = Products;
@@ -208,6 +264,7 @@
 				8B0000000000000000000113 /* Info.plist */,
 				374FD26124CBAE6700890848 /* ThruRNDIS.entitlements */,
 				374FD26224CBAE6700890848 /* Runtime.entitlements */,
+				DA1000000000000000000109 /* Distribution.entitlements */,
 			);
 			path = ThruRNDIS;
 			sourceTree = "<group>";
@@ -426,7 +483,35 @@
 			path = Resources;
 			sourceTree = "<group>";
 		};
+		DA1000000000000000000901 /* ThruRNDISWireGuardNetworkExtension */ = {
+			isa = PBXGroup;
+			children = (
+				DA100000000000000000010A /* main.swift */,
+				DA100000000000000000010C /* Info.plist */,
+				DA100000000000000000010D /* Development.entitlements */,
+				DA100000000000000000010E /* Distribution.entitlements */,
+			);
+			path = ThruRNDISWireGuardNetworkExtension;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
+
+/* Begin PBXLegacyTarget section */
+		DA1000000000000000000602 /* WireGuardGoBridgemacOS */ = {
+			isa = PBXLegacyTarget;
+			buildArgumentsString = "";
+			buildConfigurationList = DA1000000000000000000714 /* Build configuration list for PBXLegacyTarget "WireGuardGoBridgemacOS" */;
+			buildPhases = (
+			);
+			buildToolPath = /usr/bin/make;
+			buildWorkingDirectory = "$(BUILD_DIR)/../../SourcePackages/checkouts/wireguard-apple/Sources/WireGuardKitGo";
+			dependencies = (
+			);
+			name = WireGuardGoBridgemacOS;
+			passBuildSettingsInEnvironment = 1;
+			productName = WireGuardGoBridge;
+		};
+/* End PBXLegacyTarget section */
 
 /* Begin PBXNativeTarget section */
 		374FD25624CBADD100890848 /* ThruRNDIS */ = {
@@ -436,18 +521,43 @@
 				374FD25324CBADD100890848 /* Sources */,
 				374FD25424CBADD100890848 /* Frameworks */,
 				8D0000000000000000000301 /* Resources */,
+				DA1000000000000000000201 /* Embed System Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				DA1000000000000000000401 /* PBXTargetDependency */,
+				DA1000000000000000000402 /* PBXTargetDependency */,
 			);
 			name = ThruRNDIS;
 			packageProductDependencies = (
 				8E0000000000000000000102 /* SwiftTerm */,
+				DA1000000000000000000802 /* WireGuardKit */,
 			);
 			productName = ThruRNDIS;
 			productReference = 374FD25724CBADD100890848 /* ThruRNDIS.app */;
 			productType = "com.apple.product-type.application";
+		};
+		DA1000000000000000000601 /* ThruRNDISWireGuardNetworkExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DA1000000000000000000704 /* Build configuration list for PBXNativeTarget "ThruRNDISWireGuardNetworkExtension" */;
+			buildPhases = (
+				DA1000000000000000000502 /* Sources */,
+				DA1000000000000000000501 /* Frameworks */,
+				DA1000000000000000000503 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				DA1000000000000000000403 /* PBXTargetDependency */,
+			);
+			name = ThruRNDISWireGuardNetworkExtension;
+			packageProductDependencies = (
+				DA1000000000000000000802 /* WireGuardKit */,
+			);
+			productName = ThruRNDISWireGuardNetworkExtension;
+			productReference = DA100000000000000000010F /* ThruRNDISWireGuardNetworkExtension.systemextension */;
+			productType = "com.apple.product-type.system-extension";
 		};
 		C10000000000000000000401 /* ThruRNDISTests */ = {
 			isa = PBXNativeTarget;
@@ -480,6 +590,12 @@
 					374FD25624CBADD100890848 = {
 						CreatedOnToolsVersion = 12.0;
 					};
+					DA1000000000000000000601 = {
+						CreatedOnToolsVersion = 27.0;
+					};
+					DA1000000000000000000602 = {
+						CreatedOnToolsVersion = 27.0;
+					};
 					C10000000000000000000401 = {
 						CreatedOnToolsVersion = 27.0;
 						TestTargetID = 374FD25624CBADD100890848;
@@ -498,12 +614,15 @@
 			mainGroup = 374FD24E24CBADD100890848;
 			packageReferences = (
 				8E0000000000000000000101 /* XCRemoteSwiftPackageReference "SwiftTerm" */,
+				DA1000000000000000000801 /* XCRemoteSwiftPackageReference "wireguard-apple" */,
 			);
 			productRefGroup = 374FD25824CBADD100890848 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
 				374FD25624CBADD100890848 /* ThruRNDIS */,
+				DA1000000000000000000601 /* ThruRNDISWireGuardNetworkExtension */,
+				DA1000000000000000000602 /* WireGuardGoBridgemacOS */,
 				C10000000000000000000401 /* ThruRNDISTests */,
 			);
 		};
@@ -522,6 +641,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		C10000000000000000000303 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DA1000000000000000000503 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -598,6 +724,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		DA1000000000000000000502 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DA1000000000000000000009 /* main.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -605,6 +739,21 @@
 			isa = PBXTargetDependency;
 			target = 374FD25624CBADD100890848 /* ThruRNDIS */;
 			targetProxy = C10000000000000000000701 /* PBXContainerItemProxy */;
+		};
+		DA1000000000000000000401 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = DA1000000000000000000601 /* ThruRNDISWireGuardNetworkExtension */;
+			targetProxy = DA1000000000000000000301 /* PBXContainerItemProxy */;
+		};
+		DA1000000000000000000402 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = DA1000000000000000000602 /* WireGuardGoBridgemacOS */;
+			targetProxy = DA1000000000000000000302 /* PBXContainerItemProxy */;
+		};
+		DA1000000000000000000403 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = DA1000000000000000000602 /* WireGuardGoBridgemacOS */;
+			targetProxy = DA1000000000000000000303 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -734,7 +883,7 @@
 				CODE_SIGN_ENTITLEMENTS = ThruRNDIS/ThruRNDIS.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 7;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ThruRNDIS/Info.plist;
@@ -757,10 +906,10 @@
 			baseConfigurationReference = E3865CF719CB3E4197A4D3A9 /* BuildSettings.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = ThruRNDIS;
-				CODE_SIGN_ENTITLEMENTS = ThruRNDIS/ThruRNDIS.entitlements;
-				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_ENTITLEMENTS = ThruRNDIS/Distribution.entitlements;
+				CODE_SIGN_IDENTITY = "Developer ID Application";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 7;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -849,7 +998,7 @@
 				CODE_SIGN_ENTITLEMENTS = ThruRNDIS/Runtime.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 7;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ThruRNDIS/Info.plist;
@@ -920,6 +1069,108 @@
 			};
 			name = RuntimeDebug;
 		};
+		DA1000000000000000000701 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = E3865CF719CB3E4197A4D3A9 /* BuildSettings.xcconfig */;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = ThruRNDISWireGuardNetworkExtension/Development.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 7;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ThruRNDISWireGuardNetworkExtension/Info.plist;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 0.1.1;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(THRURNDIS_WIREGUARD_EXTENSION_BUNDLE_IDENTIFIER)";
+				PRODUCT_NAME = "$(PRODUCT_BUNDLE_IDENTIFIER)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		DA1000000000000000000702 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = E3865CF719CB3E4197A4D3A9 /* BuildSettings.xcconfig */;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = ThruRNDISWireGuardNetworkExtension/Distribution.entitlements;
+				CODE_SIGN_IDENTITY = "Developer ID Application";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 7;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ThruRNDISWireGuardNetworkExtension/Info.plist;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 0.1.1;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(THRURNDIS_WIREGUARD_EXTENSION_BUNDLE_IDENTIFIER)";
+				PRODUCT_NAME = "$(PRODUCT_BUNDLE_IDENTIFIER)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		DA1000000000000000000703 /* RuntimeDebug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = E3865CF719CB3E4197A4D3A9 /* BuildSettings.xcconfig */;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = ThruRNDISWireGuardNetworkExtension/Development.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 7;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ThruRNDISWireGuardNetworkExtension/Info.plist;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 0.1.1;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(THRURNDIS_WIREGUARD_EXTENSION_BUNDLE_IDENTIFIER)";
+				PRODUCT_NAME = "$(PRODUCT_BUNDLE_IDENTIFIER)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = RuntimeDebug;
+		};
+		DA1000000000000000000711 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CONFIGURATION_TEMP_DIR = "$(OBJROOT)/ThruRNDISWireGuardGoBridge.build/$(CONFIGURATION)";
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		DA1000000000000000000712 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CONFIGURATION_TEMP_DIR = "$(OBJROOT)/ThruRNDISWireGuardGoBridge.build/$(CONFIGURATION)";
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		DA1000000000000000000713 /* RuntimeDebug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CONFIGURATION_TEMP_DIR = "$(OBJROOT)/ThruRNDISWireGuardGoBridge.build/$(CONFIGURATION)";
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				SDKROOT = macosx;
+			};
+			name = RuntimeDebug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -953,6 +1204,26 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		DA1000000000000000000704 /* Build configuration list for PBXNativeTarget "ThruRNDISWireGuardNetworkExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DA1000000000000000000701 /* Debug */,
+				DA1000000000000000000702 /* Release */,
+				DA1000000000000000000703 /* RuntimeDebug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		DA1000000000000000000714 /* Build configuration list for PBXLegacyTarget "WireGuardGoBridgemacOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DA1000000000000000000711 /* Debug */,
+				DA1000000000000000000712 /* Release */,
+				DA1000000000000000000713 /* RuntimeDebug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
@@ -964,6 +1235,14 @@
 				revision = b1262db5b6bea699a8260a8c66999436c508ca56;
 			};
 		};
+		DA1000000000000000000801 /* XCRemoteSwiftPackageReference "wireguard-apple" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/Afcoo/wireguard-apple.git";
+			requirement = {
+				kind = revision;
+				revision = 4feb5358d802c15311ce1b046649a8dc89ecce85;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -971,6 +1250,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 8E0000000000000000000101 /* XCRemoteSwiftPackageReference "SwiftTerm" */;
 			productName = SwiftTerm;
+		};
+		DA1000000000000000000802 /* WireGuardKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = DA1000000000000000000801 /* XCRemoteSwiftPackageReference "wireguard-apple" */;
+			productName = WireGuardKit;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -1,6 +1,9 @@
 //
 // Copy this file to LocalSigning.xcconfig and fill in local signing values for
-// runtime USB passthrough and virtualization validation.
+// runtime USB passthrough, virtualization, and WireGuard Network Extension
+// validation. Register the app and system-extension bundle IDs for the selected
+// team. The macOS-style App Group is derived from TeamIdentifierPrefix; verify
+// that both the signed entitlement and NEMachServiceName expand to that same ID.
 //
 
 DEVELOPMENT_TEAM = YOURTEAMID

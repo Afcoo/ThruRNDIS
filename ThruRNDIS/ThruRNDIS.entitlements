@@ -4,6 +4,12 @@
 <dict>
 	<key>com.apple.developer.accessory-access.usb</key>
 	<true/>
+	<key>com.apple.developer.networking.networkextension</key>
+	<array>
+		<string>packet-tunnel-provider</string>
+	</array>
+	<key>com.apple.developer.system-extension.install</key>
+	<true/>
 	<key>com.apple.security.virtualization</key>
 	<true/>
 </dict>

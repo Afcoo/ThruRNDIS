@@ -1,5 +1,5 @@
 {
-  "originHash" : "34fc6ded3af11d97770b2e20b5e3cfd72f9d3309ae17ef3278b95041f16c02dc",
+  "originHash" : "aaacf8c5deb93f1ed29778b4d45209b04ed4bdfb23c0d9f6e071ff451b7ad6ad",
   "pins" : [
     {
       "identity" : "swift-argument-parser",
@@ -16,6 +16,14 @@
       "location" : "https://github.com/migueldeicaza/SwiftTerm.git",
       "state" : {
         "revision" : "b1262db5b6bea699a8260a8c66999436c508ca56"
+      }
+    },
+    {
+      "identity" : "wireguard-apple",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Afcoo/wireguard-apple.git",
+      "state" : {
+        "revision" : "4feb5358d802c15311ce1b046649a8dc89ecce85"
       }
     }
   ],
