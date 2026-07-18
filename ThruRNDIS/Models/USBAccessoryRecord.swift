@@ -46,11 +46,25 @@ struct USBAccessoryRecord: Identifiable, Hashable {
     let configurationDescriptorHash: String
 
     init(accessory: AAUSBAccessory) {
-        let bytes = [UInt8](accessory.deviceDescriptorData)
-        let configurationBytes = accessory.configurationDescriptorData.map { [UInt8]($0) }
-        self.id = accessory.registryID
-        self.deviceName = USBDeviceNameResolver.productName(registryID: accessory.registryID)
-            ?? String(localized: "USB Device")
+        self.init(
+            id: accessory.registryID,
+            deviceName: USBDeviceNameResolver.productName(registryID: accessory.registryID)
+                ?? String(localized: "USB Device"),
+            deviceDescriptorData: accessory.deviceDescriptorData,
+            configurationDescriptorData: accessory.configurationDescriptorData
+        )
+    }
+
+    init(
+        id: UInt64,
+        deviceName: String,
+        deviceDescriptorData: Data,
+        configurationDescriptorData: Data?
+    ) {
+        let bytes = [UInt8](deviceDescriptorData)
+        let configurationBytes = configurationDescriptorData.map { [UInt8]($0) }
+        self.id = id
+        self.deviceName = deviceName
         self.vendorID = Self.littleEndianUInt16(bytes, offset: 8)
         self.productID = Self.littleEndianUInt16(bytes, offset: 10)
         self.bcdUSB = Self.littleEndianUInt16(bytes, offset: 2)
@@ -64,8 +78,8 @@ struct USBAccessoryRecord: Identifiable, Hashable {
         self.configurationMaxPowerMilliamps = configurationBytes.flatMap { Self.byte($0, offset: 8) }.map { $0 * 2 }
         self.interfaces = configurationBytes.map(Self.interfaceSummaries(in:)) ?? []
         self.hasConfigurationDescriptor = configurationBytes?.isEmpty == false
-        self.deviceDescriptorHash = Self.fnv1a64(accessory.deviceDescriptorData)
-        self.configurationDescriptorHash = Self.fnv1a64(accessory.configurationDescriptorData)
+        self.deviceDescriptorHash = Self.fnv1a64(deviceDescriptorData)
+        self.configurationDescriptorHash = Self.fnv1a64(configurationDescriptorData)
     }
 
     var registryIDText: String {

@@ -81,6 +81,14 @@ final class LocalizationResourceTests: XCTestCase {
         )
         XCTAssertEqual(
             koreanBundle.localizedString(
+                forKey: "Ask to Connect When a Device Is Detected",
+                value: nil,
+                table: nil
+            ),
+            "기기 감지 시 연결 묻기"
+        )
+        XCTAssertEqual(
+            koreanBundle.localizedString(
                 forKey: "Detach the current USB accessory before attaching another USB accessory.",
                 value: nil,
                 table: nil
@@ -506,11 +514,14 @@ final class TetheringStoreObservationTests: XCTestCase {
             launchAtLoginService: launchAtLoginService,
             defaults: defaults
         )
+        store.shouldAskToAttachDetectedUSBDevices = false
 
         let didReset = await store.resetAppSettings()
         await store.prepareForApplicationTermination(disconnectWireGuard: false)
 
         XCTAssertTrue(didReset)
+        XCTAssertTrue(store.shouldAskToAttachDetectedUSBDevices)
+        XCTAssertNil(defaults.object(forKey: "USB.askToAttachDetectedDevices"))
         XCTAssertEqual(tunnelController.disconnectCallCount, 1)
         XCTAssertEqual(tunnelController.lastDisconnectWaitUntilStopped, true)
         XCTAssertEqual(tunnelController.removeSavedTunnelCallCount, 1)
@@ -545,6 +556,83 @@ final class TetheringStoreObservationTests: XCTestCase {
 
         XCTAssertTrue(store.hasCompletedOnboarding)
         XCTAssertEqual(defaults.integer(forKey: "Onboarding.completedVersion"), 3)
+    }
+
+    func testDetectedUSBPromptPreferenceDefaultsToEnabledAndPersists() throws {
+        let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let makeStore = {
+            TetheringStore(
+                assetProvider: ObservationTestAssetProvider(),
+                vmCoordinator: ObservationTestVMCoordinator(),
+                usbCoordinator: USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor()),
+                wireGuardConfigurationStore: ObservationTestWireGuardStore(),
+                wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
+                eventLog: EventLogStore(),
+                consoleSession: ConsoleSessionStore(),
+                usbSession: USBSessionStore(),
+                vmConfiguration: VMConfigurationStore(defaults: defaults),
+                hostWireGuardTunnelController: ObservationTestHostWireGuardTunnelController(),
+                defaults: defaults
+            )
+        }
+
+        let store = makeStore()
+
+        XCTAssertTrue(store.shouldAskToAttachDetectedUSBDevices)
+        XCTAssertNil(defaults.object(forKey: "USB.askToAttachDetectedDevices"))
+
+        store.shouldAskToAttachDetectedUSBDevices = false
+
+        XCTAssertEqual(
+            defaults.object(forKey: "USB.askToAttachDetectedDevices") as? Bool,
+            false
+        )
+        XCTAssertFalse(makeStore().shouldAskToAttachDetectedUSBDevices)
+    }
+
+    func testDetectedUSBPromptPreferenceControlsAutomaticOffer() throws {
+        let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let usbCoordinator = USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor())
+        let usbSession = USBSessionStore()
+        let store = TetheringStore(
+            assetProvider: ObservationTestAssetProvider(),
+            vmCoordinator: ObservationTestVMCoordinator(),
+            usbCoordinator: usbCoordinator,
+            wireGuardConfigurationStore: ObservationTestWireGuardStore(),
+            wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
+            eventLog: EventLogStore(),
+            consoleSession: ConsoleSessionStore(),
+            usbSession: usbSession,
+            vmConfiguration: VMConfigurationStore(defaults: defaults),
+            hostWireGuardTunnelController: ObservationTestHostWireGuardTunnelController(),
+            defaults: defaults
+        )
+        let record = USBAccessoryRecord(
+            id: 42,
+            deviceName: "Test USB Device",
+            deviceDescriptorData: Data(repeating: 0, count: 18),
+            configurationDescriptorData: Data([9, 2, 9, 0, 0, 1, 0, 0x80, 50])
+        )
+        usbSession.apply(
+            USBSessionSnapshot(
+                accessories: [record],
+                selectedAccessoryID: record.id
+            )
+        )
+
+        store.shouldAskToAttachDetectedUSBDevices = false
+        usbCoordinator.onAccessoryAvailable?(record)
+
+        XCTAssertNil(usbSession.attachmentPrompt)
+
+        store.shouldAskToAttachDetectedUSBDevices = true
+        usbCoordinator.onAccessoryAvailable?(record)
+
+        XCTAssertEqual(usbSession.attachmentPrompt?.accessory.id, record.id)
     }
 
     func testSystemExtensionStatusUpdatesStoreAndFailsClosed() throws {

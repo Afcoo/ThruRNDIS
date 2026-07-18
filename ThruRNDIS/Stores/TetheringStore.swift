@@ -40,6 +40,14 @@ final class TetheringStore: ObservableObject {
             revalidateWireGuardConnectionField(.allowedIPs)
         }
     }
+    @Published var shouldAskToAttachDetectedUSBDevices: Bool {
+        didSet {
+            defaults.set(
+                shouldAskToAttachDetectedUSBDevices,
+                forKey: DefaultsKey.shouldAskToAttachDetectedUSBDevices
+            )
+        }
+    }
     @Published private(set) var hasCompletedOnboarding = false
     @Published private(set) var onboardingPresentationRequest = OnboardingPresentationRequest(
         sequence: 0,
@@ -351,6 +359,11 @@ final class TetheringStore: ObservableObject {
             key: DefaultsKey.wireGuardAllowedIPsText,
             fallback: ""
         )
+        self.shouldAskToAttachDetectedUSBDevices = defaults.object(
+            forKey: DefaultsKey.shouldAskToAttachDetectedUSBDevices
+        ) == nil
+            ? true
+            : defaults.bool(forKey: DefaultsKey.shouldAskToAttachDetectedUSBDevices)
         configureCoordinators()
         configureHostWireGuardTunnelController()
         prepareWireGuardConfiguration()
@@ -964,6 +977,9 @@ final class TetheringStore: ObservableObject {
         defaults.removeObject(forKey: DefaultsKey.wireGuardEndpointText)
         defaults.removeObject(forKey: DefaultsKey.wireGuardAllowedIPsText)
 
+        shouldAskToAttachDetectedUSBDevices = true
+        defaults.removeObject(forKey: DefaultsKey.shouldAskToAttachDetectedUSBDevices)
+
         hasCompletedOnboarding = false
         wireGuardKeyMaterial = nil
         discoveredWireGuardEndpoint = nil
@@ -1168,6 +1184,15 @@ final class TetheringStore: ObservableObject {
     }
 
     private func offerAttachmentForAvailableAccessory(_ record: USBAccessoryRecord) {
+        guard shouldAskToAttachDetectedUSBDevices else {
+            appendEventLog(
+                "USB attach prompt skipped for registry \(record.registryIDText): " +
+                    "asking on device detection is disabled.",
+                source: .accessoryAccess
+            )
+            return
+        }
+
         guard record.hasConfigurationDescriptor,
               attachedAccessoryID != record.id,
               pendingAttachmentAccessoryID != record.id,
@@ -1668,5 +1693,6 @@ final class TetheringStore: ObservableObject {
         static let wireGuardDNSServersText = "WireGuard.dnsServers"
         static let wireGuardEndpointText = "WireGuard.endpointOverride"
         static let wireGuardAllowedIPsText = "WireGuard.allowedIPs"
+        static let shouldAskToAttachDetectedUSBDevices = "USB.askToAttachDetectedDevices"
     }
 }

@@ -153,6 +153,16 @@
         }
       }
     },
+    "Ask to Connect When a Device Is Detected" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "기기 감지 시 연결 묻기"
+          }
+        }
+      }
+    },
     "Asset folder" : {
       "localizations" : {
         "ko" : {

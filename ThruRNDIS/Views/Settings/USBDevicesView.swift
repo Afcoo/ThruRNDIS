@@ -75,6 +75,14 @@ struct USBDevicesView: View {
                         store.detachAccessory()
                     }
                     .disabled(!store.canDetachAccessory)
+
+                    Spacer()
+
+                    Toggle(
+                        "Ask to Connect When a Device Is Detected",
+                        isOn: $store.shouldAskToAttachDetectedUSBDevices
+                    )
+                    .toggleStyle(.checkbox)
                 }
             }
         }
