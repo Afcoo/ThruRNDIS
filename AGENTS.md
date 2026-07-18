@@ -237,19 +237,35 @@ primary responsibility.
   `TestSupport`.
 - `Configuration`: checked-in shared build settings and the local-signing
   template. `Configuration/LocalSigning.xcconfig` is local and ignored.
+- `script`: project-local developer automation only. Keep
+  `script/build_and_run.sh` as the single unsigned kill, build, and launch
+  entrypoint for normal Codex and shell iteration.
 - `ThruRNDISWireGuardNetworkExtension`: the system-extension executable entry,
   `NEPacketTunnelProvider`, Info.plist, and development/distribution
   entitlements. Shared parser/constants files remain under `ThruRNDIS/Support`
   and are compiled into both targets.
 
-This repository intentionally has no `GuestScripts/` or `script/` directory.
-Published guest boot assets and their build/release tooling belong to the
+This repository intentionally contains no guest VM scripts or guest-asset build
+pipeline. The `script/` directory is limited to host-app developer automation;
+published guest boot assets and their build/release tooling belong to the
 separate `Afcoo/ThruRNDIS_VM_Assets` repository.
 
 ## Build And Run
 
 - Local compile/UI iteration should not treat signing as the default blocker.
-- For the default unsigned compile, use the Xcode beta `xcodebuild` directly:
+- Use the project-local script as the default unsigned build-and-run entrypoint.
+  It stops an existing `ThruRNDIS` process, builds with Xcode beta into the
+  deterministic DerivedData path below, and launches the fresh app bundle:
+
+```sh
+./script/build_and_run.sh
+```
+
+- Optional modes are `--debug`, `--logs`, `--telemetry`, and `--verify`.
+  `.codex/environments/environment.toml` wires the Codex Run action to the same
+  no-flag command. Keep that action and the shell workflow on this single
+  entrypoint.
+- For a build-only check or diagnosing the underlying Xcode invocation, use:
 
 ```sh
 /Applications/Xcode-beta.app/Contents/Developer/usr/bin/xcodebuild \
@@ -379,7 +395,7 @@ separate `Afcoo/ThruRNDIS_VM_Assets` repository.
   in `/Applications` before testing activation.
 - Signing/provisioning failures should not block compile builds, UI work, or
   documentation work.
-- After code changes, the minimum verification is the unsigned Xcode build shown
-  above. If app launch verification is needed, open the built
-  `/tmp/ThruRNDIS-DerivedData/Build/Products/Debug/ThruRNDIS.app` after a
-  successful build.
+- After code changes, the normal minimum verification is
+  `./script/build_and_run.sh --verify`. If launching the app is intentionally
+  out of scope or unavailable, run the unsigned build-only Xcode command shown
+  above and report that runtime launch was not checked.
