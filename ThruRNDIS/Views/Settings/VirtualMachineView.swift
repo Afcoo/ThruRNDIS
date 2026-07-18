@@ -22,20 +22,22 @@ struct VirtualMachineView: View {
                     .foregroundStyle(.secondary)
 
                 HStack {
-                    Button("Start") {
-                        store.startVirtualMachine()
+                    if store.runtimeState == .running {
+                        Button("Restart") {
+                            store.restartVirtualMachine()
+                        }
+                        .disabled(!store.canRestartVirtualMachine)
+                    } else {
+                        Button("Start") {
+                            store.startVirtualMachine()
+                        }
+                        .disabled(!store.canStartVirtualMachine)
                     }
-                    .disabled(!store.canStartVirtualMachine)
 
                     Button("Stop") {
                         store.stopVirtualMachine()
                     }
                     .disabled(!store.canStopVirtualMachine)
-
-                    Button("Restart") {
-                        store.restartVirtualMachine()
-                    }
-                    .disabled(!store.canRestartVirtualMachine)
 
                     Spacer()
 

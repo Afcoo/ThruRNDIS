@@ -33,10 +33,17 @@ struct USBDevicesView: View {
                 }
 
                 HStack {
-                    Button("Start") {
-                        store.startAccessoryMonitoring()
+                    if usbSession.isAccessoryMonitoring {
+                        Button("Restart") {
+                            store.reloadAccessoryMonitoring()
+                        }
+                        .disabled(!store.canReloadAccessoryMonitoring)
+                    } else {
+                        Button("Start") {
+                            store.startAccessoryMonitoring()
+                        }
+                        .disabled(!store.canStartAccessoryMonitoring)
                     }
-                    .disabled(!store.canStartAccessoryMonitoring)
 
                     Button("Stop") {
                         store.stopAccessoryMonitoring()
