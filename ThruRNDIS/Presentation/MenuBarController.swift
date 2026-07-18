@@ -6,7 +6,7 @@ import AppKit
 import Combine
 
 private final class StatusDotView: NSView {
-    private let dotColor: NSColor
+    private var dotColor: NSColor
 
     init(color: NSColor) {
         self.dotColor = color
@@ -58,6 +58,11 @@ private final class StatusDotView: NSView {
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
+
+    func update(color: NSColor) {
+        dotColor = color
+        needsDisplay = true
+    }
 }
 
 private final class StatusMenuItemView: NSView {
@@ -76,8 +81,13 @@ private final class StatusMenuItemView: NSView {
         return ceil(titleWidth + 43)
     }()
 
+    private let dotView: StatusDotView
+    private let titleLabel: NSTextField
+
     init(title: String, dotColor: NSColor) {
         let font = NSFont.menuFont(ofSize: 0)
+        self.dotView = StatusDotView(color: dotColor)
+        self.titleLabel = NSTextField(labelWithString: title)
         super.init(frame: NSRect(
             x: 0,
             y: 0,
@@ -86,10 +96,8 @@ private final class StatusMenuItemView: NSView {
         ))
         autoresizingMask = [.width]
 
-        let dotView = StatusDotView(color: dotColor)
         dotView.translatesAutoresizingMaskIntoConstraints = false
 
-        let titleLabel = NSTextField(labelWithString: title)
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         titleLabel.font = font
         titleLabel.textColor = .secondaryLabelColor
@@ -114,6 +122,13 @@ private final class StatusMenuItemView: NSView {
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
+
+    func update(title: String, dotColor: NSColor) {
+        if titleLabel.stringValue != title {
+            titleLabel.stringValue = title
+        }
+        dotView.update(color: dotColor)
+    }
 }
 
 @MainActor
@@ -136,9 +151,18 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private let openSettings: () -> Void
     private let statusItem: NSStatusItem
     private let menu = NSMenu()
-    private var cancellable: AnyCancellable?
-    private var assetCancellable: AnyCancellable?
-    private var wireGuardCancellable: AnyCancellable?
+    private var cancellables: Set<AnyCancellable> = []
+    private var vmStatusItem: NSMenuItem?
+    private var usbStatusItem: NSMenuItem?
+    private var wireGuardStatusItem: NSMenuItem?
+    private var vmActionItem: NSMenuItem?
+    private var stopItem: NSMenuItem?
+    private var wireGuardItem: NSMenuItem?
+    private var attachSubmenu: NSMenu?
+    private var detachItem: NSMenuItem?
+    private var menuHasConfiguredAssets: Bool?
+    private var isMenuOpen = false
+    private var isPresentationRefreshScheduled = false
     private var isPresentingPrompt = false
 
     init(
@@ -154,45 +178,44 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
         menu.delegate = self
         menu.autoenablesItems = false
-        statusItem.menu = menu
+        self.statusItem.menu = menu
         updateStatusButton()
         rebuildMenu()
 
-        cancellable = Publishers.CombineLatest3(
-            store.$runtimeState,
-            store.$isRestartingVirtualMachine,
-            store.usbSession.$snapshot
+        Publishers.Merge3(
+            store.objectWillChange,
+            store.usbSession.objectWillChange,
+            assetWorkflowCoordinator.objectWillChange
         )
-        .map { runtimeState, isRestartingVirtualMachine, usbSnapshot in
-            let attachedDescription = usbSnapshot.accessories
-                .first(where: { $0.id == usbSnapshot.attachedAccessoryID })?
-                .deviceName ?? "none"
-            return "\(runtimeState.rawValue)|\(isRestartingVirtualMachine)|\(usbSnapshot.attachedAccessoryID ?? 0)|\(attachedDescription)"
+        .sink { [weak self] in
+            self?.schedulePresentationRefresh()
         }
-        .removeDuplicates()
-        .sink { [weak self] _ in
-            DispatchQueue.main.async {
-                self?.updateStatusButton()
-            }
-        }
-
-        assetCancellable = Publishers.CombineLatest(
-            assetWorkflowCoordinator.$currentSelection,
-            assetWorkflowCoordinator.$installState
-        )
-        .sink { [weak self] _ in
-            self?.updateStatusButton()
-        }
-
-        wireGuardCancellable = store.$hostWireGuardTunnelStatus
-            .removeDuplicates()
-            .sink { [weak self] _ in
-                self?.updateStatusButton()
-            }
+        .store(in: &cancellables)
     }
 
     func menuWillOpen(_ menu: NSMenu) {
+        isMenuOpen = true
         rebuildMenu()
+    }
+
+    func menuDidClose(_ menu: NSMenu) {
+        isMenuOpen = false
+        refreshMenuPresentation()
+    }
+
+    private func schedulePresentationRefresh() {
+        guard !isPresentationRefreshScheduled else {
+            return
+        }
+
+        isPresentationRefreshScheduled = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else {
+                return
+            }
+            self.isPresentationRefreshScheduled = false
+            self.refreshMenuPresentation()
+        }
     }
 
     func present(prompt: USBAttachmentPrompt, completion: @escaping (Bool) -> Void) {
@@ -229,9 +252,12 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     private func rebuildMenu() {
+        clearDynamicMenuReferences()
         menu.removeAllItems()
+        let hasConfiguredAssets = assetWorkflowCoordinator.hasConfiguredAssets
+        menuHasConfiguredAssets = hasConfiguredAssets
 
-        guard assetWorkflowCoordinator.hasConfiguredAssets else {
+        guard hasConfiguredAssets else {
             menu.addItem(statusItemLine(
                 title: String(localized: "Configure VM Assets in Settings"),
                 systemImage: "exclamationmark.triangle"
@@ -240,65 +266,185 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             return
         }
 
-        menu.addItem(statusItemLine(
+        let vmStatusItem = statusItemLine(
             title: String(localized: "VM: \(store.vmDisplayState.localizedName)"),
             dotColor: vmStatusColor
-        ))
-        menu.addItem(statusItemLine(
+        )
+        self.vmStatusItem = vmStatusItem
+        menu.addItem(vmStatusItem)
+
+        let usbStatusItem = statusItemLine(
             title: usbStatusTitle,
             dotColor: usbStatusColor
-        ))
-        menu.addItem(statusItemLine(
+        )
+        self.usbStatusItem = usbStatusItem
+        menu.addItem(usbStatusItem)
+
+        let wireGuardStatusItem = statusItemLine(
             title: wireGuardStatusTitle,
             dotColor: wireGuardStatusColor
-        ))
+        )
+        self.wireGuardStatusItem = wireGuardStatusItem
+        menu.addItem(wireGuardStatusItem)
 
         menu.addItem(.separator())
 
-        let vmActionItem: NSMenuItem
-        if store.runtimeState == .running {
-            vmActionItem = actionItem(
-                title: String(localized: "Restart VM"),
-                action: #selector(startOrRestartVM)
-            )
-            vmActionItem.isEnabled = store.canRestartVirtualMachine
-        } else {
-            vmActionItem = actionItem(
-                title: String(localized: "Start VM"),
-                action: #selector(startOrRestartVM)
-            )
-            vmActionItem.isEnabled = store.canStartVirtualMachine
-        }
+        let vmActionItem = actionItem(title: "", action: #selector(startOrRestartVM))
+        self.vmActionItem = vmActionItem
         menu.addItem(vmActionItem)
 
         let stopItem = actionItem(title: String(localized: "Stop VM"), action: #selector(stopVM))
-        stopItem.isEnabled = store.canStopVirtualMachine
+        self.stopItem = stopItem
         menu.addItem(stopItem)
 
-        let wireGuardItem: NSMenuItem
-        if store.canDisconnectHostWireGuardTunnel {
-            wireGuardItem = actionItem(
-                title: String(localized: "Disconnect WireGuard"),
-                action: #selector(disconnectWireGuard)
-            )
-            wireGuardItem.isEnabled = store.canDisconnectHostWireGuardTunnel
-        } else {
-            wireGuardItem = actionItem(
-                title: String(localized: "Connect WireGuard"),
-                action: #selector(connectWireGuard)
-            )
-            wireGuardItem.isEnabled = store.canConnectHostWireGuardTunnel
-        }
+        let wireGuardItem = actionItem(title: "", action: #selector(connectWireGuard))
+        self.wireGuardItem = wireGuardItem
         menu.addItem(wireGuardItem)
 
         menu.addItem(.separator())
-        menu.addItem(attachMenuItem())
+        let attachMenuItem = attachMenuItem()
+        attachSubmenu = attachMenuItem.submenu
+        menu.addItem(attachMenuItem)
 
         let detachItem = actionItem(title: String(localized: "Detach USB"), action: #selector(detachUSB))
-        detachItem.isEnabled = store.canDetachAccessory
+        self.detachItem = detachItem
         menu.addItem(detachItem)
 
         addSettingsAndQuitItems()
+        refreshConfiguredMenuPresentation()
+    }
+
+    private func clearDynamicMenuReferences() {
+        vmStatusItem = nil
+        usbStatusItem = nil
+        wireGuardStatusItem = nil
+        vmActionItem = nil
+        stopItem = nil
+        wireGuardItem = nil
+        attachSubmenu = nil
+        detachItem = nil
+    }
+
+    private func refreshMenuPresentation() {
+        updateStatusButton()
+
+        let hasConfiguredAssets = assetWorkflowCoordinator.hasConfiguredAssets
+        guard menuHasConfiguredAssets == hasConfiguredAssets else {
+            if !isMenuOpen {
+                rebuildMenu()
+            }
+            return
+        }
+
+        guard hasConfiguredAssets else {
+            return
+        }
+
+        refreshConfiguredMenuPresentation()
+    }
+
+    private func refreshConfiguredMenuPresentation() {
+        updateStatusItem(
+            vmStatusItem,
+            title: String(localized: "VM: \(store.vmDisplayState.localizedName)"),
+            dotColor: vmStatusColor
+        )
+        updateStatusItem(usbStatusItem, title: usbStatusTitle, dotColor: usbStatusColor)
+        updateStatusItem(
+            wireGuardStatusItem,
+            title: wireGuardStatusTitle,
+            dotColor: wireGuardStatusColor
+        )
+
+        if store.runtimeState == .running {
+            vmActionItem?.title = String(localized: "Restart VM")
+            vmActionItem?.isEnabled = store.canRestartVirtualMachine
+        } else {
+            vmActionItem?.title = String(localized: "Start VM")
+            vmActionItem?.isEnabled = store.canStartVirtualMachine
+        }
+
+        stopItem?.isEnabled = store.canStopVirtualMachine
+
+        if store.canDisconnectHostWireGuardTunnel {
+            wireGuardItem?.title = String(localized: "Disconnect WireGuard")
+            wireGuardItem?.action = #selector(disconnectWireGuard)
+            wireGuardItem?.isEnabled = true
+        } else {
+            wireGuardItem?.title = String(localized: "Connect WireGuard")
+            wireGuardItem?.action = #selector(connectWireGuard)
+            wireGuardItem?.isEnabled = store.canConnectHostWireGuardTunnel
+        }
+
+        refreshAttachSubmenu()
+        detachItem?.isEnabled = store.canDetachAccessory
+    }
+
+    private func updateStatusItem(
+        _ item: NSMenuItem?,
+        title: String,
+        dotColor: NSColor
+    ) {
+        item?.title = title
+        (item?.view as? StatusMenuItemView)?.update(title: title, dotColor: dotColor)
+    }
+
+    private func refreshAttachSubmenu() {
+        guard let attachSubmenu else {
+            return
+        }
+
+        let accessories = store.usbSession.accessories
+        guard !accessories.isEmpty else {
+            let noDevicesTitle = String(localized: "No USB devices")
+            if attachSubmenu.items.count == 1,
+               let item = attachSubmenu.items.first,
+               item.representedObject == nil {
+                item.title = noDevicesTitle
+                item.isEnabled = false
+            } else {
+                attachSubmenu.removeAllItems()
+                let item = NSMenuItem(title: noDevicesTitle, action: nil, keyEquivalent: "")
+                item.isEnabled = false
+                attachSubmenu.addItem(item)
+            }
+            return
+        }
+
+        let accessoryIDs = Set(accessories.map(\.id))
+        for item in attachSubmenu.items.reversed() {
+            guard let itemID = Self.accessoryID(for: item),
+                  accessoryIDs.contains(itemID) else {
+                attachSubmenu.removeItem(item)
+                continue
+            }
+        }
+
+        for (index, accessory) in accessories.enumerated() {
+            let item: NSMenuItem
+            if let existingItem = attachSubmenu.items.first(where: {
+                Self.accessoryID(for: $0) == accessory.id
+            }) {
+                item = existingItem
+            } else {
+                item = actionItem(
+                    title: Self.shortDeviceTitle(accessory),
+                    action: #selector(attachUSB(_:))
+                )
+                item.representedObject = NSNumber(value: accessory.id)
+                attachSubmenu.insertItem(item, at: min(index, attachSubmenu.items.count))
+            }
+
+            item.title = Self.shortDeviceTitle(accessory)
+            item.state = accessory.id == store.usbSession.attachedAccessoryID ? .on : .off
+            item.isEnabled = store.canChooseAccessoryForAttachment(accessory.id)
+
+            let currentIndex = attachSubmenu.index(of: item)
+            if currentIndex != index {
+                attachSubmenu.removeItem(item)
+                attachSubmenu.insertItem(item, at: index)
+            }
+        }
     }
 
     private func addSettingsAndQuitItems() {
@@ -364,7 +510,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     private func statusItemLine(title: String, dotColor: NSColor) -> NSMenuItem {
-        let item = NSMenuItem()
+        let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
         item.view = StatusMenuItemView(title: title, dotColor: dotColor)
         return item
     }
@@ -459,5 +605,9 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     private static func shortDeviceTitle(_ accessory: USBAccessoryRecord) -> String {
         "\(accessory.usbIDText) ⋅ \(accessory.deviceName)"
+    }
+
+    private static func accessoryID(for item: NSMenuItem) -> UInt64? {
+        (item.representedObject as? NSNumber)?.uint64Value
     }
 }
