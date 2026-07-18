@@ -238,8 +238,10 @@ primary responsibility.
 - `Configuration`: checked-in shared build settings and the local-signing
   template. `Configuration/LocalSigning.xcconfig` is local and ignored.
 - `script`: project-local developer automation only. Keep
-  `script/build_and_run.sh` as the single unsigned kill, build, and launch
-  entrypoint for normal Codex and shell iteration.
+  `script/build_and_run.sh` as the unsigned kill, build, and launch entrypoint
+  for normal Codex and shell iteration. Use `script/build_and_install.sh` only
+  for the signed Runtime build and `/Applications` installation required by
+  Network System Extension testing.
 - `ThruRNDISWireGuardNetworkExtension`: the system-extension executable entry,
   `NEPacketTunnelProvider`, Info.plist, and development/distribution
   entitlements. Shared parser/constants files remain under `ThruRNDIS/Support`
@@ -265,6 +267,18 @@ separate `Afcoo/ThruRNDIS_VM_Assets` repository.
   `.codex/environments/environment.toml` wires the Codex Run action to the same
   no-flag command. Keep that action and the shell workflow on this single
   entrypoint.
+- For signed USB, Virtualization, and Network System Extension testing, first
+  configure `Configuration/LocalSigning.xcconfig`, then build, validate, and
+  install the Runtime app with:
+
+```sh
+./script/build_and_install.sh
+```
+
+  The install script uses the `ThruRNDIS Runtime` scheme and `RuntimeDebug`
+  configuration, validates the app and embedded Network System Extension
+  signatures, signing-team match, and required entitlements, then safely
+  replaces `/Applications/ThruRNDIS.app`. It does not launch the installed app.
 - For a build-only check or diagnosing the underlying Xcode invocation, use:
 
 ```sh
@@ -398,4 +412,7 @@ separate `Afcoo/ThruRNDIS_VM_Assets` repository.
 - After code changes, the normal minimum verification is
   `./script/build_and_run.sh --verify`. If launching the app is intentionally
   out of scope or unavailable, run the unsigned build-only Xcode command shown
-  above and report that runtime launch was not checked.
+  above and report that runtime launch was not checked. Changes to signing,
+  entitlements, System Extension activation, or other runtime-only behavior
+  additionally require `./script/build_and_install.sh` before testing from
+  `/Applications/ThruRNDIS.app`.
