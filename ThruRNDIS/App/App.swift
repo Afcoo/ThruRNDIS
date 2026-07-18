@@ -99,6 +99,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var didPrepareForTermination = false
     private var storeTerminationTask: Task<Void, Never>?
     private var resetAndRestartTask: Task<Void, Never>?
+    private let applicationRelaunchService = ApplicationRelaunchService()
+    private var isPreparedForResetRelaunchTermination = false
     private let isRunningUnderXCTest: Bool
 
     override init() {
@@ -183,6 +185,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return .terminateNow
         }
 
+        guard !isPreparedForResetRelaunchTermination else {
+            return .terminateNow
+        }
+
         guard pendingTerminationApplication == nil else {
             return .terminateLater
         }
@@ -250,23 +256,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             self.assetWorkflowCoordinator.clearSelection()
 
-            let configuration = NSWorkspace.OpenConfiguration()
-            configuration.createsNewApplicationInstance = true
-
-            NSWorkspace.shared.openApplication(
-                at: Bundle.main.bundleURL,
-                configuration: configuration
-            ) { [weak self] application, error in
-                DispatchQueue.main.async { [weak self] in
-                    self?.resetAndRestartTask = nil
-                    guard application != nil, error == nil else {
-                        self?.presentRestartFailure(error)
-                        return
-                    }
-
-                    NSApp.terminate(nil)
-                }
+            do {
+                try self.applicationRelaunchService.scheduleRelaunch(
+                    applicationURL: Bundle.main.bundleURL
+                )
+            } catch {
+                self.resetAndRestartTask = nil
+                self.presentRestartFailure(error)
+                return
             }
+
+            self.assetWorkflowCoordinator.prepareForApplicationTermination()
+            await self.store.prepareForApplicationTermination(
+                disconnectWireGuard: false
+            )
+            self.didPrepareForTermination = true
+            self.isPreparedForResetRelaunchTermination = true
+            self.resetAndRestartTask = nil
+            NSApp.terminate(nil)
         }
     }
 

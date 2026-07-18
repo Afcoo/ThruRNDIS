@@ -138,7 +138,7 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "앱 설정이 재설정되었습니다. 계속하려면 VM 에셋을 설치하거나 선택하세요."
+            "value" : "앱 설정이 초기화되었습니다. 계속하려면 VM 에셋을 설치하거나 선택하세요."
           }
         }
       }
@@ -148,7 +148,7 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "앱 설정이 재설정되었습니다."
+            "value" : "앱 설정이 초기화되었습니다."
           }
         }
       }
@@ -1597,7 +1597,7 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "재설정"
+            "value" : "초기화"
           }
         }
       }
@@ -1607,7 +1607,7 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "모든 설정을 재설정하시겠습니까?"
+            "value" : "모든 설정을 초기화하시겠습니까?"
           }
         }
       }
@@ -1617,7 +1617,7 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "모든 설정 재설정…"
+            "value" : "모든 설정 초기화…"
           }
         }
       }
@@ -1627,7 +1627,7 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "재설정 후 다시 시작"
+            "value" : "초기화 후 다시 시작"
           }
         }
       }
@@ -1742,12 +1742,12 @@
         }
       }
     },
-    "Saved asset selections, VM runtime preferences, onboarding state, and Launch at Login will be reset. Managed VM asset files will be preserved." : {
+    "All settings except VM asset files will be reset." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "저장된 에셋 선택, VM 런타임 설정, 온보딩 상태 및 ‘로그인 시 열기’ 설정이 재설정됩니다. 관리형 VM 에셋 파일은 유지됩니다."
+            "value" : "VM 에셋 파일을 제외한 모든 설정이 초기화됩니다."
           }
         }
       }
@@ -1837,7 +1837,7 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "설정은 재설정되었지만 로그인 시 열기를 비활성화할 수 없습니다: %@"
+            "value" : "설정은 초기화되었지만 로그인 시 열기를 비활성화할 수 없습니다: %@"
           }
         }
       }
@@ -1847,7 +1847,7 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "설정은 재설정되었지만 새 ThruRNDIS 앱을 열 수 없습니다."
+            "value" : "설정은 초기화되었지만 새 ThruRNDIS 앱을 열 수 없습니다."
           }
         }
       }
@@ -1957,7 +1957,7 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "앱 설정을 재설정하기 전에 VM을 중지하세요."
+            "value" : "앱 설정을 초기화하기 전에 VM을 중지하세요."
           }
         }
       }
@@ -2371,12 +2371,12 @@
         }
       }
     },
-    "ThruRNDIS will restart immediately after resetting. Onboarding will appear again; preserved managed VM assets can be selected without downloading them again." : {
+    "All settings will be reset, and ThruRNDIS will quit and relaunch." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "재설정 후 ThruRNDIS가 즉시 다시 시작됩니다. 온보딩이 다시 표시되며, 보존된 관리형 VM 에셋은 다시 다운로드하지 않고 선택할 수 있습니다."
+            "value" : "모든 설정이 초기화되며 ThruRNDIS가 종료 후 다시 시작됩니다."
           }
         }
       }

@@ -10,8 +10,14 @@ struct LaunchAtLoginSnapshot: Equatable {
     let statusText: String
 }
 
-enum LaunchAtLoginService {
-    static func snapshot() -> LaunchAtLoginSnapshot {
+@MainActor
+protocol LaunchAtLoginManaging {
+    func snapshot() -> LaunchAtLoginSnapshot
+    func setEnabled(_ isEnabled: Bool) throws -> LaunchAtLoginSnapshot
+}
+
+struct LaunchAtLoginService: LaunchAtLoginManaging {
+    func snapshot() -> LaunchAtLoginSnapshot {
         switch SMAppService.mainApp.status {
         case .enabled:
             return LaunchAtLoginSnapshot(
@@ -46,7 +52,7 @@ enum LaunchAtLoginService {
         }
     }
 
-    static func setEnabled(_ isEnabled: Bool) throws -> LaunchAtLoginSnapshot {
+    func setEnabled(_ isEnabled: Bool) throws -> LaunchAtLoginSnapshot {
         if isEnabled {
             try SMAppService.mainApp.register()
         } else {

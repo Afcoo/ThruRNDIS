@@ -85,6 +85,8 @@
 		DB1000000000000000000002 /* WireGuardConnectionValidatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB1000000000000000000102 /* WireGuardConnectionValidatorTests.swift */; };
 		DB1000000000000000000003 /* HostWireGuardTunnelControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB1000000000000000000103 /* HostWireGuardTunnelControllerTests.swift */; };
 		DC1000000000000000000001 /* EventLogErrorFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC1000000000000000000101 /* EventLogErrorFormatter.swift */; };
+		DD1000000000000000000001 /* ApplicationRelaunchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD1000000000000000000101 /* ApplicationRelaunchService.swift */; };
+		DD1000000000000000000002 /* ApplicationRelaunchServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD1000000000000000000102 /* ApplicationRelaunchServiceTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -219,6 +221,8 @@
 		DB1000000000000000000102 /* WireGuardConnectionValidatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardConnectionValidatorTests.swift; sourceTree = "<group>"; };
 		DB1000000000000000000103 /* HostWireGuardTunnelControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostWireGuardTunnelControllerTests.swift; sourceTree = "<group>"; };
 		DC1000000000000000000101 /* EventLogErrorFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventLogErrorFormatter.swift; sourceTree = "<group>"; };
+		DD1000000000000000000101 /* ApplicationRelaunchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationRelaunchService.swift; sourceTree = "<group>"; };
+		DD1000000000000000000102 /* ApplicationRelaunchServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationRelaunchServiceTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -339,6 +343,7 @@
 		8B0000000000000000000203 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				DD1000000000000000000101 /* ApplicationRelaunchService.swift */,
 				8B0000000000000000000105 /* USBAccessoryMonitor.swift */,
 				8B0000000000000000000107 /* VMConfigurationFactory.swift */,
 				9A0000000000000000000104 /* LaunchAtLoginService.swift */,
@@ -478,6 +483,7 @@
 		D10000000000000000000205 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				DD1000000000000000000102 /* ApplicationRelaunchServiceTests.swift */,
 				C10000000000000000000103 /* VMAssetServiceTests.swift */,
 				DB1000000000000000000103 /* HostWireGuardTunnelControllerTests.swift */,
 			);
@@ -766,6 +772,7 @@
 				B10000000000000000000005 /* VMAssetInstallService.swift in Sources */,
 				B10000000000000000000006 /* VMAssetSelectionStore.swift in Sources */,
 				B10000000000000000000007 /* VMAssetWorkflowCoordinator.swift in Sources */,
+				DD1000000000000000000001 /* ApplicationRelaunchService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -781,6 +788,7 @@
 				DB1000000000000000000001 /* WireGuardConfigurationBuilderTests.swift in Sources */,
 				DB1000000000000000000002 /* WireGuardConnectionValidatorTests.swift in Sources */,
 				DB1000000000000000000003 /* HostWireGuardTunnelControllerTests.swift in Sources */,
+				DD1000000000000000000002 /* ApplicationRelaunchServiceTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

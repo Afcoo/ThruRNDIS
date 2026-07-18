@@ -45,7 +45,7 @@ final class TetheringStore: ObservableObject {
         sequence: 0,
         restart: false
     )
-    @Published private(set) var launchAtLoginSnapshot = LaunchAtLoginService.snapshot()
+    @Published private(set) var launchAtLoginSnapshot: LaunchAtLoginSnapshot
     @Published private(set) var preferencesStatusMessage = ""
 
     let guestMACAddress = "02:00:5E:10:00:02"
@@ -62,6 +62,7 @@ final class TetheringStore: ObservableObject {
     private let hostWireGuardTunnelController: any HostWireGuardTunnelControlling
     private let runtimeEntitlementSnapshotProvider: () -> RuntimeEntitlementSnapshot
     private let systemExtensionSettingsOpener: () -> Bool
+    private let launchAtLoginService: any LaunchAtLoginManaging
     private let defaults: UserDefaults
     private var hostWireGuardConnectTask: Task<Void, Never>?
     private var hostWireGuardConnectTaskID: UUID?
@@ -312,8 +313,10 @@ final class TetheringStore: ObservableObject {
         systemExtensionSettingsOpener: @escaping () -> Bool = {
             NSWorkspace.shared.open(ThruRNDISTunnel.systemExtensionsSettingsURL)
         },
+        launchAtLoginService: (any LaunchAtLoginManaging)? = nil,
         defaults: UserDefaults = .standard
     ) {
+        let launchAtLoginService = launchAtLoginService ?? LaunchAtLoginService()
         self.assetProvider = assetProvider
         self.vmCoordinator = vmCoordinator
         self.usbCoordinator = usbCoordinator
@@ -322,12 +325,14 @@ final class TetheringStore: ObservableObject {
         self.hostWireGuardTunnelController = hostWireGuardTunnelController
         self.runtimeEntitlementSnapshotProvider = runtimeEntitlementSnapshotProvider
         self.systemExtensionSettingsOpener = systemExtensionSettingsOpener
+        self.launchAtLoginService = launchAtLoginService
         self.defaults = defaults
         self.eventLog = eventLog
         self.consoleSession = consoleSession
         self.usbSession = usbSession
         self.vmConfiguration = vmConfiguration
         self.runtimeEntitlements = runtimeEntitlementSnapshotProvider()
+        self.launchAtLoginSnapshot = launchAtLoginService.snapshot()
         self.wireGuardDNSServersText = Self.restoredWireGuardInput(
             defaults: defaults,
             key: DefaultsKey.wireGuardDNSServersText,
@@ -597,7 +602,9 @@ final class TetheringStore: ObservableObject {
         presentNextUSBAttachmentPromptIfNeeded()
     }
 
-    func prepareForApplicationTermination() async {
+    func prepareForApplicationTermination(
+        disconnectWireGuard: Bool = true
+    ) async {
         isPreparingForApplicationTermination = true
         appendEventLog("Application terminating.")
         hostWireGuardConnectTask?.cancel()
@@ -607,7 +614,9 @@ final class TetheringStore: ObservableObject {
         wireGuardSystemExtensionActivationTask = nil
         hostWireGuardTunnelController.invalidateSystemExtensionOperations()
         isWireGuardSystemExtensionActivationInProgress = false
-        _ = await hostWireGuardTunnelController.disconnect(waitUntilStopped: true)
+        if disconnectWireGuard {
+            _ = await hostWireGuardTunnelController.disconnect(waitUntilStopped: true)
+        }
         usbCoordinator.prepareForIntentionalVMStop()
         vmCoordinator.invalidate()
         usbCoordinator.stopMonitoring(reason: "Application terminating.")
@@ -853,10 +862,10 @@ final class TetheringStore: ObservableObject {
 
     func setLaunchAtLoginEnabled(_ isEnabled: Bool) {
         do {
-            launchAtLoginSnapshot = try LaunchAtLoginService.setEnabled(isEnabled)
+            launchAtLoginSnapshot = try launchAtLoginService.setEnabled(isEnabled)
             preferencesStatusMessage = launchAtLoginSnapshot.statusText
         } catch {
-            launchAtLoginSnapshot = LaunchAtLoginService.snapshot()
+            launchAtLoginSnapshot = launchAtLoginService.snapshot()
             preferencesStatusMessage = String(localized: "Could not update Launch at Login: \(error.localizedDescription)")
             appendEventLog(
                 "Could not update Launch at Login: " +
@@ -866,7 +875,7 @@ final class TetheringStore: ObservableObject {
     }
 
     func refreshLaunchAtLoginStatus() {
-        launchAtLoginSnapshot = LaunchAtLoginService.snapshot()
+        launchAtLoginSnapshot = launchAtLoginService.snapshot()
         preferencesStatusMessage = ""
     }
 
@@ -959,10 +968,10 @@ final class TetheringStore: ObservableObject {
         statusMessage = String(localized: "App settings reset. Install or select VM assets to continue.")
 
         do {
-            launchAtLoginSnapshot = try LaunchAtLoginService.setEnabled(false)
+            launchAtLoginSnapshot = try launchAtLoginService.setEnabled(false)
             preferencesStatusMessage = String(localized: "App settings were reset.")
         } catch {
-            launchAtLoginSnapshot = LaunchAtLoginService.snapshot()
+            launchAtLoginSnapshot = launchAtLoginService.snapshot()
             preferencesStatusMessage = String(localized: "Settings reset, but Launch at Login could not be disabled: \(error.localizedDescription)")
         }
 

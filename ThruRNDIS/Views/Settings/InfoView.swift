@@ -79,7 +79,7 @@ struct InfoView: View {
             case .reset:
                 Alert(
                     title: Text("Reset All Settings?"),
-                    message: Text("Saved asset selections, VM runtime preferences, onboarding state, and Launch at Login will be reset. Managed VM asset files will be preserved."),
+                    message: Text("All settings except VM asset files will be reset."),
                     primaryButton: .destructive(Text("Continue")) {
                         Task { @MainActor in
                             resetConfirmation = .restart
@@ -90,7 +90,7 @@ struct InfoView: View {
             case .restart:
                 Alert(
                     title: Text("ThruRNDIS Will Restart"),
-                    message: Text("ThruRNDIS will restart immediately after resetting. Onboarding will appear again; preserved managed VM assets can be selected without downloading them again."),
+                    message: Text("All settings will be reset, and ThruRNDIS will quit and relaunch."),
                     primaryButton: .destructive(Text("Reset and Restart")) {
                         resetAndRestart()
                     },

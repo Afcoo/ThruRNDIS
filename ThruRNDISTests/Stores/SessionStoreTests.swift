@@ -450,6 +450,67 @@ final class TetheringStoreObservationTests: XCTestCase {
         XCTAssertEqual(settingsOpenCount, 0)
     }
 
+    func testTerminationAfterSettingsResetSkipsRedundantWireGuardDisconnect() async throws {
+        let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let tunnelController = ObservationTestHostWireGuardTunnelController()
+        let vmCoordinator = ObservationTestVMCoordinator()
+        let store = TetheringStore(
+            assetProvider: ObservationTestAssetProvider(),
+            vmCoordinator: vmCoordinator,
+            usbCoordinator: USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor()),
+            wireGuardConfigurationStore: ObservationTestWireGuardStore(),
+            wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
+            eventLog: EventLogStore(),
+            consoleSession: ConsoleSessionStore(),
+            usbSession: USBSessionStore(),
+            vmConfiguration: VMConfigurationStore(defaults: defaults),
+            hostWireGuardTunnelController: tunnelController,
+            defaults: defaults
+        )
+
+        await store.prepareForApplicationTermination(disconnectWireGuard: false)
+
+        XCTAssertEqual(tunnelController.disconnectCallCount, 0)
+        XCTAssertEqual(tunnelController.systemExtensionInvalidationCallCount, 1)
+        XCTAssertEqual(vmCoordinator.invalidateCallCount, 1)
+    }
+
+    func testSuccessfulSettingsResetAndTerminationDisconnectWireGuardOnlyOnce() async throws {
+        let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let tunnelController = ObservationTestHostWireGuardTunnelController()
+        let wireGuardStore = ObservationTestWireGuardStore()
+        let launchAtLoginService = ObservationTestLaunchAtLoginService()
+        let store = TetheringStore(
+            assetProvider: ObservationTestAssetProvider(),
+            vmCoordinator: ObservationTestVMCoordinator(),
+            usbCoordinator: USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor()),
+            wireGuardConfigurationStore: wireGuardStore,
+            wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
+            eventLog: EventLogStore(),
+            consoleSession: ConsoleSessionStore(),
+            usbSession: USBSessionStore(),
+            vmConfiguration: VMConfigurationStore(defaults: defaults),
+            hostWireGuardTunnelController: tunnelController,
+            launchAtLoginService: launchAtLoginService,
+            defaults: defaults
+        )
+
+        let didReset = await store.resetAppSettings()
+        await store.prepareForApplicationTermination(disconnectWireGuard: false)
+
+        XCTAssertTrue(didReset)
+        XCTAssertEqual(tunnelController.disconnectCallCount, 1)
+        XCTAssertEqual(tunnelController.lastDisconnectWaitUntilStopped, true)
+        XCTAssertEqual(tunnelController.removeSavedTunnelCallCount, 1)
+        XCTAssertEqual(wireGuardStore.removeConfigurationDirectoryCallCount, 1)
+        XCTAssertEqual(tunnelController.systemExtensionInvalidationCallCount, 1)
+        XCTAssertEqual(launchAtLoginService.setEnabledValues, [false])
+    }
+
     func testOnboardingVersionTwoRequiresNetworkExtensionStep() throws {
         let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
@@ -951,6 +1012,7 @@ private final class ObservationTestVMCoordinator: VMCoordinating {
     var virtualMachine: VZVirtualMachine?
     var canStop = false
     var canRestart = false
+    private(set) var invalidateCallCount = 0
     var canSendConsoleInput = false
     var canStart = true
     var hasVirtualMachine = false
@@ -959,7 +1021,9 @@ private final class ObservationTestVMCoordinator: VMCoordinating {
     func stop() {}
     func restart(reason: String, startAgain: @escaping () -> Void) {}
     func sendConsoleBytes(_ data: Data) -> Bool { true }
-    func invalidate() {}
+    func invalidate() {
+        invalidateCallCount += 1
+    }
 }
 
 private final class ObservationTestUSBMonitor: USBAccessoryMonitoring {
@@ -1019,6 +1083,24 @@ private final class ObservationTestHostWireGuardTunnelController: HostWireGuardT
     func removeSavedTunnelIfNeeded() async -> Bool {
         removeSavedTunnelCallCount += 1
         return savedTunnelRemovalSucceeds
+    }
+}
+
+@MainActor
+private final class ObservationTestLaunchAtLoginService: LaunchAtLoginManaging {
+    private(set) var setEnabledValues: [Bool] = []
+
+    func snapshot() -> LaunchAtLoginSnapshot {
+        LaunchAtLoginSnapshot(
+            isEnabled: false,
+            requiresApproval: false,
+            statusText: ""
+        )
+    }
+
+    func setEnabled(_ isEnabled: Bool) throws -> LaunchAtLoginSnapshot {
+        setEnabledValues.append(isEnabled)
+        return snapshot()
     }
 }
 
