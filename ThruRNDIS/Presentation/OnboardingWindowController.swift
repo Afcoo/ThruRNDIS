@@ -83,12 +83,16 @@ private final class OnboardingWindowResizeBridge {
 }
 
 @MainActor
-final class OnboardingWindowController: NSWindowController {
+final class OnboardingWindowController: NSWindowController, NSWindowDelegate {
+    private let onClose: () -> Void
+
     init(
         store: TetheringStore,
         assetWorkflowCoordinator: VMAssetWorkflowCoordinator,
-        onFinish: @escaping () -> Void
+        onFinish: @escaping () -> Void,
+        onClose: @escaping () -> Void
     ) {
+        self.onClose = onClose
         let resizeBridge = OnboardingWindowResizeBridge()
         let rootView = OnboardingView(
             onFinish: onFinish,
@@ -130,6 +134,7 @@ final class OnboardingWindowController: NSWindowController {
         window.center()
 
         super.init(window: window)
+        window.delegate = self
     }
 
     @available(*, unavailable)
@@ -141,5 +146,9 @@ final class OnboardingWindowController: NSWindowController {
         NSApp.activate(ignoringOtherApps: true)
         showWindow(nil)
         window?.makeKeyAndOrderFront(nil)
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        onClose()
     }
 }

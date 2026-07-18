@@ -405,9 +405,12 @@ separate `Afcoo/ThruRNDIS_VM_Assets` repository.
   Connect, Disconnect, and Refresh controls. Keep `.conf` copy/save as a
   diagnostic fallback; do not hand the persistent private-key files to the
   provider or store plaintext configuration in preferences.
-- AccessoryAccess monitoring starts with the app even when no Settings or
-  onboarding window is visible. Settings may stop or sequentially reload the
-  listener for the current session, but a later app launch starts it again.
+- AccessoryAccess monitoring remains stopped while onboarding is presented. It
+  starts after first-run onboarding closes, and a listener that was active
+  before onboarding was restarted resumes after that window closes. Outside
+  onboarding, monitoring starts with the app even when no Settings window is
+  visible. Settings may stop or sequentially reload the listener for the current
+  session, but a later app launch starts it again.
 - Keep USB approval prompts AppKit-presented so they remain visible while all
   windows are closed. The store must serialize USB approval, VM
   start/stop/restart, and VZ attach completions. Preserve the VM-generation and

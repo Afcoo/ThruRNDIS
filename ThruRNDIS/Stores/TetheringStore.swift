@@ -49,6 +49,7 @@ final class TetheringStore: ObservableObject {
         }
     }
     @Published private(set) var hasCompletedOnboarding = false
+    @Published private(set) var isOnboardingPresented = false
     @Published private(set) var onboardingPresentationRequest = OnboardingPresentationRequest(
         sequence: 0,
         restart: false
@@ -77,6 +78,8 @@ final class TetheringStore: ObservableObject {
     private var wireGuardSystemExtensionActivationTask: Task<Void, Never>?
     private var isPreparingForApplicationTermination = false
     private var didRequestLaunchAccessoryMonitoring = false
+    private var shouldResumeAccessoryMonitoringAfterOnboarding = false
+    private var isStoppingAccessoryMonitoringForOnboarding = false
     private var pendingAttachmentAccessoryID: UInt64?
     private var pendingAttachmentToken: UUID?
     private var pendingAttachmentStartedVM = false
@@ -159,7 +162,8 @@ final class TetheringStore: ObservableObject {
     }
 
     var canStartAccessoryMonitoring: Bool {
-        hasConfiguredVMAssets
+        !isOnboardingPresented
+            && hasConfiguredVMAssets
             && !assetProvider.isBusy
             && runtimeEntitlements.accessoryAccessUSB
             && usbCoordinator.canStartMonitoring
@@ -170,7 +174,8 @@ final class TetheringStore: ObservableObject {
     }
 
     var canReloadAccessoryMonitoring: Bool {
-        pendingAttachmentAccessoryID == nil
+        !isOnboardingPresented
+            && pendingAttachmentAccessoryID == nil
             && runtimeEntitlements.accessoryAccessUSB
             && usbCoordinator.canReloadMonitoring
     }
@@ -184,7 +189,8 @@ final class TetheringStore: ObservableObject {
     }
 
     var canAttachSelectedAccessory: Bool {
-        guard hasConfiguredVMAssets,
+        guard !isOnboardingPresented,
+              hasConfiguredVMAssets,
               !assetProvider.isBusy,
               pendingAttachmentAccessoryID == nil,
               vmSessionAccessoryID == nil,
@@ -385,6 +391,14 @@ final class TetheringStore: ObservableObject {
     }
 
     func startAccessoryMonitoring() {
+        guard !isOnboardingPresented else {
+            appendEventLog(
+                "USB listener start ignored while onboarding is presented.",
+                source: .accessoryAccess
+            )
+            return
+        }
+
         guard hasConfiguredVMAssets, !assetProvider.isBusy else {
             statusMessage = assetProvider.isBusy
                 ? String(localized: "Wait for VM asset installation to finish before starting the USB listener.")
@@ -401,7 +415,54 @@ final class TetheringStore: ObservableObject {
         }
 
         didRequestLaunchAccessoryMonitoring = true
+        guard !isOnboardingPresented else {
+            shouldResumeAccessoryMonitoringAfterOnboarding = true
+            appendEventLog(
+                "USB listener start deferred until onboarding closes.",
+                source: .accessoryAccess
+            )
+            return
+        }
         startAccessoryMonitoring(reason: "app launch")
+    }
+
+    func onboardingPresentationDidBegin() {
+        guard !isOnboardingPresented else {
+            return
+        }
+
+        isOnboardingPresented = true
+        if !didRequestLaunchAccessoryMonitoring {
+            shouldResumeAccessoryMonitoringAfterOnboarding = true
+        }
+
+        guard usbCoordinator.isAccessoryMonitoring else {
+            appendEventLog(
+                "AccessoryAccess USB listener remains stopped during onboarding.",
+                source: .accessoryAccess
+            )
+            return
+        }
+
+        shouldResumeAccessoryMonitoringAfterOnboarding = true
+        isStoppingAccessoryMonitoringForOnboarding = true
+        usbCoordinator.stopMonitoring(reason: "Onboarding presented.") { [weak self] in
+            guard let self else {
+                return
+            }
+            self.isStoppingAccessoryMonitoringForOnboarding = false
+            self.resumeAccessoryMonitoringAfterOnboardingIfNeeded()
+        }
+    }
+
+    func onboardingPresentationDidEnd() {
+        guard isOnboardingPresented else {
+            return
+        }
+
+        isOnboardingPresented = false
+        resumeAccessoryMonitoringAfterOnboardingIfNeeded()
+        presentNextUSBAttachmentPromptIfNeeded()
     }
 
     func stopAccessoryMonitoring() {
@@ -621,6 +682,7 @@ final class TetheringStore: ObservableObject {
         disconnectWireGuard: Bool = true
     ) async {
         isPreparingForApplicationTermination = true
+        shouldResumeAccessoryMonitoringAfterOnboarding = false
         appendEventLog("Application terminating.")
         hostWireGuardConnectTask?.cancel()
         hostWireGuardConnectTask = nil
@@ -1184,6 +1246,14 @@ final class TetheringStore: ObservableObject {
     }
 
     private func offerAttachmentForAvailableAccessory(_ record: USBAccessoryRecord) {
+        guard !isOnboardingPresented else {
+            appendEventLog(
+                "USB attach prompt deferred while onboarding is presented.",
+                source: .accessoryAccess
+            )
+            return
+        }
+
         guard shouldAskToAttachDetectedUSBDevices else {
             appendEventLog(
                 "USB attach prompt skipped for registry \(record.registryIDText): " +
@@ -1213,7 +1283,8 @@ final class TetheringStore: ObservableObject {
     }
 
     private func presentNextUSBAttachmentPromptIfNeeded() {
-        guard usbAttachmentPrompt == nil,
+        guard !isOnboardingPresented,
+              usbAttachmentPrompt == nil,
               pendingAttachmentAccessoryID == nil,
               vmSessionAccessoryID == nil,
               !restartWillStartVM,
@@ -1444,6 +1515,15 @@ final class TetheringStore: ObservableObject {
     }
 
     private func startAccessoryMonitoring(reason: String) {
+        guard !isOnboardingPresented else {
+            shouldResumeAccessoryMonitoringAfterOnboarding = true
+            appendEventLog(
+                "USB listener start deferred while onboarding is presented: \(reason).",
+                source: .accessoryAccess
+            )
+            return
+        }
+
         refreshRuntimeEntitlements()
 
         guard runtimeEntitlements.accessoryAccessUSB else {
@@ -1452,6 +1532,22 @@ final class TetheringStore: ObservableObject {
         }
 
         usbCoordinator.startMonitoring(reason: reason)
+    }
+
+    private func resumeAccessoryMonitoringAfterOnboardingIfNeeded() {
+        guard shouldResumeAccessoryMonitoringAfterOnboarding,
+              !isOnboardingPresented,
+              !isStoppingAccessoryMonitoringForOnboarding,
+              !isPreparingForApplicationTermination else {
+            return
+        }
+
+        shouldResumeAccessoryMonitoringAfterOnboarding = false
+        if didRequestLaunchAccessoryMonitoring {
+            startAccessoryMonitoring(reason: "onboarding closed")
+        } else {
+            startAccessoryMonitoringOnLaunch()
+        }
     }
 
     private func syncUSBState() {

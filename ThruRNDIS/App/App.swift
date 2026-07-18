@@ -94,6 +94,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsWindowController: SettingsWindowController?
     private var consoleWindowController: ConsoleWindowController?
     private var onboardingWindowController: OnboardingWindowController?
+    private var onboardingPresentationID: UUID?
     private var cancellables: Set<AnyCancellable> = []
     private var pendingTerminationApplication: NSApplication?
     private var didPrepareForTermination = false
@@ -171,12 +172,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .store(in: &cancellables)
 
-        store.startAccessoryMonitoringOnLaunch()
-
         if store.shouldPresentOnboardingOnLaunch || !assetWorkflowCoordinator.hasConfiguredAssets {
             DispatchQueue.main.async { [weak self] in
                 self?.showOnboardingWindow()
             }
+        } else {
+            store.startAccessoryMonitoringOnLaunch()
         }
     }
 
@@ -308,17 +309,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func showOnboardingWindow(restart: Bool = false) {
         if restart || onboardingWindowController?.window?.isVisible != true {
+            let presentationID = UUID()
+            onboardingPresentationID = presentationID
             onboardingWindowController?.close()
             onboardingWindowController = OnboardingWindowController(
                 store: store,
                 assetWorkflowCoordinator: assetWorkflowCoordinator,
                 onFinish: { [weak self] in
-                    self?.onboardingWindowController?.close()
+                    self?.closeOnboardingWindow(presentationID: presentationID)
+                },
+                onClose: { [weak self] in
+                    self?.onboardingWindowDidClose(presentationID: presentationID)
                 }
             )
         }
 
+        store.onboardingPresentationDidBegin()
         onboardingWindowController?.show()
+    }
+
+    private func closeOnboardingWindow(presentationID: UUID) {
+        guard onboardingPresentationID == presentationID else {
+            return
+        }
+        onboardingWindowController?.close()
+    }
+
+    private func onboardingWindowDidClose(presentationID: UUID) {
+        guard onboardingPresentationID == presentationID else {
+            return
+        }
+        onboardingPresentationID = nil
+        onboardingWindowController = nil
+        store.onboardingPresentationDidEnd()
     }
 
     private func confirmApplicationTerminationIfNeeded() -> Bool {

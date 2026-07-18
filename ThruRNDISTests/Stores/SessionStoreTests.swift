@@ -567,6 +567,108 @@ final class TetheringStoreObservationTests: XCTestCase {
         XCTAssertEqual(defaults.integer(forKey: "Onboarding.completedVersion"), 3)
     }
 
+    func testFirstRunAccessoryMonitoringWaitsUntilOnboardingEnds() throws {
+        let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let monitor = ObservationTestUSBMonitor()
+        let store = TetheringStore(
+            assetProvider: ObservationTestAssetProvider(),
+            vmCoordinator: ObservationTestVMCoordinator(),
+            usbCoordinator: USBAccessoryCoordinator(monitor: monitor),
+            wireGuardConfigurationStore: ObservationTestWireGuardStore(),
+            wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
+            eventLog: EventLogStore(),
+            consoleSession: ConsoleSessionStore(),
+            usbSession: USBSessionStore(),
+            vmConfiguration: VMConfigurationStore(defaults: defaults),
+            hostWireGuardTunnelController: ObservationTestHostWireGuardTunnelController(),
+            runtimeEntitlementSnapshotProvider: {
+                RuntimeEntitlementSnapshot(
+                    accessoryAccessUSB: true,
+                    packetTunnelProvider: false,
+                    systemExtensionInstall: false,
+                    virtualization: false
+                )
+            },
+            defaults: defaults
+        )
+
+        store.onboardingPresentationDidBegin()
+        store.startAccessoryMonitoring()
+
+        XCTAssertTrue(store.isOnboardingPresented)
+        XCTAssertFalse(store.canStartAccessoryMonitoring)
+        XCTAssertFalse(store.isAccessoryMonitoring)
+        XCTAssertEqual(monitor.startCallCount, 0)
+
+        store.onboardingPresentationDidEnd()
+
+        XCTAssertFalse(store.isOnboardingPresented)
+        XCTAssertTrue(store.isAccessoryMonitoring)
+        XCTAssertEqual(monitor.startCallCount, 1)
+    }
+
+    func testRestartedOnboardingRestoresOnlyAnActiveAccessoryListener() async throws {
+        let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let monitor = ObservationTestUSBMonitor()
+        let store = TetheringStore(
+            assetProvider: ObservationTestAssetProvider(),
+            vmCoordinator: ObservationTestVMCoordinator(),
+            usbCoordinator: USBAccessoryCoordinator(monitor: monitor),
+            wireGuardConfigurationStore: ObservationTestWireGuardStore(),
+            wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
+            eventLog: EventLogStore(),
+            consoleSession: ConsoleSessionStore(),
+            usbSession: USBSessionStore(),
+            vmConfiguration: VMConfigurationStore(defaults: defaults),
+            hostWireGuardTunnelController: ObservationTestHostWireGuardTunnelController(),
+            runtimeEntitlementSnapshotProvider: {
+                RuntimeEntitlementSnapshot(
+                    accessoryAccessUSB: true,
+                    packetTunnelProvider: false,
+                    systemExtensionInstall: false,
+                    virtualization: false
+                )
+            },
+            defaults: defaults
+        )
+
+        store.startAccessoryMonitoringOnLaunch()
+        for _ in 0..<3 {
+            await Task.yield()
+        }
+        store.onboardingPresentationDidBegin()
+
+        XCTAssertFalse(store.isAccessoryMonitoring)
+        XCTAssertEqual(monitor.startCallCount, 1)
+        XCTAssertEqual(monitor.stopCallCount, 1)
+
+        store.onboardingPresentationDidEnd()
+        for _ in 0..<3 {
+            await Task.yield()
+        }
+
+        XCTAssertTrue(store.isAccessoryMonitoring)
+        XCTAssertEqual(monitor.startCallCount, 2)
+
+        store.stopAccessoryMonitoring()
+        for _ in 0..<3 {
+            await Task.yield()
+        }
+        store.onboardingPresentationDidBegin()
+        store.onboardingPresentationDidEnd()
+        for _ in 0..<3 {
+            await Task.yield()
+        }
+
+        XCTAssertFalse(store.isAccessoryMonitoring)
+        XCTAssertEqual(monitor.startCallCount, 2)
+        XCTAssertEqual(monitor.stopCallCount, 2)
+    }
+
     func testDetectedUSBPromptPreferenceDefaultsToEnabledAndPersists() throws {
         let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
@@ -1331,12 +1433,16 @@ private final class ObservationTestVMCoordinator: VMCoordinating {
 private final class ObservationTestUSBMonitor: USBAccessoryMonitoring {
     var onConnect: ((AAUSBAccessory) -> Void)?
     var onDisconnect: ((AAUSBAccessory) -> Void)?
+    private(set) var startCallCount = 0
+    private(set) var stopCallCount = 0
 
     func start(completion: @escaping (Result<[AAUSBAccessory], Error>) -> Void) {
+        startCallCount += 1
         completion(.success([]))
     }
 
     func stop(completion: (() -> Void)?) {
+        stopCallCount += 1
         completion?()
     }
 }
