@@ -43,11 +43,6 @@ struct USBDevicesView: View {
                     }
                     .disabled(!store.canStartAccessoryMonitoring)
 
-                    Button("Reload") {
-                        store.reloadAccessoryMonitoring()
-                    }
-                    .disabled(!store.canReloadAccessoryMonitoring)
-
                     Button("Stop") {
                         store.stopAccessoryMonitoring()
                     }
@@ -108,9 +103,10 @@ private struct USBAccessoryRow: View {
                 .foregroundStyle(isAttached ? .green : .secondary)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(verbatim: accessory.usbIDText)
+                Text(verbatim: accessory.deviceName)
+                    .lineLimit(1)
 
-                Text("Class \(accessory.classText) · Registry \(accessory.registryIDText)")
+                Text("VID:PID \(accessory.usbIDText) · Class \(accessory.classText) · Registry \(accessory.registryIDText)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
