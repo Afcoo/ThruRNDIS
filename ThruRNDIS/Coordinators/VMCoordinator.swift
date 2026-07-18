@@ -34,6 +34,7 @@ final class VMCoordinator {
     private var hasReceivedConsoleOutput = false
     private var isRestarting = false
     private var restartContinuation: (() -> Void)?
+    private var stopContinuations: [CheckedContinuation<Bool, Never>] = []
     private var generation: UInt64 = 0
     private var consoleOutputWatchdogTask: Task<Void, Never>?
 
@@ -162,6 +163,7 @@ final class VMCoordinator {
                     self.onEventLog?(
                         "VM stop failed: " + EventLogErrorFormatter.description(for: error)
                     )
+                    self.resolveStopContinuations(didStop: false)
                 } else {
                     self.markStopped(
                         message: String(localized: "VM stopped."),
@@ -169,6 +171,23 @@ final class VMCoordinator {
                     )
                 }
             }
+        }
+    }
+
+    func stopAndWaitUntilStopped() async -> Bool {
+        guard virtualMachine != nil else {
+            return true
+        }
+
+        isRestarting = false
+        restartContinuation = nil
+
+        return await withCheckedContinuation { continuation in
+            stopContinuations.append(continuation)
+            guard runtimeState != .stopping else {
+                return
+            }
+            stop()
         }
     }
 
@@ -210,6 +229,7 @@ final class VMCoordinator {
                         "VM restart failed while stopping VM: " +
                             EventLogErrorFormatter.description(for: error)
                     )
+                    self.resolveStopContinuations(didStop: false)
                     return
                 }
 
@@ -243,6 +263,7 @@ final class VMCoordinator {
         vmDelegate = nil
         usbDelegate = nil
         releaseRuntimeResources()
+        resolveStopContinuations(didStop: false)
     }
 
     private func makeDelegate(generation: UInt64) -> VirtualMachineDelegateBox {
@@ -277,6 +298,7 @@ final class VMCoordinator {
                 self.vmDelegate = nil
                 self.usbDelegate = nil
                 self.onStopped?()
+                self.resolveStopContinuations(didStop: true)
                 self.onEventLog?(
                     "VM stopped with error: " + EventLogErrorFormatter.description(for: error)
                 )
@@ -330,7 +352,14 @@ final class VMCoordinator {
         transition(to: .stopped, message: message)
         onStopped?()
         onEventLog?(eventMessage)
+        resolveStopContinuations(didStop: true)
         continuation?()
+    }
+
+    private func resolveStopContinuations(didStop: Bool) {
+        let continuations = stopContinuations
+        stopContinuations.removeAll()
+        continuations.forEach { $0.resume(returning: didStop) }
     }
 
     private func installConsoleReader(_ pipe: Pipe, generation: UInt64) {

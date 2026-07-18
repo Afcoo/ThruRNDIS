@@ -577,6 +577,95 @@ final class TetheringStoreObservationTests: XCTestCase {
         XCTAssertEqual(launchAtLoginService.setEnabledValues, [false])
     }
 
+    func testSettingsResetWhileVMIsActiveWaitsForStopBeforeRemovingConfiguration() async throws {
+        let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let tunnelController = ObservationTestHostWireGuardTunnelController()
+        let vmCoordinator = ObservationTestVMCoordinator()
+        let wireGuardStore = ObservationTestWireGuardStore()
+        var operations: [String] = []
+        tunnelController.onOperation = { operations.append($0) }
+        vmCoordinator.onOperation = { operations.append($0) }
+        wireGuardStore.onOperation = { operations.append($0) }
+        vmCoordinator.hasVirtualMachine = true
+        vmCoordinator.shouldSuspendStopAndWait = true
+        let store = TetheringStore(
+            assetProvider: ObservationTestAssetProvider(),
+            vmCoordinator: vmCoordinator,
+            usbCoordinator: USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor()),
+            wireGuardConfigurationStore: wireGuardStore,
+            wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
+            eventLog: EventLogStore(),
+            consoleSession: ConsoleSessionStore(),
+            usbSession: USBSessionStore(),
+            vmConfiguration: VMConfigurationStore(defaults: defaults),
+            hostWireGuardTunnelController: tunnelController,
+            defaults: defaults
+        )
+        vmCoordinator.onStateChange?(.running, "VM running")
+
+        XCTAssertTrue(store.canResetAppSettings)
+
+        let resetTask = Task { @MainActor in
+            await store.resetAppSettings()
+        }
+        await Task.yield()
+
+        XCTAssertFalse(store.canResetAppSettings)
+        XCTAssertEqual(operations, ["disconnectWireGuard", "stopVM"])
+        XCTAssertEqual(wireGuardStore.removeConfigurationDirectoryCallCount, 0)
+
+        vmCoordinator.completeStopAndWait(didStop: true)
+        let didReset = await resetTask.value
+
+        XCTAssertTrue(didReset)
+        XCTAssertEqual(
+            operations,
+            ["disconnectWireGuard", "stopVM", "removeTunnelProfile", "removeWireGuardConfiguration"]
+        )
+        XCTAssertEqual(vmCoordinator.stopCallCount, 1)
+        XCTAssertTrue(store.canResetAppSettings)
+    }
+
+    func testSettingsResetPreservesConfigurationWhenActiveVMDoesNotStop() async throws {
+        let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let tunnelController = ObservationTestHostWireGuardTunnelController()
+        let vmCoordinator = ObservationTestVMCoordinator()
+        let wireGuardStore = ObservationTestWireGuardStore()
+        vmCoordinator.hasVirtualMachine = true
+        vmCoordinator.stopAndWaitResult = false
+        let store = TetheringStore(
+            assetProvider: ObservationTestAssetProvider(),
+            vmCoordinator: vmCoordinator,
+            usbCoordinator: USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor()),
+            wireGuardConfigurationStore: wireGuardStore,
+            wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
+            eventLog: EventLogStore(),
+            consoleSession: ConsoleSessionStore(),
+            usbSession: USBSessionStore(),
+            vmConfiguration: VMConfigurationStore(defaults: defaults),
+            hostWireGuardTunnelController: tunnelController,
+            defaults: defaults
+        )
+        vmCoordinator.onStateChange?(.running, "VM running")
+
+        let didReset = await store.resetAppSettings()
+
+        XCTAssertFalse(didReset)
+        XCTAssertEqual(tunnelController.disconnectCallCount, 1)
+        XCTAssertEqual(vmCoordinator.stopCallCount, 1)
+        XCTAssertEqual(tunnelController.removeSavedTunnelCallCount, 0)
+        XCTAssertEqual(wireGuardStore.removeConfigurationDirectoryCallCount, 0)
+        XCTAssertEqual(
+            store.preferencesStatusMessage,
+            String(localized: "Could not stop the VM before resetting app settings.")
+        )
+        XCTAssertTrue(store.canResetAppSettings)
+    }
+
     func testOnboardingVersionTwoRequiresNetworkExtensionStep() throws {
         let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
@@ -1903,6 +1992,10 @@ private final class ObservationTestVMCoordinator: VMCoordinating {
     private(set) var stopCallCount = 0
     private(set) var restartCallCount = 0
     private var restartContinuation: (() -> Void)?
+    private var stopAndWaitContinuation: CheckedContinuation<Bool, Never>?
+    var onOperation: ((String) -> Void)?
+    var shouldSuspendStopAndWait = false
+    var stopAndWaitResult = true
     var canSendConsoleInput = false
     var canStart = true
     var hasVirtualMachine = false
@@ -1915,6 +2008,25 @@ private final class ObservationTestVMCoordinator: VMCoordinating {
         stopCallCount += 1
     }
 
+    func stopAndWaitUntilStopped() async -> Bool {
+        stopCallCount += 1
+        onOperation?("stopVM")
+        if shouldSuspendStopAndWait {
+            return await withCheckedContinuation { continuation in
+                stopAndWaitContinuation = continuation
+            }
+        }
+        completeStoppedStateIfNeeded(didStop: stopAndWaitResult)
+        return stopAndWaitResult
+    }
+
+    func completeStopAndWait(didStop: Bool) {
+        let continuation = stopAndWaitContinuation
+        stopAndWaitContinuation = nil
+        completeStoppedStateIfNeeded(didStop: didStop)
+        continuation?.resume(returning: didStop)
+    }
+
     func restart(reason: String, startAgain: @escaping () -> Void) {
         restartCallCount += 1
         restartContinuation = startAgain
@@ -1924,6 +2036,16 @@ private final class ObservationTestVMCoordinator: VMCoordinating {
         let continuation = restartContinuation
         restartContinuation = nil
         continuation?()
+    }
+
+    private func completeStoppedStateIfNeeded(didStop: Bool) {
+        guard didStop else {
+            return
+        }
+        hasVirtualMachine = false
+        runtimeState = .stopped
+        onStateChange?(.stopped, "VM stopped")
+        onStopped?()
     }
     func sendConsoleBytes(_ data: Data) -> Bool { true }
     func invalidate() {
@@ -2121,6 +2243,7 @@ private final class ObservationTestHostWireGuardTunnelController: HostWireGuardT
     private(set) var systemExtensionInvalidationCallCount = 0
     var disconnectSucceeds = true
     var savedTunnelRemovalSucceeds = true
+    var onOperation: ((String) -> Void)?
 
     func refreshStatus() async {}
 
@@ -2144,12 +2267,14 @@ private final class ObservationTestHostWireGuardTunnelController: HostWireGuardT
     func disconnect(waitUntilStopped: Bool) async -> Bool {
         disconnectCallCount += 1
         lastDisconnectWaitUntilStopped = waitUntilStopped
+        onOperation?("disconnectWireGuard")
         return disconnectSucceeds
     }
 
     @discardableResult
     func removeSavedTunnelIfNeeded() async -> Bool {
         removeSavedTunnelCallCount += 1
+        onOperation?("removeTunnelProfile")
         return savedTunnelRemovalSucceeds
     }
 }
@@ -2188,6 +2313,7 @@ private final class ObservationTestAssetProvider: VMAssetProviding {
 private final class ObservationTestWireGuardStore: WireGuardConfigurationStoring {
     let files: WireGuardConfigurationFiles
     private(set) var removeConfigurationDirectoryCallCount = 0
+    var onOperation: ((String) -> Void)?
 
     var sharedDirectoryURL: URL {
         files.sharedDirectoryURL
@@ -2218,6 +2344,7 @@ private final class ObservationTestWireGuardStore: WireGuardConfigurationStoring
 
     func removeConfigurationDirectory() throws {
         removeConfigurationDirectoryCallCount += 1
+        onOperation?("removeWireGuardConfiguration")
     }
 
     private func preparedConfiguration() -> PreparedWireGuardConfiguration {

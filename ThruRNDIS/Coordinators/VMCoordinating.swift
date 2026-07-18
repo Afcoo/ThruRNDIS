@@ -23,6 +23,7 @@ protocol VMCoordinating: AnyObject {
 
     func start(input: VMCoordinatorStartInput)
     func stop()
+    func stopAndWaitUntilStopped() async -> Bool
     func restart(reason: String, startAgain: @escaping () -> Void)
     func sendConsoleBytes(_ data: Data) -> Bool
     func invalidate()

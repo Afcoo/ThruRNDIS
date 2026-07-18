@@ -19,6 +19,7 @@ final class TetheringStore: ObservableObject {
     @Published private(set) var hostWireGuardTunnelStatus: HostWireGuardTunnelStatus = .unconfigured
     @Published private(set) var wireGuardSystemExtensionStatus: WireGuardSystemExtensionStatus = .unknown
     @Published private(set) var isWireGuardSystemExtensionActivationInProgress = false
+    @Published private(set) var isResettingAppSettings = false
     @Published private(set) var wireGuardConnectionPrompt: WireGuardConnectionPrompt?
     @Published private(set) var discoveredWireGuardEndpoint: String?
     @Published private(set) var invalidWireGuardConnectionFields: Set<WireGuardConnectionField> = []
@@ -163,7 +164,7 @@ final class TetheringStore: ObservableObject {
     }
 
     var canResetAppSettings: Bool {
-        canEditVMConfiguration && !assetProvider.isBusy
+        !isResettingAppSettings && !assetProvider.isBusy
     }
 
     var hasConfiguredVMAssets: Bool {
@@ -1076,9 +1077,16 @@ final class TetheringStore: ObservableObject {
     @discardableResult
     func resetAppSettings() async -> Bool {
         guard canResetAppSettings else {
-            preferencesStatusMessage = String(localized: "Stop the VM before resetting app settings.")
+            if assetProvider.isBusy {
+                preferencesStatusMessage = String(
+                    localized: "Wait for the current VM asset operation to finish."
+                )
+            }
             return false
         }
+
+        isResettingAppSettings = true
+        defer { isResettingAppSettings = false }
 
         hostWireGuardConnectTask?.cancel()
         hostWireGuardConnectTask = nil
@@ -1093,6 +1101,30 @@ final class TetheringStore: ObservableObject {
                 source: .wireGuard
             )
             return false
+        }
+
+        isRestartingVirtualMachine = false
+        restartWillStartVM = false
+        cancelPendingAttachment(
+            reason: "app settings reset",
+            presentNextPrompt: false
+        )
+        cancelPendingWireGuardConnection(reason: "app settings reset")
+        usbSession.clearAttachmentPrompt()
+        wireGuardConnectionPrompt = nil
+
+        if vmCoordinator.hasVirtualMachine {
+            usbCoordinator.prepareForIntentionalVMStop()
+            guard await vmCoordinator.stopAndWaitUntilStopped() else {
+                preferencesStatusMessage = String(
+                    localized: "Could not stop the VM before resetting app settings."
+                )
+                appendEventLog(
+                    "App settings reset cancelled: VM could not be stopped.",
+                    source: .virtualMachine
+                )
+                return false
+            }
         }
 
         guard await hostWireGuardTunnelController.removeSavedTunnelIfNeeded() else {
@@ -1117,8 +1149,6 @@ final class TetheringStore: ObservableObject {
             return false
         }
 
-        cancelPendingAttachment(reason: "app settings reset")
-        cancelPendingWireGuardConnection(reason: "app settings reset")
         queuedUSBAttachmentPrompts.removeAll()
         promptedAccessoryIDs.removeAll()
         accessoriesAwaitingAssetSetup.removeAll()
@@ -1449,7 +1479,8 @@ final class TetheringStore: ObservableObject {
     }
 
     private func presentNextUSBAttachmentPromptIfNeeded() {
-        guard !isOnboardingPresented,
+        guard !isResettingAppSettings,
+              !isOnboardingPresented,
               usbAttachmentPrompt == nil,
               wireGuardConnectionPrompt == nil,
               pendingAttachmentAccessoryID == nil,

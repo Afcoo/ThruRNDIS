@@ -647,6 +647,16 @@
         }
       }
     },
+    "Could not stop the VM before resetting app settings." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "앱 설정을 초기화하기 전에 VM을 중지할 수 없습니다."
+          }
+        }
+      }
+    },
     "Could not update Launch at Login: %@" : {
       "localizations" : {
         "ko" : {
@@ -1968,16 +1978,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "중지"
-          }
-        }
-      }
-    },
-    "Stop the VM before resetting app settings." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "앱 설정을 초기화하기 전에 VM을 중지하세요."
           }
         }
       }

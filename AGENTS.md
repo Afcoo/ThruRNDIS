@@ -427,8 +427,10 @@ separate `Afcoo/ThruRNDIS_VM_Assets` repository.
   block startup with a visible WireGuard error if a key is missing or malformed.
 - Clearing VM Asset selection preserves managed releases, the optional scratch
   disk, and the Application Support WireGuard directory. Reset App Settings may
-  delete the WireGuard directory and clear the Asset selection only while the VM
-  is stopped; it preserves managed Asset releases. If WireGuard deletion fails,
+  be requested while the VM or USB passthrough attachment is active: disconnect
+  WireGuard first, stop the VM and wait for its USB attachment lifecycle to end,
+  then delete the WireGuard directory and clear the Asset selection. It preserves
+  managed Asset releases. If the VM does not stop or WireGuard deletion fails,
   report the error and do not restart the app. A successful reset creates fresh
   key files and a generated server config on the next launch.
 - Keep WireGuard key material and server configuration read-only. The Connection
