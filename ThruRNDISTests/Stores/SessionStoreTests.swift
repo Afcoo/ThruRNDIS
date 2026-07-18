@@ -16,6 +16,14 @@ final class LocalizationResourceTests: XCTestCase {
             koreanBundle.localizedString(forKey: "Start VM", value: nil, table: nil),
             "VM 시작"
         )
+        XCTAssertEqual(
+            koreanBundle.localizedString(
+                forKey: "Configure VM Assets in Settings",
+                value: nil,
+                table: nil
+            ),
+            "설정에서 VM에셋을 구성하세요"
+        )
 
         let statusFormat = koreanBundle.localizedString(
             forKey: "ThruRNDIS — VM %@, %@, %@",

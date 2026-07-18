@@ -1822,12 +1822,12 @@
         }
       }
     },
-    "Set Up VM Assets First" : {
+    "Configure VM Assets in Settings" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "먼저 VM 에셋 설정"
+            "value" : "설정에서 VM에셋을 구성하세요"
           }
         }
       }

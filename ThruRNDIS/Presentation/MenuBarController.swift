@@ -68,7 +68,7 @@ private final class StatusMenuItemView: NSView {
             String(localized: "USB: \(referenceUSBID)"),
             String(localized: "USB: Not attached"),
             String(localized: "WireGuard: Provider connected"),
-            String(localized: "Set Up VM Assets First"),
+            String(localized: "Configure VM Assets in Settings"),
         ]
         let titleWidth = referenceTitles
             .map { ($0 as NSString).size(withAttributes: [.font: font]).width }
@@ -231,25 +231,27 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private func rebuildMenu() {
         menu.removeAllItems()
 
-        if assetWorkflowCoordinator.hasConfiguredAssets {
+        guard assetWorkflowCoordinator.hasConfiguredAssets else {
             menu.addItem(statusItemLine(
-                title: String(localized: "VM: \(store.vmDisplayState.localizedName)"),
-                dotColor: vmStatusColor
-            ))
-            menu.addItem(statusItemLine(
-                title: usbStatusTitle,
-                dotColor: usbStatusColor
-            ))
-            menu.addItem(statusItemLine(
-                title: wireGuardStatusTitle,
-                dotColor: wireGuardStatusColor
-            ))
-        } else {
-            menu.addItem(statusItemLine(
-                title: String(localized: "Set Up VM Assets First"),
+                title: String(localized: "Configure VM Assets in Settings"),
                 systemImage: "exclamationmark.triangle"
             ))
+            addSettingsAndQuitItems()
+            return
         }
+
+        menu.addItem(statusItemLine(
+            title: String(localized: "VM: \(store.vmDisplayState.localizedName)"),
+            dotColor: vmStatusColor
+        ))
+        menu.addItem(statusItemLine(
+            title: usbStatusTitle,
+            dotColor: usbStatusColor
+        ))
+        menu.addItem(statusItemLine(
+            title: wireGuardStatusTitle,
+            dotColor: wireGuardStatusColor
+        ))
 
         menu.addItem(.separator())
 
@@ -296,6 +298,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         detachItem.isEnabled = store.canDetachAccessory
         menu.addItem(detachItem)
 
+        addSettingsAndQuitItems()
+    }
+
+    private func addSettingsAndQuitItems() {
         menu.addItem(.separator())
 
         let settingsItem = actionItem(
