@@ -194,11 +194,59 @@ ThruRNDIS WireGuardKit Network System Extension
   WireGuard endpoint. Do not replace it with vmnet, bridged networking,
   route-command UI, or an app-local packet relay.
 
+## Naming Conventions
+
+- Follow Swift API naming conventions: types and protocols use `UpperCamelCase`;
+  functions, properties, local values, parameters, and enum cases use
+  `lowerCamelCase`. Prefer names that describe responsibility or behavior over
+  implementation details.
+- Preserve the project's established domain and product spellings. Type names
+  use initialisms such as `VM`, `USB`, `URL`, `ID`, `DNS`, `MTU`, `MAC`,
+  `RNDIS`, and `SHA256`, while lower-camel-case names begin with `vm`, `usb`,
+  or `wg` and retain capitalized suffixes such as `operationID` and
+  `directoryURL`. Keep the branded spellings `ThruRNDIS`, `WireGuard`, and
+  `GitHub`.
+- Spell app-owned configuration identifiers with `Configuration`; do not
+  introduce abbreviated `Conf` or `Config` type, file, property, or parameter
+  names. `WgQuickConfig` remains an exception only where the name follows the
+  WireGuardKit API or identifies the wg-quick format.
+- Use role suffixes consistently. Observable UI state owners end in `Store`;
+  long-running workflow and lifecycle owners in `Coordinator`; AppKit
+  presentation owners in `Controller` or `WindowController`; external/system
+  operation adapters in `Service`, `Monitor`, or `Activator`; and focused
+  construction, transformation, or validation helpers in `Factory`, `Builder`,
+  `Resolver`, `Validator`, or `Formatter`. SwiftUI types end in `View`, and
+  error types end in `Error`.
+- Name value and state projections by their semantics, using established
+  suffixes such as `Record`, `Prompt`, `Input`, `Result`, `Descriptor`,
+  `Metadata`, `Snapshot`, `State`, and `Status`. Prefer `struct` and `enum` for
+  values and stateless namespaces; use `final class` for identity, mutable
+  lifecycle, delegate, or observable state owners. UI-facing observable owners
+  belong on `@MainActor`.
+- Name protocol boundaries for the capability they provide, normally with an
+  `-ing` form such as `VMCoordinating`, `USBAccessoryMonitoring`,
+  `VMAssetDownloading`, or `VMAssetSelectionStoring`. Add a protocol boundary
+  only when a layer or test needs substitution; do not create one solely to
+  mirror every concrete type.
+- Name a Swift source file after its primary type and normally keep one primary
+  responsibility per file. Private helper types may remain beside that owner.
+  Closely related domain values and shared boundaries may use an umbrella file
+  such as `VMAssetModels.swift` or `RuntimeEntitlements.swift`. Name focused
+  extensions `ExtendedType+Concern.swift`, for example
+  `NETunnelProviderProtocol+ThruRNDIS.swift`.
+- Name XCTest case types and focused files with the `Tests` suffix, and test
+  methods with a behavior-oriented `test...` name. A file may group several
+  tightly related test cases under one layer-oriented subject, as
+  `SessionStoreTests.swift` and `VMAssetServiceTests.swift` do; move a test when
+  its subject no longer belongs to that layer.
+
 ## Directory Guide
 
 The project uses a layer-oriented source tree. Keep physical directories and
 Xcode groups aligned, and keep each file in the narrowest layer that owns its
-primary responsibility.
+primary responsibility. The project uses explicit Xcode groups, so adding,
+moving, renaming, or deleting a file also requires updating its Xcode group,
+target membership, and build phase as applicable.
 
 - `ThruRNDIS/App`: executable entrypoint and `AppDelegate` composition/lifecycle
   only. Do not place menu or window controllers here.
@@ -219,7 +267,9 @@ primary responsibility.
   `TetheringStore` owns cross-feature orchestration, `EventLogStore` owns the
   app event log, `ConsoleSessionStore` owns VM serial-console state,
   `USBSessionStore` owns the USB UI projection, and `VMConfigurationStore` owns
-  editable VM settings and their UserDefaults persistence.
+  editable VM settings and their UserDefaults persistence. View-scoped
+  observable state such as `VideoPlaybackStore` also belongs here when it is
+  substantial enough to live outside its SwiftUI view.
 - `ThruRNDIS/Persistence`: non-observable durable-storage adapters and path
   definitions. `VMAssetSelectionStore` persists Asset selection,
   `WireGuardConfigurationStore` owns Application Support keys/configuration, and
@@ -234,11 +284,16 @@ primary responsibility.
 - `ThruRNDIS/Support`: small stateless helpers and narrow platform edges:
   clipboard/file panels, runtime entitlement reads, VM Asset folder validation,
   and WireGuard configuration rendering.
-- `ThruRNDISTests`: mirrors production ownership with `Coordinators`,
-  `Persistence`, `Services`, and `Stores` groups. Cross-layer fixtures live in
-  `TestSupport`.
+- `ThruRNDIS/Resources`: app-bundle resources such as localization catalogs and
+  onboarding media. Keep app and menu-bar icon sources under the existing
+  `ThruRNDIS.icon` asset folder and `ThruRNDISMenuBarIcon.svg` location.
+- `ThruRNDISTests`: mirrors production ownership where tests exist, including
+  `Coordinators`, `Persistence`, `Services`, `Stores`, and `Support`. Cross-layer
+  fixtures and reusable test doubles live in `TestSupport`.
 - `Configuration`: checked-in shared build settings and the local-signing
   template. `Configuration/LocalSigning.xcconfig` is local and ignored.
+- `images`: README-only images. Do not add this directory to the app's resource
+  build phase.
 - `script`: project-local developer automation only. Keep
   `script/build_and_run.sh` as the unsigned kill, build, and launch entrypoint
   for normal Codex and shell iteration. Use `script/build_and_install.sh` only
