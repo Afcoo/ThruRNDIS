@@ -35,7 +35,7 @@ WireGuard-over-VZNAT architecture as the baseline.
 
 - `TetheringStore` owns cross-feature orchestration, general app state,
   WireGuard presentation state, onboarding/preferences, and the serialized USB
-  approval/start/restart workflow. High-frequency or independently observed
+  approval/start/stop workflow. High-frequency or independently observed
   state lives in child stores: `EventLogStore` owns the bounded app event log,
   `ConsoleSessionStore` owns only VM serial-console output and endpoint scanning,
   `USBSessionStore` owns the atomic USB UI snapshot and pending prompt, and
@@ -185,10 +185,11 @@ ThruRNDIS WireGuardKit Network System Extension
 - The guest RNDIS interface is fixed to `usb0`. The app supports one
   passthrough RNDIS accessory per VM session. A newly available AccessoryAccess
   device is never attached silently: the app asks the user first, starts the VM
-  on approval if needed, and then attaches it. Replacing the session device
-  requires detaching the old device and restarting the VM. An unexpected
-  detach also restarts the VM so a different device is never hot-attached into
-  the old guest session.
+  on approval if needed, and then attaches it. One VM boot corresponds to one
+  USB passthrough attachment lifetime. A manual detach, physical disconnect, or
+  system-reported passthrough disconnect stops that VM session. A different
+  device can be attached only after the current device is detached and the VM
+  has stopped; it then follows the ordinary approval and fresh-VM start flow.
 - Guest NAT is based on `nftables` masquerade from `wg0` traffic to `usb0`.
 - The setup NAT NIC provides the private host-to-guest network used for the
   WireGuard endpoint. Do not replace it with vmnet, bridged networking,
@@ -408,10 +409,10 @@ separate `Afcoo/ThruRNDIS_VM_Assets` repository.
   onboarding window is visible. Settings may stop or sequentially reload the
   listener for the current session, but a later app launch starts it again.
 - Keep USB approval prompts AppKit-presented so they remain visible while all
-  windows are closed. The store must serialize approval, VM start/restart, and
-  VZ attach/detach completions. Preserve the VM-generation and USB-operation
-  tokens that prevent callbacks from an earlier VM or attachment from mutating
-  the current session.
+  windows are closed. The store must serialize USB approval, VM
+  start/stop/restart, and VZ attach completions. Preserve the VM-generation and
+  USB-operation tokens that prevent callbacks from an earlier VM or attachment
+  from mutating the current session.
 - VM assets are installed during first-run onboarding and can later be checked,
   activated, manually selected, overridden, or cleared in Settings. Keep these
   controls disabled while VM configuration cannot be edited or an Asset

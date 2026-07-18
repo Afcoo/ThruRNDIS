@@ -179,6 +179,7 @@ final class TetheringStore: ObservableObject {
         guard hasConfiguredVMAssets,
               !assetProvider.isBusy,
               pendingAttachmentAccessoryID == nil,
+              vmSessionAccessoryID == nil,
               !attachmentRequiresVMStopRetry,
               let selectedAccessoryID else {
             return false
@@ -194,6 +195,7 @@ final class TetheringStore: ObservableObject {
     func canRequestAttachment(for accessoryID: UInt64) -> Bool {
         pendingAttachmentAccessoryID == nil
             && usbAttachmentPrompt == nil
+            && vmSessionAccessoryID == nil
             && !attachmentRequiresVMStopRetry
             && hasConfiguredVMAssets
             && !assetProvider.isBusy
@@ -203,6 +205,7 @@ final class TetheringStore: ObservableObject {
     func canChooseAccessoryForAttachment(_ accessoryID: UInt64) -> Bool {
         pendingAttachmentAccessoryID == nil
             && usbAttachmentPrompt == nil
+            && vmSessionAccessoryID == nil
             && !attachmentRequiresVMStopRetry
             && !assetProvider.isBusy
             && usbCoordinator.canRequestAttachment(for: accessoryID)
@@ -487,8 +490,12 @@ final class TetheringStore: ObservableObject {
     }
 
     func stopVirtualMachine() {
+        stopVirtualMachine(reason: "VM stop requested by user")
+    }
+
+    private func stopVirtualMachine(reason: String) {
         isRestartingVirtualMachine = false
-        cancelPendingAttachment(reason: "VM stop requested by user")
+        cancelPendingAttachment(reason: reason)
         usbCoordinator.prepareForIntentionalVMStop()
         vmCoordinator.stop()
     }
@@ -541,6 +548,16 @@ final class TetheringStore: ObservableObject {
             return
         }
 
+        if attachedAccessoryID == accessoryID {
+            statusMessage = String(localized: "The selected USB accessory is already attached.")
+            return
+        }
+
+        guard vmSessionAccessoryID == nil else {
+            statusMessage = String(localized: "Detach the current USB accessory before attaching another USB accessory.")
+            return
+        }
+
         guard let record = accessories.first(where: { $0.id == accessoryID }) else {
             statusMessage = String(localized: "The selected USB accessory is no longer available.")
             return
@@ -553,28 +570,15 @@ final class TetheringStore: ObservableObject {
             return
         }
 
-        if let sessionAccessoryID = vmSessionAccessoryID,
-           sessionAccessoryID != accessoryID,
-           runtimeState == .running || runtimeState == .starting || runtimeState == .stopping {
-            let previousRecord = accessories.first { $0.id == sessionAccessoryID }
-            enqueueUSBAttachmentPrompt(
-                USBAttachmentPrompt(
-                    accessory: record,
-                    kind: .replace(
-                        previousAccessoryID: sessionAccessoryID,
-                        previousDeviceName: previousRecord?.deviceName ?? String(localized: "USB Device"),
-                        isCurrentlyAttached: attachedAccessoryID == sessionAccessoryID
-                    )
-                )
-            )
-            return
-        }
-
-        beginAttachmentWorkflow(accessoryID: accessoryID, requiresRestart: false)
+        beginAttachmentWorkflow(accessoryID: accessoryID)
     }
 
     func detachAccessory() {
-        usbCoordinator.detachAccessory(from: vmCoordinator.virtualMachine)
+        guard attachedAccessoryID != nil else {
+            return
+        }
+
+        stopVirtualMachine(reason: "USB detach requested by user")
     }
 
     func resolveUSBAttachmentPrompt(accepted: Bool) {
@@ -586,9 +590,7 @@ final class TetheringStore: ObservableObject {
         if accepted {
             switch prompt.kind {
             case .attach:
-                beginAttachmentWorkflow(accessoryID: prompt.accessory.id, requiresRestart: false)
-            case .replace:
-                beginAttachmentWorkflow(accessoryID: prompt.accessory.id, requiresRestart: true)
+                beginAttachmentWorkflow(accessoryID: prompt.accessory.id)
             case .assetsRequired:
                 accessoriesAwaitingAssetSetup.insert(prompt.accessory.id)
             }
@@ -1188,9 +1190,9 @@ final class TetheringStore: ObservableObject {
     private func presentNextUSBAttachmentPromptIfNeeded() {
         guard usbAttachmentPrompt == nil,
               pendingAttachmentAccessoryID == nil,
+              vmSessionAccessoryID == nil,
               !restartWillStartVM,
-              !assetProvider.isBusy,
-              !usbCoordinator.isDetachPending else {
+              !assetProvider.isBusy else {
             return
         }
 
@@ -1217,24 +1219,10 @@ final class TetheringStore: ObservableObject {
             return USBAttachmentPrompt(accessory: record, kind: .assetsRequired)
         }
 
-        if let sessionAccessoryID = vmSessionAccessoryID,
-           sessionAccessoryID != record.id,
-           runtimeState == .running || runtimeState == .starting || runtimeState == .stopping {
-            let previousRecord = accessories.first { $0.id == sessionAccessoryID }
-            return USBAttachmentPrompt(
-                accessory: record,
-                kind: .replace(
-                    previousAccessoryID: sessionAccessoryID,
-                    previousDeviceName: previousRecord?.deviceName ?? String(localized: "USB Device"),
-                    isCurrentlyAttached: attachedAccessoryID == sessionAccessoryID
-                )
-            )
-        }
-
         return USBAttachmentPrompt(accessory: record, kind: .attach)
     }
 
-    private func beginAttachmentWorkflow(accessoryID: UInt64, requiresRestart: Bool) {
+    private func beginAttachmentWorkflow(accessoryID: UInt64) {
         guard pendingAttachmentAccessoryID == nil else {
             statusMessage = String(localized: "Wait for the current USB attachment workflow to finish.")
             return
@@ -1270,23 +1258,8 @@ final class TetheringStore: ObservableObject {
             return
         }
 
-        let activeSessionUsesDifferentAccessory = vmSessionAccessoryID.map { $0 != accessoryID } == true
-            && (runtimeState == .running || runtimeState == .starting || runtimeState == .stopping)
-
-        if activeSessionUsesDifferentAccessory, !requiresRestart,
-           let record = accessories.first(where: { $0.id == accessoryID }),
-           let sessionAccessoryID = vmSessionAccessoryID {
-            let previousRecord = accessories.first { $0.id == sessionAccessoryID }
-            enqueueUSBAttachmentPrompt(
-                USBAttachmentPrompt(
-                    accessory: record,
-                    kind: .replace(
-                        previousAccessoryID: sessionAccessoryID,
-                        previousDeviceName: previousRecord?.deviceName ?? String(localized: "USB Device"),
-                        isCurrentlyAttached: attachedAccessoryID == sessionAccessoryID
-                    )
-                )
-            )
+        guard vmSessionAccessoryID == nil else {
+            statusMessage = String(localized: "Detach the current USB accessory before attaching another USB accessory.")
             return
         }
 
@@ -1295,45 +1268,7 @@ final class TetheringStore: ObservableObject {
         pendingAttachmentToken = UUID()
         pendingAttachmentStartedVM = false
         shouldStartPendingAttachmentAfterStop = false
-
-        guard requiresRestart && activeSessionUsesDifferentAccessory else {
-            continuePendingAttachmentIfPossible()
-            return
-        }
-
-        switch runtimeState {
-        case .running, .starting:
-            if attachedAccessoryID != nil {
-                let workflowToken = pendingAttachmentToken
-                usbCoordinator.detachAccessory(from: vmCoordinator.virtualMachine) { [weak self] success in
-                    guard let self,
-                          self.pendingAttachmentToken == workflowToken else {
-                        return
-                    }
-
-                    guard success else {
-                        self.cancelPendingAttachment(reason: "USB replacement detach failed")
-                        return
-                    }
-
-                    self.usbCoordinator.prepareForIntentionalVMStop()
-                    self.restartVirtualMachine(
-                        reason: "USB replacement",
-                        requiresPendingAttachment: true
-                    )
-                }
-            } else {
-                usbCoordinator.prepareForIntentionalVMStop()
-                restartVirtualMachine(
-                    reason: "USB replacement after a prior device in this VM session",
-                    requiresPendingAttachment: true
-                )
-            }
-        case .stopping:
-            shouldStartPendingAttachmentAfterStop = true
-        case .idle, .stopped, .failed:
-            continuePendingAttachmentIfPossible()
-        }
+        continuePendingAttachmentIfPossible()
     }
 
     private func continuePendingAttachmentIfPossible() {
@@ -1397,10 +1332,7 @@ final class TetheringStore: ObservableObject {
         }
     }
 
-    private func restartVirtualMachine(
-        reason: String,
-        requiresPendingAttachment: Bool = false
-    ) {
+    private func restartVirtualMachine(reason: String) {
         guard vmCoordinator.canRestart else {
             if runtimeState == .stopping {
                 shouldStartPendingAttachmentAfterStop = pendingAttachmentAccessoryID != nil
@@ -1414,17 +1346,22 @@ final class TetheringStore: ObservableObject {
             guard let self else { return }
             self.restartWillStartVM = false
 
-            if requiresPendingAttachment, self.pendingAttachmentAccessoryID == nil {
+            if let accessoryID = self.pendingAttachmentAccessoryID,
+               !self.accessories.contains(where: { $0.id == accessoryID }) {
                 self.isRestartingVirtualMachine = false
-                self.statusMessage = String(localized: "USB target disconnected; VM restart cancelled.")
-                self.presentNextUSBAttachmentPromptIfNeeded()
+                self.cancelPendingAttachment(reason: "target USB accessory disconnected during VM restart")
+                self.statusMessage = String(
+                    localized: "The USB accessory became unavailable before it could be attached."
+                )
                 return
             }
 
-            if requiresPendingAttachment {
-                self.pendingAttachmentStartedVM = true
-            }
-            if !self.startVirtualMachine() {
+            if self.startVirtualMachine() {
+                if self.pendingAttachmentAccessoryID != nil,
+                   self.runtimeState == .starting {
+                    self.pendingAttachmentStartedVM = true
+                }
+            } else {
                 self.isRestartingVirtualMachine = false
                 self.cancelPendingAttachment(reason: "VM preflight failed after restart")
             }
@@ -1455,23 +1392,12 @@ final class TetheringStore: ObservableObject {
             return
         }
 
-        if pendingAttachmentAccessoryID != nil {
-            appendEventLog(
-                "Replacing the pending USB attachment after an unexpected USB detach.",
-                source: .accessoryAccess
-            )
-        }
-        pendingAttachmentAccessoryID = accessories.contains(where: { $0.id == accessoryID })
-            ? accessoryID
-            : nil
-        pendingAttachmentToken = pendingAttachmentAccessoryID == nil ? nil : UUID()
-        pendingAttachmentStartedVM = false
-        shouldStartPendingAttachmentAfterStop = false
-        usbCoordinator.prepareForIntentionalVMStop()
-        restartVirtualMachine(
-            reason: reason,
-            requiresPendingAttachment: false
+        appendEventLog(
+            "Stopping VM because the USB passthrough lifecycle ended for registry " +
+                "\(Self.registryIDText(accessoryID)): \(reason)",
+            source: .accessoryAccess
         )
+        stopVirtualMachine(reason: "USB passthrough lifecycle ended")
     }
 
     private func cancelPendingAttachment(

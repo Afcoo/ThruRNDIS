@@ -647,6 +647,16 @@
         }
       }
     },
+    "Detach the current USB accessory before attaching another USB accessory." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다른 USB 액세서리를 연결하기 전에 현재 USB 액세서리 연결을 해제하세요."
+          }
+        }
+      }
+    },
     "Device connection video unavailable" : {
       "localizations" : {
         "ko" : {
@@ -663,22 +673,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "연결 해제"
-          }
-        }
-      }
-    },
-    "Disconnect %@ and attach %@?\nThe VM will restart." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Disconnect %1$@ and attach %2$@?\nThe VM will restart."
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ 연결을 해제하고 %2$@ 기기를 연결할까요?\nVM이 재시작됩니다."
           }
         }
       }
@@ -1542,26 +1536,6 @@
         }
       }
     },
-    "Replace & Restart" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "교체 후 다시 시작"
-          }
-        }
-      }
-    },
-    "Replace USB Device?" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "USB 기기를 교체할까요?"
-          }
-        }
-      }
-    },
     "Replay" : {
       "localizations" : {
         "ko" : {
@@ -1658,16 +1632,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "온보딩 다시 시작…"
-          }
-        }
-      }
-    },
-    "Restart the VM before attaching a different USB accessory." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "다른 USB 액세서리를 연결하기 전에 VM을 다시 시작하세요."
           }
         }
       }
@@ -2507,16 +2471,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "서명되지 않은 빌드에서는 USB 모니터링을 사용할 수 없습니다."
-          }
-        }
-      }
-    },
-    "USB target disconnected; VM restart cancelled." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "USB 대상의 연결이 끊겨 VM 다시 시작이 취소되었습니다."
           }
         }
       }

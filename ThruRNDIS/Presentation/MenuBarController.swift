@@ -207,7 +207,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         let alert = NSAlert()
         alert.messageText = prompt.title
         alert.informativeText = prompt.message
-        alert.alertStyle = isReplacementPrompt(prompt) ? .warning : .informational
+        alert.alertStyle = .informational
         alert.addButton(withTitle: prompt.primaryButtonTitle)
         alert.addButton(withTitle: String(localized: "Not Now"))
 
@@ -416,13 +416,6 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: keyEquivalent)
         item.target = self
         return item
-    }
-
-    private func isReplacementPrompt(_ prompt: USBAttachmentPrompt) -> Bool {
-        if case .replace = prompt.kind {
-            return true
-        }
-        return false
     }
 
     @objc private func startOrRestartVM() {

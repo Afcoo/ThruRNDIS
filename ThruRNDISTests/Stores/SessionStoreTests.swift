@@ -79,6 +79,14 @@ final class LocalizationResourceTests: XCTestCase {
             ),
             "설정 열기"
         )
+        XCTAssertEqual(
+            koreanBundle.localizedString(
+                forKey: "Detach the current USB accessory before attaching another USB accessory.",
+                value: nil,
+                table: nil
+            ),
+            "다른 USB 액세서리를 연결하기 전에 현재 USB 액세서리 연결을 해제하세요."
+        )
         let vmAssetsRequiredFormat = koreanBundle.localizedString(
             forKey: "%@ has been connected, but VM assets have not been configured.\nOpen Settings to install VM Assets.",
             value: nil,
@@ -616,6 +624,183 @@ final class TetheringStoreObservationTests: XCTestCase {
         XCTAssertFalse(store.shouldConfirmApplicationTermination)
     }
 
+    func testManualUSBDetachStopsVMWithoutRestarting() throws {
+        let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let vmCoordinator = ObservationTestVMCoordinator()
+        let usbSession = USBSessionStore()
+        let store = TetheringStore(
+            assetProvider: ObservationTestAssetProvider(),
+            vmCoordinator: vmCoordinator,
+            usbCoordinator: USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor()),
+            wireGuardConfigurationStore: ObservationTestWireGuardStore(),
+            wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
+            eventLog: EventLogStore(),
+            consoleSession: ConsoleSessionStore(),
+            usbSession: usbSession,
+            vmConfiguration: VMConfigurationStore(defaults: defaults),
+            hostWireGuardTunnelController: ObservationTestHostWireGuardTunnelController(),
+            defaults: defaults
+        )
+        vmCoordinator.onStateChange?(.running, "VM running")
+        usbSession.apply(USBSessionSnapshot(attachedAccessoryID: 11))
+
+        store.detachAccessory()
+
+        XCTAssertEqual(vmCoordinator.stopCallCount, 1)
+        XCTAssertEqual(vmCoordinator.restartCallCount, 0)
+        XCTAssertEqual(vmCoordinator.startCallCount, 0)
+    }
+
+    func testDifferentUSBRequiresDetachBeforeOrdinaryAttach() throws {
+        let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let vmCoordinator = ObservationTestVMCoordinator()
+        let usbSession = USBSessionStore()
+        let runtimeEntitlements = RuntimeEntitlementSnapshot(
+            accessoryAccessUSB: true,
+            packetTunnelProvider: true,
+            systemExtensionInstall: true,
+            virtualization: true
+        )
+        let store = TetheringStore(
+            assetProvider: ObservationTestAssetProvider(),
+            vmCoordinator: vmCoordinator,
+            usbCoordinator: USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor()),
+            wireGuardConfigurationStore: ObservationTestWireGuardStore(),
+            wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
+            eventLog: EventLogStore(),
+            consoleSession: ConsoleSessionStore(),
+            usbSession: usbSession,
+            vmConfiguration: VMConfigurationStore(defaults: defaults),
+            hostWireGuardTunnelController: ObservationTestHostWireGuardTunnelController(),
+            runtimeEntitlementSnapshotProvider: { runtimeEntitlements },
+            defaults: defaults
+        )
+        vmCoordinator.onStateChange?(.running, "VM running")
+        usbSession.apply(
+            USBSessionSnapshot(attachedAccessoryID: 11, vmSessionAccessoryID: 11)
+        )
+
+        store.requestAttachAccessory(id: 22)
+
+        XCTAssertEqual(
+            store.statusMessage,
+            String(localized: "Detach the current USB accessory before attaching another USB accessory.")
+        )
+        XCTAssertEqual(vmCoordinator.stopCallCount, 0)
+        XCTAssertEqual(vmCoordinator.restartCallCount, 0)
+        XCTAssertEqual(vmCoordinator.startCallCount, 0)
+    }
+
+    func testUSBDisconnectDuringManualRestartDoesNotStartVMWithoutTarget() throws {
+        let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let vmCoordinator = ObservationTestVMCoordinator()
+        vmCoordinator.canRestart = true
+        let usbSession = USBSessionStore()
+        let store = TetheringStore(
+            assetProvider: ObservationTestAssetProvider(),
+            vmCoordinator: vmCoordinator,
+            usbCoordinator: USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor()),
+            wireGuardConfigurationStore: ObservationTestWireGuardStore(),
+            wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
+            eventLog: EventLogStore(),
+            consoleSession: ConsoleSessionStore(),
+            usbSession: usbSession,
+            vmConfiguration: VMConfigurationStore(defaults: defaults),
+            hostWireGuardTunnelController: ObservationTestHostWireGuardTunnelController(),
+            defaults: defaults
+        )
+        vmCoordinator.onStateChange?(.running, "VM running")
+        usbSession.apply(
+            USBSessionSnapshot(attachedAccessoryID: 11, vmSessionAccessoryID: 11)
+        )
+
+        store.restartVirtualMachine()
+        vmCoordinator.onStateChange?(.stopping, "VM stopping")
+        vmCoordinator.onStateChange?(.stopped, "VM stopped")
+        vmCoordinator.onStopped?()
+        vmCoordinator.completeRestart()
+
+        XCTAssertEqual(vmCoordinator.restartCallCount, 1)
+        XCTAssertEqual(vmCoordinator.startCallCount, 0)
+        XCTAssertEqual(vmCoordinator.stopCallCount, 0)
+        XCTAssertEqual(
+            store.statusMessage,
+            String(localized: "The USB accessory became unavailable before it could be attached.")
+        )
+    }
+
+    func testPhysicalAndSystemUSBDetachStopVMWithoutRestartOrAutomaticStart() throws {
+        let reasons = [
+            "AccessoryAccess disconnected the attached USB accessory.",
+            "USB passthrough device disconnected by the system.",
+        ]
+
+        for reason in reasons {
+            let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
+            let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+            defer { defaults.removePersistentDomain(forName: suiteName) }
+            let vmCoordinator = ObservationTestVMCoordinator()
+            let usbCoordinator = USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor())
+            let store = TetheringStore(
+                assetProvider: ObservationTestAssetProvider(),
+                vmCoordinator: vmCoordinator,
+                usbCoordinator: usbCoordinator,
+                wireGuardConfigurationStore: ObservationTestWireGuardStore(),
+                wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
+                eventLog: EventLogStore(),
+                consoleSession: ConsoleSessionStore(),
+                usbSession: USBSessionStore(),
+                vmConfiguration: VMConfigurationStore(defaults: defaults),
+                hostWireGuardTunnelController: ObservationTestHostWireGuardTunnelController(),
+                defaults: defaults
+            )
+            vmCoordinator.onStateChange?(.running, "VM running")
+
+            usbCoordinator.onUnexpectedDetach?(11, reason)
+            vmCoordinator.onStateChange?(.stopping, "VM stopping")
+            vmCoordinator.onStopped?()
+
+            XCTAssertEqual(vmCoordinator.stopCallCount, 1, reason)
+            XCTAssertEqual(vmCoordinator.restartCallCount, 0, reason)
+            XCTAssertEqual(vmCoordinator.startCallCount, 0, reason)
+        }
+    }
+
+    func testDuplicateUSBDetachWhileStoppingDoesNotRequestAnotherStop() throws {
+        let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let vmCoordinator = ObservationTestVMCoordinator()
+        let usbCoordinator = USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor())
+        let store = TetheringStore(
+            assetProvider: ObservationTestAssetProvider(),
+            vmCoordinator: vmCoordinator,
+            usbCoordinator: usbCoordinator,
+            wireGuardConfigurationStore: ObservationTestWireGuardStore(),
+            wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
+            eventLog: EventLogStore(),
+            consoleSession: ConsoleSessionStore(),
+            usbSession: USBSessionStore(),
+            vmConfiguration: VMConfigurationStore(defaults: defaults),
+            hostWireGuardTunnelController: ObservationTestHostWireGuardTunnelController(),
+            defaults: defaults
+        )
+        vmCoordinator.onStateChange?(.running, "VM running")
+
+        usbCoordinator.onUnexpectedDetach?(11, "AccessoryAccess disconnect")
+        vmCoordinator.onStateChange?(.stopping, "VM stopping")
+        usbCoordinator.onUnexpectedDetach?(11, "VZ disconnect")
+
+        XCTAssertEqual(vmCoordinator.stopCallCount, 1)
+        XCTAssertEqual(vmCoordinator.restartCallCount, 0)
+    }
+
     func testVMStopCancelsPendingTunnelAndClearsDiscoveredEndpoint() async throws {
         let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
@@ -1013,13 +1198,32 @@ private final class ObservationTestVMCoordinator: VMCoordinating {
     var canStop = false
     var canRestart = false
     private(set) var invalidateCallCount = 0
+    private(set) var startCallCount = 0
+    private(set) var stopCallCount = 0
+    private(set) var restartCallCount = 0
+    private var restartContinuation: (() -> Void)?
     var canSendConsoleInput = false
     var canStart = true
     var hasVirtualMachine = false
 
-    func start(input: VMCoordinatorStartInput) {}
-    func stop() {}
-    func restart(reason: String, startAgain: @escaping () -> Void) {}
+    func start(input: VMCoordinatorStartInput) {
+        startCallCount += 1
+    }
+
+    func stop() {
+        stopCallCount += 1
+    }
+
+    func restart(reason: String, startAgain: @escaping () -> Void) {
+        restartCallCount += 1
+        restartContinuation = startAgain
+    }
+
+    func completeRestart() {
+        let continuation = restartContinuation
+        restartContinuation = nil
+        continuation?()
+    }
     func sendConsoleBytes(_ data: Data) -> Bool { true }
     func invalidate() {
         invalidateCallCount += 1

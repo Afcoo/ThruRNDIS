@@ -8,7 +8,6 @@ import Foundation
 
 private enum USBPassthroughPolicy {
     static let attachFailureSuppressionInterval: TimeInterval = 10
-    static let manualDetachAccessoryEventGraceInterval: TimeInterval = 10
 }
 
 @MainActor
@@ -24,17 +23,12 @@ final class USBAccessoryCoordinator {
     private let monitor: any USBAccessoryMonitoring
     private var accessoryObjects: [UInt64: AAUSBAccessory] = [:]
     private var attachedDevice: VZUSBPassthroughDevice?
-    private var pendingDetachDevice: VZUSBPassthroughDevice?
     private var accessoryEventSequence = 0
     private var pendingAttachAccessoryID: UInt64?
     private var pendingAttachToken: UUID?
     private var lastAccessoryEventByDescriptor: [String: (kind: String, date: Date)] = [:]
     private var lastAttachAttemptByDescriptor: [String: Date] = [:]
     private var attachSuppressedUntilByDescriptor: [String: Date] = [:]
-    private var manuallyDetachedDescriptorKeys: Set<String> = []
-    private var manualDetachEventSuppressedUntilByDescriptor: [String: Date] = [:]
-    private var manualDetachEventSuppressedUntilByRegistryID: [UInt64: Date] = [:]
-    private var manualPassthroughDisconnectSuppressedUntil: Date?
     private var reconnectDescriptorKey: String?
     private var announcedAccessoryIDs: Set<UInt64> = []
     private var isIntentionalVMStopInProgress = false
@@ -61,7 +55,7 @@ final class USBAccessoryCoordinator {
     }
 
     var canStopMonitoring: Bool {
-        isAccessoryMonitoring && !isReloadInProgress && pendingDetachDevice == nil
+        isAccessoryMonitoring && !isReloadInProgress
     }
 
     var canReloadMonitoring: Bool {
@@ -69,11 +63,6 @@ final class USBAccessoryCoordinator {
             && !isRegistrationPending
             && !isUnregistrationPending
             && !isReloadInProgress
-            && pendingDetachDevice == nil
-    }
-
-    var isDetachPending: Bool {
-        pendingDetachDevice != nil
     }
 
     func canRequestAttachment(for accessoryID: UInt64) -> Bool {
@@ -81,7 +70,7 @@ final class USBAccessoryCoordinator {
               record.hasConfigurationDescriptor,
               accessoryObjects[accessoryID] != nil,
               pendingAttachAccessoryID == nil,
-              pendingDetachDevice == nil,
+              vmSessionAccessoryID == nil,
               attachedAccessoryID != accessoryID else {
             return false
         }
@@ -92,7 +81,6 @@ final class USBAccessoryCoordinator {
     func canDetachAccessory(runtimeState: VMRuntimeState) -> Bool {
         runtimeState == .running
             && attachedDevice != nil
-            && pendingDetachDevice == nil
             && !isRegistrationPending
             && !isUnregistrationPending
             && !isReloadInProgress
@@ -165,10 +153,6 @@ final class USBAccessoryCoordinator {
         accessoryObjects.removeAll()
         accessories.removeAll()
         selectedAccessoryID = nil
-        manuallyDetachedDescriptorKeys.removeAll()
-        manualDetachEventSuppressedUntilByDescriptor.removeAll()
-        manualDetachEventSuppressedUntilByRegistryID.removeAll()
-        manualPassthroughDisconnectSuppressedUntil = nil
         reconnectDescriptorKey = nil
         announcedAccessoryIDs.removeAll()
         notifyStateChanged()
@@ -209,15 +193,10 @@ final class USBAccessoryCoordinator {
     func resetForVMStart() {
         attachedAccessoryID = nil
         attachedDevice = nil
-        pendingDetachDevice = nil
         pendingAttachAccessoryID = nil
         pendingAttachToken = nil
         lastAttachAttemptByDescriptor.removeAll()
         attachSuppressedUntilByDescriptor.removeAll()
-        manuallyDetachedDescriptorKeys.removeAll()
-        manualDetachEventSuppressedUntilByDescriptor.removeAll()
-        manualDetachEventSuppressedUntilByRegistryID.removeAll()
-        manualPassthroughDisconnectSuppressedUntil = nil
         reconnectDescriptorKey = nil
         vmSessionAccessoryID = nil
         isIntentionalVMStopInProgress = false
@@ -227,7 +206,6 @@ final class USBAccessoryCoordinator {
     func clearAttachmentForStoppedVM() {
         attachedAccessoryID = nil
         attachedDevice = nil
-        pendingDetachDevice = nil
         pendingAttachAccessoryID = nil
         pendingAttachToken = nil
         reconnectDescriptorKey = nil
@@ -267,9 +245,6 @@ final class USBAccessoryCoordinator {
             return
         }
 
-        manuallyDetachedDescriptorKeys.remove(record.descriptorIdentityKey)
-        manualDetachEventSuppressedUntilByDescriptor.removeValue(forKey: record.descriptorIdentityKey)
-        manualDetachEventSuppressedUntilByRegistryID.removeValue(forKey: accessoryID)
         reconnectDescriptorKey = nil
         selectedAccessoryID = accessoryID
         attach(
@@ -279,73 +254,6 @@ final class USBAccessoryCoordinator {
             reason: "approved request",
             completion: completion
         )
-    }
-
-    func detachAccessory(
-        from virtualMachine: VZVirtualMachine?,
-        completion: ((Bool) -> Void)? = nil
-    ) {
-        guard let virtualMachine, let device = attachedDevice else {
-            completion?(false)
-            return
-        }
-
-        guard let controller = virtualMachine.usbControllers.first else {
-            completion?(false)
-            return
-        }
-
-        guard pendingDetachDevice == nil else {
-            onEventLog?("USB detach ignored because a detach is already pending.")
-            completion?(false)
-            return
-        }
-
-        let detachedAccessoryID = attachedAccessoryID
-        let detachedRecord = detachedAccessoryID.flatMap { id in
-            accessories.first { $0.id == id }
-        }
-
-        if let detachedRecord {
-            noteManualDetach(for: detachedRecord)
-        }
-        manualPassthroughDisconnectSuppressedUntil = Date().addingTimeInterval(USBPassthroughPolicy.manualDetachAccessoryEventGraceInterval)
-        pendingDetachDevice = device
-        notifyStateChanged()
-
-        controller.detach(device: device) { [weak self] error in
-            Task { @MainActor in
-                guard let self else { return }
-
-                guard self.pendingDetachDevice === device else {
-                    self.onEventLog?("Ignoring stale USB detach completion from an earlier attachment.")
-                    completion?(false)
-                    return
-                }
-
-                self.pendingDetachDevice = nil
-
-                if let error {
-                    if let detachedRecord {
-                        self.manuallyDetachedDescriptorKeys.remove(detachedRecord.descriptorIdentityKey)
-                        self.manualDetachEventSuppressedUntilByDescriptor.removeValue(forKey: detachedRecord.descriptorIdentityKey)
-                        self.manualDetachEventSuppressedUntilByRegistryID.removeValue(forKey: detachedRecord.id)
-                    }
-                    self.manualPassthroughDisconnectSuppressedUntil = nil
-                    self.onStatusMessage?(error.localizedDescription)
-                    self.onEventLog?(
-                        "USB detach failed: " + EventLogErrorFormatter.description(for: error)
-                    )
-                } else {
-                    self.attachedAccessoryID = nil
-                    self.attachedDevice = nil
-                    self.onStatusMessage?(String(localized: "USB accessory detached from VM."))
-                    self.onEventLog?("USB accessory detached from VM by user.")
-                }
-                self.notifyStateChanged()
-                completion?(error == nil)
-            }
-        }
     }
 
     func handlePassthroughDisconnect(device: VZUSBPassthroughDevice) {
@@ -364,11 +272,11 @@ final class USBAccessoryCoordinator {
         let reconnectRecord = attachedAccessoryID.flatMap { id in
             accessories.first { $0.id == id }
         }
-        if isManualPassthroughDisconnectSuppressed() || isIntentionalVMStopInProgress {
+        if isIntentionalVMStopInProgress {
             attachedAccessoryID = nil
             self.attachedDevice = nil
             notifyStateChanged()
-            onEventLog?("USB passthrough disconnect ignored because it was produced by an intentional detach or VM stop, attached registry \(attachedRegistry).")
+            onEventLog?("USB passthrough disconnect ignored because it was produced by an intentional VM stop, attached registry \(attachedRegistry).")
             return
         }
 
@@ -409,15 +317,9 @@ final class USBAccessoryCoordinator {
         let registryID = accessory.registryID
         let descriptorKey = record.descriptorIdentityKey
 
-        guard pendingDetachDevice == nil else {
-            onEventLog?("USB attach skipped while a detach is pending.")
-            completion?(false)
-            return
-        }
-
-        if let vmSessionAccessoryID, vmSessionAccessoryID != registryID {
-            onStatusMessage?(String(localized: "Restart the VM before attaching a different USB accessory."))
-            onEventLog?("USB attach skipped for registry \(record.registryIDText): this VM session is reserved for registry \(Self.registryIDText(vmSessionAccessoryID)).")
+        if let vmSessionAccessoryID {
+            onStatusMessage?(String(localized: "Detach the current USB accessory before attaching another USB accessory."))
+            onEventLog?("USB attach skipped for registry \(record.registryIDText): this VM session already used registry \(Self.registryIDText(vmSessionAccessoryID)) and must stop before another attach.")
             completion?(false)
             return
         }
@@ -520,11 +422,7 @@ final class USBAccessoryCoordinator {
         }
         let shouldReconnect = reconnectDescriptorKey == record.descriptorIdentityKey
 
-        if manuallyDetachedDescriptorKeys.contains(record.descriptorIdentityKey) {
-            accessories.removeAll { $0.id == record.id || $0.descriptorIdentityKey == record.descriptorIdentityKey }
-        } else {
-            accessories.removeAll { $0.id == record.id }
-        }
+        accessories.removeAll { $0.id == record.id }
 
         accessories.append(record)
         accessories.sort { $0.usbIDText < $1.usbIDText }
@@ -541,7 +439,6 @@ final class USBAccessoryCoordinator {
         let becameReady = previousRecord?.hasConfigurationDescriptor != true && record.hasConfigurationDescriptor
         let shouldAnnounce = becameReady
             && attachedAccessoryID != record.id
-            && !manuallyDetachedDescriptorKeys.contains(record.descriptorIdentityKey)
             && announcedAccessoryIDs.insert(record.id).inserted
 
         if shouldAnnounce {
@@ -553,13 +450,6 @@ final class USBAccessoryCoordinator {
         let record = USBAccessoryRecord(accessory: accessory)
         let wasSelected = selectedAccessoryID == accessory.registryID
         let wasAttached = attachedAccessoryID == accessory.registryID
-
-        if manualDetachEventSuppressionRemaining(for: record) != nil {
-            accessoryObjects[accessory.registryID] = nil
-            notifyStateChanged()
-            onEventLog?("USB AccessoryAccess disconnect ignored during manual VM detach: registry \(record.registryIDText), \(accessoryEventContext(for: record, kind: "disconnect")).")
-            return
-        }
 
         accessoryObjects[accessory.registryID] = nil
         accessories.removeAll { $0.id == accessory.registryID }
@@ -605,14 +495,6 @@ final class USBAccessoryCoordinator {
         }
     }
 
-    private func noteManualDetach(for record: USBAccessoryRecord) {
-        let suppressedUntil = Date().addingTimeInterval(USBPassthroughPolicy.manualDetachAccessoryEventGraceInterval)
-        manuallyDetachedDescriptorKeys.insert(record.descriptorIdentityKey)
-        manualDetachEventSuppressedUntilByDescriptor[record.descriptorIdentityKey] = suppressedUntil
-        manualDetachEventSuppressedUntilByRegistryID[record.id] = suppressedUntil
-        onEventLog?("USB manual detach policy: keeping \(record.registryIDText) in the device list and blocking automatic reattach until the next manual attach.")
-    }
-
     private func attachSuppressionRemaining(for record: USBAccessoryRecord) -> TimeInterval? {
         guard let suppressedUntil = attachSuppressedUntilByDescriptor[record.descriptorIdentityKey] else {
             return nil
@@ -631,52 +513,6 @@ final class USBAccessoryCoordinator {
         let suppressedUntil = Date().addingTimeInterval(interval)
         attachSuppressedUntilByDescriptor[record.descriptorIdentityKey] = suppressedUntil
         onEventLog?("USB attach retry suppressed for descriptor \(record.usbIDText) for \(Self.secondsText(interval)): \(reason)")
-    }
-
-    private func manualDetachEventSuppressionRemaining(for record: USBAccessoryRecord) -> TimeInterval? {
-        if let remaining = suppressionRemaining(
-            until: manualDetachEventSuppressedUntilByDescriptor[record.descriptorIdentityKey],
-            onExpired: {
-                manualDetachEventSuppressedUntilByDescriptor[record.descriptorIdentityKey] = nil
-            }
-        ) {
-            return remaining
-        }
-
-        return suppressionRemaining(
-            until: manualDetachEventSuppressedUntilByRegistryID[record.id],
-            onExpired: {
-                manualDetachEventSuppressedUntilByRegistryID[record.id] = nil
-            }
-        )
-    }
-
-    private func suppressionRemaining(until suppressedUntil: Date?, onExpired: () -> Void) -> TimeInterval? {
-        guard let suppressedUntil else {
-            return nil
-        }
-
-        let now = Date()
-        guard suppressedUntil > now else {
-            onExpired()
-            return nil
-        }
-
-        return suppressedUntil.timeIntervalSince(now)
-    }
-
-    private func isManualPassthroughDisconnectSuppressed() -> Bool {
-        guard let suppressedUntil = manualPassthroughDisconnectSuppressedUntil else {
-            return false
-        }
-
-        let now = Date()
-        guard suppressedUntil > now else {
-            manualPassthroughDisconnectSuppressedUntil = nil
-            return false
-        }
-
-        return true
     }
 
     private func accessoryEventContext(for record: USBAccessoryRecord, kind: String) -> String {
