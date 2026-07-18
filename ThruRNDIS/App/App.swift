@@ -195,6 +195,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         store.refreshLaunchAtLoginStatus()
+        store.refreshWireGuardSystemExtensionStatus()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

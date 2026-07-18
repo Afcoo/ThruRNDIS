@@ -2,9 +2,15 @@
 Copyright (C) 2026 Afcoo.
 */
 
+import Foundation
+
 enum ThruRNDISTunnel {
     static let displayName = "ThruRNDIS"
     static let wireGuardConfigurationOptionKey = "ThruRNDISWireGuardConfiguration"
+    static let systemExtensionsSettingsURL = URL(
+        string: "x-apple.systempreferences:com.apple.ExtensionsPreferences" +
+            "?extensionPointIdentifier=com.apple.system_extension.network_extension.extension-point"
+    )!
 
     private static let providerBundleIdentifierSuffix = ".wireguard-network-extension"
 

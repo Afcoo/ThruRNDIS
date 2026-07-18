@@ -47,6 +47,46 @@ final class LocalizationResourceTests: XCTestCase {
             ),
             "USB 디바이스와 연결이 해제됩니다.\n정말 종료하시겠어요?"
         )
+        XCTAssertEqual(
+            koreanBundle.localizedString(
+                forKey: "Enable the Network Extension",
+                value: nil,
+                table: nil
+            ),
+            "네트워크 확장 프로그램 활성화"
+        )
+        XCTAssertEqual(
+            koreanBundle.localizedString(
+                forKey: "ThruRNDIS requires its Network Extension to be active before it can connect.",
+                value: nil,
+                table: nil
+            ),
+            "ThruRNDIS를 연결하려면 네트워크 확장 프로그램이 활성화되어 있어야 합니다."
+        )
+        XCTAssertEqual(
+            koreanBundle.localizedString(
+                forKey: "Open Settings",
+                value: nil,
+                table: nil
+            ),
+            "설정 열기"
+        )
+        XCTAssertEqual(
+            koreanBundle.localizedString(
+                forKey: "Network extension activation is already in progress.",
+                value: nil,
+                table: nil
+            ),
+            "네트워크 확장 프로그램 활성화가 이미 진행 중입니다."
+        )
+        XCTAssertEqual(
+            koreanBundle.localizedString(
+                forKey: "This build cannot activate the Network Extension. Run a signed copy of ThruRNDIS from Applications.",
+                value: nil,
+                table: nil
+            ),
+            "이 빌드에서는 네트워크 확장 프로그램을 활성화할 수 없습니다. 서명된 ThruRNDIS를 응용 프로그램 폴더에서 실행하세요."
+        )
     }
 }
 
@@ -203,6 +243,259 @@ final class VMConfigurationStoreTests: XCTestCase {
 
 @MainActor
 final class TetheringStoreObservationTests: XCTestCase {
+    func testRequestingSystemExtensionActivationNeverOpensSettingsAutomatically() async throws {
+        let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let tunnelController = ObservationTestHostWireGuardTunnelController()
+        var settingsOpenCount = 0
+        let runtimeEntitlements = RuntimeEntitlementSnapshot(
+            accessoryAccessUSB: true,
+            packetTunnelProvider: true,
+            systemExtensionInstall: true,
+            virtualization: true
+        )
+        let store = TetheringStore(
+            assetProvider: ObservationTestAssetProvider(),
+            vmCoordinator: ObservationTestVMCoordinator(),
+            usbCoordinator: USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor()),
+            wireGuardConfStore: ObservationTestWireGuardStore(),
+            wireGuardConfBuilder: WireGuardConfBuilder(elements: .defaults),
+            eventLog: EventLogStore(),
+            consoleSession: ConsoleSessionStore(),
+            usbSession: USBSessionStore(),
+            vmConfiguration: VMConfigurationStore(defaults: defaults),
+            hostWireGuardTunnelController: tunnelController,
+            runtimeEntitlementSnapshotProvider: { runtimeEntitlements },
+            systemExtensionSettingsOpener: {
+                settingsOpenCount += 1
+                return true
+            },
+            defaults: defaults
+        )
+
+        XCTAssertTrue(store.requestWireGuardSystemExtensionActivation())
+
+        XCTAssertEqual(settingsOpenCount, 0)
+        await Task.yield()
+        XCTAssertEqual(tunnelController.systemExtensionActivationCallCount, 1)
+
+        tunnelController.onSystemExtensionStatusChange?(.awaitingUserApproval)
+
+        XCTAssertEqual(settingsOpenCount, 0)
+        XCTAssertFalse(store.canRequestWireGuardSystemExtensionActivation)
+    }
+
+    func testOpeningSystemExtensionSettingsWhileAwaitingApprovalDoesNotRequestActivation() async throws {
+        let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let tunnelController = ObservationTestHostWireGuardTunnelController()
+        var settingsOpenCount = 0
+        let runtimeEntitlements = RuntimeEntitlementSnapshot(
+            accessoryAccessUSB: true,
+            packetTunnelProvider: true,
+            systemExtensionInstall: true,
+            virtualization: true
+        )
+        let store = TetheringStore(
+            assetProvider: ObservationTestAssetProvider(),
+            vmCoordinator: ObservationTestVMCoordinator(),
+            usbCoordinator: USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor()),
+            wireGuardConfStore: ObservationTestWireGuardStore(),
+            wireGuardConfBuilder: WireGuardConfBuilder(elements: .defaults),
+            eventLog: EventLogStore(),
+            consoleSession: ConsoleSessionStore(),
+            usbSession: USBSessionStore(),
+            vmConfiguration: VMConfigurationStore(defaults: defaults),
+            hostWireGuardTunnelController: tunnelController,
+            runtimeEntitlementSnapshotProvider: { runtimeEntitlements },
+            systemExtensionSettingsOpener: {
+                settingsOpenCount += 1
+                return true
+            },
+            defaults: defaults
+        )
+
+        tunnelController.onSystemExtensionStatusChange?(.awaitingUserApproval)
+
+        XCTAssertFalse(store.canRequestWireGuardSystemExtensionActivation)
+        store.openWireGuardSystemExtensionSettings()
+
+        XCTAssertEqual(settingsOpenCount, 1)
+        await Task.yield()
+        XCTAssertEqual(tunnelController.systemExtensionActivationCallCount, 0)
+    }
+
+    func testSystemExtensionSettingsCanOpenForEveryStatus() throws {
+        let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let tunnelController = ObservationTestHostWireGuardTunnelController()
+        var settingsOpenCount = 0
+        let runtimeEntitlements = RuntimeEntitlementSnapshot(
+            accessoryAccessUSB: true,
+            packetTunnelProvider: true,
+            systemExtensionInstall: true,
+            virtualization: true
+        )
+        let store = TetheringStore(
+            assetProvider: ObservationTestAssetProvider(),
+            vmCoordinator: ObservationTestVMCoordinator(),
+            usbCoordinator: USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor()),
+            wireGuardConfStore: ObservationTestWireGuardStore(),
+            wireGuardConfBuilder: WireGuardConfBuilder(elements: .defaults),
+            eventLog: EventLogStore(),
+            consoleSession: ConsoleSessionStore(),
+            usbSession: USBSessionStore(),
+            vmConfiguration: VMConfigurationStore(defaults: defaults),
+            hostWireGuardTunnelController: tunnelController,
+            runtimeEntitlementSnapshotProvider: { runtimeEntitlements },
+            systemExtensionSettingsOpener: {
+                settingsOpenCount += 1
+                return true
+            },
+            defaults: defaults
+        )
+
+        store.openWireGuardSystemExtensionSettings()
+        let statuses: [WireGuardSystemExtensionStatus] = [
+            .checking,
+            .inactive,
+            .activationRequested,
+            .awaitingUserApproval,
+            .active,
+            .uninstalling,
+            .restartRequired,
+            .failed("test failure"),
+        ]
+        for status in statuses {
+            tunnelController.onSystemExtensionStatusChange?(status)
+            store.openWireGuardSystemExtensionSettings()
+        }
+
+        XCTAssertEqual(settingsOpenCount, statuses.count + 1)
+        XCTAssertEqual(tunnelController.systemExtensionActivationCallCount, 0)
+    }
+
+    func testTerminationCancelsSystemExtensionActivationAndPreventsLateSettingsOpen() async throws {
+        let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let tunnelController = ObservationTestHostWireGuardTunnelController()
+        let eventLog = EventLogStore()
+        var settingsOpenCount = 0
+        let runtimeEntitlements = RuntimeEntitlementSnapshot(
+            accessoryAccessUSB: true,
+            packetTunnelProvider: true,
+            systemExtensionInstall: true,
+            virtualization: true
+        )
+        let store = TetheringStore(
+            assetProvider: ObservationTestAssetProvider(),
+            vmCoordinator: ObservationTestVMCoordinator(),
+            usbCoordinator: USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor()),
+            wireGuardConfStore: ObservationTestWireGuardStore(),
+            wireGuardConfBuilder: WireGuardConfBuilder(elements: .defaults),
+            eventLog: eventLog,
+            consoleSession: ConsoleSessionStore(),
+            usbSession: USBSessionStore(),
+            vmConfiguration: VMConfigurationStore(defaults: defaults),
+            hostWireGuardTunnelController: tunnelController,
+            runtimeEntitlementSnapshotProvider: { runtimeEntitlements },
+            systemExtensionSettingsOpener: {
+                settingsOpenCount += 1
+                return true
+            },
+            defaults: defaults
+        )
+
+        XCTAssertTrue(store.requestWireGuardSystemExtensionActivation())
+
+        await store.prepareForApplicationTermination()
+        await Task.yield()
+
+        XCTAssertEqual(tunnelController.systemExtensionInvalidationCallCount, 1)
+        XCTAssertEqual(tunnelController.systemExtensionActivationCallCount, 0)
+        XCTAssertFalse(store.isWireGuardSystemExtensionActivationInProgress)
+        XCTAssertEqual(settingsOpenCount, 0)
+
+        let statusAtTermination = store.wireGuardSystemExtensionStatus
+        let eventLogAtTermination = eventLog.text
+        tunnelController.onSystemExtensionStatusChange?(.awaitingUserApproval)
+        tunnelController.onSystemExtensionStatusChange?(.active)
+        tunnelController.onEventLog?("Late system extension callback.")
+        store.requestWireGuardSystemExtensionActivation()
+        store.openWireGuardSystemExtensionSettings()
+
+        XCTAssertEqual(store.wireGuardSystemExtensionStatus, statusAtTermination)
+        XCTAssertEqual(eventLog.text, eventLogAtTermination)
+        XCTAssertEqual(settingsOpenCount, 0)
+    }
+
+    func testOnboardingVersionTwoRequiresNetworkExtensionStep() throws {
+        let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        defaults.set(2, forKey: "Onboarding.completedVersion")
+
+        let store = TetheringStore(
+            assetProvider: ObservationTestAssetProvider(),
+            vmCoordinator: ObservationTestVMCoordinator(),
+            usbCoordinator: USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor()),
+            wireGuardConfStore: ObservationTestWireGuardStore(),
+            wireGuardConfBuilder: WireGuardConfBuilder(elements: .defaults),
+            eventLog: EventLogStore(),
+            consoleSession: ConsoleSessionStore(),
+            usbSession: USBSessionStore(),
+            vmConfiguration: VMConfigurationStore(defaults: defaults),
+            hostWireGuardTunnelController: ObservationTestHostWireGuardTunnelController(),
+            defaults: defaults
+        )
+
+        XCTAssertFalse(store.hasCompletedOnboarding)
+
+        store.completeOnboarding()
+
+        XCTAssertTrue(store.hasCompletedOnboarding)
+        XCTAssertEqual(defaults.integer(forKey: "Onboarding.completedVersion"), 3)
+    }
+
+    func testSystemExtensionStatusUpdatesStoreAndFailsClosed() throws {
+        let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let tunnelController = ObservationTestHostWireGuardTunnelController()
+        let eventLog = EventLogStore()
+        let store = TetheringStore(
+            assetProvider: ObservationTestAssetProvider(),
+            vmCoordinator: ObservationTestVMCoordinator(),
+            usbCoordinator: USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor()),
+            wireGuardConfStore: ObservationTestWireGuardStore(),
+            wireGuardConfBuilder: WireGuardConfBuilder(elements: .defaults),
+            eventLog: eventLog,
+            consoleSession: ConsoleSessionStore(),
+            usbSession: USBSessionStore(),
+            vmConfiguration: VMConfigurationStore(defaults: defaults),
+            hostWireGuardTunnelController: tunnelController,
+            defaults: defaults
+        )
+
+        XCTAssertEqual(store.wireGuardSystemExtensionStatus, .unknown)
+        XCTAssertFalse(store.canConnectHostWireGuardTunnel)
+
+        tunnelController.onSystemExtensionStatusChange?(.active)
+
+        XCTAssertEqual(store.wireGuardSystemExtensionStatus, .active)
+        XCTAssertTrue(eventLog.text.contains("Network Extension: Active"))
+
+        tunnelController.onSystemExtensionStatusChange?(.inactive)
+
+        XCTAssertEqual(store.wireGuardSystemExtensionStatus, .inactive)
+        XCTAssertFalse(store.canConnectHostWireGuardTunnel)
+        XCTAssertTrue(eventLog.text.contains("Network Extension: Inactive"))
+    }
+
     func testTerminationConfirmationRequiresAttachedUSBAndActiveWireGuard() throws {
         let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
@@ -668,15 +961,32 @@ private final class ObservationTestUSBMonitor: USBAccessoryMonitoring {
 @MainActor
 private final class ObservationTestHostWireGuardTunnelController: HostWireGuardTunnelControlling {
     var onStatusChange: ((HostWireGuardTunnelStatus) -> Void)?
+    var onSystemExtensionStatusChange: ((WireGuardSystemExtensionStatus) -> Void)?
     var onEventLog: ((String) -> Void)?
     private(set) var connectCallCount = 0
     private(set) var disconnectCallCount = 0
     private(set) var lastDisconnectWaitUntilStopped: Bool?
     private(set) var removeSavedTunnelCallCount = 0
+    private(set) var systemExtensionStatusRefreshCallCount = 0
+    private(set) var systemExtensionActivationCallCount = 0
+    private(set) var systemExtensionInvalidationCallCount = 0
     var disconnectSucceeds = true
     var savedTunnelRemovalSucceeds = true
 
     func refreshStatus() async {}
+
+    func refreshSystemExtensionStatus() async {
+        systemExtensionStatusRefreshCallCount += 1
+    }
+
+    func activateSystemExtension() async {
+        systemExtensionActivationCallCount += 1
+    }
+
+    func invalidateSystemExtensionOperations() {
+        systemExtensionInvalidationCallCount += 1
+    }
+
     func connect(wgQuickConfiguration: String) async {
         connectCallCount += 1
     }

@@ -9,6 +9,40 @@ struct WireGuardView: View {
 
     var body: some View {
         Form {
+            Section("Network Extension") {
+                LabeledContent("Status") {
+                    Label(
+                        store.wireGuardSystemExtensionStatus.title,
+                        systemImage: systemExtensionStatusImage
+                    )
+                    .foregroundStyle(systemExtensionStatusColor)
+                }
+
+                Text(systemExtensionStatusDetail)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                HStack {
+                    Button("Request Activation") {
+                        store.requestWireGuardSystemExtensionActivation()
+                    }
+                    .disabled(!store.canRequestWireGuardSystemExtensionActivation)
+
+                    Button("Open Settings") {
+                        store.openWireGuardSystemExtensionSettings()
+                    }
+                    .buttonStyle(.link)
+
+                    Spacer()
+
+                    Button("Refresh Status") {
+                        store.refreshWireGuardSystemExtensionStatus()
+                    }
+                    .disabled(store.wireGuardSystemExtensionStatus.isTransitioning)
+                }
+            }
+
             Section("Connection") {
                 LabeledContent("Endpoint") {
                     VStack(alignment: .leading, spacing: 4) {
@@ -131,11 +165,76 @@ struct WireGuardView: View {
                 }
             }
         }
+        .onAppear {
+            store.refreshWireGuardSystemExtensionStatus()
+        }
     }
 
     private var connectionValidationError: some View {
         Text("Check that the value is entered correctly")
             .font(.caption)
             .foregroundStyle(.red)
+    }
+
+    private var systemExtensionStatusDetail: LocalizedStringKey {
+        if store.wireGuardSystemExtensionStatus == .uninstalling {
+            return "Restart macOS to finish removing the Network Extension before requesting activation again."
+        }
+        if !store.runtimeEntitlements.systemExtensionInstall {
+            return "This build cannot activate the Network Extension. Run a signed copy of ThruRNDIS from Applications."
+        }
+
+        return switch store.wireGuardSystemExtensionStatus {
+        case .unknown:
+            "The Network Extension status has not been checked yet."
+        case .checking:
+            "Checking whether the Network Extension is active."
+        case .inactive:
+            "Request activation, then allow ThruRNDIS in System Settings before connecting."
+        case .activationRequested, .awaitingUserApproval:
+            "Activation was requested. Approve the Network Extension in System Settings."
+        case .active:
+            "The Network Extension is active and ready to connect."
+        case .uninstalling:
+            "Restart macOS to finish removing the Network Extension before requesting activation again."
+        case .restartRequired:
+            "Restart macOS to finish activating the Network Extension."
+        case .failed:
+            "The Network Extension status could not be determined."
+        }
+    }
+
+    private var systemExtensionStatusImage: String {
+        switch store.wireGuardSystemExtensionStatus {
+        case .active:
+            "checkmark.shield.fill"
+        case .checking, .activationRequested:
+            "arrow.triangle.2.circlepath"
+        case .awaitingUserApproval:
+            "person.badge.clock"
+        case .restartRequired:
+            "restart.circle"
+        case .inactive:
+            "xmark.shield"
+        case .uninstalling:
+            "trash"
+        case .failed:
+            "exclamationmark.triangle.fill"
+        case .unknown:
+            "questionmark.circle"
+        }
+    }
+
+    private var systemExtensionStatusColor: Color {
+        switch store.wireGuardSystemExtensionStatus {
+        case .active:
+            .green
+        case .checking, .activationRequested, .awaitingUserApproval, .restartRequired:
+            .orange
+        case .inactive, .uninstalling, .failed:
+            .red
+        case .unknown:
+            .secondary
+        }
     }
 }

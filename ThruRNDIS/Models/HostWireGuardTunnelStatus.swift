@@ -49,7 +49,7 @@ enum HostWireGuardTunnelStatus: Equatable {
         case .disconnected:
             return "Disconnected — Ready to connect macOS to the VM WireGuard peer."
         case .activatingSystemExtension:
-            return "Activating System Extension — Waiting for macOS to activate the WireGuard system extension."
+            return "Activating System Extension — Waiting for macOS to activate the network extension."
         case .connecting:
             return "Connecting — Starting the WireGuard packet tunnel provider."
         case .connected:
@@ -86,6 +86,88 @@ enum HostWireGuardTunnelStatus: Equatable {
         case .activatingSystemExtension, .connecting, .connected, .reasserting, .failed:
             return true
         case .unconfigured, .disconnected, .disconnecting:
+            return false
+        }
+    }
+}
+
+enum WireGuardSystemExtensionStatus: Equatable {
+    case unknown
+    case checking
+    case inactive
+    case activationRequested
+    case awaitingUserApproval
+    case active
+    case uninstalling
+    case restartRequired
+    case failed(String)
+
+    var title: String {
+        switch self {
+        case .unknown:
+            return String(localized: "Not Checked")
+        case .checking:
+            return String(localized: "Checking…")
+        case .inactive:
+            return String(localized: "Inactive")
+        case .activationRequested:
+            return String(localized: "Activation Requested")
+        case .awaitingUserApproval:
+            return String(localized: "Awaiting User Approval")
+        case .active:
+            return String(localized: "Active")
+        case .uninstalling:
+            return String(localized: "Uninstalling")
+        case .restartRequired:
+            return String(localized: "Restart Required")
+        case .failed:
+            return String(localized: "Unavailable")
+        }
+    }
+
+    var eventLogDescription: String {
+        switch self {
+        case .unknown:
+            return "Not Checked — The network extension status is unknown."
+        case .checking:
+            return "Checking — Reading the network extension properties."
+        case .inactive:
+            return "Inactive — Activation and user approval are required."
+        case .activationRequested:
+            return "Activation Requested — Waiting for macOS to process the request."
+        case .awaitingUserApproval:
+            return "Awaiting User Approval — Allow the extension in System Settings."
+        case .active:
+            return "Active — The network extension is enabled."
+        case .uninstalling:
+            return "Uninstalling — The network extension cannot be used."
+        case .restartRequired:
+            return "Restart Required — Restart macOS to finish activation."
+        case .failed(let message):
+            return "Unavailable — \(message)"
+        }
+    }
+
+    var isActive: Bool {
+        self == .active
+    }
+
+    var isTransitioning: Bool {
+        switch self {
+        case .checking, .activationRequested:
+            return true
+        case .unknown, .inactive, .awaitingUserApproval, .active,
+             .uninstalling, .restartRequired, .failed:
+            return false
+        }
+    }
+
+    var canRequestActivation: Bool {
+        switch self {
+        case .unknown, .inactive, .failed:
+            return true
+        case .checking, .activationRequested, .awaitingUserApproval, .active,
+             .uninstalling, .restartRequired:
             return false
         }
     }

@@ -15,8 +15,10 @@ final class TetheringStore: ObservableObject {
     @Published private(set) var runtimeState: VMRuntimeState = .idle
     @Published private(set) var isRestartingVirtualMachine = false
     @Published private(set) var statusMessage = String(localized: "Install or select VM assets to begin.")
-    @Published private(set) var runtimeEntitlements = RuntimeEntitlementSnapshot.current
+    @Published private(set) var runtimeEntitlements: RuntimeEntitlementSnapshot
     @Published private(set) var hostWireGuardTunnelStatus: HostWireGuardTunnelStatus = .unconfigured
+    @Published private(set) var wireGuardSystemExtensionStatus: WireGuardSystemExtensionStatus = .unknown
+    @Published private(set) var isWireGuardSystemExtensionActivationInProgress = false
     @Published private(set) var discoveredWireGuardEndpoint: String?
     @Published private(set) var invalidWireGuardConnectionFields: Set<WireGuardConnectionField> = []
     @Published private var wireGuardKeyMaterial: WireGuardKeyMaterial?
@@ -58,9 +60,13 @@ final class TetheringStore: ObservableObject {
     private let wireGuardConfStore: any WireGuardConfigurationStoring
     private let wireGuardConfBuilder: WireGuardConfBuilder
     private let hostWireGuardTunnelController: any HostWireGuardTunnelControlling
+    private let runtimeEntitlementSnapshotProvider: () -> RuntimeEntitlementSnapshot
+    private let systemExtensionSettingsOpener: () -> Bool
     private let defaults: UserDefaults
     private var hostWireGuardConnectTask: Task<Void, Never>?
     private var hostWireGuardConnectTaskID: UUID?
+    private var wireGuardSystemExtensionActivationTask: Task<Void, Never>?
+    private var isPreparingForApplicationTermination = false
     private var didRequestLaunchAccessoryMonitoring = false
     private var pendingAttachmentAccessoryID: UInt64?
     private var pendingAttachmentToken: UUID?
@@ -256,7 +262,15 @@ final class TetheringStore: ObservableObject {
             && canExportWireGuardConfiguration
             && runtimeEntitlements.packetTunnelProvider
             && runtimeEntitlements.systemExtensionInstall
+            && wireGuardSystemExtensionStatus.isActive
             && !hostWireGuardTunnelStatus.isTransitioning
+    }
+
+    var canRequestWireGuardSystemExtensionActivation: Bool {
+        !isPreparingForApplicationTermination
+            && runtimeEntitlements.systemExtensionInstall
+            && wireGuardSystemExtensionStatus.canRequestActivation
+            && !isWireGuardSystemExtensionActivationInProgress
     }
 
     var canDisconnectHostWireGuardTunnel: Bool {
@@ -292,6 +306,12 @@ final class TetheringStore: ObservableObject {
         usbSession: USBSessionStore,
         vmConfiguration: VMConfigurationStore,
         hostWireGuardTunnelController: any HostWireGuardTunnelControlling,
+        runtimeEntitlementSnapshotProvider: @escaping () -> RuntimeEntitlementSnapshot = {
+            .current
+        },
+        systemExtensionSettingsOpener: @escaping () -> Bool = {
+            NSWorkspace.shared.open(ThruRNDISTunnel.systemExtensionsSettingsURL)
+        },
         defaults: UserDefaults = .standard
     ) {
         self.assetProvider = assetProvider
@@ -300,11 +320,14 @@ final class TetheringStore: ObservableObject {
         self.wireGuardConfStore = wireGuardConfStore
         self.wireGuardConfBuilder = wireGuardConfBuilder
         self.hostWireGuardTunnelController = hostWireGuardTunnelController
+        self.runtimeEntitlementSnapshotProvider = runtimeEntitlementSnapshotProvider
+        self.systemExtensionSettingsOpener = systemExtensionSettingsOpener
         self.defaults = defaults
         self.eventLog = eventLog
         self.consoleSession = consoleSession
         self.usbSession = usbSession
         self.vmConfiguration = vmConfiguration
+        self.runtimeEntitlements = runtimeEntitlementSnapshotProvider()
         self.wireGuardDNSServersText = Self.restoredWireGuardInput(
             defaults: defaults,
             key: DefaultsKey.wireGuardDNSServersText,
@@ -327,6 +350,14 @@ final class TetheringStore: ObservableObject {
         appendRuntimeEntitlementSummary()
         appendScratchDiskSelectionSummaryIfNeeded()
         revalidateAllWireGuardConnectionFields()
+        Task { @MainActor [weak self] in
+            guard let self,
+                  !self.isPreparingForApplicationTermination,
+                  !Task.isCancelled else {
+                return
+            }
+            await self.hostWireGuardTunnelController.refreshSystemExtensionStatus()
+        }
         Task { @MainActor [weak self] in
             await self?.hostWireGuardTunnelController.refreshStatus()
         }
@@ -568,10 +599,15 @@ final class TetheringStore: ObservableObject {
     }
 
     func prepareForApplicationTermination() async {
+        isPreparingForApplicationTermination = true
         appendEventLog("Application terminating.")
         hostWireGuardConnectTask?.cancel()
         hostWireGuardConnectTask = nil
         hostWireGuardConnectTaskID = nil
+        wireGuardSystemExtensionActivationTask?.cancel()
+        wireGuardSystemExtensionActivationTask = nil
+        hostWireGuardTunnelController.invalidateSystemExtensionOperations()
+        isWireGuardSystemExtensionActivationInProgress = false
         _ = await hostWireGuardTunnelController.disconnect(waitUntilStopped: true)
         usbCoordinator.prepareForIntentionalVMStop()
         vmCoordinator.invalidate()
@@ -655,6 +691,7 @@ final class TetheringStore: ObservableObject {
 
     func refreshHostWireGuardTunnelStatus() {
         refreshRuntimeEntitlements()
+        refreshWireGuardSystemExtensionStatus()
         guard !hostWireGuardTunnelStatus.isTransitioning else {
             appendEventLog(
                 "Host WireGuard status refresh skipped during a tunnel transition.",
@@ -674,6 +711,68 @@ final class TetheringStore: ObservableObject {
         Task { @MainActor [weak self] in
             await self?.hostWireGuardTunnelController.refreshStatus()
         }
+    }
+
+    func refreshWireGuardSystemExtensionStatus() {
+        guard !isPreparingForApplicationTermination else {
+            return
+        }
+        refreshRuntimeEntitlements()
+        Task { @MainActor [weak self] in
+            guard let self,
+                  !self.isPreparingForApplicationTermination,
+                  !Task.isCancelled else {
+                return
+            }
+            await self.hostWireGuardTunnelController.refreshSystemExtensionStatus()
+        }
+    }
+
+    @discardableResult
+    func requestWireGuardSystemExtensionActivation() -> Bool {
+        guard !isPreparingForApplicationTermination else {
+            return false
+        }
+        refreshRuntimeEntitlements()
+
+        guard runtimeEntitlements.systemExtensionInstall else {
+            reportMissingEntitlement(
+                .systemExtensionInstall,
+                action: "network extension activation"
+            )
+            setWireGuardSystemExtensionStatus(
+                .failed("System Extension installation entitlement is missing.")
+            )
+            return false
+        }
+        guard canRequestWireGuardSystemExtensionActivation else {
+            return false
+        }
+
+        let controller = hostWireGuardTunnelController
+        isWireGuardSystemExtensionActivationInProgress = true
+        wireGuardSystemExtensionActivationTask = Task { @MainActor [weak self] in
+            guard !Task.isCancelled,
+                  let self,
+                  !self.isPreparingForApplicationTermination else {
+                return
+            }
+            await controller.activateSystemExtension()
+            guard !Task.isCancelled,
+                  !self.isPreparingForApplicationTermination else {
+                return
+            }
+            self.wireGuardSystemExtensionActivationTask = nil
+            self.isWireGuardSystemExtensionActivationInProgress = false
+        }
+        return true
+    }
+
+    func openWireGuardSystemExtensionSettings() {
+        guard !isPreparingForApplicationTermination else {
+            return
+        }
+        openWireGuardSystemExtensionSettingsNow()
     }
 
     func connectHostWireGuardTunnel() {
@@ -698,6 +797,13 @@ final class TetheringStore: ObservableObject {
         guard runtimeEntitlements.systemExtensionInstall else {
             reportMissingEntitlement(.systemExtensionInstall, action: "Host WireGuard tunnel start")
             setHostWireGuardTunnelStatus(.missingSystemExtensionInstallEntitlement)
+            return
+        }
+        guard wireGuardSystemExtensionStatus.isActive else {
+            appendEventLog(
+                "Host WireGuard tunnel not started: network extension is not active.",
+                source: .wireGuard
+            )
             return
         }
         guard canExportWireGuardConfiguration else {
@@ -977,8 +1083,17 @@ final class TetheringStore: ObservableObject {
         hostWireGuardTunnelController.onStatusChange = { [weak self] status in
             self?.setHostWireGuardTunnelStatus(status)
         }
+        hostWireGuardTunnelController.onSystemExtensionStatusChange = { [weak self] status in
+            guard let self, !self.isPreparingForApplicationTermination else {
+                return
+            }
+            self.setWireGuardSystemExtensionStatus(status)
+        }
         hostWireGuardTunnelController.onEventLog = { [weak self] message in
-            self?.appendEventLog(message, source: .wireGuard)
+            guard let self, !self.isPreparingForApplicationTermination else {
+                return
+            }
+            self.appendEventLog(message, source: .wireGuard)
         }
     }
 
@@ -1007,6 +1122,31 @@ final class TetheringStore: ObservableObject {
             "Provider: \(status.eventLogDescription)",
             source: .wireGuard
         )
+    }
+
+    private func setWireGuardSystemExtensionStatus(
+        _ status: WireGuardSystemExtensionStatus
+    ) {
+        guard !isPreparingForApplicationTermination,
+              wireGuardSystemExtensionStatus != status else {
+            return
+        }
+        wireGuardSystemExtensionStatus = status
+        appendEventLog(
+            "Network Extension: \(status.eventLogDescription)",
+            source: .wireGuard
+        )
+    }
+
+    private func openWireGuardSystemExtensionSettingsNow() {
+        guard systemExtensionSettingsOpener() else {
+            appendEventLog(
+                "Could not open Network Extensions settings.",
+                source: .wireGuard
+            )
+            return
+        }
+        appendEventLog("Opened Network Extensions settings.", source: .wireGuard)
     }
 
     private func offerAttachmentForAvailableAccessory(_ record: USBAccessoryRecord) {
@@ -1425,7 +1565,7 @@ final class TetheringStore: ObservableObject {
     }
 
     private func refreshRuntimeEntitlements() {
-        let snapshot = RuntimeEntitlementSnapshot.current
+        let snapshot = runtimeEntitlementSnapshotProvider()
         if snapshot != runtimeEntitlements {
             runtimeEntitlements = snapshot
             appendRuntimeEntitlementSummary()
@@ -1575,7 +1715,7 @@ final class TetheringStore: ObservableObject {
         return defaults.string(forKey: key) ?? fallback
     }
 
-    private static let currentOnboardingVersion = 2
+    private static let currentOnboardingVersion = 3
 
     private static func registryIDText(_ registryID: UInt64) -> String {
         "0x" + String(registryID, radix: 16, uppercase: true)

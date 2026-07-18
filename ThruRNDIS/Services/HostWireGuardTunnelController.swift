@@ -14,9 +14,13 @@ private struct ConnectionObservationContext: Equatable {
 @MainActor
 protocol HostWireGuardTunnelControlling: AnyObject {
     var onStatusChange: ((HostWireGuardTunnelStatus) -> Void)? { get set }
+    var onSystemExtensionStatusChange: ((WireGuardSystemExtensionStatus) -> Void)? { get set }
     var onEventLog: ((String) -> Void)? { get set }
 
     func refreshStatus() async
+    func refreshSystemExtensionStatus() async
+    func activateSystemExtension() async
+    func invalidateSystemExtensionOperations()
     func connect(wgQuickConfiguration: String) async
     @discardableResult func disconnect(waitUntilStopped: Bool) async -> Bool
     @discardableResult func removeSavedTunnelIfNeeded() async -> Bool
@@ -25,12 +29,17 @@ protocol HostWireGuardTunnelControlling: AnyObject {
 @MainActor
 final class HostWireGuardTunnelController: HostWireGuardTunnelControlling {
     var onStatusChange: ((HostWireGuardTunnelStatus) -> Void)?
+    var onSystemExtensionStatusChange: ((WireGuardSystemExtensionStatus) -> Void)?
     var onEventLog: ((String) -> Void)?
 
     private let systemExtensionActivator: any WireGuardSystemExtensionActivating
     private var vpnStatusObserverToken: NSObjectProtocol?
     private var activeOperationID = UUID()
     private var currentStatus: HostWireGuardTunnelStatus = .unconfigured
+    private var activeSystemExtensionOperationID = UUID()
+    private var currentSystemExtensionStatus: WireGuardSystemExtensionStatus = .unknown
+    private var isSystemExtensionActivationInProgress = false
+    private var areSystemExtensionOperationsInvalidated = false
     private var cachedManager: NETunnelProviderManager?
     private var connectionObservationContexts: [
         ObjectIdentifier: ConnectionObservationContext
@@ -75,6 +84,86 @@ final class HostWireGuardTunnelController: HostWireGuardTunnelControlling {
         }
     }
 
+    func refreshSystemExtensionStatus() async {
+        guard !Task.isCancelled, !areSystemExtensionOperationsInvalidated else {
+            return
+        }
+        guard !isSystemExtensionActivationInProgress else {
+            onEventLog?(
+                "Skipped network extension status refresh during activation."
+            )
+            return
+        }
+
+        let operationID = beginSystemExtensionOperation()
+        setSystemExtensionStatus(.checking)
+        do {
+            let bundleIdentifier = try systemExtensionBundleIdentifier()
+            systemExtensionActivator.onEventLog = onEventLog
+            let status = try await systemExtensionActivator.status(
+                bundleIdentifier: bundleIdentifier
+            )
+            try Task.checkCancellation()
+            guard !areSystemExtensionOperationsInvalidated,
+                  activeSystemExtensionOperationID == operationID else {
+                return
+            }
+            setSystemExtensionStatus(status)
+        } catch is CancellationError {
+            return
+        } catch {
+            guard activeSystemExtensionOperationID == operationID else {
+                return
+            }
+            failSystemExtension(action: "status refresh", error: error)
+        }
+    }
+
+    func activateSystemExtension() async {
+        guard !Task.isCancelled, !areSystemExtensionOperationsInvalidated else {
+            return
+        }
+        guard !isSystemExtensionActivationInProgress else {
+            onEventLog?("Ignored a duplicate network extension activation request.")
+            return
+        }
+
+        isSystemExtensionActivationInProgress = true
+        defer { isSystemExtensionActivationInProgress = false }
+
+        let operationID = beginSystemExtensionOperation()
+        setSystemExtensionStatus(.activationRequested)
+        do {
+            let bundleIdentifier = try systemExtensionBundleIdentifier()
+            let verifiedStatus = try await activateAndVerifySystemExtensionStatus(
+                bundleIdentifier: bundleIdentifier,
+                operationID: operationID
+            )
+            setSystemExtensionStatus(verifiedStatus)
+        } catch is CancellationError {
+            return
+        } catch HostWireGuardTunnelError.operationSuperseded {
+            return
+        } catch WireGuardSystemExtensionActivationError.restartRequired {
+            guard activeSystemExtensionOperationID == operationID else {
+                return
+            }
+            setSystemExtensionStatus(.restartRequired)
+            onEventLog?("Network extension activation requires a macOS restart.")
+        } catch {
+            guard activeSystemExtensionOperationID == operationID else {
+                return
+            }
+            failSystemExtension(action: "activation", error: error)
+        }
+    }
+
+    func invalidateSystemExtensionOperations() {
+        areSystemExtensionOperationsInvalidated = true
+        _ = beginSystemExtensionOperation()
+        systemExtensionActivator.cancelPendingRequests()
+    }
+
     func refreshStatus() async {
         guard !currentStatus.isTransitioning else {
             onEventLog?("Ignored Host WireGuard status refresh during a tunnel transition.")
@@ -115,18 +204,55 @@ final class HostWireGuardTunnelController: HostWireGuardTunnelControlling {
                 fromWgQuickConfig: wgQuickConfiguration,
                 called: ThruRNDISTunnel.displayName
             )
-            guard let mainBundleIdentifier = Bundle.main.bundleIdentifier else {
-                throw HostWireGuardTunnelError.bundleIdentifierUnavailable
+            let extensionBundleIdentifier = try systemExtensionBundleIdentifier()
+            guard !areSystemExtensionOperationsInvalidated else {
+                throw CancellationError()
             }
-
-            let extensionBundleIdentifier = ThruRNDISTunnel.providerBundleIdentifier(
-                derivedFrom: mainBundleIdentifier
-            )
             setStatus(.activatingSystemExtension)
-            systemExtensionActivator.onEventLog = onEventLog
-            try await systemExtensionActivator.activate(
-                bundleIdentifier: extensionBundleIdentifier
-            )
+            do {
+                guard !isSystemExtensionActivationInProgress else {
+                    throw WireGuardSystemExtensionActivationError.activationAlreadyInProgress
+                }
+
+                isSystemExtensionActivationInProgress = true
+                defer { isSystemExtensionActivationInProgress = false }
+
+                let systemExtensionOperationID = beginSystemExtensionOperation()
+                setSystemExtensionStatus(.activationRequested)
+                do {
+                    let verifiedStatus = try await activateAndVerifySystemExtensionStatus(
+                        bundleIdentifier: extensionBundleIdentifier,
+                        operationID: systemExtensionOperationID
+                    )
+                    setSystemExtensionStatus(verifiedStatus)
+                    guard verifiedStatus.isActive else {
+                        throw WireGuardSystemExtensionActivationError.extensionRemainsDisabled
+                    }
+                } catch let error as CancellationError {
+                    scheduleSystemExtensionStatusReconciliation(
+                        after: systemExtensionOperationID
+                    )
+                    throw error
+                } catch WireGuardSystemExtensionActivationError.restartRequired {
+                    guard !areSystemExtensionOperationsInvalidated,
+                          activeSystemExtensionOperationID == systemExtensionOperationID else {
+                        throw HostWireGuardTunnelError.operationSuperseded
+                    }
+                    setSystemExtensionStatus(.restartRequired)
+                    throw WireGuardSystemExtensionActivationError.restartRequired
+                } catch WireGuardSystemExtensionActivationError.extensionRemainsDisabled {
+                    throw WireGuardSystemExtensionActivationError.extensionRemainsDisabled
+                } catch HostWireGuardTunnelError.operationSuperseded {
+                    throw HostWireGuardTunnelError.operationSuperseded
+                } catch {
+                    guard !areSystemExtensionOperationsInvalidated,
+                          activeSystemExtensionOperationID == systemExtensionOperationID else {
+                        throw HostWireGuardTunnelError.operationSuperseded
+                    }
+                    setSystemExtensionStatus(.failed(Self.diagnosticDescription(for: error)))
+                    throw error
+                }
+            }
             try ensureOperationIsCurrent(operationID)
 
             setStatus(.connecting)
@@ -439,9 +565,82 @@ final class HostWireGuardTunnelController: HostWireGuardTunnelControlling {
         return operationID
     }
 
+    private func beginSystemExtensionOperation() -> UUID {
+        let operationID = UUID()
+        activeSystemExtensionOperationID = operationID
+        return operationID
+    }
+
+    private func scheduleSystemExtensionStatusReconciliation(
+        after operationID: UUID
+    ) {
+        guard !areSystemExtensionOperationsInvalidated,
+              activeSystemExtensionOperationID == operationID else {
+            return
+        }
+
+        Task { @MainActor [weak self] in
+            guard let self,
+                  !self.areSystemExtensionOperationsInvalidated,
+                  self.activeSystemExtensionOperationID == operationID else {
+                return
+            }
+            await self.refreshSystemExtensionStatus()
+        }
+    }
+
+    private func activateAndVerifySystemExtensionStatus(
+        bundleIdentifier: String,
+        operationID: UUID
+    ) async throws -> WireGuardSystemExtensionStatus {
+        systemExtensionActivator.onEventLog = onEventLog
+        systemExtensionActivator.onActivationNeedsUserApproval = { [weak self] in
+            guard let self,
+                  !self.areSystemExtensionOperationsInvalidated,
+                  self.activeSystemExtensionOperationID == operationID else {
+                return
+            }
+            self.setSystemExtensionStatus(.awaitingUserApproval)
+        }
+
+        try await systemExtensionActivator.activate(
+            bundleIdentifier: bundleIdentifier
+        )
+        try ensureSystemExtensionOperationIsCurrent(operationID)
+
+        let verifiedStatus = try await systemExtensionActivator.status(
+            bundleIdentifier: bundleIdentifier
+        )
+        try ensureSystemExtensionOperationIsCurrent(operationID)
+        if !verifiedStatus.isActive {
+            onEventLog?(
+                "Network extension activation request completed; " +
+                    "verified status: \(verifiedStatus.eventLogDescription)"
+            )
+        }
+        return verifiedStatus
+    }
+
+    private func systemExtensionBundleIdentifier() throws -> String {
+        guard let mainBundleIdentifier = Bundle.main.bundleIdentifier else {
+            throw HostWireGuardTunnelError.bundleIdentifierUnavailable
+        }
+        return ThruRNDISTunnel.providerBundleIdentifier(
+            derivedFrom: mainBundleIdentifier
+        )
+    }
+
     private func ensureOperationIsCurrent(_ operationID: UUID) throws {
         try Task.checkCancellation()
         guard activeOperationID == operationID else {
+            throw HostWireGuardTunnelError.operationSuperseded
+        }
+    }
+
+    private func ensureSystemExtensionOperationIsCurrent(_ operationID: UUID) throws {
+        try Task.checkCancellation()
+        guard !areSystemExtensionOperationsInvalidated,
+              activeSystemExtensionOperationID == operationID else {
             throw HostWireGuardTunnelError.operationSuperseded
         }
     }
@@ -509,6 +708,24 @@ final class HostWireGuardTunnelController: HostWireGuardTunnelControlling {
         }
         currentStatus = status
         onStatusChange?(status)
+    }
+
+    private func setSystemExtensionStatus(
+        _ status: WireGuardSystemExtensionStatus
+    ) {
+        guard status != currentSystemExtensionStatus else {
+            return
+        }
+        currentSystemExtensionStatus = status
+        onSystemExtensionStatusChange?(status)
+    }
+
+    private func failSystemExtension(action: String, error: Error) {
+        let diagnostic = Self.diagnosticDescription(for: error)
+        setSystemExtensionStatus(.failed(diagnostic))
+        onEventLog?(
+            "Network extension \(action) failed: \(diagnostic)"
+        )
     }
 
     private func fail(action: String, error: Error) {

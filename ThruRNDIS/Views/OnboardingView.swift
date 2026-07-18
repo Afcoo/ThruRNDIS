@@ -24,7 +24,7 @@ struct OnboardingView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
-                ForEach(0..<3, id: \.self) { index in
+                ForEach(0..<4, id: \.self) { index in
                     Capsule()
                         .fill(index <= step ? Color.accentColor : Color.secondary.opacity(0.2))
                         .frame(height: 4)
@@ -40,8 +40,10 @@ struct OnboardingView: View {
                         welcomeStep
                     case 1:
                         assetInstallStep
-                    default:
+                    case 2:
                         accessoryAttachStep
+                    default:
+                        networkExtensionStep
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -61,7 +63,7 @@ struct OnboardingView: View {
 
                 Spacer()
 
-                if step < 2 {
+                if step < 3 {
                     Button("Continue") {
                         step += 1
                     }
@@ -111,6 +113,7 @@ struct OnboardingView: View {
                 onboardingPoint("Install the required files in the next step.", image: "arrow.down.circle")
                 onboardingPoint("Turn on USB tethering and connect your device to this Mac.", image: "cable.connector")
                 onboardingPoint("Use Virtual Machine Accessories in the menu bar to connect the device to ThruRNDIS.", image: "menubar.rectangle")
+                onboardingPoint("Enable the Network Extension before connecting.", image: "checkmark.shield")
             }
         }
     }
@@ -242,6 +245,63 @@ struct OnboardingView: View {
         }
     }
 
+    private var networkExtensionStep: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label("Enable the Network Extension", systemImage: "checkmark.shield")
+                .font(.largeTitle.bold())
+
+            Text("ThruRNDIS requires its Network Extension to be active before it can connect.")
+                .font(.title3)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            GroupBox {
+                VStack(alignment: .leading, spacing: 10) {
+                    LabeledContent("Status") {
+                        Label(
+                            store.wireGuardSystemExtensionStatus.title,
+                            systemImage: systemExtensionStatusImage
+                        )
+                        .foregroundStyle(systemExtensionStatusColor)
+                    }
+
+                    Text(systemExtensionStatusDetail)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    HStack(spacing: 8) {
+                        Button("Request Activation") {
+                            store.requestWireGuardSystemExtensionActivation()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(!store.canRequestWireGuardSystemExtensionActivation)
+
+                        Button("Open Settings") {
+                            store.openWireGuardSystemExtensionSettings()
+                        }
+                        .buttonStyle(.link)
+
+                        Spacer()
+
+                        Button("Refresh Status") {
+                            store.refreshWireGuardSystemExtensionStatus()
+                        }
+                        .disabled(store.wireGuardSystemExtensionStatus.isTransitioning)
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+
+            Text("In System Settings, turn on the ThruRNDIS network extension, then return to ThruRNDIS.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .onAppear {
+            store.refreshWireGuardSystemExtensionStatus()
+        }
+    }
+
     private var connectionVideo: some View {
         ReplayableVideoView(
             url: Bundle.main.url(
@@ -314,6 +374,68 @@ struct OnboardingView: View {
             return .red
         default:
             return .secondary
+        }
+    }
+
+    private var systemExtensionStatusDetail: LocalizedStringKey {
+        if store.wireGuardSystemExtensionStatus == .uninstalling {
+            return "Restart macOS to finish removing the Network Extension before requesting activation again."
+        }
+        if !store.runtimeEntitlements.systemExtensionInstall {
+            return "This build cannot activate the Network Extension. Run a signed copy of ThruRNDIS from Applications."
+        }
+
+        return switch store.wireGuardSystemExtensionStatus {
+        case .unknown:
+            "The Network Extension status has not been checked yet."
+        case .checking:
+            "Checking whether the Network Extension is active."
+        case .inactive:
+            "Request activation, then allow ThruRNDIS in System Settings before connecting."
+        case .activationRequested, .awaitingUserApproval:
+            "Activation was requested. Approve the Network Extension in System Settings."
+        case .active:
+            "The Network Extension is active and ready to connect."
+        case .uninstalling:
+            "Restart macOS to finish removing the Network Extension before requesting activation again."
+        case .restartRequired:
+            "Restart macOS to finish activating the Network Extension."
+        case .failed:
+            "The Network Extension status could not be determined."
+        }
+    }
+
+    private var systemExtensionStatusImage: String {
+        switch store.wireGuardSystemExtensionStatus {
+        case .active:
+            "checkmark.shield.fill"
+        case .checking, .activationRequested:
+            "arrow.triangle.2.circlepath"
+        case .awaitingUserApproval:
+            "person.badge.clock"
+        case .restartRequired:
+            "restart.circle"
+        case .inactive:
+            "xmark.shield"
+        case .uninstalling:
+            "trash"
+        case .failed:
+            "exclamationmark.triangle.fill"
+        case .unknown:
+            "questionmark.circle"
+        }
+    }
+
+    private var systemExtensionStatusColor: Color {
+        switch store.wireGuardSystemExtensionStatus {
+        case .active:
+            .green
+        case .checking, .activationRequested, .awaitingUserApproval, .restartRequired:
+            .orange
+        case .inactive, .uninstalling, .failed:
+            .red
+        case .unknown:
+            .secondary
         }
     }
 
