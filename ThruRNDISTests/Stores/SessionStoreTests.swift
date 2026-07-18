@@ -53,7 +53,7 @@ final class LocalizationResourceTests: XCTestCase {
                 value: nil,
                 table: nil
             ),
-            "USB 디바이스와 연결이 해제됩니다.\n정말 종료하시겠어요?"
+            "USB 기기와 연결이 해제됩니다.\n정말 종료하시겠어요?"
         )
         XCTAssertEqual(
             koreanBundle.localizedString(
