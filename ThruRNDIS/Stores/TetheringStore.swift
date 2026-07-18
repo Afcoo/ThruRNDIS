@@ -347,7 +347,7 @@ final class TetheringStore: ObservableObject {
         self.wireGuardDNSServersText = Self.restoredWireGuardInput(
             defaults: defaults,
             key: DefaultsKey.wireGuardDNSServersText,
-            fallback: wireGuardConfigurationBuilder.elements.dnsServers.joined(separator: ", ")
+            fallback: ""
         )
         self.wireGuardEndpointText = Self.restoredWireGuardInput(
             defaults: defaults,
@@ -969,7 +969,7 @@ final class TetheringStore: ObservableObject {
 
         defaults.removeObject(forKey: DefaultsKey.onboardingVersion)
 
-        wireGuardDNSServersText = wireGuardConfigurationBuilder.elements.dnsServers.joined(separator: ", ")
+        wireGuardDNSServersText = ""
         wireGuardEndpointText = ""
         wireGuardAllowedIPsText = ""
         invalidWireGuardConnectionFields = []

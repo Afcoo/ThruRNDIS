@@ -515,6 +515,9 @@ final class TetheringStoreObservationTests: XCTestCase {
             defaults: defaults
         )
         store.shouldAskToAttachDetectedUSBDevices = false
+        store.wireGuardDNSServersText = "9.9.9.9"
+        store.wireGuardEndpointText = "vpn.example.com:51820"
+        store.wireGuardAllowedIPsText = "10.0.0.0/8"
 
         let didReset = await store.resetAppSettings()
         await store.prepareForApplicationTermination(disconnectWireGuard: false)
@@ -522,6 +525,12 @@ final class TetheringStoreObservationTests: XCTestCase {
         XCTAssertTrue(didReset)
         XCTAssertTrue(store.shouldAskToAttachDetectedUSBDevices)
         XCTAssertNil(defaults.object(forKey: "USB.askToAttachDetectedDevices"))
+        XCTAssertEqual(store.wireGuardDNSServersText, "")
+        XCTAssertEqual(store.wireGuardEndpointText, "")
+        XCTAssertEqual(store.wireGuardAllowedIPsText, "")
+        XCTAssertNil(defaults.object(forKey: "WireGuard.dnsServers"))
+        XCTAssertNil(defaults.object(forKey: "WireGuard.endpointOverride"))
+        XCTAssertNil(defaults.object(forKey: "WireGuard.allowedIPs"))
         XCTAssertEqual(tunnelController.disconnectCallCount, 1)
         XCTAssertEqual(tunnelController.lastDisconnectWaitUntilStopped, true)
         XCTAssertEqual(tunnelController.removeSavedTunnelCallCount, 1)
@@ -958,6 +967,7 @@ final class TetheringStoreObservationTests: XCTestCase {
             Data("THRURNDIS_WG_ENDPOINT=192.168.64.2:51820\n".utf8)
         )
 
+        XCTAssertEqual(store.wireGuardDNSServersText, "")
         XCTAssertEqual(store.resolvedWireGuardEndpoint, "192.168.64.2:51820")
         XCTAssertEqual(store.resolvedWireGuardAllowedIPs, "0.0.0.0/0")
         XCTAssertEqual(
