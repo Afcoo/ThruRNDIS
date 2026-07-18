@@ -24,15 +24,15 @@ protocol WireGuardConfigurationStoring {
     var sharedDirectoryURL: URL { get }
 
     func prepareConfigurationIfNeeded(
-        builder: WireGuardConfBuilder
+        builder: WireGuardConfigurationBuilder
     ) throws -> PreparedWireGuardConfiguration
     func requireExistingConfiguration(
-        builder: WireGuardConfBuilder
+        builder: WireGuardConfigurationBuilder
     ) throws -> PreparedWireGuardConfiguration
     func removeConfigurationDirectory() throws
 }
 
-struct WireGuardConfStore {
+struct WireGuardConfigurationStore {
     private let fileManager: FileManager
     let files: WireGuardConfigurationFiles
 
@@ -75,7 +75,7 @@ struct WireGuardConfStore {
 
     @discardableResult
     func prepareConfigurationIfNeeded(
-        builder: WireGuardConfBuilder
+        builder: WireGuardConfigurationBuilder
     ) throws -> PreparedWireGuardConfiguration {
         let serverKeyExists = fileManager.fileExists(atPath: files.serverKeyURL.path)
         let clientKeyExists = fileManager.fileExists(atPath: files.clientKeyURL.path)
@@ -89,23 +89,23 @@ struct WireGuardConfStore {
             try createKeyPair()
             try secureKeyFiles()
         case (true, false):
-            throw WireGuardConfStoreError.partialKeyPair(missingURL: files.clientKeyURL)
+            throw WireGuardConfigurationStoreError.partialKeyPair(missingURL: files.clientKeyURL)
         case (false, true):
-            throw WireGuardConfStoreError.partialKeyPair(missingURL: files.serverKeyURL)
+            throw WireGuardConfigurationStoreError.partialKeyPair(missingURL: files.serverKeyURL)
         }
 
         return try prepareExistingConfiguration(builder: builder)
     }
 
     func requireExistingConfiguration(
-        builder: WireGuardConfBuilder
+        builder: WireGuardConfigurationBuilder
     ) throws -> PreparedWireGuardConfiguration {
         let serverKeyExists = fileManager.fileExists(atPath: files.serverKeyURL.path)
         let clientKeyExists = fileManager.fileExists(atPath: files.clientKeyURL.path)
 
         guard serverKeyExists, clientKeyExists else {
             let missingURL = serverKeyExists ? files.clientKeyURL : files.serverKeyURL
-            throw WireGuardConfStoreError.missingKey(missingURL)
+            throw WireGuardConfigurationStoreError.missingKey(missingURL)
         }
 
         try secureConfigurationDirectories()
@@ -122,7 +122,7 @@ struct WireGuardConfStore {
     }
 
     private func prepareExistingConfiguration(
-        builder: WireGuardConfBuilder
+        builder: WireGuardConfigurationBuilder
     ) throws -> PreparedWireGuardConfiguration {
         try builder.validate()
         let keyMaterial = try loadKeyMaterial()
@@ -214,13 +214,13 @@ struct WireGuardConfStore {
         let text = try String(contentsOf: url, encoding: .utf8)
             .trimmingCharacters(in: .whitespacesAndNewlines)
         guard let data = Data(base64Encoded: text), data.count == 32 else {
-            throw WireGuardConfStoreError.invalidPrivateKey(label)
+            throw WireGuardConfigurationStoreError.invalidPrivateKey(label)
         }
 
         do {
             return try Curve25519.KeyAgreement.PrivateKey(rawRepresentation: data)
         } catch {
-            throw WireGuardConfStoreError.invalidPrivateKey(label)
+            throw WireGuardConfigurationStoreError.invalidPrivateKey(label)
         }
     }
 
@@ -238,7 +238,7 @@ struct WireGuardConfStore {
                 }
             }
             guard renameResult == 0 else {
-                throw WireGuardConfStoreError.couldNotReplaceFile(
+                throw WireGuardConfigurationStoreError.couldNotReplaceFile(
                     files.serverConfigurationURL,
                     errno
                 )
@@ -260,7 +260,7 @@ struct WireGuardConfStore {
         }
 
         guard descriptor >= 0 else {
-            throw WireGuardConfStoreError.couldNotCreateFile(url, errno)
+            throw WireGuardConfigurationStoreError.couldNotCreateFile(url, errno)
         }
 
         var writeError: Error?
@@ -279,11 +279,11 @@ struct WireGuardConfStore {
                     if errno == EINTR {
                         continue
                     }
-                    writeError = WireGuardConfStoreError.couldNotWriteFile(url, errno)
+                    writeError = WireGuardConfigurationStoreError.couldNotWriteFile(url, errno)
                     break
                 }
                 if written == 0 {
-                    writeError = WireGuardConfStoreError.couldNotWriteFile(url, EIO)
+                    writeError = WireGuardConfigurationStoreError.couldNotWriteFile(url, EIO)
                     break
                 }
                 bytesRemaining -= written
@@ -299,14 +299,14 @@ struct WireGuardConfStore {
         guard closeResult == 0 else {
             let closeErrno = errno
             try? fileManager.removeItem(at: url)
-            throw WireGuardConfStoreError.couldNotWriteFile(url, closeErrno)
+            throw WireGuardConfigurationStoreError.couldNotWriteFile(url, closeErrno)
         }
     }
 }
 
-extension WireGuardConfStore: WireGuardConfigurationStoring {}
+extension WireGuardConfigurationStore: WireGuardConfigurationStoring {}
 
-enum WireGuardConfStoreError: LocalizedError {
+enum WireGuardConfigurationStoreError: LocalizedError {
     case missingKey(URL)
     case partialKeyPair(missingURL: URL)
     case invalidPrivateKey(String)

@@ -4,7 +4,7 @@ Copyright (C) 2026 Afcoo.
 
 import Foundation
 
-struct WireGuardConfElements: Equatable {
+struct WireGuardConfigurationElements: Equatable {
     var serverAddress: String
     var clientAddress: String
     var serverPeerAllowedIPs: String
@@ -16,7 +16,7 @@ struct WireGuardConfElements: Equatable {
     var persistentKeepalive: Int
     var endpointPlaceholder: String
 
-    static let defaults = WireGuardConfElements(
+    static let defaults = WireGuardConfigurationElements(
         serverAddress: "10.100.0.1/24",
         clientAddress: "10.100.0.2/24",
         serverPeerAllowedIPs: "10.100.0.2/32",
@@ -30,10 +30,10 @@ struct WireGuardConfElements: Equatable {
     )
 }
 
-struct WireGuardConfBuilder {
-    let elements: WireGuardConfElements
+struct WireGuardConfigurationBuilder {
+    let elements: WireGuardConfigurationElements
 
-    init(elements: WireGuardConfElements = .defaults) {
+    init(elements: WireGuardConfigurationElements = .defaults) {
         self.elements = elements
     }
 
@@ -45,25 +45,25 @@ struct WireGuardConfBuilder {
         try requireValue(elements.endpointPlaceholder, field: "client Endpoint placeholder")
 
         guard (1...65_535).contains(elements.listenPort) else {
-            throw WireGuardConfBuilderError.invalidInteger(
+            throw WireGuardConfigurationBuilderError.invalidInteger(
                 field: "ListenPort",
                 value: elements.listenPort
             )
         }
         guard elements.serverMTU > 0 else {
-            throw WireGuardConfBuilderError.invalidInteger(
+            throw WireGuardConfigurationBuilderError.invalidInteger(
                 field: "server MTU",
                 value: elements.serverMTU
             )
         }
         guard elements.clientMTU > 0 else {
-            throw WireGuardConfBuilderError.invalidInteger(
+            throw WireGuardConfigurationBuilderError.invalidInteger(
                 field: "client MTU",
                 value: elements.clientMTU
             )
         }
         guard (0...65_535).contains(elements.persistentKeepalive) else {
-            throw WireGuardConfBuilderError.invalidInteger(
+            throw WireGuardConfigurationBuilderError.invalidInteger(
                 field: "PersistentKeepalive",
                 value: elements.persistentKeepalive
             )
@@ -114,12 +114,12 @@ struct WireGuardConfBuilder {
 
     private func requireValue(_ value: String, field: String) throws {
         guard !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw WireGuardConfBuilderError.missingValue(field)
+            throw WireGuardConfigurationBuilderError.missingValue(field)
         }
     }
 }
 
-enum WireGuardConfBuilderError: LocalizedError {
+enum WireGuardConfigurationBuilderError: LocalizedError {
     case missingValue(String)
     case invalidInteger(field: String, value: Int)
 

@@ -1,9 +1,9 @@
 import XCTest
 @testable import ThruRNDIS
 
-final class WireGuardConfBuilderTests: XCTestCase {
+final class WireGuardConfigurationBuilderTests: XCTestCase {
     func testDefaultClientConfigurationUsesFullTunnelIPv4AllowedIPs() {
-        let builder = WireGuardConfBuilder(elements: .defaults)
+        let builder = WireGuardConfigurationBuilder(elements: .defaults)
         let keyMaterial = WireGuardKeyMaterial(
             serverPrivateKey: "server-private",
             serverPublicKey: "server-public",
@@ -20,9 +20,9 @@ final class WireGuardConfBuilderTests: XCTestCase {
             .filter { $0.hasPrefix("AllowedIPs = ") }
         let serverConfiguration = builder.serverConfiguration(keyMaterial: keyMaterial)
 
-        XCTAssertEqual(WireGuardConfElements.defaults.clientAllowedIPs, "0.0.0.0/0")
+        XCTAssertEqual(WireGuardConfigurationElements.defaults.clientAllowedIPs, "0.0.0.0/0")
         XCTAssertEqual(
-            WireGuardConfElements.defaults.dnsServers,
+            WireGuardConfigurationElements.defaults.dnsServers,
             ["1.1.1.1", "1.0.0.1", "8.8.8.8", "8.8.4.4"]
         )
         XCTAssertEqual(allowedIPLines, ["AllowedIPs = 0.0.0.0/0"])
@@ -36,7 +36,7 @@ final class WireGuardConfBuilderTests: XCTestCase {
     }
 
     func testClientConfigurationAcceptsConnectionOverrides() {
-        let builder = WireGuardConfBuilder(elements: .defaults)
+        let builder = WireGuardConfigurationBuilder(elements: .defaults)
         let keyMaterial = WireGuardKeyMaterial(
             serverPrivateKey: "server-private",
             serverPublicKey: "server-public",

@@ -259,8 +259,8 @@ final class TetheringStoreObservationTests: XCTestCase {
             assetProvider: ObservationTestAssetProvider(),
             vmCoordinator: ObservationTestVMCoordinator(),
             usbCoordinator: USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor()),
-            wireGuardConfStore: ObservationTestWireGuardStore(),
-            wireGuardConfBuilder: WireGuardConfBuilder(elements: .defaults),
+            wireGuardConfigurationStore: ObservationTestWireGuardStore(),
+            wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
             eventLog: EventLogStore(),
             consoleSession: ConsoleSessionStore(),
             usbSession: USBSessionStore(),
@@ -302,8 +302,8 @@ final class TetheringStoreObservationTests: XCTestCase {
             assetProvider: ObservationTestAssetProvider(),
             vmCoordinator: ObservationTestVMCoordinator(),
             usbCoordinator: USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor()),
-            wireGuardConfStore: ObservationTestWireGuardStore(),
-            wireGuardConfBuilder: WireGuardConfBuilder(elements: .defaults),
+            wireGuardConfigurationStore: ObservationTestWireGuardStore(),
+            wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
             eventLog: EventLogStore(),
             consoleSession: ConsoleSessionStore(),
             usbSession: USBSessionStore(),
@@ -343,8 +343,8 @@ final class TetheringStoreObservationTests: XCTestCase {
             assetProvider: ObservationTestAssetProvider(),
             vmCoordinator: ObservationTestVMCoordinator(),
             usbCoordinator: USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor()),
-            wireGuardConfStore: ObservationTestWireGuardStore(),
-            wireGuardConfBuilder: WireGuardConfBuilder(elements: .defaults),
+            wireGuardConfigurationStore: ObservationTestWireGuardStore(),
+            wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
             eventLog: EventLogStore(),
             consoleSession: ConsoleSessionStore(),
             usbSession: USBSessionStore(),
@@ -395,8 +395,8 @@ final class TetheringStoreObservationTests: XCTestCase {
             assetProvider: ObservationTestAssetProvider(),
             vmCoordinator: ObservationTestVMCoordinator(),
             usbCoordinator: USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor()),
-            wireGuardConfStore: ObservationTestWireGuardStore(),
-            wireGuardConfBuilder: WireGuardConfBuilder(elements: .defaults),
+            wireGuardConfigurationStore: ObservationTestWireGuardStore(),
+            wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
             eventLog: eventLog,
             consoleSession: ConsoleSessionStore(),
             usbSession: USBSessionStore(),
@@ -443,8 +443,8 @@ final class TetheringStoreObservationTests: XCTestCase {
             assetProvider: ObservationTestAssetProvider(),
             vmCoordinator: ObservationTestVMCoordinator(),
             usbCoordinator: USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor()),
-            wireGuardConfStore: ObservationTestWireGuardStore(),
-            wireGuardConfBuilder: WireGuardConfBuilder(elements: .defaults),
+            wireGuardConfigurationStore: ObservationTestWireGuardStore(),
+            wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
             eventLog: EventLogStore(),
             consoleSession: ConsoleSessionStore(),
             usbSession: USBSessionStore(),
@@ -471,8 +471,8 @@ final class TetheringStoreObservationTests: XCTestCase {
             assetProvider: ObservationTestAssetProvider(),
             vmCoordinator: ObservationTestVMCoordinator(),
             usbCoordinator: USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor()),
-            wireGuardConfStore: ObservationTestWireGuardStore(),
-            wireGuardConfBuilder: WireGuardConfBuilder(elements: .defaults),
+            wireGuardConfigurationStore: ObservationTestWireGuardStore(),
+            wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
             eventLog: eventLog,
             consoleSession: ConsoleSessionStore(),
             usbSession: USBSessionStore(),
@@ -506,8 +506,8 @@ final class TetheringStoreObservationTests: XCTestCase {
             assetProvider: ObservationTestAssetProvider(),
             vmCoordinator: ObservationTestVMCoordinator(),
             usbCoordinator: USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor()),
-            wireGuardConfStore: ObservationTestWireGuardStore(),
-            wireGuardConfBuilder: WireGuardConfBuilder(elements: .defaults),
+            wireGuardConfigurationStore: ObservationTestWireGuardStore(),
+            wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
             eventLog: EventLogStore(),
             consoleSession: ConsoleSessionStore(),
             usbSession: usbSession,
@@ -550,8 +550,8 @@ final class TetheringStoreObservationTests: XCTestCase {
             usbCoordinator: USBAccessoryCoordinator(
                 monitor: ObservationTestUSBMonitor()
             ),
-            wireGuardConfStore: ObservationTestWireGuardStore(),
-            wireGuardConfBuilder: WireGuardConfBuilder(elements: .defaults),
+            wireGuardConfigurationStore: ObservationTestWireGuardStore(),
+            wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
             eventLog: EventLogStore(),
             consoleSession: ConsoleSessionStore(),
             usbSession: USBSessionStore(),
@@ -593,8 +593,8 @@ final class TetheringStoreObservationTests: XCTestCase {
             assetProvider: ObservationTestAssetProvider(),
             vmCoordinator: vmCoordinator,
             usbCoordinator: USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor()),
-            wireGuardConfStore: ObservationTestWireGuardStore(),
-            wireGuardConfBuilder: WireGuardConfBuilder(elements: .defaults),
+            wireGuardConfigurationStore: ObservationTestWireGuardStore(),
+            wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
             eventLog: EventLogStore(),
             consoleSession: ConsoleSessionStore(),
             usbSession: USBSessionStore(),
@@ -654,8 +654,8 @@ final class TetheringStoreObservationTests: XCTestCase {
             assetProvider: ObservationTestAssetProvider(),
             vmCoordinator: vmCoordinator,
             usbCoordinator: USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor()),
-            wireGuardConfStore: ObservationTestWireGuardStore(),
-            wireGuardConfBuilder: WireGuardConfBuilder(elements: .defaults),
+            wireGuardConfigurationStore: ObservationTestWireGuardStore(),
+            wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
             eventLog: eventLog,
             consoleSession: ConsoleSessionStore(),
             usbSession: USBSessionStore(),
@@ -724,8 +724,8 @@ final class TetheringStoreObservationTests: XCTestCase {
             assetProvider: ObservationTestAssetProvider(),
             vmCoordinator: ObservationTestVMCoordinator(),
             usbCoordinator: USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor()),
-            wireGuardConfStore: ObservationTestWireGuardStore(),
-            wireGuardConfBuilder: WireGuardConfBuilder(elements: .defaults),
+            wireGuardConfigurationStore: ObservationTestWireGuardStore(),
+            wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
             eventLog: EventLogStore(),
             consoleSession: ConsoleSessionStore(),
             usbSession: USBSessionStore(),
@@ -752,8 +752,8 @@ final class TetheringStoreObservationTests: XCTestCase {
             usbCoordinator: USBAccessoryCoordinator(
                 monitor: ObservationTestUSBMonitor()
             ),
-            wireGuardConfStore: ObservationTestWireGuardStore(),
-            wireGuardConfBuilder: WireGuardConfBuilder(elements: .defaults),
+            wireGuardConfigurationStore: ObservationTestWireGuardStore(),
+            wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
             eventLog: eventLog,
             consoleSession: ConsoleSessionStore(),
             usbSession: USBSessionStore(),
@@ -786,8 +786,8 @@ final class TetheringStoreObservationTests: XCTestCase {
             assetProvider: ObservationTestAssetProvider(),
             vmCoordinator: ObservationTestVMCoordinator(),
             usbCoordinator: USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor()),
-            wireGuardConfStore: wireGuardStore,
-            wireGuardConfBuilder: WireGuardConfBuilder(elements: .defaults),
+            wireGuardConfigurationStore: wireGuardStore,
+            wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
             eventLog: EventLogStore(),
             consoleSession: ConsoleSessionStore(),
             usbSession: USBSessionStore(),
@@ -816,8 +816,8 @@ final class TetheringStoreObservationTests: XCTestCase {
             assetProvider: ObservationTestAssetProvider(),
             vmCoordinator: ObservationTestVMCoordinator(),
             usbCoordinator: USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor()),
-            wireGuardConfStore: wireGuardStore,
-            wireGuardConfBuilder: WireGuardConfBuilder(elements: .defaults),
+            wireGuardConfigurationStore: wireGuardStore,
+            wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
             eventLog: EventLogStore(),
             consoleSession: ConsoleSessionStore(),
             usbSession: USBSessionStore(),
@@ -847,8 +847,8 @@ final class TetheringStoreObservationTests: XCTestCase {
             usbCoordinator: USBAccessoryCoordinator(
                 monitor: ObservationTestUSBMonitor()
             ),
-            wireGuardConfStore: ObservationTestWireGuardStore(),
-            wireGuardConfBuilder: WireGuardConfBuilder(elements: .defaults),
+            wireGuardConfigurationStore: ObservationTestWireGuardStore(),
+            wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
             eventLog: eventLog,
             consoleSession: consoleSession,
             usbSession: USBSessionStore(),
@@ -890,8 +890,8 @@ final class TetheringStoreObservationTests: XCTestCase {
             usbCoordinator: USBAccessoryCoordinator(
                 monitor: ObservationTestUSBMonitor()
             ),
-            wireGuardConfStore: ObservationTestWireGuardStore(),
-            wireGuardConfBuilder: WireGuardConfBuilder(elements: .defaults),
+            wireGuardConfigurationStore: ObservationTestWireGuardStore(),
+            wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
             eventLog: eventLog,
             consoleSession: consoleSession,
             usbSession: USBSessionStore(),
@@ -1038,13 +1038,13 @@ private final class ObservationTestWireGuardStore: WireGuardConfigurationStoring
     }
 
     func prepareConfigurationIfNeeded(
-        builder: WireGuardConfBuilder
+        builder: WireGuardConfigurationBuilder
     ) throws -> PreparedWireGuardConfiguration {
         preparedConfiguration()
     }
 
     func requireExistingConfiguration(
-        builder: WireGuardConfBuilder
+        builder: WireGuardConfigurationBuilder
     ) throws -> PreparedWireGuardConfiguration {
         preparedConfiguration()
     }

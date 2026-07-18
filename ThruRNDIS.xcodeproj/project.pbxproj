@@ -25,10 +25,10 @@
 		8B0000000000000000000012 /* RuntimeEntitlements.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000000000000000000112 /* RuntimeEntitlements.swift */; };
 		8E0000000000000000000001 /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = 8E0000000000000000000102 /* SwiftTerm */; };
 		8F0000000000000000000001 /* WireGuardKeyMaterial.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F0000000000000000000101 /* WireGuardKeyMaterial.swift */; };
-		8F0000000000000000000002 /* WireGuardConfBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F0000000000000000000102 /* WireGuardConfBuilder.swift */; };
+		8F0000000000000000000002 /* WireGuardConfigurationBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F0000000000000000000102 /* WireGuardConfigurationBuilder.swift */; };
 		8F0000000000000000000003 /* VMCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F0000000000000000000103 /* VMCoordinator.swift */; };
 		8F0000000000000000000004 /* USBAccessoryCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F0000000000000000000104 /* USBAccessoryCoordinator.swift */; };
-		8F0000000000000000000005 /* WireGuardConfStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F0000000000000000000105 /* WireGuardConfStore.swift */; };
+		8F0000000000000000000005 /* WireGuardConfigurationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F0000000000000000000105 /* WireGuardConfigurationStore.swift */; };
 		9A0000000000000000000001 /* MenuBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A0000000000000000000101 /* MenuBarController.swift */; };
 		9A0000000000000000000002 /* OnboardingWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A0000000000000000000102 /* OnboardingWindowController.swift */; };
 		9A0000000000000000000003 /* USBAttachmentPrompt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A0000000000000000000103 /* USBAttachmentPrompt.swift */; };
@@ -81,7 +81,7 @@
 		DA1000000000000000000012 /* ThruRNDISTunnel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA1000000000000000000110 /* ThruRNDISTunnel.swift */; };
 		DA1000000000000000000013 /* WireGuardConnectionValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA1000000000000000000111 /* WireGuardConnectionValidator.swift */; };
 		DA1000000000000000000014 /* PacketTunnelProviderError.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA1000000000000000000112 /* PacketTunnelProviderError.swift */; };
-		DB1000000000000000000001 /* WireGuardConfBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB1000000000000000000101 /* WireGuardConfBuilderTests.swift */; };
+		DB1000000000000000000001 /* WireGuardConfigurationBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB1000000000000000000101 /* WireGuardConfigurationBuilderTests.swift */; };
 		DB1000000000000000000002 /* WireGuardConnectionValidatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB1000000000000000000102 /* WireGuardConnectionValidatorTests.swift */; };
 		DB1000000000000000000003 /* HostWireGuardTunnelControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB1000000000000000000103 /* HostWireGuardTunnelControllerTests.swift */; };
 		DC1000000000000000000001 /* EventLogErrorFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC1000000000000000000101 /* EventLogErrorFormatter.swift */; };
@@ -156,10 +156,10 @@
 		8B0000000000000000000112 /* RuntimeEntitlements.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeEntitlements.swift; sourceTree = "<group>"; };
 		8B0000000000000000000113 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		8F0000000000000000000101 /* WireGuardKeyMaterial.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardKeyMaterial.swift; sourceTree = "<group>"; };
-		8F0000000000000000000102 /* WireGuardConfBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardConfBuilder.swift; sourceTree = "<group>"; };
+		8F0000000000000000000102 /* WireGuardConfigurationBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardConfigurationBuilder.swift; sourceTree = "<group>"; };
 		8F0000000000000000000103 /* VMCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMCoordinator.swift; sourceTree = "<group>"; };
 		8F0000000000000000000104 /* USBAccessoryCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBAccessoryCoordinator.swift; sourceTree = "<group>"; };
-		8F0000000000000000000105 /* WireGuardConfStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardConfStore.swift; sourceTree = "<group>"; };
+		8F0000000000000000000105 /* WireGuardConfigurationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardConfigurationStore.swift; sourceTree = "<group>"; };
 		9A0000000000000000000101 /* MenuBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarController.swift; sourceTree = "<group>"; };
 		9A0000000000000000000102 /* OnboardingWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingWindowController.swift; sourceTree = "<group>"; };
 		9A0000000000000000000103 /* USBAttachmentPrompt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBAttachmentPrompt.swift; sourceTree = "<group>"; };
@@ -215,7 +215,7 @@
 		DA1000000000000000000110 /* ThruRNDISTunnel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThruRNDISTunnel.swift; sourceTree = "<group>"; };
 		DA1000000000000000000111 /* WireGuardConnectionValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardConnectionValidator.swift; sourceTree = "<group>"; };
 		DA1000000000000000000112 /* PacketTunnelProviderError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PacketTunnelProviderError.swift; sourceTree = "<group>"; };
-		DB1000000000000000000101 /* WireGuardConfBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardConfBuilderTests.swift; sourceTree = "<group>"; };
+		DB1000000000000000000101 /* WireGuardConfigurationBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardConfigurationBuilderTests.swift; sourceTree = "<group>"; };
 		DB1000000000000000000102 /* WireGuardConnectionValidatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardConnectionValidatorTests.swift; sourceTree = "<group>"; };
 		DB1000000000000000000103 /* HostWireGuardTunnelControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostWireGuardTunnelControllerTests.swift; sourceTree = "<group>"; };
 		DC1000000000000000000101 /* EventLogErrorFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventLogErrorFormatter.swift; sourceTree = "<group>"; };
@@ -376,7 +376,7 @@
 				DA1000000000000000000107 /* TunnelConfiguration+WgQuickConfig.swift */,
 				DA1000000000000000000111 /* WireGuardConnectionValidator.swift */,
 				E10000000000000000000101 /* USBDeviceNameResolver.swift */,
-				8F0000000000000000000102 /* WireGuardConfBuilder.swift */,
+				8F0000000000000000000102 /* WireGuardConfigurationBuilder.swift */,
 				B10000000000000000000102 /* VMAssetFolderResolver.swift */,
 			);
 			path = Support;
@@ -454,7 +454,7 @@
 			children = (
 				D10000000000000000000106 /* VMAssetStorageLayout.swift */,
 				B10000000000000000000106 /* VMAssetSelectionStore.swift */,
-				8F0000000000000000000105 /* WireGuardConfStore.swift */,
+				8F0000000000000000000105 /* WireGuardConfigurationStore.swift */,
 			);
 			path = Persistence;
 			sourceTree = "<group>";
@@ -503,7 +503,7 @@
 		DB1000000000000000000201 /* Support */ = {
 			isa = PBXGroup;
 			children = (
-				DB1000000000000000000101 /* WireGuardConfBuilderTests.swift */,
+				DB1000000000000000000101 /* WireGuardConfigurationBuilderTests.swift */,
 				DB1000000000000000000102 /* WireGuardConnectionValidatorTests.swift */,
 			);
 			path = Support;
@@ -729,8 +729,8 @@
 				8B0000000000000000000012 /* RuntimeEntitlements.swift in Sources */,
 				8F0000000000000000000001 /* WireGuardKeyMaterial.swift in Sources */,
 				DA1000000000000000000001 /* HostWireGuardTunnelStatus.swift in Sources */,
-				8F0000000000000000000005 /* WireGuardConfStore.swift in Sources */,
-				8F0000000000000000000002 /* WireGuardConfBuilder.swift in Sources */,
+				8F0000000000000000000005 /* WireGuardConfigurationStore.swift in Sources */,
+				8F0000000000000000000002 /* WireGuardConfigurationBuilder.swift in Sources */,
 				DA1000000000000000000003 /* HostWireGuardTunnelController.swift in Sources */,
 				DA1000000000000000000004 /* WireGuardSystemExtensionActivator.swift in Sources */,
 				DA1000000000000000000011 /* ThruRNDISTunnel.swift in Sources */,
@@ -778,7 +778,7 @@
 				C10000000000000000000002 /* VMAssetSelectionStoreTests.swift in Sources */,
 				C10000000000000000000003 /* VMAssetServiceTests.swift in Sources */,
 				C10000000000000000000004 /* VMAssetWorkflowCoordinatorTests.swift in Sources */,
-				DB1000000000000000000001 /* WireGuardConfBuilderTests.swift in Sources */,
+				DB1000000000000000000001 /* WireGuardConfigurationBuilderTests.swift in Sources */,
 				DB1000000000000000000002 /* WireGuardConnectionValidatorTests.swift in Sources */,
 				DB1000000000000000000003 /* HostWireGuardTunnelControllerTests.swift in Sources */,
 			);

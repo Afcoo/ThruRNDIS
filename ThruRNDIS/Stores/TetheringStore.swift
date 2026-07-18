@@ -57,8 +57,8 @@ final class TetheringStore: ObservableObject {
     private let vmCoordinator: any VMCoordinating
     private let usbCoordinator: USBAccessoryCoordinator
     private let assetProvider: VMAssetProviding
-    private let wireGuardConfStore: any WireGuardConfigurationStoring
-    private let wireGuardConfBuilder: WireGuardConfBuilder
+    private let wireGuardConfigurationStore: any WireGuardConfigurationStoring
+    private let wireGuardConfigurationBuilder: WireGuardConfigurationBuilder
     private let hostWireGuardTunnelController: any HostWireGuardTunnelControlling
     private let runtimeEntitlementSnapshotProvider: () -> RuntimeEntitlementSnapshot
     private let systemExtensionSettingsOpener: () -> Bool
@@ -217,7 +217,7 @@ final class TetheringStore: ObservableObject {
 
     var resolvedWireGuardAllowedIPs: String {
         normalizedWireGuardInput(wireGuardAllowedIPsText)
-            ?? wireGuardConfBuilder.elements.clientAllowedIPs
+            ?? wireGuardConfigurationBuilder.elements.clientAllowedIPs
     }
 
     var resolvedWireGuardDNSServers: [String] {
@@ -228,11 +228,11 @@ final class TetheringStore: ObservableObject {
 
     private var resolvedWireGuardDNSServersText: String {
         normalizedWireGuardInput(wireGuardDNSServersText)
-            ?? wireGuardConfBuilder.elements.dnsServers.joined(separator: ", ")
+            ?? wireGuardConfigurationBuilder.elements.dnsServers.joined(separator: ", ")
     }
 
     var defaultWireGuardDNSServersText: String {
-        wireGuardConfBuilder.elements.dnsServers.joined(separator: ", ")
+        wireGuardConfigurationBuilder.elements.dnsServers.joined(separator: ", ")
     }
 
     var wireGuardEndpointPrompt: String {
@@ -287,7 +287,7 @@ final class TetheringStore: ObservableObject {
             return "# WireGuard key material is unavailable in Application Support."
         }
 
-        return wireGuardConfBuilder.clientConfiguration(
+        return wireGuardConfigurationBuilder.clientConfiguration(
             keyMaterial: wireGuardKeyMaterial,
             endpoint: resolvedWireGuardEndpoint,
             dnsServers: resolvedWireGuardDNSServers,
@@ -299,8 +299,8 @@ final class TetheringStore: ObservableObject {
         assetProvider: VMAssetProviding,
         vmCoordinator: any VMCoordinating,
         usbCoordinator: USBAccessoryCoordinator,
-        wireGuardConfStore: any WireGuardConfigurationStoring,
-        wireGuardConfBuilder: WireGuardConfBuilder,
+        wireGuardConfigurationStore: any WireGuardConfigurationStoring,
+        wireGuardConfigurationBuilder: WireGuardConfigurationBuilder,
         eventLog: EventLogStore,
         consoleSession: ConsoleSessionStore,
         usbSession: USBSessionStore,
@@ -317,8 +317,8 @@ final class TetheringStore: ObservableObject {
         self.assetProvider = assetProvider
         self.vmCoordinator = vmCoordinator
         self.usbCoordinator = usbCoordinator
-        self.wireGuardConfStore = wireGuardConfStore
-        self.wireGuardConfBuilder = wireGuardConfBuilder
+        self.wireGuardConfigurationStore = wireGuardConfigurationStore
+        self.wireGuardConfigurationBuilder = wireGuardConfigurationBuilder
         self.hostWireGuardTunnelController = hostWireGuardTunnelController
         self.runtimeEntitlementSnapshotProvider = runtimeEntitlementSnapshotProvider
         self.systemExtensionSettingsOpener = systemExtensionSettingsOpener
@@ -331,7 +331,7 @@ final class TetheringStore: ObservableObject {
         self.wireGuardDNSServersText = Self.restoredWireGuardInput(
             defaults: defaults,
             key: DefaultsKey.wireGuardDNSServersText,
-            fallback: wireGuardConfBuilder.elements.dnsServers.joined(separator: ", ")
+            fallback: wireGuardConfigurationBuilder.elements.dnsServers.joined(separator: ", ")
         )
         self.wireGuardEndpointText = Self.restoredWireGuardInput(
             defaults: defaults,
@@ -467,7 +467,7 @@ final class TetheringStore: ObservableObject {
             kernelURL: bootAssets.kernelURL,
             initialRamdiskURL: bootAssets.initialRamdiskURL,
             diskImageURL: vmConfiguration.diskImageURL,
-            wireGuardConfigurationDirectoryURL: wireGuardConfStore.sharedDirectoryURL,
+            wireGuardConfigurationDirectoryURL: wireGuardConfigurationStore.sharedDirectoryURL,
             cpuCount: vmConfiguration.cpuCount,
             memorySizeMiB: vmConfiguration.memorySizeMiB,
             bootCommandLine: bootCommandLine,
@@ -622,7 +622,7 @@ final class TetheringStore: ObservableObject {
     }
 
     func openWireGuardConfigurationFolder() {
-        let directoryURL = wireGuardConfStore.files.wireGuardDirectoryURL
+        let directoryURL = wireGuardConfigurationStore.files.wireGuardDirectoryURL
         var isDirectory: ObjCBool = false
 
         guard FileManager.default.fileExists(
@@ -936,7 +936,7 @@ final class TetheringStore: ObservableObject {
         }
 
         do {
-            try wireGuardConfStore.removeConfigurationDirectory()
+            try wireGuardConfigurationStore.removeConfigurationDirectory()
         } catch {
             preferencesStatusMessage = String(localized: "Could not remove WireGuard configuration: \(error.localizedDescription)")
             appendEventLog(
@@ -956,7 +956,7 @@ final class TetheringStore: ObservableObject {
 
         defaults.removeObject(forKey: DefaultsKey.onboardingVersion)
 
-        wireGuardDNSServersText = wireGuardConfBuilder.elements.dnsServers.joined(separator: ", ")
+        wireGuardDNSServersText = wireGuardConfigurationBuilder.elements.dnsServers.joined(separator: ", ")
         wireGuardEndpointText = ""
         wireGuardAllowedIPsText = ""
         invalidWireGuardConnectionFields = []
@@ -1516,8 +1516,8 @@ final class TetheringStore: ObservableObject {
 
     private func prepareWireGuardConfiguration() {
         do {
-            let prepared = try wireGuardConfStore.prepareConfigurationIfNeeded(
-                builder: wireGuardConfBuilder
+            let prepared = try wireGuardConfigurationStore.prepareConfigurationIfNeeded(
+                builder: wireGuardConfigurationBuilder
             )
             wireGuardKeyMaterial = prepared.keyMaterial
             appendEventLog(
@@ -1541,11 +1541,11 @@ final class TetheringStore: ObservableObject {
     ) -> Bool {
         do {
             let prepared = requireExisting
-                ? try wireGuardConfStore.requireExistingConfiguration(
-                    builder: wireGuardConfBuilder
+                ? try wireGuardConfigurationStore.requireExistingConfiguration(
+                    builder: wireGuardConfigurationBuilder
                 )
-                : try wireGuardConfStore.prepareConfigurationIfNeeded(
-                    builder: wireGuardConfBuilder
+                : try wireGuardConfigurationStore.prepareConfigurationIfNeeded(
+                    builder: wireGuardConfigurationBuilder
                 )
             wireGuardKeyMaterial = prepared.keyMaterial
             appendEventLog(
