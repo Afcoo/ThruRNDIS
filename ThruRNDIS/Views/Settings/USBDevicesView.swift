@@ -11,17 +11,12 @@ struct USBDevicesView: View {
     var body: some View {
         Form {
             if !store.runtimeEntitlements.accessoryAccessUSB {
-                Section("Entitlement") {
+                Section {
                     Label(
                         "USB monitoring is unavailable in this unsigned build.",
                         systemImage: "exclamationmark.triangle"
                     )
                     .foregroundStyle(.orange)
-
-                    Text(verbatim: RuntimeEntitlement.accessoryAccessUSB.rawValue)
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                        .textSelection(.enabled)
                 }
             }
 

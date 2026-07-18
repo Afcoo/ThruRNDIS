@@ -9,6 +9,17 @@ struct WireGuardView: View {
 
     var body: some View {
         Form {
+            if !store.runtimeEntitlements.packetTunnelProvider
+                || !store.runtimeEntitlements.systemExtensionInstall {
+                Section {
+                    Label(
+                        "WireGuard connections are unavailable in this unsigned build.",
+                        systemImage: "exclamationmark.triangle"
+                    )
+                    .foregroundStyle(.orange)
+                }
+            }
+
             Section("Network Extension") {
                 LabeledContent("Status") {
                     Label(

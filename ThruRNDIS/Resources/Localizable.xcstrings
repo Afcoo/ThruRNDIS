@@ -2895,6 +2895,16 @@
         }
       }
     },
+    "WireGuard connections are unavailable in this unsigned build." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "서명되지 않은 빌드에서는 WireGuard 연결을 사용할 수 없습니다."
+          }
+        }
+      }
+    },
     "WireGuard key pair is incomplete. Restore the missing key without replacing the existing key: %@" : {
       "localizations" : {
         "ko" : {
