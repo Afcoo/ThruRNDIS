@@ -71,6 +71,15 @@ final class LocalizationResourceTests: XCTestCase {
             ),
             "설정 열기"
         )
+        let vmAssetsRequiredFormat = koreanBundle.localizedString(
+            forKey: "%@ has been connected, but VM assets have not been configured.\nOpen Settings to install VM Assets.",
+            value: nil,
+            table: nil
+        )
+        XCTAssertEqual(
+            String(format: vmAssetsRequiredFormat, "Android USB"),
+            "Android USB 기기가 연결되었지만 VM 에셋이 구성되지 않았습니다. \n설정을 열어 VM Asset을 설치하세요."
+        )
         XCTAssertEqual(
             koreanBundle.localizedString(
                 forKey: "Network extension activation is already in progress.",

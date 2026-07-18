@@ -1382,16 +1382,6 @@
         }
       }
     },
-    "Open Onboarding" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "온보딩 열기"
-          }
-        }
-      }
-    },
     "Open Source Acknowledgements" : {
       "localizations" : {
         "ko" : {
@@ -2481,12 +2471,12 @@
         }
       }
     },
-    "USB device %@ is ready, but VM assets have not been configured. Open onboarding to install the latest release or select an extracted vm_assets folder." : {
+    "%@ has been connected, but VM assets have not been configured.\nOpen Settings to install VM Assets." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "USB 기기 %@ 준비가 완료되었지만 VM 에셋이 구성되지 않았습니다. 온보딩을 열어 최신 릴리스를 설치하거나 압축을 푼 vm_assets 폴더를 선택하세요."
+            "value" : "%@ 기기가 연결되었지만 VM 에셋이 구성되지 않았습니다. \n설정을 열어 VM Asset을 설치하세요."
           }
         }
       }

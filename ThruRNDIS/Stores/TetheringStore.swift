@@ -586,7 +586,6 @@ final class TetheringStore: ObservableObject {
                 beginAttachmentWorkflow(accessoryID: prompt.accessory.id, requiresRestart: true)
             case .assetsRequired:
                 accessoriesAwaitingAssetSetup.insert(prompt.accessory.id)
-                requestOnboardingPresentation(restart: false)
             }
         } else {
             appendEventLog(
@@ -888,17 +887,7 @@ final class TetheringStore: ObservableObject {
         hasCompletedOnboarding = true
         appendEventLog("Onboarding completed.")
 
-        let waitingAccessoryIDs = accessoriesAwaitingAssetSetup
-        accessoriesAwaitingAssetSetup.removeAll()
-        for accessoryID in waitingAccessoryIDs {
-            guard let record = accessories.first(where: { $0.id == accessoryID }) else {
-                continue
-            }
-            enqueueUSBAttachmentPrompt(
-                USBAttachmentPrompt(accessory: record, kind: .attach)
-            )
-        }
-
+        resumeAttachmentsAwaitingAssetSetup()
         presentNextUSBAttachmentPromptIfNeeded()
     }
 
@@ -983,7 +972,25 @@ final class TetheringStore: ObservableObject {
 
     func assetAvailabilityDidChange() {
         objectWillChange.send()
+        resumeAttachmentsAwaitingAssetSetup()
         presentNextUSBAttachmentPromptIfNeeded()
+    }
+
+    private func resumeAttachmentsAwaitingAssetSetup() {
+        guard hasConfiguredVMAssets, !assetProvider.isBusy else {
+            return
+        }
+
+        let waitingAccessoryIDs = accessoriesAwaitingAssetSetup
+        accessoriesAwaitingAssetSetup.removeAll()
+        for accessoryID in waitingAccessoryIDs {
+            guard let record = accessories.first(where: { $0.id == accessoryID }) else {
+                continue
+            }
+            enqueueUSBAttachmentPrompt(
+                USBAttachmentPrompt(accessory: record, kind: .attach)
+            )
+        }
     }
 
     private func configureCoordinators() {

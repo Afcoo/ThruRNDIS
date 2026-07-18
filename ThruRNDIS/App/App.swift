@@ -134,7 +134,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     }
 
                     self.menuBarController?.present(prompt: prompt) { [weak self] accepted in
-                        self?.store.resolveUSBAttachmentPrompt(accepted: accepted)
+                        guard let self else {
+                            return
+                        }
+
+                        self.store.resolveUSBAttachmentPrompt(accepted: accepted)
+                        if accepted, case .assetsRequired = prompt.kind {
+                            self.showSettingsWindow()
+                        }
                     }
                 }
             }

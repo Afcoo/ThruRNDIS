@@ -33,7 +33,7 @@ struct USBAttachmentPrompt: Identifiable {
         case .replace(_, let previousDeviceName, _):
             return String(localized: "Disconnect \(previousDeviceName) and attach \(accessory.deviceName)?\nThe VM will restart.")
         case .assetsRequired:
-            return String(localized: "USB device \(accessory.deviceName) is ready, but VM assets have not been configured. Open onboarding to install the latest release or select an extracted vm_assets folder.")
+            return String(localized: "\(accessory.deviceName) has been connected, but VM assets have not been configured.\nOpen Settings to install VM Assets.")
         }
     }
 
@@ -44,7 +44,7 @@ struct USBAttachmentPrompt: Identifiable {
         case .replace:
             return String(localized: "Replace & Restart")
         case .assetsRequired:
-            return String(localized: "Open Onboarding")
+            return String(localized: "Open Settings")
         }
     }
 }
