@@ -89,6 +89,39 @@ final class LocalizationResourceTests: XCTestCase {
         )
         XCTAssertEqual(
             koreanBundle.localizedString(
+                forKey: "Connect Automatically Next Time",
+                value: nil,
+                table: nil
+            ),
+            "다음부터 자동 연결"
+        )
+        XCTAssertEqual(
+            koreanBundle.localizedString(
+                forKey: "Connect Automatically When a USB Device Is Attached",
+                value: nil,
+                table: nil
+            ),
+            "USB 기기 연결시 자동으로 연결"
+        )
+        XCTAssertEqual(
+            koreanBundle.localizedString(
+                forKey: "Connect WireGuard?",
+                value: nil,
+                table: nil
+            ),
+            "WireGuard에 연결할까요?"
+        )
+        let wireGuardPromptFormat = koreanBundle.localizedString(
+            forKey: "%@ is being connected. Connect to WireGuard when the connection is complete?",
+            value: nil,
+            table: nil
+        )
+        XCTAssertEqual(
+            String(format: wireGuardPromptFormat, "Android USB"),
+            "Android USB 기기를 연결하는 중입니다. 연결이 완료되면 WireGuard에 연결할까요?"
+        )
+        XCTAssertEqual(
+            koreanBundle.localizedString(
                 forKey: "Detach the current USB accessory before attaching another USB accessory.",
                 value: nil,
                 table: nil
@@ -515,6 +548,7 @@ final class TetheringStoreObservationTests: XCTestCase {
             defaults: defaults
         )
         store.shouldAskToAttachDetectedUSBDevices = false
+        store.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches = true
         store.wireGuardDNSServersText = "9.9.9.9"
         store.wireGuardEndpointText = "vpn.example.com:51820"
         store.wireGuardAllowedIPsText = "10.0.0.0/8"
@@ -525,6 +559,10 @@ final class TetheringStoreObservationTests: XCTestCase {
         XCTAssertTrue(didReset)
         XCTAssertTrue(store.shouldAskToAttachDetectedUSBDevices)
         XCTAssertNil(defaults.object(forKey: "USB.askToAttachDetectedDevices"))
+        XCTAssertFalse(store.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches)
+        XCTAssertNil(
+            defaults.object(forKey: "WireGuard.connectAutomaticallyWhenUSBDeviceAttaches")
+        )
         XCTAssertEqual(store.wireGuardDNSServersText, "")
         XCTAssertEqual(store.wireGuardEndpointText, "")
         XCTAssertEqual(store.wireGuardAllowedIPsText, "")
@@ -744,6 +782,469 @@ final class TetheringStoreObservationTests: XCTestCase {
         usbCoordinator.onAccessoryAvailable?(record)
 
         XCTAssertEqual(usbSession.attachmentPrompt?.accessory.id, record.id)
+    }
+
+    func testWireGuardUSBAutoConnectPreferenceDefaultsToDisabledAndPersists() throws {
+        let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let makeStore = {
+            TetheringStore(
+                assetProvider: ObservationTestAssetProvider(),
+                vmCoordinator: ObservationTestVMCoordinator(),
+                usbCoordinator: USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor()),
+                wireGuardConfigurationStore: ObservationTestWireGuardStore(),
+                wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
+                eventLog: EventLogStore(),
+                consoleSession: ConsoleSessionStore(),
+                usbSession: USBSessionStore(),
+                vmConfiguration: VMConfigurationStore(defaults: defaults),
+                hostWireGuardTunnelController: ObservationTestHostWireGuardTunnelController(),
+                defaults: defaults
+            )
+        }
+
+        let store = makeStore()
+
+        XCTAssertFalse(store.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches)
+        XCTAssertNil(
+            defaults.object(forKey: "WireGuard.connectAutomaticallyWhenUSBDeviceAttaches")
+        )
+
+        store.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches = true
+
+        XCTAssertEqual(
+            defaults.object(
+                forKey: "WireGuard.connectAutomaticallyWhenUSBDeviceAttaches"
+            ) as? Bool,
+            true
+        )
+        XCTAssertTrue(makeStore().shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches)
+    }
+
+    func testManualUSBAttachmentEntryPointsPromptAndRequireAcceptanceForFutureAutomaticConnections() throws {
+        let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let vmCoordinator = ObservationTestVMCoordinator()
+        let usbCoordinator = ObservationTestUSBCoordinator()
+        let usbSession = USBSessionStore()
+        let eventLog = EventLogStore()
+        let runtimeEntitlements = RuntimeEntitlementSnapshot(
+            accessoryAccessUSB: true,
+            packetTunnelProvider: true,
+            systemExtensionInstall: true,
+            virtualization: true
+        )
+        let store = TetheringStore(
+            assetProvider: ObservationTestAssetProvider(),
+            vmCoordinator: vmCoordinator,
+            usbCoordinator: usbCoordinator,
+            wireGuardConfigurationStore: ObservationTestWireGuardStore(),
+            wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
+            eventLog: eventLog,
+            consoleSession: ConsoleSessionStore(),
+            usbSession: usbSession,
+            vmConfiguration: VMConfigurationStore(defaults: defaults),
+            hostWireGuardTunnelController: ObservationTestHostWireGuardTunnelController(),
+            runtimeEntitlementSnapshotProvider: { runtimeEntitlements },
+            defaults: defaults
+        )
+        let accessory = USBAccessoryRecord(
+            id: 42,
+            deviceName: "Test USB Device",
+            deviceDescriptorData: Data(repeating: 0, count: 18),
+            configurationDescriptorData: Data([9, 2, 9, 0, 0, 1, 0, 0x80, 50])
+        )
+        usbCoordinator.setAvailableAccessories(
+            [accessory],
+            selectedAccessoryID: accessory.id
+        )
+        vmCoordinator.onStateChange?(.starting, "VM starting")
+        store.requestAttachSelectedAccessory()
+        let declinedPrompt = try XCTUnwrap(store.wireGuardConnectionPrompt)
+        XCTAssertEqual(declinedPrompt.accessory.id, accessory.id)
+        store.resolveWireGuardConnectionPrompt(
+            id: declinedPrompt.id,
+            accepted: false,
+            shouldAutomaticallyConnectNextTime: true
+        )
+
+        XCTAssertFalse(store.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches)
+        XCTAssertNil(
+            defaults.object(forKey: "WireGuard.connectAutomaticallyWhenUSBDeviceAttaches")
+        )
+
+        vmCoordinator.onStateChange?(.failed, "VM failed")
+        vmCoordinator.onStateChange?(.starting, "VM starting")
+        store.requestAttachAccessory(id: accessory.id)
+        let acceptedPrompt = try XCTUnwrap(store.wireGuardConnectionPrompt)
+        XCTAssertEqual(acceptedPrompt.accessory.id, accessory.id)
+        store.resolveWireGuardConnectionPrompt(
+            id: acceptedPrompt.id,
+            accepted: true,
+            shouldAutomaticallyConnectNextTime: true
+        )
+
+        XCTAssertTrue(store.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches)
+        XCTAssertEqual(
+            defaults.object(
+                forKey: "WireGuard.connectAutomaticallyWhenUSBDeviceAttaches"
+            ) as? Bool,
+            true
+        )
+        XCTAssertFalse(
+            eventLog.text.contains(
+                "is no longer part of the current attachment workflow"
+            )
+        )
+
+        vmCoordinator.onStateChange?(.failed, "VM failed")
+        vmCoordinator.onStateChange?(.starting, "VM starting")
+        let queuedConnectionMessage =
+            "WireGuard connection queued for USB registry 0x2A"
+        let queuedConnectionCount = eventLog.text.components(
+            separatedBy: queuedConnectionMessage
+        ).count
+        store.requestAttachAccessory(id: accessory.id)
+
+        XCTAssertNil(store.wireGuardConnectionPrompt)
+        XCTAssertEqual(
+            eventLog.text.components(separatedBy: queuedConnectionMessage).count,
+            queuedConnectionCount + 1
+        )
+    }
+
+    func testDetectedUSBAttachmentApprovalPresentsWireGuardPrompt() throws {
+        let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let vmCoordinator = ObservationTestVMCoordinator()
+        let usbCoordinator = ObservationTestUSBCoordinator()
+        let usbSession = USBSessionStore()
+        let runtimeEntitlements = RuntimeEntitlementSnapshot(
+            accessoryAccessUSB: true,
+            packetTunnelProvider: true,
+            systemExtensionInstall: true,
+            virtualization: true
+        )
+        let store = TetheringStore(
+            assetProvider: ObservationTestAssetProvider(),
+            vmCoordinator: vmCoordinator,
+            usbCoordinator: usbCoordinator,
+            wireGuardConfigurationStore: ObservationTestWireGuardStore(),
+            wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
+            eventLog: EventLogStore(),
+            consoleSession: ConsoleSessionStore(),
+            usbSession: usbSession,
+            vmConfiguration: VMConfigurationStore(defaults: defaults),
+            hostWireGuardTunnelController: ObservationTestHostWireGuardTunnelController(),
+            runtimeEntitlementSnapshotProvider: { runtimeEntitlements },
+            defaults: defaults
+        )
+        let accessory = USBAccessoryRecord(
+            id: 42,
+            deviceName: "Test USB Device",
+            deviceDescriptorData: Data(repeating: 0, count: 18),
+            configurationDescriptorData: Data([9, 2, 9, 0, 0, 1, 0, 0x80, 50])
+        )
+        vmCoordinator.onStateChange?(.starting, "VM starting")
+
+        usbCoordinator.simulateAccessoryAvailable(accessory)
+        XCTAssertEqual(usbSession.attachmentPrompt?.accessory.id, accessory.id)
+
+        store.resolveUSBAttachmentPrompt(accepted: true)
+
+        XCTAssertNil(usbSession.attachmentPrompt)
+        XCTAssertEqual(store.wireGuardConnectionPrompt?.accessory.id, accessory.id)
+    }
+
+    func testWireGuardPromptBlocksNextQueuedUSBPromptDuringSelectionStateChange() throws {
+        let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let vmCoordinator = ObservationTestVMCoordinator()
+        let usbCoordinator = ObservationTestUSBCoordinator()
+        let usbSession = USBSessionStore()
+        let store = TetheringStore(
+            assetProvider: ObservationTestAssetProvider(),
+            vmCoordinator: vmCoordinator,
+            usbCoordinator: usbCoordinator,
+            wireGuardConfigurationStore: ObservationTestWireGuardStore(),
+            wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
+            eventLog: EventLogStore(),
+            consoleSession: ConsoleSessionStore(),
+            usbSession: usbSession,
+            vmConfiguration: VMConfigurationStore(defaults: defaults),
+            hostWireGuardTunnelController: ObservationTestHostWireGuardTunnelController(),
+            defaults: defaults
+        )
+        let firstAccessory = USBAccessoryRecord(
+            id: 42,
+            deviceName: "First USB Device",
+            deviceDescriptorData: Data(repeating: 0, count: 18),
+            configurationDescriptorData: Data([9, 2, 9, 0, 0, 1, 0, 0x80, 50])
+        )
+        let secondAccessory = USBAccessoryRecord(
+            id: 43,
+            deviceName: "Second USB Device",
+            deviceDescriptorData: Data(repeating: 1, count: 18),
+            configurationDescriptorData: Data([9, 2, 9, 0, 0, 1, 0, 0x80, 50])
+        )
+        vmCoordinator.onStateChange?(.starting, "VM starting")
+        usbCoordinator.simulateAccessoryAvailable(firstAccessory)
+        usbCoordinator.simulateAccessoryAvailable(secondAccessory)
+
+        XCTAssertEqual(usbSession.attachmentPrompt?.accessory.id, firstAccessory.id)
+
+        store.resolveUSBAttachmentPrompt(accepted: true)
+
+        XCTAssertNil(usbSession.attachmentPrompt)
+        XCTAssertEqual(
+            store.wireGuardConnectionPrompt?.accessory.id,
+            firstAccessory.id
+        )
+    }
+
+    func testWireGuardConnectionRequestSurvivesVMStopWhenUSBAttachmentWillResume() throws {
+        let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let vmCoordinator = ObservationTestVMCoordinator()
+        let usbCoordinator = ObservationTestUSBCoordinator()
+        let usbSession = USBSessionStore()
+        let eventLog = EventLogStore()
+        let runtimeEntitlements = RuntimeEntitlementSnapshot(
+            accessoryAccessUSB: true,
+            packetTunnelProvider: true,
+            systemExtensionInstall: true,
+            virtualization: true
+        )
+        let store = TetheringStore(
+            assetProvider: ObservationTestAssetProvider(),
+            vmCoordinator: vmCoordinator,
+            usbCoordinator: usbCoordinator,
+            wireGuardConfigurationStore: ObservationTestWireGuardStore(),
+            wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
+            eventLog: eventLog,
+            consoleSession: ConsoleSessionStore(),
+            usbSession: usbSession,
+            vmConfiguration: VMConfigurationStore(defaults: defaults),
+            hostWireGuardTunnelController: ObservationTestHostWireGuardTunnelController(),
+            runtimeEntitlementSnapshotProvider: { runtimeEntitlements },
+            defaults: defaults
+        )
+        let accessory = USBAccessoryRecord(
+            id: 42,
+            deviceName: "Test USB Device",
+            deviceDescriptorData: Data(repeating: 0, count: 18),
+            configurationDescriptorData: Data([9, 2, 9, 0, 0, 1, 0, 0x80, 50])
+        )
+        usbCoordinator.setAvailableAccessories(
+            [accessory],
+            selectedAccessoryID: accessory.id
+        )
+        vmCoordinator.onStateChange?(.stopping, "VM stopping")
+
+        store.requestAttachAccessory(id: accessory.id)
+        let prompt = try XCTUnwrap(store.wireGuardConnectionPrompt)
+        store.resolveWireGuardConnectionPrompt(
+            id: prompt.id,
+            accepted: true,
+            shouldAutomaticallyConnectNextTime: false
+        )
+
+        vmCoordinator.onStateChange?(.stopped, "VM stopped")
+        vmCoordinator.onStopped?()
+
+        XCTAssertEqual(vmCoordinator.startCallCount, 1)
+        XCTAssertFalse(
+            eventLog.text.contains(
+                "Pending WireGuard connection cancelled for USB registry 0x2A: VM stopped."
+            )
+        )
+
+        vmCoordinator.onStateChange?(.failed, "VM failed")
+
+        XCTAssertTrue(
+            eventLog.text.contains(
+                "Pending WireGuard connection cancelled for USB registry 0x2A: " +
+                    "VM start or runtime failure."
+            )
+        )
+    }
+
+    func testVMFailureAndAccessoryLossClearWireGuardPrompt() throws {
+        let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let vmCoordinator = ObservationTestVMCoordinator()
+        let usbCoordinator = ObservationTestUSBCoordinator()
+        let usbSession = USBSessionStore()
+        let runtimeEntitlements = RuntimeEntitlementSnapshot(
+            accessoryAccessUSB: true,
+            packetTunnelProvider: true,
+            systemExtensionInstall: true,
+            virtualization: true
+        )
+        let store = TetheringStore(
+            assetProvider: ObservationTestAssetProvider(),
+            vmCoordinator: vmCoordinator,
+            usbCoordinator: usbCoordinator,
+            wireGuardConfigurationStore: ObservationTestWireGuardStore(),
+            wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
+            eventLog: EventLogStore(),
+            consoleSession: ConsoleSessionStore(),
+            usbSession: usbSession,
+            vmConfiguration: VMConfigurationStore(defaults: defaults),
+            hostWireGuardTunnelController: ObservationTestHostWireGuardTunnelController(),
+            runtimeEntitlementSnapshotProvider: { runtimeEntitlements },
+            defaults: defaults
+        )
+        let accessory = USBAccessoryRecord(
+            id: 42,
+            deviceName: "Test USB Device",
+            deviceDescriptorData: Data(repeating: 0, count: 18),
+            configurationDescriptorData: Data([9, 2, 9, 0, 0, 1, 0, 0x80, 50])
+        )
+        usbCoordinator.setAvailableAccessories(
+            [accessory],
+            selectedAccessoryID: accessory.id
+        )
+        vmCoordinator.onStateChange?(.starting, "VM starting")
+        store.requestAttachAccessory(id: accessory.id)
+        XCTAssertEqual(store.wireGuardConnectionPrompt?.accessory.id, accessory.id)
+
+        vmCoordinator.onStateChange?(.failed, "VM failed")
+        XCTAssertNil(store.wireGuardConnectionPrompt)
+
+        vmCoordinator.onStateChange?(.starting, "VM starting")
+        store.requestAttachAccessory(id: accessory.id)
+        XCTAssertEqual(store.wireGuardConnectionPrompt?.accessory.id, accessory.id)
+
+        usbCoordinator.simulateAccessoryUnavailable(accessory.id)
+        XCTAssertNil(store.wireGuardConnectionPrompt)
+    }
+
+    func testUSBAttachmentFailureDismissesWireGuardPrompt() throws {
+        let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let vmCoordinator = ObservationTestVMCoordinator()
+        let usbCoordinator = ObservationTestUSBCoordinator()
+        let eventLog = EventLogStore()
+        let runtimeEntitlements = RuntimeEntitlementSnapshot(
+            accessoryAccessUSB: true,
+            packetTunnelProvider: true,
+            systemExtensionInstall: true,
+            virtualization: true
+        )
+        let store = TetheringStore(
+            assetProvider: ObservationTestAssetProvider(),
+            vmCoordinator: vmCoordinator,
+            usbCoordinator: usbCoordinator,
+            wireGuardConfigurationStore: ObservationTestWireGuardStore(),
+            wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
+            eventLog: eventLog,
+            consoleSession: ConsoleSessionStore(),
+            usbSession: USBSessionStore(),
+            vmConfiguration: VMConfigurationStore(defaults: defaults),
+            hostWireGuardTunnelController: ObservationTestHostWireGuardTunnelController(),
+            runtimeEntitlementSnapshotProvider: { runtimeEntitlements },
+            defaults: defaults
+        )
+        let accessory = USBAccessoryRecord(
+            id: 42,
+            deviceName: "Test USB Device",
+            deviceDescriptorData: Data(repeating: 0, count: 18),
+            configurationDescriptorData: Data([9, 2, 9, 0, 0, 1, 0, 0x80, 50])
+        )
+        usbCoordinator.setAvailableAccessories(
+            [accessory],
+            selectedAccessoryID: accessory.id
+        )
+        vmCoordinator.onStateChange?(.running, "VM running")
+
+        store.requestAttachAccessory(id: accessory.id)
+        XCTAssertEqual(store.wireGuardConnectionPrompt?.accessory.id, accessory.id)
+        XCTAssertEqual(usbCoordinator.pendingAttachAccessoryID, accessory.id)
+
+        usbCoordinator.completeAttachment(success: false)
+
+        XCTAssertNil(store.wireGuardConnectionPrompt)
+        XCTAssertTrue(
+            eventLog.text.contains(
+                "Pending WireGuard connection cancelled for USB registry 0x2A: " +
+                    "approved USB attachment failed."
+            )
+        )
+    }
+
+    func testAutomaticWireGuardConnectionForUSBAttachmentWaitsForEndpointAndConnectsOnce() async throws {
+        let suiteName = "TetheringStoreObservationTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let vmCoordinator = ObservationTestVMCoordinator()
+        vmCoordinator.canSendConsoleInput = true
+        let usbCoordinator = ObservationTestUSBCoordinator()
+        let tunnelController = ObservationTestHostWireGuardTunnelController()
+        let runtimeEntitlements = RuntimeEntitlementSnapshot(
+            accessoryAccessUSB: true,
+            packetTunnelProvider: true,
+            systemExtensionInstall: true,
+            virtualization: true
+        )
+        let accessory = USBAccessoryRecord(
+            id: 42,
+            deviceName: "Test USB Device",
+            deviceDescriptorData: Data(repeating: 0, count: 18),
+            configurationDescriptorData: Data([9, 2, 9, 0, 0, 1, 0, 0x80, 50])
+        )
+        let store = TetheringStore(
+            assetProvider: ObservationTestAssetProvider(),
+            vmCoordinator: vmCoordinator,
+            usbCoordinator: usbCoordinator,
+            wireGuardConfigurationStore: ObservationTestWireGuardStore(),
+            wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
+            eventLog: EventLogStore(),
+            consoleSession: ConsoleSessionStore(),
+            usbSession: USBSessionStore(),
+            vmConfiguration: VMConfigurationStore(defaults: defaults),
+            hostWireGuardTunnelController: tunnelController,
+            runtimeEntitlementSnapshotProvider: { runtimeEntitlements },
+            defaults: defaults
+        )
+
+        tunnelController.onSystemExtensionStatusChange?(.active)
+        store.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches = true
+        usbCoordinator.setAvailableAccessories(
+            [accessory],
+            selectedAccessoryID: accessory.id
+        )
+        vmCoordinator.onStateChange?(.running, "VM running")
+        store.requestAttachAccessory(id: accessory.id)
+
+        XCTAssertNil(store.wireGuardConnectionPrompt)
+        XCTAssertEqual(usbCoordinator.pendingAttachAccessoryID, accessory.id)
+
+        usbCoordinator.completeAttachment(success: true)
+
+        await Task.yield()
+        XCTAssertEqual(tunnelController.connectCallCount, 0)
+
+        vmCoordinator.onConsoleOutput?(
+            Data("THRURNDIS_WG_ENDPOINT=192.168.64.2:51820\n".utf8)
+        )
+        await Task.yield()
+
+        XCTAssertEqual(tunnelController.connectCallCount, 1)
+
+        vmCoordinator.onConsoleOutput?(
+            Data("THRURNDIS_WG_ENDPOINT=192.168.64.2:51820\n".utf8)
+        )
+        await Task.yield()
+
+        XCTAssertEqual(tunnelController.connectCallCount, 1)
     }
 
     func testSystemExtensionStatusUpdatesStoreAndFailsClosed() throws {
@@ -1444,6 +1945,165 @@ private final class ObservationTestUSBMonitor: USBAccessoryMonitoring {
     func stop(completion: (() -> Void)?) {
         stopCallCount += 1
         completion?()
+    }
+}
+
+@MainActor
+private final class ObservationTestUSBCoordinator: USBAccessoryCoordinating {
+    var onStateChange: (() -> Void)?
+    var onStatusMessage: ((String) -> Void)?
+    var onEventLog: ((String) -> Void)?
+    var onAccessoryAvailable: ((USBAccessoryRecord) -> Void)?
+    var onAccessoryUnavailable: ((UInt64) -> Void)?
+    var onUnexpectedDetach: ((UInt64, String) -> Void)?
+    var runtimeStateProvider: (() -> VMRuntimeState)?
+
+    private(set) var accessories: [USBAccessoryRecord] = []
+    private(set) var isAccessoryMonitoring = false
+    private(set) var selectedAccessoryID: UInt64?
+    private(set) var attachedAccessoryID: UInt64?
+    private(set) var vmSessionAccessoryID: UInt64?
+    private(set) var pendingAttachAccessoryID: UInt64?
+
+    private var pendingAttachCompletion: ((Bool) -> Void)?
+
+    var canStartMonitoring: Bool {
+        !isAccessoryMonitoring
+    }
+
+    var canStopMonitoring: Bool {
+        isAccessoryMonitoring
+    }
+
+    var canReloadMonitoring: Bool {
+        isAccessoryMonitoring
+    }
+
+    func canRequestAttachment(for accessoryID: UInt64) -> Bool {
+        accessories.contains { $0.id == accessoryID }
+            && pendingAttachAccessoryID == nil
+            && vmSessionAccessoryID == nil
+            && attachedAccessoryID != accessoryID
+    }
+
+    func canDetachAccessory(runtimeState: VMRuntimeState) -> Bool {
+        runtimeState == .running && attachedAccessoryID != nil
+    }
+
+    func selectAccessory(id: UInt64?) {
+        selectedAccessoryID = id
+        onStateChange?()
+    }
+
+    func startMonitoring(reason: String, completion: (() -> Void)?) {
+        isAccessoryMonitoring = true
+        onStateChange?()
+        completion?()
+    }
+
+    func stopMonitoring(reason: String, completion: (() -> Void)?) {
+        isAccessoryMonitoring = false
+        accessories.removeAll()
+        selectedAccessoryID = nil
+        onStateChange?()
+        completion?()
+    }
+
+    func reloadMonitoring(reason: String) {
+        onStateChange?()
+    }
+
+    func prepareForIntentionalVMStop() {}
+
+    func resetForVMStart() {
+        clearAttachmentState()
+        onStateChange?()
+    }
+
+    func clearAttachmentForStoppedVM() {
+        clearAttachmentState()
+        onStateChange?()
+    }
+
+    func attachAccessory(
+        id accessoryID: UInt64,
+        to virtualMachine: VZVirtualMachine?,
+        completion: ((Bool) -> Void)?
+    ) {
+        guard canRequestAttachment(for: accessoryID) else {
+            completion?(false)
+            return
+        }
+
+        pendingAttachAccessoryID = accessoryID
+        pendingAttachCompletion = completion
+        selectedAccessoryID = accessoryID
+        onStateChange?()
+    }
+
+    func handlePassthroughDisconnect(device: VZUSBPassthroughDevice) {}
+
+    func setAvailableAccessories(
+        _ accessories: [USBAccessoryRecord],
+        selectedAccessoryID: UInt64?
+    ) {
+        self.accessories = accessories
+        self.selectedAccessoryID = selectedAccessoryID
+        onStateChange?()
+    }
+
+    func simulateAccessoryAvailable(_ accessory: USBAccessoryRecord) {
+        accessories.removeAll { $0.id == accessory.id }
+        accessories.append(accessory)
+        accessories.sort { $0.usbIDText < $1.usbIDText }
+        if selectedAccessoryID == nil {
+            selectedAccessoryID = accessory.id
+        }
+        onStateChange?()
+        onAccessoryAvailable?(accessory)
+    }
+
+    func simulateAccessoryUnavailable(_ accessoryID: UInt64) {
+        accessories.removeAll { $0.id == accessoryID }
+        if selectedAccessoryID == accessoryID {
+            selectedAccessoryID = accessories.first?.id
+        }
+        if attachedAccessoryID == accessoryID {
+            attachedAccessoryID = nil
+        }
+        if vmSessionAccessoryID == accessoryID {
+            vmSessionAccessoryID = nil
+        }
+        if pendingAttachAccessoryID == accessoryID {
+            pendingAttachAccessoryID = nil
+            pendingAttachCompletion = nil
+        }
+        onStateChange?()
+        onAccessoryUnavailable?(accessoryID)
+    }
+
+    func completeAttachment(success: Bool) {
+        guard let accessoryID = pendingAttachAccessoryID else {
+            XCTFail("No USB attachment is pending.")
+            return
+        }
+
+        let completion = pendingAttachCompletion
+        pendingAttachAccessoryID = nil
+        pendingAttachCompletion = nil
+        if success {
+            attachedAccessoryID = accessoryID
+            vmSessionAccessoryID = accessoryID
+        }
+        onStateChange?()
+        completion?(success)
+    }
+
+    private func clearAttachmentState() {
+        attachedAccessoryID = nil
+        vmSessionAccessoryID = nil
+        pendingAttachAccessoryID = nil
+        pendingAttachCompletion = nil
     }
 }
 

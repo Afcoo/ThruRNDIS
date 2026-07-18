@@ -63,6 +63,22 @@
         }
       }
     },
+    "%@ is being connected. Connect to WireGuard when the connection is complete?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ is being connected. Connect to WireGuard when the connection is complete?"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ 기기를 연결하는 중입니다. 연결이 완료되면 WireGuard에 연결할까요?"
+          }
+        }
+      }
+    },
     "A newer WireGuard tunnel operation superseded this request." : {
       "localizations" : {
         "ko" : {
@@ -459,12 +475,42 @@
         }
       }
     },
+    "Connect Automatically Next Time" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다음부터 자동 연결"
+          }
+        }
+      }
+    },
+    "Connect Automatically When a USB Device Is Attached" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "USB 기기 연결시 자동으로 연결"
+          }
+        }
+      }
+    },
     "Connect WireGuard" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "WireGuard 연결"
+          }
+        }
+      }
+    },
+    "Connect WireGuard?" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WireGuard에 연결할까요?"
           }
         }
       }

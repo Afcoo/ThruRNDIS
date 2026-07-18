@@ -164,6 +164,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var isMenuOpen = false
     private var isPresentationRefreshScheduled = false
     private var isPresentingPrompt = false
+    private var activeWireGuardPromptPresentation: (id: UUID, alert: NSAlert)?
 
     init(
         store: TetheringStore,
@@ -237,6 +238,61 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         let response = alert.runModal()
         isPresentingPrompt = false
         completion(response == .alertFirstButtonReturn)
+    }
+
+    func present(
+        prompt: WireGuardConnectionPrompt,
+        completion: @escaping (_ accepted: Bool, _ shouldAutomaticallyConnectNextTime: Bool) -> Void
+    ) {
+        guard !isPresentingPrompt else {
+            return
+        }
+
+        isPresentingPrompt = true
+        menu.cancelTracking()
+        NSApp.activate(ignoringOtherApps: true)
+
+        let alert = NSAlert()
+        alert.messageText = prompt.title
+        alert.informativeText = prompt.message
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: String(localized: "Connect"))
+        alert.addButton(withTitle: String(localized: "Not Now"))
+
+        let automaticConnectionCheckbox = NSButton(
+            checkboxWithTitle: String(localized: "Connect Automatically Next Time"),
+            target: nil,
+            action: nil
+        )
+        alert.accessoryView = automaticConnectionCheckbox
+
+        activeWireGuardPromptPresentation = (prompt.id, alert)
+        let response = alert.runModal()
+        isPresentingPrompt = false
+
+        guard activeWireGuardPromptPresentation?.id == prompt.id else {
+            return
+        }
+
+        activeWireGuardPromptPresentation = nil
+        completion(
+            response == .alertFirstButtonReturn,
+            automaticConnectionCheckbox.state == .on
+        )
+    }
+
+    func dismissWireGuardConnectionPrompt() {
+        guard let presentation = activeWireGuardPromptPresentation else {
+            return
+        }
+
+        activeWireGuardPromptPresentation = nil
+        guard NSApp.modalWindow === presentation.alert.window else {
+            return
+        }
+
+        NSApp.abortModal()
+        presentation.alert.window.orderOut(nil)
     }
 
     private func updateStatusButton() {

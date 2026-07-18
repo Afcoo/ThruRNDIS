@@ -41,3 +41,18 @@ struct USBAttachmentPrompt: Identifiable {
         }
     }
 }
+
+struct WireGuardConnectionPrompt: Identifiable {
+    let id = UUID()
+    let accessory: USBAccessoryRecord
+
+    var title: String {
+        String(localized: "Connect WireGuard?")
+    }
+
+    var message: String {
+        String(
+            localized: "\(accessory.deviceName) is being connected. Connect to WireGuard when the connection is complete?"
+        )
+    }
+}

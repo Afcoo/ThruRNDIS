@@ -150,6 +150,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .store(in: &cancellables)
 
+        store.$wireGuardConnectionPrompt
+            .sink { [weak self] prompt in
+                DispatchQueue.main.async { [weak self] in
+                    guard let self else {
+                        return
+                    }
+
+                    guard let prompt else {
+                        guard self.store.wireGuardConnectionPrompt == nil else {
+                            return
+                        }
+                        self.menuBarController?.dismissWireGuardConnectionPrompt()
+                        return
+                    }
+
+                    guard self.store.wireGuardConnectionPrompt?.id == prompt.id else {
+                        return
+                    }
+                    self.menuBarController?.present(prompt: prompt) {
+                        [weak self] accepted, shouldAutomaticallyConnectNextTime in
+                        self?.store.resolveWireGuardConnectionPrompt(
+                            id: prompt.id,
+                            accepted: accepted,
+                            shouldAutomaticallyConnectNextTime: shouldAutomaticallyConnectNextTime
+                        )
+                    }
+                }
+            }
+            .store(in: &cancellables)
+
         assetWorkflowCoordinator.$installState
             .sink { [weak self] _ in
                 guard let self else {

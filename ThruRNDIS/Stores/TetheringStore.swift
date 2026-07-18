@@ -19,6 +19,7 @@ final class TetheringStore: ObservableObject {
     @Published private(set) var hostWireGuardTunnelStatus: HostWireGuardTunnelStatus = .unconfigured
     @Published private(set) var wireGuardSystemExtensionStatus: WireGuardSystemExtensionStatus = .unknown
     @Published private(set) var isWireGuardSystemExtensionActivationInProgress = false
+    @Published private(set) var wireGuardConnectionPrompt: WireGuardConnectionPrompt?
     @Published private(set) var discoveredWireGuardEndpoint: String?
     @Published private(set) var invalidWireGuardConnectionFields: Set<WireGuardConnectionField> = []
     @Published private var wireGuardKeyMaterial: WireGuardKeyMaterial?
@@ -26,18 +27,21 @@ final class TetheringStore: ObservableObject {
         didSet {
             defaults.set(wireGuardDNSServersText, forKey: DefaultsKey.wireGuardDNSServersText)
             revalidateWireGuardConnectionField(.dnsServers)
+            attemptPendingWireGuardConnectionIfReady()
         }
     }
     @Published var wireGuardEndpointText: String {
         didSet {
             defaults.set(wireGuardEndpointText, forKey: DefaultsKey.wireGuardEndpointText)
             revalidateWireGuardConnectionField(.endpoint)
+            attemptPendingWireGuardConnectionIfReady()
         }
     }
     @Published var wireGuardAllowedIPsText: String {
         didSet {
             defaults.set(wireGuardAllowedIPsText, forKey: DefaultsKey.wireGuardAllowedIPsText)
             revalidateWireGuardConnectionField(.allowedIPs)
+            attemptPendingWireGuardConnectionIfReady()
         }
     }
     @Published var shouldAskToAttachDetectedUSBDevices: Bool {
@@ -45,6 +49,14 @@ final class TetheringStore: ObservableObject {
             defaults.set(
                 shouldAskToAttachDetectedUSBDevices,
                 forKey: DefaultsKey.shouldAskToAttachDetectedUSBDevices
+            )
+        }
+    }
+    @Published var shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches: Bool {
+        didSet {
+            defaults.set(
+                shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches,
+                forKey: DefaultsKey.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches
             )
         }
     }
@@ -64,7 +76,7 @@ final class TetheringStore: ObservableObject {
     let vmConfiguration: VMConfigurationStore
 
     private let vmCoordinator: any VMCoordinating
-    private let usbCoordinator: USBAccessoryCoordinator
+    private let usbCoordinator: any USBAccessoryCoordinating
     private let assetProvider: VMAssetProviding
     private let wireGuardConfigurationStore: any WireGuardConfigurationStoring
     private let wireGuardConfigurationBuilder: WireGuardConfigurationBuilder
@@ -75,6 +87,7 @@ final class TetheringStore: ObservableObject {
     private let defaults: UserDefaults
     private var hostWireGuardConnectTask: Task<Void, Never>?
     private var hostWireGuardConnectTaskID: UUID?
+    private var pendingWireGuardConnectionAccessoryID: UInt64?
     private var wireGuardSystemExtensionActivationTask: Task<Void, Never>?
     private var isPreparingForApplicationTermination = false
     private var didRequestLaunchAccessoryMonitoring = false
@@ -316,7 +329,7 @@ final class TetheringStore: ObservableObject {
     init(
         assetProvider: VMAssetProviding,
         vmCoordinator: any VMCoordinating,
-        usbCoordinator: USBAccessoryCoordinator,
+        usbCoordinator: any USBAccessoryCoordinating,
         wireGuardConfigurationStore: any WireGuardConfigurationStoring,
         wireGuardConfigurationBuilder: WireGuardConfigurationBuilder,
         eventLog: EventLogStore,
@@ -370,6 +383,9 @@ final class TetheringStore: ObservableObject {
         ) == nil
             ? true
             : defaults.bool(forKey: DefaultsKey.shouldAskToAttachDetectedUSBDevices)
+        self.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches = defaults.bool(
+            forKey: DefaultsKey.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches
+        )
         configureCoordinators()
         configureHostWireGuardTunnelController()
         prepareWireGuardConfiguration()
@@ -470,7 +486,10 @@ final class TetheringStore: ObservableObject {
             statusMessage = String(localized: "Wait for the current USB attachment workflow before stopping the listener.")
             return
         }
-        usbCoordinator.stopMonitoring(reason: "User stopped USB listener.")
+        usbCoordinator.stopMonitoring(
+            reason: "User stopped USB listener.",
+            completion: nil
+        )
     }
 
     func reloadAccessoryMonitoring() {
@@ -569,6 +588,7 @@ final class TetheringStore: ObservableObject {
 
     private func stopVirtualMachine(reason: String) {
         isRestartingVirtualMachine = false
+        cancelPendingWireGuardConnection(reason: reason)
         cancelPendingAttachment(reason: reason)
         usbCoordinator.prepareForIntentionalVMStop()
         vmCoordinator.stop()
@@ -644,7 +664,9 @@ final class TetheringStore: ObservableObject {
             return
         }
 
-        beginAttachmentWorkflow(accessoryID: accessoryID)
+        if beginAttachmentWorkflow(accessoryID: accessoryID) {
+            prepareWireGuardConnectionForUSBAttachment(record)
+        }
     }
 
     func detachAccessory() {
@@ -664,7 +686,9 @@ final class TetheringStore: ObservableObject {
         if accepted {
             switch prompt.kind {
             case .attach:
-                beginAttachmentWorkflow(accessoryID: prompt.accessory.id)
+                if beginAttachmentWorkflow(accessoryID: prompt.accessory.id) {
+                    prepareWireGuardConnectionForUSBAttachment(prompt.accessory)
+                }
             case .assetsRequired:
                 accessoriesAwaitingAssetSetup.insert(prompt.accessory.id)
             }
@@ -678,12 +702,80 @@ final class TetheringStore: ObservableObject {
         presentNextUSBAttachmentPromptIfNeeded()
     }
 
+    func resolveWireGuardConnectionPrompt(
+        id promptID: UUID,
+        accepted: Bool,
+        shouldAutomaticallyConnectNextTime: Bool
+    ) {
+        guard let prompt = wireGuardConnectionPrompt,
+              prompt.id == promptID else {
+            appendEventLog(
+                "Ignoring a stale WireGuard connection prompt response.",
+                source: .wireGuard
+            )
+            return
+        }
+
+        wireGuardConnectionPrompt = nil
+        defer { presentNextUSBAttachmentPromptIfNeeded() }
+
+        guard accepted else {
+            appendEventLog(
+                "Automatic WireGuard connection declined for USB registry " +
+                    "\(prompt.accessory.registryIDText).",
+                source: .wireGuard
+            )
+            return
+        }
+
+        if shouldAutomaticallyConnectNextTime {
+            shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches = true
+        }
+
+        guard pendingAttachmentAccessoryID == prompt.accessory.id
+                || attachedAccessoryID == prompt.accessory.id
+                || vmSessionAccessoryID == prompt.accessory.id else {
+            appendEventLog(
+                "WireGuard connection request ignored because USB registry " +
+                    "\(prompt.accessory.registryIDText) is no longer part of the current attachment workflow.",
+                source: .wireGuard
+            )
+            return
+        }
+
+        requestWireGuardConnectionAfterUSBAttachment(
+            accessoryID: prompt.accessory.id
+        )
+    }
+
+    private func prepareWireGuardConnectionForUSBAttachment(
+        _ accessory: USBAccessoryRecord
+    ) {
+        if shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches {
+            requestWireGuardConnectionAfterUSBAttachment(accessoryID: accessory.id)
+        } else {
+            wireGuardConnectionPrompt = WireGuardConnectionPrompt(accessory: accessory)
+        }
+    }
+
+    private func requestWireGuardConnectionAfterUSBAttachment(accessoryID: UInt64) {
+        pendingWireGuardConnectionAccessoryID = accessoryID
+        appendEventLog(
+            "WireGuard connection queued for USB registry " +
+                "\(Self.registryIDText(accessoryID)); waiting for USB and VM readiness.",
+            source: .wireGuard
+        )
+        attemptPendingWireGuardConnectionIfReady()
+    }
+
     func prepareForApplicationTermination(
         disconnectWireGuard: Bool = true
     ) async {
         isPreparingForApplicationTermination = true
         shouldResumeAccessoryMonitoringAfterOnboarding = false
         appendEventLog("Application terminating.")
+        pendingWireGuardConnectionAccessoryID = nil
+        wireGuardConnectionPrompt = nil
         hostWireGuardConnectTask?.cancel()
         hostWireGuardConnectTask = nil
         hostWireGuardConnectTaskID = nil
@@ -696,7 +788,10 @@ final class TetheringStore: ObservableObject {
         }
         usbCoordinator.prepareForIntentionalVMStop()
         vmCoordinator.invalidate()
-        usbCoordinator.stopMonitoring(reason: "Application terminating.")
+        usbCoordinator.stopMonitoring(
+            reason: "Application terminating.",
+            completion: nil
+        )
     }
 
     func reloadWireGuardConfiguration() {
@@ -920,6 +1015,7 @@ final class TetheringStore: ObservableObject {
     }
 
     func disconnectHostWireGuardTunnel() {
+        cancelPendingWireGuardConnection(reason: "manual WireGuard disconnect")
         hostWireGuardConnectTask?.cancel()
         hostWireGuardConnectTask = nil
         hostWireGuardConnectTaskID = nil
@@ -1022,10 +1118,12 @@ final class TetheringStore: ObservableObject {
         }
 
         cancelPendingAttachment(reason: "app settings reset")
+        cancelPendingWireGuardConnection(reason: "app settings reset")
         queuedUSBAttachmentPrompts.removeAll()
         promptedAccessoryIDs.removeAll()
         accessoriesAwaitingAssetSetup.removeAll()
         usbSession.clearAttachmentPrompt()
+        wireGuardConnectionPrompt = nil
 
         vmConfiguration.reset()
 
@@ -1041,6 +1139,10 @@ final class TetheringStore: ObservableObject {
 
         shouldAskToAttachDetectedUSBDevices = true
         defaults.removeObject(forKey: DefaultsKey.shouldAskToAttachDetectedUSBDevices)
+        shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches = false
+        defaults.removeObject(
+            forKey: DefaultsKey.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches
+        )
 
         hasCompletedOnboarding = false
         wireGuardKeyMaterial = nil
@@ -1094,9 +1196,11 @@ final class TetheringStore: ObservableObject {
             switch state {
             case .running:
                 self.continuePendingAttachmentIfPossible()
+                self.attemptPendingWireGuardConnectionIfReady()
                 self.presentNextUSBAttachmentPromptIfNeeded()
             case .failed:
                 self.restartWillStartVM = false
+                self.cancelPendingWireGuardConnection(reason: "VM start or runtime failure")
                 self.cancelPendingAttachment(reason: "VM start or runtime failure")
                 self.clearWireGuardEndpoint(reason: "VM failed")
             default:
@@ -1114,6 +1218,24 @@ final class TetheringStore: ObservableObject {
         }
         vmCoordinator.onStopped = { [weak self] in
             guard let self else { return }
+            let continuingAttachmentID = self.pendingAttachmentAccessoryID.flatMap { accessoryID in
+                self.shouldStartPendingAttachmentAfterStop || self.restartWillStartVM
+                    ? accessoryID
+                    : nil
+            }
+            let pendingWireGuardAccessoryID = self.pendingWireGuardConnectionAccessoryID
+            let promptedWireGuardAccessoryID = self.wireGuardConnectionPrompt?.accessory.id
+            let hasWireGuardConnectionRequest = pendingWireGuardAccessoryID != nil
+                || promptedWireGuardAccessoryID != nil
+            let shouldPreserveWireGuardConnectionRequest = continuingAttachmentID != nil
+                && (pendingWireGuardAccessoryID == nil
+                    || pendingWireGuardAccessoryID == continuingAttachmentID)
+                && (promptedWireGuardAccessoryID == nil
+                    || promptedWireGuardAccessoryID == continuingAttachmentID)
+            if hasWireGuardConnectionRequest,
+               !shouldPreserveWireGuardConnectionRequest {
+                self.cancelPendingWireGuardConnection(reason: "VM stopped")
+            }
             self.clearWireGuardEndpoint(reason: "VM stopped")
             self.usbCoordinator.clearAttachmentForStoppedVM()
             self.syncUSBState()
@@ -1151,6 +1273,7 @@ final class TetheringStore: ObservableObject {
         usbCoordinator.onStateChange = { [weak self] in
             guard let self else { return }
             self.syncUSBState()
+            self.attemptPendingWireGuardConnectionIfReady()
             self.presentNextUSBAttachmentPromptIfNeeded()
         }
         usbCoordinator.onStatusMessage = { [weak self] message in
@@ -1193,6 +1316,47 @@ final class TetheringStore: ObservableObject {
         }
     }
 
+    private func attemptPendingWireGuardConnectionIfReady() {
+        guard let accessoryID = pendingWireGuardConnectionAccessoryID else {
+            return
+        }
+
+        if hostWireGuardTunnelStatus.isConnectingOrConnected {
+            pendingWireGuardConnectionAccessoryID = nil
+            return
+        }
+
+        guard attachedAccessoryID == accessoryID,
+              vmSessionAccessoryID == accessoryID,
+              invalidWireGuardConnectionFields.isEmpty,
+              canConnectHostWireGuardTunnel else {
+            return
+        }
+
+        pendingWireGuardConnectionAccessoryID = nil
+        appendEventLog(
+            "USB and VM are ready; starting the queued WireGuard connection for registry " +
+                "\(Self.registryIDText(accessoryID)).",
+            source: .wireGuard
+        )
+        connectHostWireGuardTunnel()
+    }
+
+    private func cancelPendingWireGuardConnection(reason: String) {
+        guard let accessoryID = pendingWireGuardConnectionAccessoryID
+                ?? wireGuardConnectionPrompt?.accessory.id else {
+            return
+        }
+
+        pendingWireGuardConnectionAccessoryID = nil
+        wireGuardConnectionPrompt = nil
+        appendEventLog(
+            "Pending WireGuard connection cancelled for USB registry " +
+                "\(Self.registryIDText(accessoryID)): \(reason).",
+            source: .wireGuard
+        )
+    }
+
     private func cancelHostWireGuardTunnel(reason: String) {
         guard hostWireGuardConnectTask != nil || hostWireGuardTunnelStatus.canRequestStop else {
             return
@@ -1218,6 +1382,7 @@ final class TetheringStore: ObservableObject {
             "Provider: \(status.eventLogDescription)",
             source: .wireGuard
         )
+        attemptPendingWireGuardConnectionIfReady()
     }
 
     private func setWireGuardSystemExtensionStatus(
@@ -1232,6 +1397,7 @@ final class TetheringStore: ObservableObject {
             "Network Extension: \(status.eventLogDescription)",
             source: .wireGuard
         )
+        attemptPendingWireGuardConnectionIfReady()
     }
 
     private func openWireGuardSystemExtensionSettingsNow() {
@@ -1285,6 +1451,7 @@ final class TetheringStore: ObservableObject {
     private func presentNextUSBAttachmentPromptIfNeeded() {
         guard !isOnboardingPresented,
               usbAttachmentPrompt == nil,
+              wireGuardConnectionPrompt == nil,
               pendingAttachmentAccessoryID == nil,
               vmSessionAccessoryID == nil,
               !restartWillStartVM,
@@ -1318,21 +1485,22 @@ final class TetheringStore: ObservableObject {
         return USBAttachmentPrompt(accessory: record, kind: .attach)
     }
 
-    private func beginAttachmentWorkflow(accessoryID: UInt64) {
+    @discardableResult
+    private func beginAttachmentWorkflow(accessoryID: UInt64) -> Bool {
         guard pendingAttachmentAccessoryID == nil else {
             statusMessage = String(localized: "Wait for the current USB attachment workflow to finish.")
-            return
+            return false
         }
 
         guard !assetProvider.isBusy else {
             statusMessage = String(localized: "Wait for VM asset installation to finish before attaching USB.")
-            return
+            return false
         }
 
         guard !attachmentRequiresVMStopRetry else {
             statusMessage = String(localized: "The VM did not stop cleanly. Retry Stop before attaching a USB accessory.")
             presentNextUSBAttachmentPromptIfNeeded()
-            return
+            return false
         }
 
         guard hasConfiguredVMAssets else {
@@ -1341,30 +1509,32 @@ final class TetheringStore: ObservableObject {
                     USBAttachmentPrompt(accessory: record, kind: .assetsRequired)
                 )
             }
-            return
+            return false
         }
 
         guard accessories.contains(where: { $0.id == accessoryID }) else {
             statusMessage = String(localized: "The selected USB accessory is no longer available.")
-            return
+            return false
         }
 
         if attachedAccessoryID == accessoryID {
             statusMessage = String(localized: "The selected USB accessory is already attached.")
-            return
+            return false
         }
 
         guard vmSessionAccessoryID == nil else {
             statusMessage = String(localized: "Detach the current USB accessory before attaching another USB accessory.")
-            return
+            return false
         }
 
-        usbCoordinator.selectAccessory(id: accessoryID)
         pendingAttachmentAccessoryID = accessoryID
         pendingAttachmentToken = UUID()
         pendingAttachmentStartedVM = false
         shouldStartPendingAttachmentAfterStop = false
+        usbCoordinator.selectAccessory(id: accessoryID)
         continuePendingAttachmentIfPossible()
+        return pendingAttachmentAccessoryID == accessoryID
+            || attachedAccessoryID == accessoryID
     }
 
     private func continuePendingAttachmentIfPossible() {
@@ -1403,7 +1573,12 @@ final class TetheringStore: ObservableObject {
                 self.shouldStartPendingAttachmentAfterStop = false
                 self.syncUSBState()
 
-                if !success {
+                if success {
+                    self.attemptPendingWireGuardConnectionIfReady()
+                } else {
+                    self.cancelPendingWireGuardConnection(
+                        reason: "approved USB attachment failed"
+                    )
                     self.appendEventLog(
                         "Approved USB attach did not complete for registry \(Self.registryIDText(accessoryID)).",
                         source: .accessoryAccess
@@ -1504,6 +1679,7 @@ final class TetheringStore: ObservableObject {
             return
         }
 
+        cancelPendingWireGuardConnection(reason: "USB attachment workflow cancelled: \(reason)")
         pendingAttachmentAccessoryID = nil
         pendingAttachmentToken = nil
         pendingAttachmentStartedVM = false
@@ -1531,7 +1707,7 @@ final class TetheringStore: ObservableObject {
             return
         }
 
-        usbCoordinator.startMonitoring(reason: reason)
+        usbCoordinator.startMonitoring(reason: reason, completion: nil)
     }
 
     private func resumeAccessoryMonitoringAfterOnboardingIfNeeded() {
@@ -1683,6 +1859,7 @@ final class TetheringStore: ObservableObject {
             "WireGuard guest address discovered from guest console: \(endpoint).",
             source: .wireGuard
         )
+        attemptPendingWireGuardConnectionIfReady()
     }
 
     private func clearConsoleForVMStart() {
@@ -1790,5 +1967,7 @@ final class TetheringStore: ObservableObject {
         static let wireGuardEndpointText = "WireGuard.endpointOverride"
         static let wireGuardAllowedIPsText = "WireGuard.allowedIPs"
         static let shouldAskToAttachDetectedUSBDevices = "USB.askToAttachDetectedDevices"
+        static let shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches =
+            "WireGuard.connectAutomaticallyWhenUSBDeviceAttaches"
     }
 }

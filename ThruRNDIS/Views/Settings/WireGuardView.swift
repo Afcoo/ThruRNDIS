@@ -129,6 +129,12 @@ struct WireGuardView: View {
                     .disabled(store.hostWireGuardTunnelStatus.isTransitioning)
 
                     Spacer()
+
+                    Toggle(
+                        "Connect Automatically When a USB Device Is Attached",
+                        isOn: $store.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches
+                    )
+                    .toggleStyle(.checkbox)
                 }
             }
 
