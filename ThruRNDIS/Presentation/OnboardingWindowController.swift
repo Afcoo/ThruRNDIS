@@ -101,6 +101,7 @@ final class OnboardingWindowController: NSWindowController, NSWindowDelegate {
             }
         )
             .environmentObject(store)
+            .environmentObject(store.wireGuardSession)
             .environmentObject(assetWorkflowCoordinator)
         let hostingController = NSHostingController(rootView: rootView)
         let window = NSWindow(contentViewController: hostingController)

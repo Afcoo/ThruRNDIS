@@ -88,6 +88,12 @@
 		DC1000000000000000000001 /* EventLogErrorFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC1000000000000000000101 /* EventLogErrorFormatter.swift */; };
 		DD1000000000000000000001 /* ApplicationRelaunchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD1000000000000000000101 /* ApplicationRelaunchService.swift */; };
 		DD1000000000000000000002 /* ApplicationRelaunchServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD1000000000000000000102 /* ApplicationRelaunchServiceTests.swift */; };
+		DE1000000000000000000001 /* AppPreferencesStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE1000000000000000000101 /* AppPreferencesStore.swift */; };
+		DE1000000000000000000002 /* WireGuardSessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE1000000000000000000102 /* WireGuardSessionStore.swift */; };
+		DE1000000000000000000003 /* NetworkExtensionSettingsOpener.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE1000000000000000000103 /* NetworkExtensionSettingsOpener.swift */; };
+		DE1000000000000000000004 /* AppPreferencesStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE1000000000000000000104 /* AppPreferencesStoreTests.swift */; };
+		DE1000000000000000000005 /* WireGuardSessionStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE1000000000000000000105 /* WireGuardSessionStoreTests.swift */; };
+		DE1000000000000000000006 /* WireGuardConfigurationFileController.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE1000000000000000000106 /* WireGuardConfigurationFileController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -225,6 +231,12 @@
 		DC1000000000000000000101 /* EventLogErrorFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventLogErrorFormatter.swift; sourceTree = "<group>"; };
 		DD1000000000000000000101 /* ApplicationRelaunchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationRelaunchService.swift; sourceTree = "<group>"; };
 		DD1000000000000000000102 /* ApplicationRelaunchServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationRelaunchServiceTests.swift; sourceTree = "<group>"; };
+		DE1000000000000000000101 /* AppPreferencesStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPreferencesStore.swift; sourceTree = "<group>"; };
+		DE1000000000000000000102 /* WireGuardSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardSessionStore.swift; sourceTree = "<group>"; };
+		DE1000000000000000000103 /* NetworkExtensionSettingsOpener.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkExtensionSettingsOpener.swift; sourceTree = "<group>"; };
+		DE1000000000000000000104 /* AppPreferencesStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPreferencesStoreTests.swift; sourceTree = "<group>"; };
+		DE1000000000000000000105 /* WireGuardSessionStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardSessionStoreTests.swift; sourceTree = "<group>"; };
+		DE1000000000000000000106 /* WireGuardConfigurationFileController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardConfigurationFileController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -362,10 +374,12 @@
 			isa = PBXGroup;
 			children = (
 				8B0000000000000000000108 /* TetheringStore.swift */,
+				DE1000000000000000000101 /* AppPreferencesStore.swift */,
 				H10000000000000000000101 /* EventLogStore.swift */,
 				D10000000000000000000101 /* ConsoleSessionStore.swift */,
 				D10000000000000000000102 /* USBSessionStore.swift */,
 				D10000000000000000000103 /* VMConfigurationStore.swift */,
+				DE1000000000000000000102 /* WireGuardSessionStore.swift */,
 				F20000000000000000000101 /* VideoPlaybackStore.swift */,
 			);
 			path = Stores;
@@ -377,6 +391,7 @@
 				8B0000000000000000000109 /* Clipboard.swift */,
 				DC1000000000000000000101 /* EventLogErrorFormatter.swift */,
 				8B000000000000000000010A /* FilePicker.swift */,
+				DE1000000000000000000103 /* NetworkExtensionSettingsOpener.swift */,
 				8B0000000000000000000112 /* RuntimeEntitlements.swift */,
 				DA1000000000000000000108 /* NETunnelProviderProtocol+ThruRNDIS.swift */,
 				DA1000000000000000000110 /* ThruRNDISTunnel.swift */,
@@ -453,6 +468,7 @@
 				9A0000000000000000000108 /* ConsoleWindowController.swift */,
 				9A0000000000000000000102 /* OnboardingWindowController.swift */,
 				9A0000000000000000000107 /* SettingsWindowController.swift */,
+				DE1000000000000000000106 /* WireGuardConfigurationFileController.swift */,
 			);
 			path = Presentation;
 			sourceTree = "<group>";
@@ -496,7 +512,9 @@
 		D10000000000000000000206 /* Stores */ = {
 			isa = PBXGroup;
 			children = (
+				DE1000000000000000000104 /* AppPreferencesStoreTests.swift */,
 				D10000000000000000000105 /* SessionStoreTests.swift */,
+				DE1000000000000000000105 /* WireGuardSessionStoreTests.swift */,
 			);
 			path = Stores;
 			sourceTree = "<group>";
@@ -720,6 +738,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				8B0000000000000000000001 /* App.swift in Sources */,
+				DE1000000000000000000001 /* AppPreferencesStore.swift in Sources */,
 				8B0000000000000000000003 /* USBAccessoryRecord.swift in Sources */,
 				8B0000000000000000000004 /* VMRuntimeState.swift in Sources */,
 				8B0000000000000000000005 /* USBAccessoryMonitor.swift in Sources */,
@@ -736,6 +755,7 @@
 				E10000000000000000000001 /* USBDeviceNameResolver.swift in Sources */,
 				8B0000000000000000000009 /* Clipboard.swift in Sources */,
 				8B000000000000000000000A /* FilePicker.swift in Sources */,
+				DE1000000000000000000003 /* NetworkExtensionSettingsOpener.swift in Sources */,
 				8B0000000000000000000012 /* RuntimeEntitlements.swift in Sources */,
 				8F0000000000000000000001 /* WireGuardKeyMaterial.swift in Sources */,
 				DA1000000000000000000001 /* HostWireGuardTunnelStatus.swift in Sources */,
@@ -754,6 +774,7 @@
 				9A0000000000000000000002 /* OnboardingWindowController.swift in Sources */,
 				9A0000000000000000000007 /* SettingsWindowController.swift in Sources */,
 				9A0000000000000000000008 /* ConsoleWindowController.swift in Sources */,
+				DE1000000000000000000006 /* WireGuardConfigurationFileController.swift in Sources */,
 				9A0000000000000000000003 /* USBAttachmentPrompt.swift in Sources */,
 				9A0000000000000000000004 /* LaunchAtLoginService.swift in Sources */,
 				8B000000000000000000000B /* SettingsView.swift in Sources */,
@@ -764,6 +785,7 @@
 				8B000000000000000000000D /* USBDevicesView.swift in Sources */,
 				8B000000000000000000000E /* ConsoleView.swift in Sources */,
 				8B000000000000000000000F /* WireGuardView.swift in Sources */,
+				DE1000000000000000000002 /* WireGuardSessionStore.swift in Sources */,
 				E20000000000000000000001 /* ReplayableVideoView.swift in Sources */,
 				E20000000000000000000002 /* HeaderView.swift in Sources */,
 				E20000000000000000000003 /* CommandBlock.swift in Sources */,
@@ -784,7 +806,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DE1000000000000000000004 /* AppPreferencesStoreTests.swift in Sources */,
 				D10000000000000000000005 /* SessionStoreTests.swift in Sources */,
+				DE1000000000000000000005 /* WireGuardSessionStoreTests.swift in Sources */,
 				C10000000000000000000001 /* VMAssetTestSupport.swift in Sources */,
 				C10000000000000000000002 /* VMAssetSelectionStoreTests.swift in Sources */,
 				C10000000000000000000003 /* VMAssetServiceTests.swift in Sources */,

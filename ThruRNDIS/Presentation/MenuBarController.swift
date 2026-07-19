@@ -183,9 +183,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         updateStatusButton()
         rebuildMenu()
 
-        Publishers.Merge3(
+        Publishers.Merge4(
             store.objectWillChange,
             store.usbSession.objectWillChange,
+            store.wireGuardSession.objectWillChange,
             assetWorkflowCoordinator.objectWillChange
         )
         .sink { [weak self] in
@@ -422,7 +423,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
         stopItem?.isEnabled = store.canStopVirtualMachine
 
-        if store.canDisconnectHostWireGuardTunnel {
+        if store.wireGuardSession.canDisconnectTunnel {
             wireGuardItem?.title = String(localized: "Disconnect WireGuard")
             wireGuardItem?.action = #selector(disconnectWireGuard)
             wireGuardItem?.isEnabled = true
@@ -533,7 +534,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     private var wireGuardStatusTitle: String {
-        String(localized: "WireGuard: \(store.hostWireGuardTunnelStatus.title)")
+        String(localized: "WireGuard: \(store.wireGuardSession.hostTunnelStatus.title)")
     }
 
     private var vmStatusColor: NSColor {
@@ -555,7 +556,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     private var wireGuardStatusColor: NSColor {
-        switch store.hostWireGuardTunnelStatus {
+        switch store.wireGuardSession.hostTunnelStatus {
         case .connected:
             return .systemGreen
         case .activatingSystemExtension, .connecting, .disconnecting, .reasserting:

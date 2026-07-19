@@ -75,19 +75,28 @@ enum App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     lazy var assetWorkflowCoordinator = VMAssetWorkflowCoordinator()
     lazy var eventLog = EventLogStore()
+    lazy var consoleSession = ConsoleSessionStore()
+    lazy var usbSession = USBSessionStore()
+    lazy var vmConfiguration = VMConfigurationStore()
+    lazy var wireGuardSession = WireGuardSessionStore(
+        configurationStore: WireGuardConfigurationStore(),
+        configurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
+        tunnelController: HostWireGuardTunnelController(
+            systemExtensionActivator: WireGuardSystemExtensionActivator()
+        ),
+        eventLog: eventLog
+    )
+    lazy var appPreferences = AppPreferencesStore()
     lazy var store = TetheringStore(
         assetProvider: assetWorkflowCoordinator,
         vmCoordinator: VMCoordinator(),
         usbCoordinator: USBAccessoryCoordinator(monitor: USBAccessoryMonitor()),
-        wireGuardConfigurationStore: WireGuardConfigurationStore(),
-        wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
         eventLog: eventLog,
-        consoleSession: ConsoleSessionStore(),
-        usbSession: USBSessionStore(),
-        vmConfiguration: VMConfigurationStore(),
-        hostWireGuardTunnelController: HostWireGuardTunnelController(
-            systemExtensionActivator: WireGuardSystemExtensionActivator()
-        )
+        consoleSession: consoleSession,
+        usbSession: usbSession,
+        vmConfiguration: vmConfiguration,
+        wireGuardSession: wireGuardSession,
+        appPreferences: appPreferences
     )
 
     private var menuBarController: MenuBarController?
@@ -238,7 +247,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard !isRunningUnderXCTest else {
             return
         }
-        store.refreshLaunchAtLoginStatus()
+        appPreferences.refreshLaunchAtLoginStatus()
         store.refreshWireGuardSystemExtensionStatus()
     }
 
@@ -312,7 +321,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let alert = NSAlert()
         alert.alertStyle = .critical
         alert.messageText = String(localized: "ThruRNDIS Could Not Reset Settings")
-        alert.informativeText = store.preferencesStatusMessage
+        alert.informativeText = store.resetStatusMessage
         alert.addButton(withTitle: String(localized: "OK"))
 
         if let window = settingsWindowController?.window {

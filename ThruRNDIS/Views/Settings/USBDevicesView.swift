@@ -7,6 +7,7 @@ import SwiftUI
 struct USBDevicesView: View {
     @EnvironmentObject private var store: TetheringStore
     @EnvironmentObject private var usbSession: USBSessionStore
+    @EnvironmentObject private var appPreferences: AppPreferencesStore
 
     var body: some View {
         Form {
@@ -87,7 +88,7 @@ struct USBDevicesView: View {
 
                     Toggle(
                         "Ask to Connect When a Device Is Detected",
-                        isOn: $store.shouldAskToAttachDetectedUSBDevices
+                        isOn: $appPreferences.shouldAskToAttachDetectedUSBDevices
                     )
                     .toggleStyle(.checkbox)
                 }

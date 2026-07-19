@@ -5,7 +5,7 @@ Copyright (C) 2026 Afcoo.
 import SwiftUI
 
 struct GeneralView: View {
-    @EnvironmentObject private var store: TetheringStore
+    @EnvironmentObject private var appPreferences: AppPreferencesStore
     @EnvironmentObject private var eventLog: EventLogStore
     @State private var eventLogSaveError: EventLogSaveError?
 
@@ -15,8 +15,8 @@ struct GeneralView: View {
                 Toggle(
                     "Open ThruRNDIS at Login",
                     isOn: Binding(
-                        get: { store.launchAtLoginSnapshot.isEnabled },
-                        set: { store.setLaunchAtLoginEnabled($0) }
+                        get: { appPreferences.launchAtLoginSnapshot.isEnabled },
+                        set: setLaunchAtLoginEnabled
                     )
                 )
             }
@@ -39,6 +39,18 @@ struct GeneralView: View {
                 title: Text("Event Log"),
                 message: Text(error.message),
                 dismissButton: .default(Text("OK"))
+            )
+        }
+    }
+
+    private func setLaunchAtLoginEnabled(_ isEnabled: Bool) {
+        do {
+            try appPreferences.setLaunchAtLoginEnabled(isEnabled)
+        } catch {
+            eventLog.append(
+                "Could not update Launch at Login: " +
+                    EventLogErrorFormatter.description(for: error),
+                source: .app
             )
         }
     }

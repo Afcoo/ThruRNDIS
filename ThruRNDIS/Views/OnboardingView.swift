@@ -7,6 +7,7 @@ import SwiftUI
 
 struct OnboardingView: View {
     @EnvironmentObject private var store: TetheringStore
+    @EnvironmentObject private var wireGuardSession: WireGuardSessionStore
     @EnvironmentObject private var assetWorkflowCoordinator: VMAssetWorkflowCoordinator
     @State private var step = 0
     @State private var alert: OnboardingAlert?
@@ -259,7 +260,7 @@ struct OnboardingView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     LabeledContent("Status") {
                         Label(
-                            store.wireGuardSystemExtensionStatus.title,
+                            wireGuardSession.systemExtensionStatus.title,
                             systemImage: systemExtensionStatusImage
                         )
                         .foregroundStyle(systemExtensionStatusColor)
@@ -286,7 +287,7 @@ struct OnboardingView: View {
                         Button("Refresh Status") {
                             store.refreshWireGuardSystemExtensionStatus()
                         }
-                        .disabled(store.wireGuardSystemExtensionStatus.isTransitioning)
+                        .disabled(wireGuardSession.systemExtensionStatus.isTransitioning)
                     }
                 }
                 .padding(.vertical, 2)
@@ -378,14 +379,14 @@ struct OnboardingView: View {
     }
 
     private var systemExtensionStatusDetail: LocalizedStringKey {
-        if store.wireGuardSystemExtensionStatus == .uninstalling {
+        if wireGuardSession.systemExtensionStatus == .uninstalling {
             return "Restart macOS to finish removing the Network Extension before requesting activation again."
         }
         if !store.runtimeEntitlements.systemExtensionInstall {
             return "This build cannot activate the Network Extension. Run a signed copy of ThruRNDIS from Applications."
         }
 
-        return switch store.wireGuardSystemExtensionStatus {
+        return switch wireGuardSession.systemExtensionStatus {
         case .unknown:
             "The Network Extension status has not been checked yet."
         case .checking:
@@ -406,7 +407,7 @@ struct OnboardingView: View {
     }
 
     private var systemExtensionStatusImage: String {
-        switch store.wireGuardSystemExtensionStatus {
+        switch wireGuardSession.systemExtensionStatus {
         case .active:
             "checkmark.shield.fill"
         case .checking, .activationRequested:
@@ -427,7 +428,7 @@ struct OnboardingView: View {
     }
 
     private var systemExtensionStatusColor: Color {
-        switch store.wireGuardSystemExtensionStatus {
+        switch wireGuardSession.systemExtensionStatus {
         case .active:
             .green
         case .checking, .activationRequested, .awaitingUserApproval, .restartRequired:

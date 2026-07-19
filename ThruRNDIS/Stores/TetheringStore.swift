@@ -2,7 +2,7 @@
 Copyright (C) 2026 Afcoo.
 */
 
-import AppKit
+import Combine
 import Foundation
 
 struct OnboardingPresentationRequest {
@@ -16,80 +16,28 @@ final class TetheringStore: ObservableObject {
     @Published private(set) var isRestartingVirtualMachine = false
     @Published private(set) var statusMessage = String(localized: "Install or select VM assets to begin.")
     @Published private(set) var runtimeEntitlements: RuntimeEntitlementSnapshot
-    @Published private(set) var hostWireGuardTunnelStatus: HostWireGuardTunnelStatus = .unconfigured
-    @Published private(set) var wireGuardSystemExtensionStatus: WireGuardSystemExtensionStatus = .unknown
-    @Published private(set) var isWireGuardSystemExtensionActivationInProgress = false
     @Published private(set) var isResettingAppSettings = false
     @Published private(set) var wireGuardConnectionPrompt: WireGuardConnectionPrompt?
-    @Published private(set) var discoveredWireGuardEndpoint: String?
-    @Published private(set) var invalidWireGuardConnectionFields: Set<WireGuardConnectionField> = []
-    @Published private var wireGuardKeyMaterial: WireGuardKeyMaterial?
-    @Published var wireGuardDNSServersText: String {
-        didSet {
-            defaults.set(wireGuardDNSServersText, forKey: DefaultsKey.wireGuardDNSServersText)
-            revalidateWireGuardConnectionField(.dnsServers)
-            attemptPendingWireGuardConnectionIfReady()
-        }
-    }
-    @Published var wireGuardEndpointText: String {
-        didSet {
-            defaults.set(wireGuardEndpointText, forKey: DefaultsKey.wireGuardEndpointText)
-            revalidateWireGuardConnectionField(.endpoint)
-            attemptPendingWireGuardConnectionIfReady()
-        }
-    }
-    @Published var wireGuardAllowedIPsText: String {
-        didSet {
-            defaults.set(wireGuardAllowedIPsText, forKey: DefaultsKey.wireGuardAllowedIPsText)
-            revalidateWireGuardConnectionField(.allowedIPs)
-            attemptPendingWireGuardConnectionIfReady()
-        }
-    }
-    @Published var shouldAskToAttachDetectedUSBDevices: Bool {
-        didSet {
-            defaults.set(
-                shouldAskToAttachDetectedUSBDevices,
-                forKey: DefaultsKey.shouldAskToAttachDetectedUSBDevices
-            )
-        }
-    }
-    @Published var shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches: Bool {
-        didSet {
-            defaults.set(
-                shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches,
-                forKey: DefaultsKey.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches
-            )
-        }
-    }
-    @Published private(set) var hasCompletedOnboarding = false
     @Published private(set) var isOnboardingPresented = false
     @Published private(set) var onboardingPresentationRequest = OnboardingPresentationRequest(
         sequence: 0,
         restart: false
     )
-    @Published private(set) var launchAtLoginSnapshot: LaunchAtLoginSnapshot
-    @Published private(set) var preferencesStatusMessage = ""
+    @Published private(set) var resetStatusMessage = ""
 
     let guestMACAddress = "02:00:5E:10:00:02"
     let eventLog: EventLogStore
     let consoleSession: ConsoleSessionStore
     let usbSession: USBSessionStore
     let vmConfiguration: VMConfigurationStore
+    let wireGuardSession: WireGuardSessionStore
+    let appPreferences: AppPreferencesStore
 
     private let vmCoordinator: any VMCoordinating
     private let usbCoordinator: any USBAccessoryCoordinating
     private let assetProvider: VMAssetProviding
-    private let wireGuardConfigurationStore: any WireGuardConfigurationStoring
-    private let wireGuardConfigurationBuilder: WireGuardConfigurationBuilder
-    private let hostWireGuardTunnelController: any HostWireGuardTunnelControlling
     private let runtimeEntitlementSnapshotProvider: () -> RuntimeEntitlementSnapshot
-    private let systemExtensionSettingsOpener: () -> Bool
-    private let launchAtLoginService: any LaunchAtLoginManaging
-    private let defaults: UserDefaults
-    private var hostWireGuardConnectTask: Task<Void, Never>?
-    private var hostWireGuardConnectTaskID: UUID?
     private var pendingWireGuardConnectionAccessoryID: UInt64?
-    private var wireGuardSystemExtensionActivationTask: Task<Void, Never>?
     private var isPreparingForApplicationTermination = false
     private var didRequestLaunchAccessoryMonitoring = false
     private var shouldResumeAccessoryMonitoringAfterOnboarding = false
@@ -147,7 +95,7 @@ final class TetheringStore: ObservableObject {
     var canStartVirtualMachine: Bool {
         hasConfiguredVMAssets
             && !assetProvider.isBusy
-            && wireGuardKeyMaterial != nil
+            && wireGuardSession.hasKeyMaterial
             && vmCoordinator.canStart
     }
 
@@ -172,7 +120,7 @@ final class TetheringStore: ObservableObject {
     }
 
     var shouldPresentOnboardingOnLaunch: Bool {
-        !hasCompletedOnboarding
+        !appPreferences.hasCompletedOnboarding
     }
 
     var canStartAccessoryMonitoring: Bool {
@@ -220,16 +168,6 @@ final class TetheringStore: ObservableObject {
         usbCoordinator.canDetachAccessory(runtimeState: runtimeState)
     }
 
-    func canRequestAttachment(for accessoryID: UInt64) -> Bool {
-        pendingAttachmentAccessoryID == nil
-            && usbAttachmentPrompt == nil
-            && vmSessionAccessoryID == nil
-            && !attachmentRequiresVMStopRetry
-            && hasConfiguredVMAssets
-            && !assetProvider.isBusy
-            && usbCoordinator.canRequestAttachment(for: accessoryID)
-    }
-
     func canChooseAccessoryForAttachment(_ accessoryID: UInt64) -> Bool {
         pendingAttachmentAccessoryID == nil
             && usbAttachmentPrompt == nil
@@ -239,95 +177,62 @@ final class TetheringStore: ObservableObject {
             && usbCoordinator.canRequestAttachment(for: accessoryID)
     }
 
-    var canExportWireGuardConfiguration: Bool {
-        wireGuardKeyMaterial != nil && resolvedWireGuardEndpoint != nil
-    }
-
-    var resolvedWireGuardEndpoint: String? {
-        normalizedWireGuardInput(wireGuardEndpointText) ?? discoveredWireGuardEndpoint
-    }
-
-    var resolvedWireGuardAllowedIPs: String {
-        normalizedWireGuardInput(wireGuardAllowedIPsText)
-            ?? wireGuardConfigurationBuilder.elements.clientAllowedIPs
-    }
-
-    var resolvedWireGuardDNSServers: [String] {
-        resolvedWireGuardDNSServersText
-            .components(separatedBy: CharacterSet(charactersIn: ",\n\r"))
-            .compactMap(normalizedWireGuardInput)
-    }
-
-    private var resolvedWireGuardDNSServersText: String {
-        normalizedWireGuardInput(wireGuardDNSServersText)
-            ?? wireGuardConfigurationBuilder.elements.dnsServers.joined(separator: ", ")
-    }
-
-    var defaultWireGuardDNSServersText: String {
-        wireGuardConfigurationBuilder.elements.dnsServers.joined(separator: ", ")
-    }
-
-    var wireGuardEndpointPrompt: String {
-        discoveredWireGuardEndpoint
-            ?? String(localized: "Waiting for THRURNDIS_WG_ENDPOINT from guest")
-    }
-
-    var hasDiscoveredWireGuardEndpoint: Bool {
-        discoveredWireGuardEndpoint != nil
-    }
-
-    var hasWireGuardEndpointValidationError: Bool {
-        invalidWireGuardConnectionFields.contains(.endpoint)
-    }
-
-    var hasWireGuardAllowedIPsValidationError: Bool {
-        invalidWireGuardConnectionFields.contains(.allowedIPs)
-    }
-
-    var hasWireGuardDNSServersValidationError: Bool {
-        invalidWireGuardConnectionFields.contains(.dnsServers)
-    }
-
     var canConnectHostWireGuardTunnel: Bool {
         runtimeState == .running
             && vmCoordinator.canSendConsoleInput
-            && canExportWireGuardConfiguration
+            && wireGuardSession.canExportConfiguration
             && runtimeEntitlements.packetTunnelProvider
             && runtimeEntitlements.systemExtensionInstall
-            && wireGuardSystemExtensionStatus.isActive
-            && !hostWireGuardTunnelStatus.isTransitioning
+            && wireGuardSession.systemExtensionStatus.isActive
+            && !wireGuardSession.hostTunnelStatus.isTransitioning
     }
 
     var canRequestWireGuardSystemExtensionActivation: Bool {
         !isPreparingForApplicationTermination
             && runtimeEntitlements.systemExtensionInstall
-            && wireGuardSystemExtensionStatus.canRequestActivation
-            && !isWireGuardSystemExtensionActivationInProgress
-    }
-
-    var canDisconnectHostWireGuardTunnel: Bool {
-        hostWireGuardTunnelStatus.canRequestStop
+            && wireGuardSession.canRequestSystemExtensionActivation
     }
 
     var shouldConfirmApplicationTermination: Bool {
         attachedAccessoryID != nil
-            && hostWireGuardTunnelStatus.isConnectingOrConnected
-    }
-
-    var wireGuardClientConfiguration: String {
-        guard let wireGuardKeyMaterial else {
-            return "# WireGuard key material is unavailable in Application Support."
-        }
-
-        return wireGuardConfigurationBuilder.clientConfiguration(
-            keyMaterial: wireGuardKeyMaterial,
-            endpoint: resolvedWireGuardEndpoint,
-            dnsServers: resolvedWireGuardDNSServers,
-            allowedIPs: resolvedWireGuardAllowedIPs
-        )
+            && wireGuardSession.hostTunnelStatus.isConnectingOrConnected
     }
 
     init(
+        assetProvider: VMAssetProviding,
+        vmCoordinator: any VMCoordinating,
+        usbCoordinator: any USBAccessoryCoordinating,
+        eventLog: EventLogStore,
+        consoleSession: ConsoleSessionStore,
+        usbSession: USBSessionStore,
+        vmConfiguration: VMConfigurationStore,
+        wireGuardSession: WireGuardSessionStore,
+        appPreferences: AppPreferencesStore,
+        runtimeEntitlementSnapshotProvider: @escaping () -> RuntimeEntitlementSnapshot = {
+            .current
+        }
+    ) {
+        self.assetProvider = assetProvider
+        self.vmCoordinator = vmCoordinator
+        self.usbCoordinator = usbCoordinator
+        self.runtimeEntitlementSnapshotProvider = runtimeEntitlementSnapshotProvider
+        self.eventLog = eventLog
+        self.consoleSession = consoleSession
+        self.usbSession = usbSession
+        self.vmConfiguration = vmConfiguration
+        self.wireGuardSession = wireGuardSession
+        self.appPreferences = appPreferences
+        self.runtimeEntitlements = runtimeEntitlementSnapshotProvider()
+
+        wireGuardSession.onReadinessChange = { [weak self] in
+            self?.attemptPendingWireGuardConnectionIfReady()
+        }
+        configureCoordinators()
+        appendRuntimeEntitlementSummary()
+        appendScratchDiskSelectionSummaryIfNeeded()
+    }
+
+    convenience init(
         assetProvider: VMAssetProviding,
         vmCoordinator: any VMCoordinating,
         usbCoordinator: any USBAccessoryCoordinating,
@@ -341,70 +246,36 @@ final class TetheringStore: ObservableObject {
         runtimeEntitlementSnapshotProvider: @escaping () -> RuntimeEntitlementSnapshot = {
             .current
         },
-        systemExtensionSettingsOpener: @escaping () -> Bool = {
-            NSWorkspace.shared.open(ThruRNDISTunnel.systemExtensionsSettingsURL)
+        systemExtensionSettingsOpener: @escaping @MainActor () -> Bool = {
+            NetworkExtensionSettingsOpener.open()
         },
         launchAtLoginService: (any LaunchAtLoginManaging)? = nil,
         defaults: UserDefaults = .standard
     ) {
-        let launchAtLoginService = launchAtLoginService ?? LaunchAtLoginService()
-        self.assetProvider = assetProvider
-        self.vmCoordinator = vmCoordinator
-        self.usbCoordinator = usbCoordinator
-        self.wireGuardConfigurationStore = wireGuardConfigurationStore
-        self.wireGuardConfigurationBuilder = wireGuardConfigurationBuilder
-        self.hostWireGuardTunnelController = hostWireGuardTunnelController
-        self.runtimeEntitlementSnapshotProvider = runtimeEntitlementSnapshotProvider
-        self.systemExtensionSettingsOpener = systemExtensionSettingsOpener
-        self.launchAtLoginService = launchAtLoginService
-        self.defaults = defaults
-        self.eventLog = eventLog
-        self.consoleSession = consoleSession
-        self.usbSession = usbSession
-        self.vmConfiguration = vmConfiguration
-        self.runtimeEntitlements = runtimeEntitlementSnapshotProvider()
-        self.launchAtLoginSnapshot = launchAtLoginService.snapshot()
-        self.wireGuardDNSServersText = Self.restoredWireGuardInput(
-            defaults: defaults,
-            key: DefaultsKey.wireGuardDNSServersText,
-            fallback: ""
+        let wireGuardSession = WireGuardSessionStore(
+            configurationStore: wireGuardConfigurationStore,
+            configurationBuilder: wireGuardConfigurationBuilder,
+            tunnelController: hostWireGuardTunnelController,
+            eventLog: eventLog,
+            systemExtensionSettingsOpener: systemExtensionSettingsOpener,
+            defaults: defaults
         )
-        self.wireGuardEndpointText = Self.restoredWireGuardInput(
-            defaults: defaults,
-            key: DefaultsKey.wireGuardEndpointText,
-            fallback: ""
+        let appPreferences = AppPreferencesStore(
+            launchAtLoginService: launchAtLoginService,
+            defaults: defaults
         )
-        self.wireGuardAllowedIPsText = Self.restoredWireGuardInput(
-            defaults: defaults,
-            key: DefaultsKey.wireGuardAllowedIPsText,
-            fallback: ""
+        self.init(
+            assetProvider: assetProvider,
+            vmCoordinator: vmCoordinator,
+            usbCoordinator: usbCoordinator,
+            eventLog: eventLog,
+            consoleSession: consoleSession,
+            usbSession: usbSession,
+            vmConfiguration: vmConfiguration,
+            wireGuardSession: wireGuardSession,
+            appPreferences: appPreferences,
+            runtimeEntitlementSnapshotProvider: runtimeEntitlementSnapshotProvider
         )
-        self.shouldAskToAttachDetectedUSBDevices = defaults.object(
-            forKey: DefaultsKey.shouldAskToAttachDetectedUSBDevices
-        ) == nil
-            ? true
-            : defaults.bool(forKey: DefaultsKey.shouldAskToAttachDetectedUSBDevices)
-        self.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches = defaults.bool(
-            forKey: DefaultsKey.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches
-        )
-        configureCoordinators()
-        configureHostWireGuardTunnelController()
-        prepareWireGuardConfiguration()
-        restoreOnboardingState()
-        appendRuntimeEntitlementSummary()
-        appendScratchDiskSelectionSummaryIfNeeded()
-        revalidateAllWireGuardConnectionFields()
-        Task { @MainActor [weak self] in
-            guard let self,
-                  !self.isPreparingForApplicationTermination,
-                  !Task.isCancelled else {
-                return
-            }
-            await self.hostWireGuardTunnelController.refreshSystemExtensionStatus()
-        }
-        Task { @MainActor [weak self] in
-            await self?.hostWireGuardTunnelController.refreshStatus()
-        }
     }
 
     func startAccessoryMonitoring() {
@@ -531,7 +402,7 @@ final class TetheringStore: ObservableObject {
             return false
         }
 
-        guard wireGuardKeyMaterial != nil else {
+        guard wireGuardSession.hasKeyMaterial else {
             statusMessage = String(localized: "Fix the WireGuard configuration error before starting the VM.")
             return false
         }
@@ -546,7 +417,7 @@ final class TetheringStore: ObservableObject {
             return false
         }
 
-        guard reloadWireGuardConfigurationFromApplicationSupport(
+        guard wireGuardSession.reloadConfiguration(
             reason: "VM starting",
             requireExisting: true
         ) else {
@@ -554,7 +425,7 @@ final class TetheringStore: ObservableObject {
             return false
         }
 
-        clearWireGuardEndpoint(reason: "VM starting")
+        wireGuardSession.clearDiscoveredEndpoint(reason: "VM starting")
         clearConsoleForVMStart()
         usbCoordinator.resetForVMStart()
         syncUSBState()
@@ -569,7 +440,7 @@ final class TetheringStore: ObservableObject {
             kernelURL: bootAssets.kernelURL,
             initialRamdiskURL: bootAssets.initialRamdiskURL,
             diskImageURL: vmConfiguration.diskImageURL,
-            wireGuardConfigurationDirectoryURL: wireGuardConfigurationStore.sharedDirectoryURL,
+            wireGuardConfigurationDirectoryURL: wireGuardSession.sharedConfigurationDirectoryURL,
             cpuCount: vmConfiguration.cpuCount,
             memorySizeMiB: vmConfiguration.memorySizeMiB,
             bootCommandLine: bootCommandLine,
@@ -730,7 +601,7 @@ final class TetheringStore: ObservableObject {
         }
 
         if shouldAutomaticallyConnectNextTime {
-            shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches = true
+            appPreferences.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches = true
         }
 
         guard pendingAttachmentAccessoryID == prompt.accessory.id
@@ -752,7 +623,7 @@ final class TetheringStore: ObservableObject {
     private func prepareWireGuardConnectionForUSBAttachment(
         _ accessory: USBAccessoryRecord
     ) {
-        if shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches {
+        if appPreferences.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches {
             requestWireGuardConnectionAfterUSBAttachment(accessoryID: accessory.id)
         } else {
             wireGuardConnectionPrompt = WireGuardConnectionPrompt(accessory: accessory)
@@ -777,16 +648,9 @@ final class TetheringStore: ObservableObject {
         appendEventLog("Application terminating.")
         pendingWireGuardConnectionAccessoryID = nil
         wireGuardConnectionPrompt = nil
-        hostWireGuardConnectTask?.cancel()
-        hostWireGuardConnectTask = nil
-        hostWireGuardConnectTaskID = nil
-        wireGuardSystemExtensionActivationTask?.cancel()
-        wireGuardSystemExtensionActivationTask = nil
-        hostWireGuardTunnelController.invalidateSystemExtensionOperations()
-        isWireGuardSystemExtensionActivationInProgress = false
-        if disconnectWireGuard {
-            _ = await hostWireGuardTunnelController.disconnect(waitUntilStopped: true)
-        }
+        await wireGuardSession.prepareForApplicationTermination(
+            disconnectTunnel: disconnectWireGuard
+        )
         usbCoordinator.prepareForIntentionalVMStop()
         vmCoordinator.invalidate()
         usbCoordinator.stopMonitoring(
@@ -795,85 +659,10 @@ final class TetheringStore: ObservableObject {
         )
     }
 
-    func reloadWireGuardConfiguration() {
-        _ = reloadWireGuardConfigurationFromApplicationSupport(
-            reason: "manual request",
-            requireExisting: true
-        )
-    }
-
-    func openWireGuardConfigurationFolder() {
-        let directoryURL = wireGuardConfigurationStore.files.wireGuardDirectoryURL
-        var isDirectory: ObjCBool = false
-
-        guard FileManager.default.fileExists(
-            atPath: directoryURL.path,
-            isDirectory: &isDirectory
-        ), isDirectory.boolValue else {
-            appendEventLog(
-                "WireGuard configuration folder not opened because it does not exist: \(directoryURL.path)",
-                source: .wireGuard
-            )
-            return
-        }
-
-        guard NSWorkspace.shared.open(directoryURL) else {
-            appendEventLog(
-                "WireGuard configuration folder open failed: \(directoryURL.path)",
-                source: .wireGuard
-            )
-            return
-        }
-
-        appendEventLog("Opened WireGuard configuration folder: \(directoryURL.path)", source: .wireGuard)
-    }
-
-    func copyWireGuardConfiguration() {
-        guard canExportWireGuardConfiguration else {
-            appendEventLog("WireGuard configuration not copied: VM endpoint is unknown.", source: .wireGuard)
-            return
-        }
-
-        Clipboard.copy(wireGuardClientConfiguration)
-        appendEventLog("WireGuard host configuration copied to clipboard.", source: .wireGuard)
-    }
-
-    func saveWireGuardConfiguration() {
-        guard canExportWireGuardConfiguration else {
-            appendEventLog("WireGuard configuration not saved: VM endpoint is unknown.", source: .wireGuard)
-            return
-        }
-
-        guard let url = FilePicker.chooseSaveFile(
-            title: String(localized: "Save WireGuard Configuration"),
-            defaultName: "thrurndis.conf"
-        ) else {
-            return
-        }
-
-        do {
-            try wireGuardClientConfiguration.write(to: url, atomically: true, encoding: .utf8)
-            appendEventLog("WireGuard host configuration saved to \(url.path).", source: .wireGuard)
-        } catch {
-            appendEventLog(
-                "WireGuard configuration save failed: " +
-                    EventLogErrorFormatter.description(for: error),
-                source: .wireGuard
-            )
-        }
-    }
-
-    func clearWireGuardEndpoint() {
-        clearWireGuardEndpoint(
-            reason: "manual request",
-            alwaysDisconnectTunnel: false
-        )
-    }
-
     func refreshHostWireGuardTunnelStatus() {
         refreshRuntimeEntitlements()
         refreshWireGuardSystemExtensionStatus()
-        guard !hostWireGuardTunnelStatus.isTransitioning else {
+        guard !wireGuardSession.hostTunnelStatus.isTransitioning else {
             appendEventLog(
                 "Host WireGuard status refresh skipped during a tunnel transition.",
                 source: .wireGuard
@@ -881,17 +670,14 @@ final class TetheringStore: ObservableObject {
             return
         }
         guard runtimeEntitlements.packetTunnelProvider else {
-            setHostWireGuardTunnelStatus(.missingPacketTunnelEntitlement)
+            wireGuardSession.updateHostTunnelStatus(.missingPacketTunnelEntitlement)
             appendEventLog(
                 "Host WireGuard status not refreshed: missing NetworkExtension entitlement.",
                 source: .wireGuard
             )
             return
         }
-
-        Task { @MainActor [weak self] in
-            await self?.hostWireGuardTunnelController.refreshStatus()
-        }
+        wireGuardSession.refreshHostTunnelStatus()
     }
 
     func refreshWireGuardSystemExtensionStatus() {
@@ -899,14 +685,7 @@ final class TetheringStore: ObservableObject {
             return
         }
         refreshRuntimeEntitlements()
-        Task { @MainActor [weak self] in
-            guard let self,
-                  !self.isPreparingForApplicationTermination,
-                  !Task.isCancelled else {
-                return
-            }
-            await self.hostWireGuardTunnelController.refreshSystemExtensionStatus()
-        }
+        wireGuardSession.refreshSystemExtensionStatus()
     }
 
     @discardableResult
@@ -921,7 +700,7 @@ final class TetheringStore: ObservableObject {
                 .systemExtensionInstall,
                 action: "network extension activation"
             )
-            setWireGuardSystemExtensionStatus(
+            wireGuardSession.updateSystemExtensionStatus(
                 .failed("System Extension installation entitlement is missing.")
             )
             return false
@@ -930,127 +709,54 @@ final class TetheringStore: ObservableObject {
             return false
         }
 
-        let controller = hostWireGuardTunnelController
-        isWireGuardSystemExtensionActivationInProgress = true
-        wireGuardSystemExtensionActivationTask = Task { @MainActor [weak self] in
-            guard !Task.isCancelled,
-                  let self,
-                  !self.isPreparingForApplicationTermination else {
-                return
-            }
-            await controller.activateSystemExtension()
-            guard !Task.isCancelled,
-                  !self.isPreparingForApplicationTermination else {
-                return
-            }
-            self.wireGuardSystemExtensionActivationTask = nil
-            self.isWireGuardSystemExtensionActivationInProgress = false
-        }
-        return true
+        return wireGuardSession.requestSystemExtensionActivation()
     }
 
     func openWireGuardSystemExtensionSettings() {
         guard !isPreparingForApplicationTermination else {
             return
         }
-        openWireGuardSystemExtensionSettingsNow()
+        wireGuardSession.openSystemExtensionSettings()
     }
 
     func connectHostWireGuardTunnel() {
         refreshRuntimeEntitlements()
 
         guard runtimeState == .running, vmCoordinator.canSendConsoleInput else {
-            setHostWireGuardTunnelStatus(.unconfigured)
+            wireGuardSession.updateHostTunnelStatus(.unconfigured)
             appendEventLog(
                 "Host WireGuard tunnel not started: VM is not running.",
                 source: .wireGuard
             )
             return
         }
-        guard validateWireGuardConnectionInputs() else {
+        guard wireGuardSession.validateConnectionInputs() else {
             return
         }
         guard runtimeEntitlements.packetTunnelProvider else {
             reportMissingEntitlement(.packetTunnelProvider, action: "Host WireGuard tunnel start")
-            setHostWireGuardTunnelStatus(.missingPacketTunnelEntitlement)
+            wireGuardSession.updateHostTunnelStatus(.missingPacketTunnelEntitlement)
             return
         }
         guard runtimeEntitlements.systemExtensionInstall else {
             reportMissingEntitlement(.systemExtensionInstall, action: "Host WireGuard tunnel start")
-            setHostWireGuardTunnelStatus(.missingSystemExtensionInstallEntitlement)
-            return
-        }
-        guard wireGuardSystemExtensionStatus.isActive else {
-            appendEventLog(
-                "Host WireGuard tunnel not started: network extension is not active.",
-                source: .wireGuard
-            )
-            return
-        }
-        guard canExportWireGuardConfiguration else {
-            setHostWireGuardTunnelStatus(.unconfigured)
-            appendEventLog(
-                "Host WireGuard tunnel not started: VM endpoint is unknown.",
-                source: .wireGuard
+            wireGuardSession.updateHostTunnelStatus(
+                .missingSystemExtensionInstallEntitlement
             )
             return
         }
 
-        let configuration = wireGuardClientConfiguration
-        hostWireGuardConnectTask?.cancel()
-        let taskID = UUID()
-        hostWireGuardConnectTaskID = taskID
-        hostWireGuardConnectTask = Task { @MainActor [weak self] in
-            guard let self else {
-                return
-            }
-            await self.hostWireGuardTunnelController.connect(
-                wgQuickConfiguration: configuration
-            )
-            guard self.hostWireGuardConnectTaskID == taskID else {
-                return
-            }
-            self.hostWireGuardConnectTask = nil
-            self.hostWireGuardConnectTaskID = nil
-        }
+        _ = wireGuardSession.connect()
     }
 
     func disconnectHostWireGuardTunnel() {
         cancelPendingWireGuardConnection(reason: "manual WireGuard disconnect")
-        hostWireGuardConnectTask?.cancel()
-        hostWireGuardConnectTask = nil
-        hostWireGuardConnectTaskID = nil
-        Task { @MainActor [weak self] in
-            await self?.hostWireGuardTunnelController.disconnect(waitUntilStopped: false)
-        }
-    }
-
-    func clearConsole() {
-        consoleSession.clear()
+        wireGuardSession.disconnect()
     }
 
     @discardableResult
     func sendConsoleBytes(_ data: Data) -> Bool {
         return vmCoordinator.sendConsoleBytes(data)
-    }
-
-    func setLaunchAtLoginEnabled(_ isEnabled: Bool) {
-        do {
-            launchAtLoginSnapshot = try launchAtLoginService.setEnabled(isEnabled)
-            preferencesStatusMessage = launchAtLoginSnapshot.statusText
-        } catch {
-            launchAtLoginSnapshot = launchAtLoginService.snapshot()
-            preferencesStatusMessage = String(localized: "Could not update Launch at Login: \(error.localizedDescription)")
-            appendEventLog(
-                "Could not update Launch at Login: " +
-                    EventLogErrorFormatter.description(for: error)
-            )
-        }
-    }
-
-    func refreshLaunchAtLoginStatus() {
-        launchAtLoginSnapshot = launchAtLoginService.snapshot()
-        preferencesStatusMessage = ""
     }
 
     func requestOnboardingPresentation(restart: Bool = true) {
@@ -1066,8 +772,7 @@ final class TetheringStore: ObservableObject {
             return
         }
 
-        defaults.set(Self.currentOnboardingVersion, forKey: DefaultsKey.onboardingVersion)
-        hasCompletedOnboarding = true
+        appPreferences.completeOnboarding()
         appendEventLog("Onboarding completed.")
 
         resumeAttachmentsAwaitingAssetSetup()
@@ -1078,7 +783,7 @@ final class TetheringStore: ObservableObject {
     func resetAppSettings() async -> Bool {
         guard canResetAppSettings else {
             if assetProvider.isBusy {
-                preferencesStatusMessage = String(
+                resetStatusMessage = String(
                     localized: "Wait for the current VM asset operation to finish."
                 )
             }
@@ -1088,12 +793,8 @@ final class TetheringStore: ObservableObject {
         isResettingAppSettings = true
         defer { isResettingAppSettings = false }
 
-        hostWireGuardConnectTask?.cancel()
-        hostWireGuardConnectTask = nil
-        hostWireGuardConnectTaskID = nil
-
-        guard await hostWireGuardTunnelController.disconnect(waitUntilStopped: true) else {
-            preferencesStatusMessage = String(
+        guard await wireGuardSession.disconnectAndWait() else {
+            resetStatusMessage = String(
                 localized: "Could not stop the WireGuard tunnel before resetting app settings."
             )
             appendEventLog(
@@ -1116,7 +817,7 @@ final class TetheringStore: ObservableObject {
         if vmCoordinator.hasVirtualMachine {
             usbCoordinator.prepareForIntentionalVMStop()
             guard await vmCoordinator.stopAndWaitUntilStopped() else {
-                preferencesStatusMessage = String(
+                resetStatusMessage = String(
                     localized: "Could not stop the VM before resetting app settings."
                 )
                 appendEventLog(
@@ -1127,8 +828,8 @@ final class TetheringStore: ObservableObject {
             }
         }
 
-        guard await hostWireGuardTunnelController.removeSavedTunnelIfNeeded() else {
-            preferencesStatusMessage = String(
+        guard await wireGuardSession.removeSavedTunnelIfNeeded() else {
+            resetStatusMessage = String(
                 localized: "Could not remove the saved WireGuard tunnel profile."
             )
             appendEventLog(
@@ -1139,9 +840,9 @@ final class TetheringStore: ObservableObject {
         }
 
         do {
-            try wireGuardConfigurationStore.removeConfigurationDirectory()
+            try wireGuardSession.removeConfigurationDirectory()
         } catch {
-            preferencesStatusMessage = String(localized: "Could not remove WireGuard configuration: \(error.localizedDescription)")
+            resetStatusMessage = String(localized: "Could not remove WireGuard configuration: \(error.localizedDescription)")
             appendEventLog(
                 "App settings reset cancelled: Could not remove WireGuard configuration: " +
                     EventLogErrorFormatter.description(for: error)
@@ -1156,35 +857,14 @@ final class TetheringStore: ObservableObject {
         wireGuardConnectionPrompt = nil
 
         vmConfiguration.reset()
-
-        defaults.removeObject(forKey: DefaultsKey.onboardingVersion)
-
-        wireGuardDNSServersText = ""
-        wireGuardEndpointText = ""
-        wireGuardAllowedIPsText = ""
-        invalidWireGuardConnectionFields = []
-        defaults.removeObject(forKey: DefaultsKey.wireGuardDNSServersText)
-        defaults.removeObject(forKey: DefaultsKey.wireGuardEndpointText)
-        defaults.removeObject(forKey: DefaultsKey.wireGuardAllowedIPsText)
-
-        shouldAskToAttachDetectedUSBDevices = true
-        defaults.removeObject(forKey: DefaultsKey.shouldAskToAttachDetectedUSBDevices)
-        shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches = false
-        defaults.removeObject(
-            forKey: DefaultsKey.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches
-        )
-
-        hasCompletedOnboarding = false
-        wireGuardKeyMaterial = nil
-        discoveredWireGuardEndpoint = nil
+        wireGuardSession.resetPersistedValues()
         statusMessage = String(localized: "App settings reset. Install or select VM assets to continue.")
 
         do {
-            launchAtLoginSnapshot = try launchAtLoginService.setEnabled(false)
-            preferencesStatusMessage = String(localized: "App settings were reset.")
+            try appPreferences.resetPersistedValues()
+            resetStatusMessage = String(localized: "App settings were reset.")
         } catch {
-            launchAtLoginSnapshot = launchAtLoginService.snapshot()
-            preferencesStatusMessage = String(localized: "Settings reset, but Launch at Login could not be disabled: \(error.localizedDescription)")
+            resetStatusMessage = String(localized: "Settings reset, but Launch at Login could not be disabled: \(error.localizedDescription)")
         }
 
         appendEventLog("App settings and WireGuard configuration were reset; VM asset files were not deleted.")
@@ -1232,7 +912,7 @@ final class TetheringStore: ObservableObject {
                 self.restartWillStartVM = false
                 self.cancelPendingWireGuardConnection(reason: "VM start or runtime failure")
                 self.cancelPendingAttachment(reason: "VM start or runtime failure")
-                self.clearWireGuardEndpoint(reason: "VM failed")
+                self.wireGuardSession.clearDiscoveredEndpoint(reason: "VM failed")
             default:
                 break
             }
@@ -1266,7 +946,7 @@ final class TetheringStore: ObservableObject {
                !shouldPreserveWireGuardConnectionRequest {
                 self.cancelPendingWireGuardConnection(reason: "VM stopped")
             }
-            self.clearWireGuardEndpoint(reason: "VM stopped")
+            self.wireGuardSession.clearDiscoveredEndpoint(reason: "VM stopped")
             self.usbCoordinator.clearAttachmentForStoppedVM()
             self.syncUSBState()
 
@@ -1328,37 +1008,19 @@ final class TetheringStore: ObservableObject {
         syncUSBState()
     }
 
-    private func configureHostWireGuardTunnelController() {
-        hostWireGuardTunnelController.onStatusChange = { [weak self] status in
-            self?.setHostWireGuardTunnelStatus(status)
-        }
-        hostWireGuardTunnelController.onSystemExtensionStatusChange = { [weak self] status in
-            guard let self, !self.isPreparingForApplicationTermination else {
-                return
-            }
-            self.setWireGuardSystemExtensionStatus(status)
-        }
-        hostWireGuardTunnelController.onEventLog = { [weak self] message in
-            guard let self, !self.isPreparingForApplicationTermination else {
-                return
-            }
-            self.appendEventLog(message, source: .wireGuard)
-        }
-    }
-
     private func attemptPendingWireGuardConnectionIfReady() {
         guard let accessoryID = pendingWireGuardConnectionAccessoryID else {
             return
         }
 
-        if hostWireGuardTunnelStatus.isConnectingOrConnected {
+        if wireGuardSession.hostTunnelStatus.isConnectingOrConnected {
             pendingWireGuardConnectionAccessoryID = nil
             return
         }
 
         guard attachedAccessoryID == accessoryID,
               vmSessionAccessoryID == accessoryID,
-              invalidWireGuardConnectionFields.isEmpty,
+              wireGuardSession.invalidConnectionFields.isEmpty,
               canConnectHostWireGuardTunnel else {
             return
         }
@@ -1387,60 +1049,6 @@ final class TetheringStore: ObservableObject {
         )
     }
 
-    private func cancelHostWireGuardTunnel(reason: String) {
-        guard hostWireGuardConnectTask != nil || hostWireGuardTunnelStatus.canRequestStop else {
-            return
-        }
-        let shouldLogStop = hostWireGuardTunnelStatus.canRequestStop
-        hostWireGuardConnectTask?.cancel()
-        hostWireGuardConnectTask = nil
-        hostWireGuardConnectTaskID = nil
-        if shouldLogStop {
-            appendEventLog(
-                "Stopping Host WireGuard tunnel because \(reason).",
-                source: .wireGuard
-            )
-        }
-        Task { @MainActor [weak self] in
-            await self?.hostWireGuardTunnelController.disconnect(waitUntilStopped: false)
-        }
-    }
-
-    private func setHostWireGuardTunnelStatus(_ status: HostWireGuardTunnelStatus) {
-        hostWireGuardTunnelStatus = status
-        appendEventLog(
-            "Provider: \(status.eventLogDescription)",
-            source: .wireGuard
-        )
-        attemptPendingWireGuardConnectionIfReady()
-    }
-
-    private func setWireGuardSystemExtensionStatus(
-        _ status: WireGuardSystemExtensionStatus
-    ) {
-        guard !isPreparingForApplicationTermination,
-              wireGuardSystemExtensionStatus != status else {
-            return
-        }
-        wireGuardSystemExtensionStatus = status
-        appendEventLog(
-            "Network Extension: \(status.eventLogDescription)",
-            source: .wireGuard
-        )
-        attemptPendingWireGuardConnectionIfReady()
-    }
-
-    private func openWireGuardSystemExtensionSettingsNow() {
-        guard systemExtensionSettingsOpener() else {
-            appendEventLog(
-                "Could not open Network Extensions settings.",
-                source: .wireGuard
-            )
-            return
-        }
-        appendEventLog("Opened Network Extensions settings.", source: .wireGuard)
-    }
-
     private func offerAttachmentForAvailableAccessory(_ record: USBAccessoryRecord) {
         guard !isOnboardingPresented else {
             appendEventLog(
@@ -1450,7 +1058,7 @@ final class TetheringStore: ObservableObject {
             return
         }
 
-        guard shouldAskToAttachDetectedUSBDevices else {
+        guard appPreferences.shouldAskToAttachDetectedUSBDevices else {
             appendEventLog(
                 "USB attach prompt skipped for registry \(record.registryIDText): " +
                     "asking on device detection is disabled.",
@@ -1769,68 +1377,12 @@ final class TetheringStore: ObservableObject {
         )
     }
 
-    private func restoreOnboardingState() {
-        let completedVersion = defaults.integer(forKey: DefaultsKey.onboardingVersion)
-
-        hasCompletedOnboarding = completedVersion >= Self.currentOnboardingVersion
-    }
-
     private func appendScratchDiskSelectionSummaryIfNeeded() {
         if let diskImageURL = vmConfiguration.diskImageURL {
             appendEventLog(
                 "Restored optional scratch disk selection: \(diskImageURL.path).",
                 source: .virtualMachine
             )
-        }
-    }
-
-    private func prepareWireGuardConfiguration() {
-        do {
-            let prepared = try wireGuardConfigurationStore.prepareConfigurationIfNeeded(
-                builder: wireGuardConfigurationBuilder
-            )
-            wireGuardKeyMaterial = prepared.keyMaterial
-            appendEventLog(
-                "Prepared WireGuard configuration from Application Support keys: \(prepared.files.wireGuardDirectoryURL.path).",
-                source: .wireGuard
-            )
-        } catch {
-            wireGuardKeyMaterial = nil
-            appendEventLog(
-                "WireGuard key/configuration initialization failed without replacing existing keys: " +
-                    EventLogErrorFormatter.description(for: error),
-                source: .wireGuard
-            )
-        }
-    }
-
-    @discardableResult
-    private func reloadWireGuardConfigurationFromApplicationSupport(
-        reason: String,
-        requireExisting: Bool
-    ) -> Bool {
-        do {
-            let prepared = requireExisting
-                ? try wireGuardConfigurationStore.requireExistingConfiguration(
-                    builder: wireGuardConfigurationBuilder
-                )
-                : try wireGuardConfigurationStore.prepareConfigurationIfNeeded(
-                    builder: wireGuardConfigurationBuilder
-                )
-            wireGuardKeyMaterial = prepared.keyMaterial
-            appendEventLog(
-                "Regenerated WireGuard configuration from keys in \(prepared.files.wireGuardDirectoryURL.path): \(reason).",
-                source: .wireGuard
-            )
-            return true
-        } catch {
-            wireGuardKeyMaterial = nil
-            appendEventLog(
-                "WireGuard configuration load failed: " +
-                    EventLogErrorFormatter.description(for: error),
-                source: .wireGuard
-            )
-            return false
         }
     }
 
@@ -1854,52 +1406,13 @@ final class TetheringStore: ObservableObject {
         appendEventLog("\(action) not started: missing \(entitlement.rawValue). The default ThruRNDIS scheme is for local UI builds; run the ThruRNDIS Runtime scheme with an approved provisioning profile to exercise this runtime path.")
     }
 
-    private func clearWireGuardEndpoint(
-        reason: String,
-        alwaysDisconnectTunnel: Bool = true
-    ) {
-        let previousResolvedEndpoint = resolvedWireGuardEndpoint
-        guard discoveredWireGuardEndpoint != nil else {
-            if alwaysDisconnectTunnel {
-                cancelHostWireGuardTunnel(reason: reason)
-            }
-            return
-        }
-
-        discoveredWireGuardEndpoint = nil
-        revalidateWireGuardConnectionField(.endpoint)
-        if alwaysDisconnectTunnel || resolvedWireGuardEndpoint != previousResolvedEndpoint {
-            cancelHostWireGuardTunnel(reason: reason)
-        }
-        appendEventLog("WireGuard endpoint cleared: \(reason).", source: .wireGuard)
-    }
-
-    private func updateWireGuardEndpoint(_ endpoint: String) {
-        guard endpoint != discoveredWireGuardEndpoint else {
-            return
-        }
-
-        let previousResolvedEndpoint = resolvedWireGuardEndpoint
-        discoveredWireGuardEndpoint = endpoint
-        revalidateWireGuardConnectionField(.endpoint)
-        if resolvedWireGuardEndpoint != previousResolvedEndpoint,
-           hostWireGuardTunnelStatus.canRequestStop || hostWireGuardConnectTask != nil {
-            cancelHostWireGuardTunnel(reason: "VM WireGuard endpoint changed")
-        }
-        appendEventLog(
-            "WireGuard guest address discovered from guest console: \(endpoint).",
-            source: .wireGuard
-        )
-        attemptPendingWireGuardConnectionIfReady()
-    }
-
     private func clearConsoleForVMStart() {
         consoleSession.clear()
     }
 
     private func appendConsole(_ data: Data) {
         if let endpoint = consoleSession.append(data) {
-            updateWireGuardEndpoint(endpoint)
+            wireGuardSession.updateDiscoveredEndpoint(endpoint)
         }
     }
 
@@ -1910,95 +1423,7 @@ final class TetheringStore: ObservableObject {
         eventLog.append(message, source: source)
     }
 
-    private func normalizedWireGuardInput(_ value: String) -> String? {
-        let normalized = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        return normalized.isEmpty ? nil : normalized
-    }
-
-    private func validateWireGuardConnectionInputs() -> Bool {
-        let invalidFields = currentInvalidWireGuardConnectionFields()
-        invalidWireGuardConnectionFields = invalidFields
-        guard invalidFields.isEmpty else {
-            let invalidFieldNames = WireGuardConnectionField.allCases
-                .filter(invalidFields.contains)
-                .map(\.displayName)
-                .joined(separator: ", ")
-            appendEventLog(
-                "Host WireGuard tunnel not started: invalid connection values (\(invalidFieldNames)).",
-                source: .wireGuard
-            )
-            return false
-        }
-        return true
-    }
-
-    private func revalidateWireGuardConnectionField(_ field: WireGuardConnectionField) {
-        let isValid: Bool
-        switch field {
-        case .endpoint:
-            guard let endpoint = normalizedWireGuardInput(wireGuardEndpointText)
-                ?? discoveredWireGuardEndpoint else {
-                var errors = invalidWireGuardConnectionFields
-                errors.remove(.endpoint)
-                invalidWireGuardConnectionFields = errors
-                return
-            }
-            isValid = WireGuardConnectionValidator.isValidEndpoint(endpoint)
-        case .allowedIPs:
-            isValid = WireGuardConnectionValidator.isValidAllowedIPs(
-                resolvedWireGuardAllowedIPs
-            )
-        case .dnsServers:
-            isValid = WireGuardConnectionValidator.isValidDNSServers(
-                resolvedWireGuardDNSServersText
-            )
-        }
-
-        var errors = invalidWireGuardConnectionFields
-        if isValid {
-            errors.remove(field)
-        } else {
-            errors.insert(field)
-        }
-        invalidWireGuardConnectionFields = errors
-    }
-
-    private func revalidateAllWireGuardConnectionFields() {
-        WireGuardConnectionField.allCases.forEach(revalidateWireGuardConnectionField)
-    }
-
-    private func currentInvalidWireGuardConnectionFields() -> Set<WireGuardConnectionField> {
-        WireGuardConnectionValidator.invalidFields(
-            endpoint: resolvedWireGuardEndpoint,
-            allowedIPs: resolvedWireGuardAllowedIPs,
-            dnsServers: resolvedWireGuardDNSServersText
-        )
-    }
-
-    private static func restoredWireGuardInput(
-        defaults: UserDefaults,
-        key: String,
-        fallback: String
-    ) -> String {
-        guard defaults.object(forKey: key) != nil else {
-            return fallback
-        }
-        return defaults.string(forKey: key) ?? fallback
-    }
-
-    private static let currentOnboardingVersion = 3
-
     private static func registryIDText(_ registryID: UInt64) -> String {
         "0x" + String(registryID, radix: 16, uppercase: true)
-    }
-
-    private enum DefaultsKey {
-        static let onboardingVersion = "Onboarding.completedVersion"
-        static let wireGuardDNSServersText = "WireGuard.dnsServers"
-        static let wireGuardEndpointText = "WireGuard.endpointOverride"
-        static let wireGuardAllowedIPsText = "WireGuard.allowedIPs"
-        static let shouldAskToAttachDetectedUSBDevices = "USB.askToAttachDetectedDevices"
-        static let shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches =
-            "WireGuard.connectAutomaticallyWhenUSBDeviceAttaches"
     }
 }

@@ -6,6 +6,12 @@ import SwiftUI
 
 struct WireGuardView: View {
     @EnvironmentObject private var store: TetheringStore
+    @EnvironmentObject private var wireGuardSession: WireGuardSessionStore
+    @EnvironmentObject private var appPreferences: AppPreferencesStore
+
+    let openConfigurationFolder: () -> Void
+    let copyConfiguration: () -> Void
+    let saveConfiguration: () -> Void
 
     var body: some View {
         Form {
@@ -23,7 +29,7 @@ struct WireGuardView: View {
             Section("Network Extension") {
                 LabeledContent("Status") {
                     Label(
-                        store.wireGuardSystemExtensionStatus.title,
+                        wireGuardSession.systemExtensionStatus.title,
                         systemImage: systemExtensionStatusImage
                     )
                     .foregroundStyle(systemExtensionStatusColor)
@@ -50,7 +56,7 @@ struct WireGuardView: View {
                     Button("Refresh Status") {
                         store.refreshWireGuardSystemExtensionStatus()
                     }
-                    .disabled(store.wireGuardSystemExtensionStatus.isTransitioning)
+                    .disabled(wireGuardSession.systemExtensionStatus.isTransitioning)
                 }
             }
 
@@ -59,14 +65,14 @@ struct WireGuardView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         TextField(
                             "Endpoint",
-                            text: $store.wireGuardEndpointText,
-                            prompt: Text(verbatim: store.wireGuardEndpointPrompt)
+                            text: $wireGuardSession.endpointText,
+                            prompt: Text(verbatim: wireGuardSession.endpointPrompt)
                         )
                         .labelsHidden()
                         .monospaced()
                         .frame(minWidth: 320)
 
-                        if store.hasWireGuardEndpointValidationError {
+                        if wireGuardSession.hasEndpointValidationError {
                             connectionValidationError
                         }
                     }
@@ -76,14 +82,14 @@ struct WireGuardView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         TextField(
                             "Allowed IPs",
-                            text: $store.wireGuardAllowedIPsText,
+                            text: $wireGuardSession.allowedIPsText,
                             prompt: Text(verbatim: "0.0.0.0/0")
                         )
                         .labelsHidden()
                         .monospaced()
                         .frame(minWidth: 320)
 
-                        if store.hasWireGuardAllowedIPsValidationError {
+                        if wireGuardSession.hasAllowedIPsValidationError {
                             connectionValidationError
                         }
                     }
@@ -93,14 +99,14 @@ struct WireGuardView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         TextField(
                             "DNS Servers",
-                            text: $store.wireGuardDNSServersText,
-                            prompt: Text(verbatim: store.defaultWireGuardDNSServersText)
+                            text: $wireGuardSession.dnsServersText,
+                            prompt: Text(verbatim: wireGuardSession.defaultDNSServersText)
                         )
                         .labelsHidden()
                         .monospaced()
                         .frame(minWidth: 320)
 
-                        if store.hasWireGuardDNSServersValidationError {
+                        if wireGuardSession.hasDNSServersValidationError {
                             connectionValidationError
                         }
                     }
@@ -111,7 +117,7 @@ struct WireGuardView: View {
                         store.connectHostWireGuardTunnel()
                     } label: {
                         Text(
-                            store.hostWireGuardTunnelStatus.isConnectingOrConnected
+                            wireGuardSession.hostTunnelStatus.isConnectingOrConnected
                                 ? String(localized: "Reconnect")
                                 : String(localized: "Connect")
                         )
@@ -121,18 +127,18 @@ struct WireGuardView: View {
                     Button("Disconnect") {
                         store.disconnectHostWireGuardTunnel()
                     }
-                    .disabled(!store.canDisconnectHostWireGuardTunnel)
+                    .disabled(!wireGuardSession.canDisconnectTunnel)
 
                     Button("Refresh") {
                         store.refreshHostWireGuardTunnelStatus()
                     }
-                    .disabled(store.hostWireGuardTunnelStatus.isTransitioning)
+                    .disabled(wireGuardSession.hostTunnelStatus.isTransitioning)
 
                     Spacer()
 
                     Toggle(
                         "Connect Automatically When a USB Device Is Attached",
-                        isOn: $store.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches
+                        isOn: $appPreferences.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches
                     )
                     .toggleStyle(.checkbox)
                 }
@@ -140,7 +146,7 @@ struct WireGuardView: View {
 
             Section("Host Configuration (Debug / Export)") {
                 ScrollView([.horizontal, .vertical]) {
-                    Text(verbatim: store.wireGuardClientConfiguration)
+                    Text(verbatim: wireGuardSession.clientConfiguration)
                         .font(.system(.body, design: .monospaced))
                         .textSelection(.enabled)
                         .fixedSize(horizontal: true, vertical: false)
@@ -156,29 +162,32 @@ struct WireGuardView: View {
 
                 HStack {
                     Button("Copy") {
-                        store.copyWireGuardConfiguration()
+                        copyConfiguration()
                     }
-                    .disabled(!store.canExportWireGuardConfiguration)
+                    .disabled(!wireGuardSession.canExportConfiguration)
 
                     Button("Save…") {
-                        store.saveWireGuardConfiguration()
+                        saveConfiguration()
                     }
-                    .disabled(!store.canExportWireGuardConfiguration)
+                    .disabled(!wireGuardSession.canExportConfiguration)
 
                     Button("Reload") {
-                        store.reloadWireGuardConfiguration()
+                        wireGuardSession.reloadConfiguration()
                     }
 
                     Button("Open Config Folder") {
-                        store.openWireGuardConfigurationFolder()
+                        openConfigurationFolder()
                     }
 
                     Spacer()
 
                     Button("Clear Discovered Endpoint") {
-                        store.clearWireGuardEndpoint()
+                        wireGuardSession.clearDiscoveredEndpoint(
+                            reason: "manual request",
+                            alwaysDisconnectTunnel: false
+                        )
                     }
-                    .disabled(!store.hasDiscoveredWireGuardEndpoint)
+                    .disabled(wireGuardSession.discoveredEndpoint == nil)
                 }
             }
         }
@@ -194,14 +203,14 @@ struct WireGuardView: View {
     }
 
     private var systemExtensionStatusDetail: LocalizedStringKey {
-        if store.wireGuardSystemExtensionStatus == .uninstalling {
+        if wireGuardSession.systemExtensionStatus == .uninstalling {
             return "Restart macOS to finish removing the Network Extension before requesting activation again."
         }
         if !store.runtimeEntitlements.systemExtensionInstall {
             return "This build cannot activate the Network Extension. Run a signed copy of ThruRNDIS from Applications."
         }
 
-        return switch store.wireGuardSystemExtensionStatus {
+        return switch wireGuardSession.systemExtensionStatus {
         case .unknown:
             "The Network Extension status has not been checked yet."
         case .checking:
@@ -222,7 +231,7 @@ struct WireGuardView: View {
     }
 
     private var systemExtensionStatusImage: String {
-        switch store.wireGuardSystemExtensionStatus {
+        switch wireGuardSession.systemExtensionStatus {
         case .active:
             "checkmark.shield.fill"
         case .checking, .activationRequested:
@@ -243,7 +252,7 @@ struct WireGuardView: View {
     }
 
     private var systemExtensionStatusColor: Color {
-        switch store.wireGuardSystemExtensionStatus {
+        switch wireGuardSession.systemExtensionStatus {
         case .active:
             .green
         case .checking, .activationRequested, .awaitingUserApproval, .restartRequired:

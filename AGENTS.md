@@ -33,22 +33,28 @@ WireGuard-over-VZNAT architecture as the baseline.
 
 ## Architecture
 
-- `TetheringStore` owns cross-feature orchestration, general app state,
-  WireGuard presentation state, onboarding/preferences, and the serialized USB
-  approval/start/stop workflow. High-frequency or independently observed
-  state lives in child stores: `EventLogStore` owns the bounded app event log,
-  `ConsoleSessionStore` owns only VM serial-console output and endpoint scanning,
-  `USBSessionStore` owns the atomic USB UI snapshot and pending prompt, and
-  `VMConfigurationStore` owns persisted VM settings including the optional
-  scratch disk. VM lifecycle work belongs in `VMCoordinator`; USB
+- `TetheringStore` owns cross-feature orchestration: reset ordering, onboarding
+  presentation/listener coordination, and the serialized USB approval, VM
+  start/stop, passthrough, and optional WireGuard auto-connect workflow. State
+  that can be observed independently lives in child stores. `EventLogStore`
+  owns the bounded app event log, `ConsoleSessionStore` owns only VM
+  serial-console output and endpoint scanning, `USBSessionStore` owns the
+  atomic USB UI snapshot and pending prompt, `VMConfigurationStore` owns
+  persisted VM settings including the optional scratch disk,
+  `WireGuardSessionStore` owns host-tunnel/System Extension presentation state,
+  WireGuard inputs, validation, and configuration readiness, and
+  `AppPreferencesStore` owns onboarding completion, USB/WireGuard preferences,
+  and Launch at Login state. VM lifecycle work belongs in `VMCoordinator`; USB
   AccessoryAccess selection and passthrough policy belong in
   `USBAccessoryCoordinator`.
 - `AppDelegate` is the composition root. It owns one shared
   `VMAssetWorkflowCoordinator`, constructs the VM, USB, and WireGuard adapters
-  and the four child state stores, injects them into one shared `TetheringStore`,
+  and the six child state stores, injects them into one shared `TetheringStore`,
   starts AccessoryAccess monitoring at app launch, and passes the same objects
-  to onboarding, Settings, and the menu bar. Keep the dependency one-way:
-  `TetheringStore` sees only the read-only `VMAssetProviding` boundary, and
+  to onboarding, Settings, and the menu bar. Views observe the narrowest child
+  store that owns their state while invoking `TetheringStore` only for
+  cross-feature actions. Keep the dependency one-way: `TetheringStore` sees
+  only the read-only `VMAssetProviding` boundary, and
   `VMAssetWorkflowCoordinator` must not reference `TetheringStore`.
 - `VMAssetWorkflowCoordinator` is the `@MainActor` workflow owner for the current
   selection, installed releases, install state, progress, errors, cancellation,
@@ -253,7 +259,9 @@ target membership, and build phase as applicable.
   only. Do not place menu or window controllers here.
 - `ThruRNDIS/Presentation`: AppKit presentation owners: the menu-bar controller
   and the window controllers that host SwiftUI onboarding, Settings, and console
-  views.
+  views. `WireGuardConfigurationFileController` owns the AppKit/file-system
+  presentation actions for opening, copying, and exporting rendered WireGuard
+  configuration; keep those actions out of stores and SwiftUI views.
 - `ThruRNDIS/Views`: SwiftUI views. Settings tabs remain under
   `ThruRNDIS/Views/Settings`; reusable view-only components stay under
   `ThruRNDIS/Views/SharedViews`.
@@ -268,9 +276,12 @@ target membership, and build phase as applicable.
   `TetheringStore` owns cross-feature orchestration, `EventLogStore` owns the
   app event log, `ConsoleSessionStore` owns VM serial-console state,
   `USBSessionStore` owns the USB UI projection, and `VMConfigurationStore` owns
-  editable VM settings and their UserDefaults persistence. View-scoped
-  observable state such as `VideoPlaybackStore` also belongs here when it is
-  substantial enough to live outside its SwiftUI view.
+  editable VM settings and their UserDefaults persistence.
+  `WireGuardSessionStore` owns WireGuard presentation/session state and editable
+  connection inputs, while `AppPreferencesStore` owns persisted app preferences,
+  onboarding completion, and Launch at Login state. View-scoped observable
+  state such as `VideoPlaybackStore` also belongs here when it is substantial
+  enough to live outside its SwiftUI view.
 - `ThruRNDIS/Persistence`: non-observable durable-storage adapters and path
   definitions. `VMAssetSelectionStore` persists Asset selection,
   `WireGuardConfigurationStore` owns Application Support keys/configuration, and

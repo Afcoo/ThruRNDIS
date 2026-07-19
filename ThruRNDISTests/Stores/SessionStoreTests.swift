@@ -483,10 +483,10 @@ final class TetheringStoreObservationTests: XCTestCase {
 
         XCTAssertEqual(tunnelController.systemExtensionInvalidationCallCount, 1)
         XCTAssertEqual(tunnelController.systemExtensionActivationCallCount, 0)
-        XCTAssertFalse(store.isWireGuardSystemExtensionActivationInProgress)
+        XCTAssertFalse(store.wireGuardSession.isSystemExtensionActivationInProgress)
         XCTAssertEqual(settingsOpenCount, 0)
 
-        let statusAtTermination = store.wireGuardSystemExtensionStatus
+        let statusAtTermination = store.wireGuardSession.systemExtensionStatus
         let eventLogAtTermination = eventLog.text
         tunnelController.onSystemExtensionStatusChange?(.awaitingUserApproval)
         tunnelController.onSystemExtensionStatusChange?(.active)
@@ -494,7 +494,7 @@ final class TetheringStoreObservationTests: XCTestCase {
         store.requestWireGuardSystemExtensionActivation()
         store.openWireGuardSystemExtensionSettings()
 
-        XCTAssertEqual(store.wireGuardSystemExtensionStatus, statusAtTermination)
+        XCTAssertEqual(store.wireGuardSession.systemExtensionStatus, statusAtTermination)
         XCTAssertEqual(eventLog.text, eventLogAtTermination)
         XCTAssertEqual(settingsOpenCount, 0)
     }
@@ -547,25 +547,25 @@ final class TetheringStoreObservationTests: XCTestCase {
             launchAtLoginService: launchAtLoginService,
             defaults: defaults
         )
-        store.shouldAskToAttachDetectedUSBDevices = false
-        store.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches = true
-        store.wireGuardDNSServersText = "9.9.9.9"
-        store.wireGuardEndpointText = "vpn.example.com:51820"
-        store.wireGuardAllowedIPsText = "10.0.0.0/8"
+        store.appPreferences.shouldAskToAttachDetectedUSBDevices = false
+        store.appPreferences.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches = true
+        store.wireGuardSession.dnsServersText = "9.9.9.9"
+        store.wireGuardSession.endpointText = "vpn.example.com:51820"
+        store.wireGuardSession.allowedIPsText = "10.0.0.0/8"
 
         let didReset = await store.resetAppSettings()
         await store.prepareForApplicationTermination(disconnectWireGuard: false)
 
         XCTAssertTrue(didReset)
-        XCTAssertTrue(store.shouldAskToAttachDetectedUSBDevices)
+        XCTAssertTrue(store.appPreferences.shouldAskToAttachDetectedUSBDevices)
         XCTAssertNil(defaults.object(forKey: "USB.askToAttachDetectedDevices"))
-        XCTAssertFalse(store.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches)
+        XCTAssertFalse(store.appPreferences.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches)
         XCTAssertNil(
             defaults.object(forKey: "WireGuard.connectAutomaticallyWhenUSBDeviceAttaches")
         )
-        XCTAssertEqual(store.wireGuardDNSServersText, "")
-        XCTAssertEqual(store.wireGuardEndpointText, "")
-        XCTAssertEqual(store.wireGuardAllowedIPsText, "")
+        XCTAssertEqual(store.wireGuardSession.dnsServersText, "")
+        XCTAssertEqual(store.wireGuardSession.endpointText, "")
+        XCTAssertEqual(store.wireGuardSession.allowedIPsText, "")
         XCTAssertNil(defaults.object(forKey: "WireGuard.dnsServers"))
         XCTAssertNil(defaults.object(forKey: "WireGuard.endpointOverride"))
         XCTAssertNil(defaults.object(forKey: "WireGuard.allowedIPs"))
@@ -660,7 +660,7 @@ final class TetheringStoreObservationTests: XCTestCase {
         XCTAssertEqual(tunnelController.removeSavedTunnelCallCount, 0)
         XCTAssertEqual(wireGuardStore.removeConfigurationDirectoryCallCount, 0)
         XCTAssertEqual(
-            store.preferencesStatusMessage,
+            store.resetStatusMessage,
             String(localized: "Could not stop the VM before resetting app settings.")
         )
         XCTAssertTrue(store.canResetAppSettings)
@@ -686,11 +686,11 @@ final class TetheringStoreObservationTests: XCTestCase {
             defaults: defaults
         )
 
-        XCTAssertFalse(store.hasCompletedOnboarding)
+        XCTAssertFalse(store.appPreferences.hasCompletedOnboarding)
 
         store.completeOnboarding()
 
-        XCTAssertTrue(store.hasCompletedOnboarding)
+        XCTAssertTrue(store.appPreferences.hasCompletedOnboarding)
         XCTAssertEqual(defaults.integer(forKey: "Onboarding.completedVersion"), 3)
     }
 
@@ -818,16 +818,16 @@ final class TetheringStoreObservationTests: XCTestCase {
 
         let store = makeStore()
 
-        XCTAssertTrue(store.shouldAskToAttachDetectedUSBDevices)
+        XCTAssertTrue(store.appPreferences.shouldAskToAttachDetectedUSBDevices)
         XCTAssertNil(defaults.object(forKey: "USB.askToAttachDetectedDevices"))
 
-        store.shouldAskToAttachDetectedUSBDevices = false
+        store.appPreferences.shouldAskToAttachDetectedUSBDevices = false
 
         XCTAssertEqual(
             defaults.object(forKey: "USB.askToAttachDetectedDevices") as? Bool,
             false
         )
-        XCTAssertFalse(makeStore().shouldAskToAttachDetectedUSBDevices)
+        XCTAssertFalse(makeStore().appPreferences.shouldAskToAttachDetectedUSBDevices)
     }
 
     func testDetectedUSBPromptPreferenceControlsAutomaticOffer() throws {
@@ -862,12 +862,12 @@ final class TetheringStoreObservationTests: XCTestCase {
             )
         )
 
-        store.shouldAskToAttachDetectedUSBDevices = false
+        store.appPreferences.shouldAskToAttachDetectedUSBDevices = false
         usbCoordinator.onAccessoryAvailable?(record)
 
         XCTAssertNil(usbSession.attachmentPrompt)
 
-        store.shouldAskToAttachDetectedUSBDevices = true
+        store.appPreferences.shouldAskToAttachDetectedUSBDevices = true
         usbCoordinator.onAccessoryAvailable?(record)
 
         XCTAssertEqual(usbSession.attachmentPrompt?.accessory.id, record.id)
@@ -895,12 +895,12 @@ final class TetheringStoreObservationTests: XCTestCase {
 
         let store = makeStore()
 
-        XCTAssertFalse(store.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches)
+        XCTAssertFalse(store.appPreferences.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches)
         XCTAssertNil(
             defaults.object(forKey: "WireGuard.connectAutomaticallyWhenUSBDeviceAttaches")
         )
 
-        store.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches = true
+        store.appPreferences.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches = true
 
         XCTAssertEqual(
             defaults.object(
@@ -908,7 +908,9 @@ final class TetheringStoreObservationTests: XCTestCase {
             ) as? Bool,
             true
         )
-        XCTAssertTrue(makeStore().shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches)
+        XCTAssertTrue(
+            makeStore().appPreferences.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches
+        )
     }
 
     func testManualUSBAttachmentEntryPointsPromptAndRequireAcceptanceForFutureAutomaticConnections() throws {
@@ -959,7 +961,7 @@ final class TetheringStoreObservationTests: XCTestCase {
             shouldAutomaticallyConnectNextTime: true
         )
 
-        XCTAssertFalse(store.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches)
+        XCTAssertFalse(store.appPreferences.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches)
         XCTAssertNil(
             defaults.object(forKey: "WireGuard.connectAutomaticallyWhenUSBDeviceAttaches")
         )
@@ -975,7 +977,7 @@ final class TetheringStoreObservationTests: XCTestCase {
             shouldAutomaticallyConnectNextTime: true
         )
 
-        XCTAssertTrue(store.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches)
+        XCTAssertTrue(store.appPreferences.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches)
         XCTAssertEqual(
             defaults.object(
                 forKey: "WireGuard.connectAutomaticallyWhenUSBDeviceAttaches"
@@ -1305,7 +1307,7 @@ final class TetheringStoreObservationTests: XCTestCase {
         )
 
         tunnelController.onSystemExtensionStatusChange?(.active)
-        store.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches = true
+        store.appPreferences.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches = true
         usbCoordinator.setAvailableAccessories(
             [accessory],
             selectedAccessoryID: accessory.id
@@ -1356,17 +1358,17 @@ final class TetheringStoreObservationTests: XCTestCase {
             defaults: defaults
         )
 
-        XCTAssertEqual(store.wireGuardSystemExtensionStatus, .unknown)
+        XCTAssertEqual(store.wireGuardSession.systemExtensionStatus, .unknown)
         XCTAssertFalse(store.canConnectHostWireGuardTunnel)
 
         tunnelController.onSystemExtensionStatusChange?(.active)
 
-        XCTAssertEqual(store.wireGuardSystemExtensionStatus, .active)
+        XCTAssertEqual(store.wireGuardSession.systemExtensionStatus, .active)
         XCTAssertTrue(eventLog.text.contains("Network Extension: Active"))
 
         tunnelController.onSystemExtensionStatusChange?(.inactive)
 
-        XCTAssertEqual(store.wireGuardSystemExtensionStatus, .inactive)
+        XCTAssertEqual(store.wireGuardSession.systemExtensionStatus, .inactive)
         XCTAssertFalse(store.canConnectHostWireGuardTunnel)
         XCTAssertTrue(eventLog.text.contains("Network Extension: Inactive"))
     }
@@ -1616,10 +1618,10 @@ final class TetheringStoreObservationTests: XCTestCase {
         vmCoordinator.onConsoleOutput?(
             Data("THRURNDIS_WG_ENDPOINT=192.168.64.2:51820\n".utf8)
         )
-        store.wireGuardEndpointText = "manual.example.com:51820"
+        store.wireGuardSession.endpointText = "manual.example.com:51820"
         let providerStatus = HostWireGuardTunnelStatus.activatingSystemExtension
         tunnelController.onStatusChange?(providerStatus)
-        XCTAssertEqual(store.discoveredWireGuardEndpoint, "192.168.64.2:51820")
+        XCTAssertEqual(store.wireGuardSession.discoveredEndpoint, "192.168.64.2:51820")
         XCTAssertTrue(
             store.eventLog.text.contains(
                 "Provider: \(providerStatus.eventLogDescription)"
@@ -1630,8 +1632,8 @@ final class TetheringStoreObservationTests: XCTestCase {
         vmCoordinator.onStopped?()
         await Task.yield()
 
-        XCTAssertNil(store.discoveredWireGuardEndpoint)
-        XCTAssertEqual(store.resolvedWireGuardEndpoint, "manual.example.com:51820")
+        XCTAssertNil(store.wireGuardSession.discoveredEndpoint)
+        XCTAssertEqual(store.wireGuardSession.resolvedEndpoint, "manual.example.com:51820")
         XCTAssertEqual(tunnelController.disconnectCallCount, 1)
         XCTAssertEqual(tunnelController.lastDisconnectWaitUntilStopped, false)
     }
@@ -1659,37 +1661,37 @@ final class TetheringStoreObservationTests: XCTestCase {
             Data("THRURNDIS_WG_ENDPOINT=192.168.64.2:51820\n".utf8)
         )
 
-        XCTAssertEqual(store.wireGuardDNSServersText, "")
-        XCTAssertEqual(store.resolvedWireGuardEndpoint, "192.168.64.2:51820")
-        XCTAssertEqual(store.resolvedWireGuardAllowedIPs, "0.0.0.0/0")
+        XCTAssertEqual(store.wireGuardSession.dnsServersText, "")
+        XCTAssertEqual(store.wireGuardSession.resolvedEndpoint, "192.168.64.2:51820")
+        XCTAssertEqual(store.wireGuardSession.resolvedAllowedIPs, "0.0.0.0/0")
         XCTAssertEqual(
-            store.resolvedWireGuardDNSServers,
+            store.wireGuardSession.resolvedDNSServers,
             ["1.1.1.1", "1.0.0.1", "8.8.8.8", "8.8.4.4"]
         )
 
-        store.wireGuardEndpointText = " vpn.example.com:12345 "
-        store.wireGuardAllowedIPsText = " 10.0.0.0/8 "
-        store.wireGuardDNSServersText = "9.9.9.9,\n149.112.112.112"
+        store.wireGuardSession.endpointText = " vpn.example.com:12345 "
+        store.wireGuardSession.allowedIPsText = " 10.0.0.0/8 "
+        store.wireGuardSession.dnsServersText = "9.9.9.9,\n149.112.112.112"
 
-        XCTAssertEqual(store.resolvedWireGuardEndpoint, "vpn.example.com:12345")
-        XCTAssertEqual(store.resolvedWireGuardAllowedIPs, "10.0.0.0/8")
-        XCTAssertEqual(store.resolvedWireGuardDNSServers, ["9.9.9.9", "149.112.112.112"])
-        XCTAssertTrue(store.wireGuardClientConfiguration.contains("Endpoint = vpn.example.com:12345"))
-        XCTAssertTrue(store.wireGuardClientConfiguration.contains("AllowedIPs = 10.0.0.0/8"))
-        XCTAssertTrue(store.wireGuardClientConfiguration.contains("DNS = 9.9.9.9, 149.112.112.112"))
+        XCTAssertEqual(store.wireGuardSession.resolvedEndpoint, "vpn.example.com:12345")
+        XCTAssertEqual(store.wireGuardSession.resolvedAllowedIPs, "10.0.0.0/8")
+        XCTAssertEqual(store.wireGuardSession.resolvedDNSServers, ["9.9.9.9", "149.112.112.112"])
+        XCTAssertTrue(store.wireGuardSession.clientConfiguration.contains("Endpoint = vpn.example.com:12345"))
+        XCTAssertTrue(store.wireGuardSession.clientConfiguration.contains("AllowedIPs = 10.0.0.0/8"))
+        XCTAssertTrue(store.wireGuardSession.clientConfiguration.contains("DNS = 9.9.9.9, 149.112.112.112"))
         XCTAssertEqual(defaults.string(forKey: "WireGuard.endpointOverride"), " vpn.example.com:12345 ")
         XCTAssertEqual(defaults.string(forKey: "WireGuard.allowedIPs"), " 10.0.0.0/8 ")
         XCTAssertEqual(defaults.string(forKey: "WireGuard.dnsServers"), "9.9.9.9,\n149.112.112.112")
 
-        store.wireGuardDNSServersText = " \n "
+        store.wireGuardSession.dnsServersText = " \n "
 
         XCTAssertEqual(
-            store.resolvedWireGuardDNSServers,
+            store.wireGuardSession.resolvedDNSServers,
             ["1.1.1.1", "1.0.0.1", "8.8.8.8", "8.8.4.4"]
         )
-        XCTAssertFalse(store.hasWireGuardDNSServersValidationError)
+        XCTAssertFalse(store.wireGuardSession.hasDNSServersValidationError)
         XCTAssertTrue(
-            store.wireGuardClientConfiguration.contains(
+            store.wireGuardSession.clientConfiguration.contains(
                 "DNS = 1.1.1.1, 1.0.0.1, 8.8.8.8, 8.8.4.4"
             )
         )
@@ -1717,15 +1719,15 @@ final class TetheringStoreObservationTests: XCTestCase {
             defaults: defaults
         )
         vmCoordinator.onStateChange?(.running, "VM running")
-        XCTAssertTrue(store.invalidWireGuardConnectionFields.isEmpty)
-        store.wireGuardEndpointText = "1:51820"
-        XCTAssertTrue(store.hasWireGuardEndpointValidationError)
-        store.wireGuardAllowedIPsText = "1"
-        XCTAssertTrue(store.hasWireGuardAllowedIPsValidationError)
-        store.wireGuardDNSServersText = "1"
-        XCTAssertTrue(store.hasWireGuardDNSServersValidationError)
+        XCTAssertTrue(store.wireGuardSession.invalidConnectionFields.isEmpty)
+        store.wireGuardSession.endpointText = "1:51820"
+        XCTAssertTrue(store.wireGuardSession.hasEndpointValidationError)
+        store.wireGuardSession.allowedIPsText = "1"
+        XCTAssertTrue(store.wireGuardSession.hasAllowedIPsValidationError)
+        store.wireGuardSession.dnsServersText = "1"
+        XCTAssertTrue(store.wireGuardSession.hasDNSServersValidationError)
         XCTAssertEqual(
-            store.invalidWireGuardConnectionFields,
+            store.wireGuardSession.invalidConnectionFields,
             Set(WireGuardConnectionField.allCases)
         )
 
@@ -1738,31 +1740,31 @@ final class TetheringStoreObservationTests: XCTestCase {
             )
         )
 
-        store.wireGuardEndpointText = "vpn.example.com:51820"
-        XCTAssertFalse(store.hasWireGuardEndpointValidationError)
-        store.wireGuardAllowedIPsText = "0.0.0.0/0"
-        XCTAssertFalse(store.hasWireGuardAllowedIPsValidationError)
-        store.wireGuardDNSServersText = "1.1.1.1, 8.8.8.8"
-        XCTAssertFalse(store.hasWireGuardDNSServersValidationError)
-        XCTAssertTrue(store.invalidWireGuardConnectionFields.isEmpty)
+        store.wireGuardSession.endpointText = "vpn.example.com:51820"
+        XCTAssertFalse(store.wireGuardSession.hasEndpointValidationError)
+        store.wireGuardSession.allowedIPsText = "0.0.0.0/0"
+        XCTAssertFalse(store.wireGuardSession.hasAllowedIPsValidationError)
+        store.wireGuardSession.dnsServersText = "1.1.1.1, 8.8.8.8"
+        XCTAssertFalse(store.wireGuardSession.hasDNSServersValidationError)
+        XCTAssertTrue(store.wireGuardSession.invalidConnectionFields.isEmpty)
 
-        store.wireGuardEndpointText = "invalid"
-        XCTAssertTrue(store.hasWireGuardEndpointValidationError)
-        store.wireGuardEndpointText = ""
-        XCTAssertFalse(store.hasWireGuardEndpointValidationError)
-        store.wireGuardAllowedIPsText = ""
-        XCTAssertFalse(store.hasWireGuardAllowedIPsValidationError)
-        store.wireGuardDNSServersText = ""
-        XCTAssertFalse(store.hasWireGuardDNSServersValidationError)
+        store.wireGuardSession.endpointText = "invalid"
+        XCTAssertTrue(store.wireGuardSession.hasEndpointValidationError)
+        store.wireGuardSession.endpointText = ""
+        XCTAssertFalse(store.wireGuardSession.hasEndpointValidationError)
+        store.wireGuardSession.allowedIPsText = ""
+        XCTAssertFalse(store.wireGuardSession.hasAllowedIPsValidationError)
+        store.wireGuardSession.dnsServersText = ""
+        XCTAssertFalse(store.wireGuardSession.hasDNSServersValidationError)
         XCTAssertEqual(
-            store.resolvedWireGuardDNSServers,
+            store.wireGuardSession.resolvedDNSServers,
             ["1.1.1.1", "1.0.0.1", "8.8.8.8", "8.8.4.4"]
         )
 
         vmCoordinator.onConsoleOutput?(
             Data("THRURNDIS_WG_ENDPOINT=1:51820\n".utf8)
         )
-        XCTAssertTrue(store.hasWireGuardEndpointValidationError)
+        XCTAssertTrue(store.wireGuardSession.hasEndpointValidationError)
     }
 
     func testPersistedInvalidConnectionValuesAreValidatedDuringInitialization() throws {
@@ -1788,7 +1790,7 @@ final class TetheringStoreObservationTests: XCTestCase {
         )
 
         XCTAssertEqual(
-            store.invalidWireGuardConnectionFields,
+            store.wireGuardSession.invalidConnectionFields,
             Set(WireGuardConnectionField.allCases)
         )
     }

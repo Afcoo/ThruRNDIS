@@ -5,11 +5,14 @@ Copyright (C) 2026 Afcoo.
 import SwiftUI
 
 struct SettingsView: View {
-    @EnvironmentObject private var store: TetheringStore
+    @EnvironmentObject private var appPreferences: AppPreferencesStore
     @State private var selectedSection: SettingsSection = .general
 
     let openConsole: () -> Void
     let resetAndRestart: () -> Void
+    let openWireGuardConfigurationFolder: () -> Void
+    let copyWireGuardConfiguration: () -> Void
+    let saveWireGuardConfiguration: () -> Void
 
     var body: some View {
         NavigationSplitView {
@@ -29,7 +32,11 @@ struct SettingsView: View {
                 case .usbDevices:
                     USBDevicesView()
                 case .wireGuard:
-                    WireGuardView()
+                    WireGuardView(
+                        openConfigurationFolder: openWireGuardConfigurationFolder,
+                        copyConfiguration: copyWireGuardConfiguration,
+                        saveConfiguration: saveWireGuardConfiguration
+                    )
                 case .info:
                     InfoView(resetAndRestart: resetAndRestart)
                 }
@@ -39,7 +46,7 @@ struct SettingsView: View {
         .formStyle(.grouped)
         .frame(width: 800, height: 520)
         .onAppear {
-            store.refreshLaunchAtLoginStatus()
+            appPreferences.refreshLaunchAtLoginStatus()
         }
     }
 }

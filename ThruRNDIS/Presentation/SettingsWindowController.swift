@@ -7,20 +7,35 @@ import SwiftUI
 
 @MainActor
 final class SettingsWindowController: NSWindowController {
+    private let wireGuardConfigurationFileController: WireGuardConfigurationFileController
+
     init(
         store: TetheringStore,
         assetWorkflowCoordinator: VMAssetWorkflowCoordinator,
         openConsole: @escaping () -> Void,
         resetAndRestart: @escaping () -> Void
     ) {
+        let wireGuardConfigurationFileController = WireGuardConfigurationFileController(
+            wireGuardSession: store.wireGuardSession,
+            eventLog: store.eventLog
+        )
+        self.wireGuardConfigurationFileController = wireGuardConfigurationFileController
         let rootView = SettingsView(
             openConsole: openConsole,
-            resetAndRestart: resetAndRestart
+            resetAndRestart: resetAndRestart,
+            openWireGuardConfigurationFolder:
+                wireGuardConfigurationFileController.openConfigurationFolder,
+            copyWireGuardConfiguration:
+                wireGuardConfigurationFileController.copyConfiguration,
+            saveWireGuardConfiguration:
+                wireGuardConfigurationFileController.saveConfiguration
         )
             .environmentObject(store)
             .environmentObject(store.eventLog)
             .environmentObject(store.usbSession)
             .environmentObject(store.vmConfiguration)
+            .environmentObject(store.wireGuardSession)
+            .environmentObject(store.appPreferences)
             .environmentObject(assetWorkflowCoordinator)
         let hostingController = NSHostingController(rootView: rootView)
         let window = NSWindow(contentViewController: hostingController)

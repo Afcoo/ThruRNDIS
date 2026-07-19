@@ -21,7 +21,7 @@ struct ConsoleView: View {
                 Spacer()
 
                 Button {
-                    store.clearConsole()
+                    consoleSession.clear()
                 } label: {
                     Label("Clear", systemImage: "trash")
                 }

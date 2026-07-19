@@ -8,6 +8,7 @@ import SwiftUI
 struct VirtualMachineView: View {
     @EnvironmentObject private var store: TetheringStore
     @EnvironmentObject private var vmConfiguration: VMConfigurationStore
+    @EnvironmentObject private var wireGuardSession: WireGuardSessionStore
     @EnvironmentObject private var assetWorkflowCoordinator: VMAssetWorkflowCoordinator
     @State private var assetAlert: VMAssetAlert?
 
@@ -31,7 +32,10 @@ struct VirtualMachineView: View {
                         Button("Start") {
                             store.startVirtualMachine()
                         }
-                        .disabled(!store.canStartVirtualMachine)
+                        .disabled(
+                            !store.canStartVirtualMachine
+                                || !wireGuardSession.hasKeyMaterial
+                        )
                     }
 
                     Button("Stop") {
