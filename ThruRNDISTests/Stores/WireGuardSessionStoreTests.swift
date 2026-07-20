@@ -110,6 +110,22 @@ final class WireGuardSessionStoreTests: XCTestCase {
         XCTAssertTrue(store.hasEndpointValidationError)
     }
 
+    func testPersistedInvalidConnectionInputsAreValidatedOnInitialization() throws {
+        let suiteName = "WireGuardSessionStoreTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        defaults.set("vpn.example.com", forKey: "WireGuard.endpointOverride")
+        defaults.set("10.100.0.2/33", forKey: "WireGuard.allowedIPs")
+        defaults.set("1.1.1.1,", forKey: "WireGuard.dnsServers")
+
+        let store = makeStore(defaults: defaults)
+
+        XCTAssertEqual(
+            store.invalidConnectionFields,
+            Set(WireGuardConnectionField.allCases)
+        )
+    }
+
     func testDiscoveredEndpointUpdateAndClearNotifyReadinessAndStopActiveTunnel() async throws {
         let suiteName = "WireGuardSessionStoreTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
@@ -267,13 +283,21 @@ final class WireGuardSessionStoreTests: XCTestCase {
         )
     }
 
-    func testActivationConnectDisconnectAndSavedTunnelRemovalDelegateToController() async throws {
+    func testSystemExtensionActivationAndSettingsAreIndependentActions() async throws {
         let suiteName = "WireGuardSessionStoreTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
         defer { defaults.removePersistentDomain(forName: suiteName) }
         let tunnelController = WireGuardSessionStoreTestTunnelController()
-        let store = makeStore(
+        var settingsOpenCount = 0
+        let store = WireGuardSessionStore(
+            configurationStore: WireGuardSessionStoreTestConfigurationStore(),
+            configurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
             tunnelController: tunnelController,
+            eventLog: EventLogStore(),
+            systemExtensionSettingsOpener: {
+                settingsOpenCount += 1
+                return true
+            },
             defaults: defaults
         )
 
@@ -283,6 +307,25 @@ final class WireGuardSessionStoreTests: XCTestCase {
             tunnelController.systemExtensionActivationCallCount == 1
                 && !store.isSystemExtensionActivationInProgress
         }
+
+        XCTAssertEqual(settingsOpenCount, 0)
+
+        tunnelController.onSystemExtensionStatusChange?(.awaitingUserApproval)
+        store.openSystemExtensionSettings()
+
+        XCTAssertEqual(settingsOpenCount, 1)
+        XCTAssertEqual(tunnelController.systemExtensionActivationCallCount, 1)
+    }
+
+    func testConnectDisconnectAndSavedTunnelRemovalDelegateToController() async throws {
+        let suiteName = "WireGuardSessionStoreTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let tunnelController = WireGuardSessionStoreTestTunnelController()
+        let store = makeStore(
+            tunnelController: tunnelController,
+            defaults: defaults
+        )
 
         tunnelController.onSystemExtensionStatusChange?(.active)
         store.endpointText = "vpn.example.com:51820"
