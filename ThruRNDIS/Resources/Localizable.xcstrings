@@ -53,6 +53,16 @@
         }
       }
     },
+    "%@ has been connected, but VM assets have not been configured.\nOpen Settings to install VM Assets." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 기기가 연결되었지만 VM 에셋이 구성되지 않았습니다. \n설정을 열어 VM Asset을 설치하세요."
+          }
+        }
+      }
+    },
     "%@ has been connected.\nStart the VM and attach this device?" : {
       "localizations" : {
         "ko" : {
@@ -125,6 +135,56 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "설치된 VM 에셋을 활성화하는 중…"
+          }
+        }
+      }
+    },
+    "Activation Requested" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "활성화 요청됨"
+          }
+        }
+      }
+    },
+    "Activation was requested. Approve the Network Extension in System Settings." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "활성화를 요청했습니다. 시스템 설정에서 네트워크 확장 프로그램을 승인하세요."
+          }
+        }
+      }
+    },
+    "Active" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "활성화됨"
+          }
+        }
+      }
+    },
+    "All settings except VM asset files will be reset." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VM 에셋 파일을 제외한 모든 설정이 초기화됩니다."
+          }
+        }
+      }
+    },
+    "All settings will be reset, and ThruRNDIS will quit and relaunch." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "모든 설정이 초기화되며 ThruRNDIS가 종료 후 다시 시작됩니다."
           }
         }
       }
@@ -259,6 +319,16 @@
         }
       }
     },
+    "Awaiting User Approval" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "사용자 승인 대기 중"
+          }
+        }
+      }
+    },
     "Back" : {
       "localizations" : {
         "ko" : {
@@ -305,6 +375,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "최신 VM 에셋 릴리스를 확인하는 중…"
+          }
+        }
+      }
+    },
+    "Checking whether the Network Extension is active." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 확장 프로그램이 활성화되어 있는지 확인하는 중입니다."
+          }
+        }
+      }
+    },
+    "Checking…" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "확인 중…"
           }
         }
       }
@@ -390,6 +480,7 @@
       }
     },
     "Class %@ · Registry %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -461,6 +552,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "창 닫기"
+          }
+        }
+      }
+    },
+    "Configure VM Assets in Settings" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "설정에서 VM에셋을 구성하세요"
           }
         }
       }
@@ -637,22 +738,22 @@
         }
       }
     },
-    "Could not stop the WireGuard tunnel before resetting app settings." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "앱 설정을 초기화하기 전에 WireGuard 터널을 중지할 수 없습니다."
-          }
-        }
-      }
-    },
     "Could not stop the VM before resetting app settings." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "앱 설정을 초기화하기 전에 VM을 중지할 수 없습니다."
+          }
+        }
+      }
+    },
+    "Could not stop the WireGuard tunnel before resetting app settings." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "앱 설정을 초기화하기 전에 WireGuard 터널을 중지할 수 없습니다."
           }
         }
       }
@@ -703,22 +804,22 @@
         }
       }
     },
-    "Detach USB" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "USB 연결 해제"
-          }
-        }
-      }
-    },
     "Detach the current USB accessory before attaching another USB accessory." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "다른 USB 액세서리를 연결하기 전에 현재 USB 액세서리 연결을 해제하세요."
+          }
+        }
+      }
+    },
+    "Detach USB" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "USB 연결 해제"
           }
         }
       }
@@ -855,6 +956,26 @@
         }
       }
     },
+    "Enable the Network Extension" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 확장 프로그램 활성화"
+          }
+        }
+      }
+    },
+    "Enable the Network Extension before connecting." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "연결하기 전에 네트워크 확장 프로그램을 활성화하세요."
+          }
+        }
+      }
+    },
     "Endpoint" : {
       "localizations" : {
         "ko" : {
@@ -866,6 +987,7 @@
       }
     },
     "Entitlement" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ko" : {
           "stringUnit" : {
@@ -1011,6 +1133,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "테더링 기기를 ThruRNDIS에 연결하는 방법"
+          }
+        }
+      }
+    },
+    "In System Settings, turn on the ThruRNDIS network extension, then return to ThruRNDIS." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "시스템 설정에서 ThruRNDIS 네트워크 확장 프로그램을 켠 다음 ThruRNDIS로 돌아오세요."
+          }
+        }
+      }
+    },
+    "Inactive" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "비활성화됨"
           }
         }
       }
@@ -1291,6 +1433,26 @@
         }
       }
     },
+    "Network Extension" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 확장 프로그램"
+          }
+        }
+      }
+    },
+    "Network extension activation is already in progress." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 확장 프로그램 활성화가 이미 진행 중입니다."
+          }
+        }
+      }
+    },
     "NetworkExtension Packet Tunnel" : {
       "localizations" : {
         "ko" : {
@@ -1382,6 +1544,16 @@
         }
       }
     },
+    "Not Checked" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "확인 안 됨"
+          }
+        }
+      }
+    },
     "Not configured" : {
       "localizations" : {
         "ko" : {
@@ -1438,6 +1610,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "구성 폴더 열기"
+          }
+        }
+      }
+    },
+    "Open Settings" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "설정 열기"
           }
         }
       }
@@ -1572,6 +1754,16 @@
         }
       }
     },
+    "Refresh Status" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "상태 새로고침"
+          }
+        }
+      }
+    },
     "Refusing to modify a VM asset path outside managed storage: %@" : {
       "localizations" : {
         "ko" : {
@@ -1628,6 +1820,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "동영상 다시 재생"
+          }
+        }
+      }
+    },
+    "Request Activation" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "활성화 요청"
+          }
+        }
+      }
+    },
+    "Request activation, then allow ThruRNDIS in System Settings before connecting." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "활성화를 요청한 다음 연결하기 전에 시스템 설정에서 ThruRNDIS를 허용하세요."
           }
         }
       }
@@ -1692,12 +1904,42 @@
         }
       }
     },
+    "Restart macOS to finish activating the Network Extension." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 확장 프로그램 활성화를 완료하려면 macOS를 재시동하세요."
+          }
+        }
+      }
+    },
+    "Restart macOS to finish removing the Network Extension before requesting activation again." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 확장 프로그램 제거를 완료하려면 macOS를 재시동한 후 다시 활성화를 요청하세요."
+          }
+        }
+      }
+    },
     "Restart Onboarding…" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "온보딩 다시 시작…"
+          }
+        }
+      }
+    },
+    "Restart Required" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "재시동 필요"
           }
         }
       }
@@ -1772,16 +2014,6 @@
         }
       }
     },
-    "All settings except VM asset files will be reset." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "VM 에셋 파일을 제외한 모든 설정이 초기화됩니다."
-          }
-        }
-      }
-    },
     "Scratch disk" : {
       "localizations" : {
         "ko" : {
@@ -1848,16 +2080,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "ThruRNDIS를 한 번 설정한 뒤, USB 테더링 기기를 연결할 때마다 메뉴 막대에서 사용하세요."
-          }
-        }
-      }
-    },
-    "Configure VM Assets in Settings" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "설정에서 VM에셋을 구성하세요"
           }
         }
       }
@@ -2113,6 +2335,46 @@
         }
       }
     },
+    "The Network Extension is active and ready to connect." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 확장 프로그램이 활성화되어 연결할 준비가 되었습니다."
+          }
+        }
+      }
+    },
+    "The network extension is still disabled after the activation request completed." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "활성화 요청이 완료된 후에도 네트워크 확장 프로그램이 비활성화되어 있습니다."
+          }
+        }
+      }
+    },
+    "The Network Extension status could not be determined." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 확장 프로그램 상태를 확인할 수 없습니다."
+          }
+        }
+      }
+    },
+    "The Network Extension status has not been checked yet." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "아직 네트워크 확장 프로그램 상태를 확인하지 않았습니다."
+          }
+        }
+      }
+    },
     "The saved WireGuard tunnel is not a packet tunnel session." : {
       "localizations" : {
         "ko" : {
@@ -2175,16 +2437,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "연결하기 전에 USB 액세서리를 사용할 수 없게 되었습니다."
-          }
-        }
-      }
-    },
-    "USB and WireGuard will disconnect. Quit anyway?" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "USB 기기와 연결이 해제됩니다.\n정말 종료하시겠어요?"
           }
         }
       }
@@ -2255,22 +2507,22 @@
         }
       }
     },
-    "The network extension is still disabled after the activation request completed." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "활성화 요청이 완료된 후에도 네트워크 확장 프로그램이 비활성화되어 있습니다."
-          }
-        }
-      }
-    },
     "The WireGuard tunnel did not stop within five seconds." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "WireGuard 터널이 5초 안에 중지되지 않았습니다."
+          }
+        }
+      }
+    },
+    "This build cannot activate the Network Extension. Run a signed copy of ThruRNDIS from Applications." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 빌드에서는 네트워크 확장 프로그램을 활성화할 수 없습니다. 서명된 ThruRNDIS를 응용 프로그램 폴더에서 실행하세요."
           }
         }
       }
@@ -2341,6 +2593,16 @@
         }
       }
     },
+    "ThruRNDIS requires its Network Extension to be active before it can connect." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ThruRNDIS를 연결하려면 네트워크 확장 프로그램이 활성화되어 있어야 합니다."
+          }
+        }
+      }
+    },
     "ThruRNDIS Settings" : {
       "localizations" : {
         "ko" : {
@@ -2391,16 +2653,6 @@
         }
       }
     },
-    "All settings will be reset, and ThruRNDIS will quit and relaunch." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "모든 설정이 초기화되며 ThruRNDIS가 종료 후 다시 시작됩니다."
-          }
-        }
-      }
-    },
     "Turn on USB tethering and connect your device to this Mac." : {
       "localizations" : {
         "ko" : {
@@ -2417,6 +2669,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "USB 테더링을 켠 다음, USB 케이블로 기기를 이 Mac에 연결하세요."
+          }
+        }
+      }
+    },
+    "Unavailable" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "사용할 수 없음"
+          }
+        }
+      }
+    },
+    "Uninstalling" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "제거 중"
           }
         }
       }
@@ -2452,11 +2724,22 @@
       }
     },
     "USB accessory detached from VM." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "VM에서 USB 액세서리 연결이 해제되었습니다."
+          }
+        }
+      }
+    },
+    "USB and WireGuard will disconnect. Quit anyway?" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "USB 기기와 연결이 해제됩니다.\n정말 종료하시겠어요?"
           }
         }
       }
@@ -2487,16 +2770,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "USB 기기"
-          }
-        }
-      }
-    },
-    "%@ has been connected, but VM assets have not been configured.\nOpen Settings to install VM Assets." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ 기기가 연결되었지만 VM 에셋이 구성되지 않았습니다. \n설정을 열어 VM Asset을 설치하세요."
           }
         }
       }
@@ -2627,6 +2900,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "버전"
+          }
+        }
+      }
+    },
+    "VID:PID %@ · Class %@ · Registry %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "VID:PID %1$@ · Class %2$@ · Registry %3$@"
           }
         }
       }
@@ -2981,16 +3264,6 @@
         }
       }
     },
-    "Network extension activation is already in progress." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "네트워크 확장 프로그램 활성화가 이미 진행 중입니다."
-          }
-        }
-      }
-    },
     "WireGuard: %@" : {
       "localizations" : {
         "ko" : {
@@ -3007,266 +3280,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "WireGuard: 프로바이더 연결됨"
-          }
-        }
-      }
-    },
-    "Activation Requested" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "활성화 요청됨"
-          }
-        }
-      }
-    },
-    "Activation was requested. Approve the Network Extension in System Settings." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "활성화를 요청했습니다. 시스템 설정에서 네트워크 확장 프로그램을 승인하세요."
-          }
-        }
-      }
-    },
-    "Active" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "활성화됨"
-          }
-        }
-      }
-    },
-    "Awaiting User Approval" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "사용자 승인 대기 중"
-          }
-        }
-      }
-    },
-    "Checking whether the Network Extension is active." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "네트워크 확장 프로그램이 활성화되어 있는지 확인하는 중입니다."
-          }
-        }
-      }
-    },
-    "Checking…" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "확인 중…"
-          }
-        }
-      }
-    },
-    "Enable the Network Extension" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "네트워크 확장 프로그램 활성화"
-          }
-        }
-      }
-    },
-    "Enable the Network Extension before connecting." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "연결하기 전에 네트워크 확장 프로그램을 활성화하세요."
-          }
-        }
-      }
-    },
-    "In System Settings, turn on the ThruRNDIS network extension, then return to ThruRNDIS." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "시스템 설정에서 ThruRNDIS 네트워크 확장 프로그램을 켠 다음 ThruRNDIS로 돌아오세요."
-          }
-        }
-      }
-    },
-    "Inactive" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "비활성화됨"
-          }
-        }
-      }
-    },
-    "Network Extension" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "네트워크 확장 프로그램"
-          }
-        }
-      }
-    },
-    "Not Checked" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "확인 안 됨"
-          }
-        }
-      }
-    },
-    "Open Settings" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "설정 열기"
-          }
-        }
-      }
-    },
-    "Refresh Status" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "상태 새로고침"
-          }
-        }
-      }
-    },
-    "Request Activation" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "활성화 요청"
-          }
-        }
-      }
-    },
-    "Request activation, then allow ThruRNDIS in System Settings before connecting." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "활성화를 요청한 다음 연결하기 전에 시스템 설정에서 ThruRNDIS를 허용하세요."
-          }
-        }
-      }
-    },
-    "Restart Required" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "재시동 필요"
-          }
-        }
-      }
-    },
-    "Restart macOS to finish activating the Network Extension." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "네트워크 확장 프로그램 활성화를 완료하려면 macOS를 재시동하세요."
-          }
-        }
-      }
-    },
-    "The Network Extension is active and ready to connect." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "네트워크 확장 프로그램이 활성화되어 연결할 준비가 되었습니다."
-          }
-        }
-      }
-    },
-    "The Network Extension status could not be determined." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "네트워크 확장 프로그램 상태를 확인할 수 없습니다."
-          }
-        }
-      }
-    },
-    "The Network Extension status has not been checked yet." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "아직 네트워크 확장 프로그램 상태를 확인하지 않았습니다."
-          }
-        }
-      }
-    },
-    "ThruRNDIS requires its Network Extension to be active before it can connect." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ThruRNDIS를 연결하려면 네트워크 확장 프로그램이 활성화되어 있어야 합니다."
-          }
-        }
-      }
-    },
-    "Restart macOS to finish removing the Network Extension before requesting activation again." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "네트워크 확장 프로그램 제거를 완료하려면 macOS를 재시동한 후 다시 활성화를 요청하세요."
-          }
-        }
-      }
-    },
-    "This build cannot activate the Network Extension. Run a signed copy of ThruRNDIS from Applications." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "이 빌드에서는 네트워크 확장 프로그램을 활성화할 수 없습니다. 서명된 ThruRNDIS를 응용 프로그램 폴더에서 실행하세요."
-          }
-        }
-      }
-    },
-    "Unavailable" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "사용할 수 없음"
-          }
-        }
-      }
-    },
-    "Uninstalling" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "제거 중"
           }
         }
       }
