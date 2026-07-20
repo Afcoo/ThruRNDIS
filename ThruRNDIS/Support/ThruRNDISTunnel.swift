@@ -12,7 +12,7 @@ enum ThruRNDISTunnel {
             "?extensionPointIdentifier=com.apple.system_extension.network_extension.extension-point"
     )!
 
-    private static let providerBundleIdentifierSuffix = ".wireguard-network-extension"
+    private static let providerBundleIdentifierSuffix = ".network-extension"
 
     static func providerBundleIdentifier(derivedFrom bundleIdentifier: String) -> String {
         "\(appBundleIdentifier(derivedFrom: bundleIdentifier))\(providerBundleIdentifierSuffix)"
