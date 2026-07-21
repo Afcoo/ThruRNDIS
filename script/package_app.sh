@@ -12,7 +12,8 @@
 # This is the one-command release orchestrator. It first publishes a notarized
 # app under dist/app-artifacts/ThruRNDIS-<version>-<build>/ without replacing an
 # existing app artifact, then passes that exact app to the independent DMG
-# stage. The DMG stage revalidates the app and signs/notarizes only the DMG.
+# stage. The DMG stage publishes dist/ThruRNDIS-<version>.dmg after revalidating
+# the app, and signs/notarizes only the DMG.
 # Pass --skip-verification to keep signing, notarization, and stapling enabled
 # while skipping the standalone post-notarization verification scripts.
 

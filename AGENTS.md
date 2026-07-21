@@ -407,7 +407,7 @@ xcrun notarytool store-credentials "thrurndis-notary"
   `dist/app-artifacts/ThruRNDIS-<version>-<build>/ThruRNDIS.app`. The DMG stage
   revalidates that exact app with codesign, Developer ID, entitlement, stapler,
   and `syspolicy_check distribution` checks before using `hdiutil` to create
-  `dist/ThruRNDIS-<version>-<build>.dmg`. It preserves the compact 480x300
+  `dist/ThruRNDIS-<version>.dmg`. It preserves the compact 480x300
   Finder layout, 96 px icons, and fixed app/Applications positions. The
   mounted volume uses the built app's `.icns`;
   the `.dmg` file itself intentionally uses the standard macOS disk-image icon.
@@ -440,7 +440,7 @@ xcrun notarytool store-credentials "thrurndis-notary"
 ./script/verify_notarized_app.sh \
   dist/app-artifacts/ThruRNDIS-<version>-<build>/ThruRNDIS.app
 ./script/verify_notarized_dmg.sh \
-  dist/ThruRNDIS-<version>-<build>.dmg
+  dist/ThruRNDIS-<version>.dmg
 ```
 
   The app verifier checks the app and embedded Network System Extension

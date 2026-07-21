@@ -77,7 +77,7 @@ DMG_NAME="$(/usr/bin/basename "$INPUT_DMG")"
 DMG_PARENT="$(cd "$DMG_PARENT" && /bin/pwd -P)"
 INPUT_DMG="$DMG_PARENT/$DMG_NAME"
 [[ "$DMG_NAME" == "$APP_NAME-"*.dmg ]] || distribution_fail \
-  "expected a $APP_NAME-<version>-<build>.dmg file"
+  "expected a $APP_NAME-<version>.dmg file"
 
 WORK_DIR="$(/usr/bin/mktemp -d /tmp/ThruRNDIS-dmg-verification.XXXXXX)"
 MOUNT_DIR="$WORK_DIR/mount"

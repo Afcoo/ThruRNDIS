@@ -361,7 +361,7 @@ distribution_require_safe_filename_component "app build number" "$APP_BUILD"
 [[ "$(distribution_sha256 "$ARTIFACT_CONTENT_MANIFEST")" == "$EXPECTED_CONTENT_MANIFEST_SHA256" ]] || distribution_fail \
   "the stored app content manifest does not match artifact-info.plist"
 
-DMG_NAME="$APP_NAME-$APP_VERSION-$APP_BUILD.dmg"
+DMG_NAME="$APP_NAME-$APP_VERSION.dmg"
 VOLUME_NAME="$APP_NAME $APP_VERSION"
 FINAL_DMG="$OUTPUT_DIR/$DMG_NAME"
 distribution_reject_result_file_conflict "$FINAL_DMG" "the final DMG"
