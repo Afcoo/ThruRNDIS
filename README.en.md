@@ -36,30 +36,27 @@ ThruRNDIS runs a lightweight Linux VM and passes the RNDIS device connected to m
 
 macOS and the VM are connected by a WireGuard tunnel over VZNAT, and the VM forwards macOS traffic received through WireGuard to the recognized RNDIS device.
 
+ThruRNDIS uses a [modified `wireguard-apple` fork](https://github.com/Afcoo/wireguard-apple/tree/thrurndis-vznat-bind) to establish the WireGuard tunnel over VZNAT.
+
+## Installation
+
+### GitHub Releases
+
+[Latest ThruRNDIS release](https://github.com/Afcoo/ThruRNDIS/releases/latest)
+
+### Homebrew
+
+Coming soon
+
 ## How to Use
 
-### ThruRNDIS
+1. **Install VM Assets:** Install the latest VM Assets during onboarding or in Settings.
+2. **Pass through the USB device:** In **Virtual Machine Accessories** in the menu bar, connect the USB device to **ThruRNDIS**.
 
-1. Download the app from the [latest ThruRNDIS release](https://github.com/Afcoo/ThruRNDIS/releases/latest).
-2. Unzip it, move `ThruRNDIS.app` to `/Applications`, and launch it. ThruRNDIS runs in the menu bar rather than the Dock.
+   ![Passing a USB device to ThruRNDIS from Virtual Machine Accessories](./images/accessory-access-onboarding.gif)
 
----
-
-### VM Assets
-
-VM Assets consist of an Alpine Linux-based kernel and a RAM disk for running the gateway program.
-
-ThruRNDIS installs and activates prebuilt VM Assets from the [VM Assets releases](https://github.com/Afcoo/ThruRNDIS_VM_Assets/releases).
-
-You can also use a kernel and RAM disk that you built yourself.
-
----
-
-### WireGuard
-
-Enable USB tethering on the Android device and connect it, then approve the device in ThruRNDIS and start the VM.
-
-Once the VM endpoint appears, choose **Connect WireGuard** in WireGuard Settings or the menu bar. Choose **Disconnect WireGuard** to end the connection. ThruRNDIS manages the WireGuard connection through its embedded Network System Extension.
+3. **Confirm the USB device connection:** Approve the connection in the USB device connection pop-up.
+4. **Confirm the WireGuard connection:** Approve the connection in the WireGuard connection pop-up.
 
 ## License
 

@@ -36,30 +36,27 @@ ThruRNDIS는 경량 Linux VM을 실행하고 macOS에 연결된 RNDIS 장치를 
 
 macOS와 VM은 VZNAT을 통해 WireGuard 터널로 연결되며, VM은 WireGuard를 통해 전달된 macOS의 트래픽을 인식된 RNDIS 장치에 전달합니다.
 
+ThruRNDIS는 VZNAT을 통한 WireGuard 터널 연결을 위해 [`변형된 wireguard-apple 포크`](https://github.com/Afcoo/wireguard-apple/tree/thrurndis-vznat-bind)를 사용합니다.
+
+## 설치 방법
+
+### GitHub Releases
+
+[최신 ThruRNDIS 릴리스](https://github.com/Afcoo/ThruRNDIS/releases/latest)
+
+### Homebrew
+
+추가 예정
+
 ## 사용 방법
 
-### ThruRNDIS
+1. **VM Assets 설치:** 온보딩 또는 설정에서 최신 VM Assets를 설치합니다.
+2. **USB 장치 전달:** 메뉴 막대의 **가상 머신 액세서리**에서 USB 장치를 **ThruRNDIS**로 전달합니다.
 
-1. [최신 ThruRNDIS 릴리스](https://github.com/Afcoo/ThruRNDIS/releases/latest)에서 앱을 내려받습니다.
-2. 압축을 풀고 `ThruRNDIS.app`을 `/Applications`로 옮긴 뒤 실행합니다. ThruRNDIS는 Dock이 아닌 메뉴 막대에서 동작합니다.
+   ![가상 머신 액세서리에서 USB 장치를 ThruRNDIS로 전달하는 과정](./images/accessory-access-onboarding.gif)
 
----
-
-### VM Assets
-
-VM Assets는 Alpine Linux 기반의 커널과 게이트웨이 프로그램 실행을 위한 램디스크로 구성됩니다.
-
-ThruRNDIS는 [VM Assets 릴리스](https://github.com/Afcoo/ThruRNDIS_VM_Assets/releases)에서 미리 빌드된 VM Assets를 설치하고 활성화합니다.
-
-직접 빌드한 커널과 램디스크를 사용할 수도 있습니다.
-
----
-
-### WireGuard
-
-안드로이드에서 USB 테더링을 켜고 장치를 연결한 뒤, ThruRNDIS의 승인을 거쳐 VM을 시작합니다.
-
-VM 엔드포인트가 표시되면 설정의 WireGuard 화면이나 메뉴 막대에서 **Connect WireGuard**를 선택합니다. 연결을 끝내려면 **Disconnect WireGuard**를 선택합니다. ThruRNDIS가 내장된 Network System Extension을 통해 WireGuard 연결을 관리합니다.
+3. **USB 기기 연결 확인:** USB 기기 연결 팝업에서 연결을 승인합니다.
+4. **WireGuard 연결 확인:** WireGuard 연결 팝업에서 연결을 승인합니다.
 
 ## 라이선스
 
