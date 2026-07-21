@@ -6,6 +6,7 @@
 /init
 /script/assets/
 /Configuration/LocalSigning.xcconfig
+/dist/
 
 # Xcode - User files
 xcuserdata/

@@ -4,7 +4,12 @@
 // validation. Register the app and system-extension bundle IDs for the selected
 // team. The macOS-style App Group is derived from TeamIdentifierPrefix; verify
 // that both the signed entitlement and NEMachServiceName expand to that same ID.
+// Public Developer ID distribution also requires the exact installed profile
+// names for the app and Network System Extension. Those profiles must contain
+// the restricted direct-distribution entitlements used by Distribution.entitlements.
 //
 
 DEVELOPMENT_TEAM = YOURTEAMID
 THRURNDIS_APP_BUNDLE_IDENTIFIER = com.example.thrurndis.local
+THRURNDIS_APP_DISTRIBUTION_PROVISIONING_PROFILE = ThruRNDIS Developer ID
+THRURNDIS_NETWORK_EXTENSION_DISTRIBUTION_PROVISIONING_PROFILE = ThruRNDIS Network Extension Developer ID

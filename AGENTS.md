@@ -310,7 +310,13 @@ target membership, and build phase as applicable.
   `script/build_and_run.sh` as the unsigned kill, build, and launch entrypoint
   for normal Codex and shell iteration. Use `script/build_and_install.sh` only
   for the signed Runtime build and `/Applications` installation required by
-  Network System Extension testing.
+  Network System Extension testing. Use `script/package_app.sh` as the full
+  Developer ID Release orchestrator. It delegates the app and DMG stages to
+  `script/build_and_notarize_app.sh` and
+  `script/build_and_notarize_dmg.sh`; shared artifact validation belongs in
+  `script/distribution_common.sh`. These scripts produce ignored artifacts
+  under `dist/` and require Apple notary credentials already stored in
+  Keychain.
 - `ThruRNDISWireGuardNetworkExtension`: the system-extension executable entry,
   `NEPacketTunnelProvider`, Info.plist, and development/distribution
   entitlements. Shared parser/constants files remain under `ThruRNDIS/Support`
@@ -377,6 +383,75 @@ separate `Afcoo/ThruRNDIS_VM_Assets` repository.
 
 - The runtime command does not disable signing.
 
+- For public Developer ID distribution, configure the Release signing
+  certificate and the exact app/System Extension distribution
+  provisioning-profile names in `Configuration/LocalSigning.xcconfig`, and
+  store Apple notary credentials once in the default Keychain profile:
+
+```sh
+xcrun notarytool store-credentials "thrurndis-notary"
+```
+
+  Then run the **Build Notarized DMG** Codex action or its single shell
+  entrypoint:
+
+```sh
+./script/package_app.sh
+```
+
+  `package_app.sh` runs two independent stages in sequence. The app stage
+  archives and exports the `ThruRNDIS Runtime` scheme in `Release`, validates
+  the Developer ID signatures, hardened runtime, distribution entitlements,
+  and embedded Network System Extension, then notarizes and staples the app.
+  It atomically preserves the result without overwriting an existing build at
+  `dist/app-artifacts/ThruRNDIS-<version>-<build>/ThruRNDIS.app`. The DMG stage
+  revalidates that exact app with codesign, Developer ID, entitlement, stapler,
+  and `syspolicy_check distribution` checks before using `hdiutil` to create
+  `dist/ThruRNDIS-<version>-<build>.dmg`. It preserves the compact 480x300
+  Finder layout, 96 px icons, and fixed app/Applications positions. The
+  mounted volume uses the built app's `.icns`;
+  the `.dmg` file itself intentionally uses the standard macOS disk-image icon.
+  The app is never re-signed during DMG creation. Only the DMG is separately
+  signed, notarized, stapled, and validated. Set
+  `THRURNDIS_NOTARY_KEYCHAIN_PROFILE` to use a non-default profile. Set
+  `THRURNDIS_ALLOW_PROVISIONING_UPDATES=1` only when Xcode should be allowed to
+  fetch or update signing assets during archive/export.
+
+  Both release stages invoke `verify_notarized_app.sh` or
+  `verify_notarized_dmg.sh` for their post-notarization trust-policy checks.
+  Pass `--skip-verification` to `package_app.sh`,
+  `build_and_notarize_app.sh`, or `build_and_notarize_dmg.sh` to skip only
+  those standalone post-notarization checks. Signing, Apple notary submission,
+  ticket stapling, and the structural/integrity checks required to construct
+  the artifact remain enabled.
+
+  If the app stage has succeeded but the DMG stage needs to be retried, reuse
+  the preserved app without submitting the app to notarization again:
+
+```sh
+./script/build_and_notarize_dmg.sh \
+  dist/app-artifacts/ThruRNDIS-<version>-<build>/ThruRNDIS.app
+```
+
+  Independently revalidate an already-published app or DMG from a normal macOS
+  terminal session with:
+
+```sh
+./script/verify_notarized_app.sh \
+  dist/app-artifacts/ThruRNDIS-<version>-<build>/ThruRNDIS.app
+./script/verify_notarized_dmg.sh \
+  dist/ThruRNDIS-<version>-<build>.dmg
+```
+
+  The app verifier checks the app and embedded Network System Extension
+  signatures, hardened runtime, direct-distribution entitlements, stapled
+  ticket, Gatekeeper distribution policy, and preserved artifact metadata when
+  present. The DMG verifier checks the image checksum, Developer ID signature,
+  secure timestamp, stapled ticket, Gatekeeper open policy, and the same app
+  checks after a read-only mount. Run these trust-policy checks outside a
+  restricted sandbox because blocked access to macOS security services can
+  produce false failures.
+
 ## Signing And Entitlements
 
 - The current baseline is WireGuardKit in a Network System Extension over the
@@ -390,6 +465,15 @@ separate `Afcoo/ThruRNDIS_VM_Assets` repository.
   `Configuration/LocalSigning.xcconfig.example` to
   `Configuration/LocalSigning.xcconfig` and set the local `DEVELOPMENT_TEAM` and
   app bundle identifier there. The local file is intentionally ignored by Git.
+- Release distribution additionally requires a Developer ID Application
+  certificate and valid direct-distribution provisioning profiles for both the
+  app and Network System Extension. Set their installed profile names in
+  `THRURNDIS_APP_DISTRIBUTION_PROVISIONING_PROFILE` and
+  `THRURNDIS_NETWORK_EXTENSION_DISTRIBUTION_PROVISIONING_PROFILE`. Release
+  uses manual signing so the restricted profiles are deterministic; the export
+  options map the same profiles to both bundle identifiers. Notary credentials
+  stay in Keychain and must never be added to xcconfig files, scripts, or the
+  repository.
 - Do not hard-code a personal development team ID, provisioning profile, or local
   bundle identifier into the Xcode project file.
 - `ThruRNDIS.entitlements` is the main app entitlement file used by
@@ -490,3 +574,7 @@ separate `Afcoo/ThruRNDIS_VM_Assets` repository.
   entitlements, System Extension activation, or other runtime-only behavior
   additionally require `./script/build_and_install.sh` before testing from
   `/Applications/ThruRNDIS.app`.
+- A public release artifact must additionally pass
+  `./script/package_app.sh`; a compile or RuntimeDebug install does not
+  validate Developer ID export, Apple notarization, ticket stapling, or DMG
+  Gatekeeper assessment.

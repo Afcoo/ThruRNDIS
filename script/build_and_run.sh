@@ -9,6 +9,7 @@ CONFIGURATION="Debug"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROJECT_PATH="$ROOT_DIR/$PROJECT_NAME"
+WIREGUARD_GO_BRIDGE_SCRIPT="$ROOT_DIR/script/build_wireguard_go_bridge.sh"
 DERIVED_DATA_PATH="${THRURNDIS_DERIVED_DATA_PATH:-/tmp/ThruRNDIS-DerivedData}"
 APP_BUNDLE="$DERIVED_DATA_PATH/Build/Products/$CONFIGURATION/$APP_NAME.app"
 APP_BINARY="$APP_BUNDLE/Contents/MacOS/$APP_NAME"
@@ -37,9 +38,15 @@ if [[ ! -x "$XCODEBUILD_BIN" ]]; then
   echo "Set THRURNDIS_XCODEBUILD to override the tool path." >&2
   exit 1
 fi
+if [[ ! -x "$WIREGUARD_GO_BRIDGE_SCRIPT" ]]; then
+  echo "error: WireGuard Go bridge build script is not executable at $WIREGUARD_GO_BRIDGE_SCRIPT" >&2
+  exit 1
+fi
 
 /usr/bin/pkill -x "$APP_NAME" >/dev/null 2>&1 || true
 
+# The app target depends on WireGuardGoBridgemacOS, which invokes the shared
+# bridge script with the complete Xcode build environment before linking.
 "$XCODEBUILD_BIN" \
   -project "$PROJECT_PATH" \
   -scheme "$SCHEME_NAME" \

@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 60;
+	objectVersion = 54;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -54,19 +54,8 @@
 		D10000000000000000000002 /* USBSessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10000000000000000000102 /* USBSessionStore.swift */; };
 		D10000000000000000000003 /* VMConfigurationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10000000000000000000103 /* VMConfigurationStore.swift */; };
 		D10000000000000000000004 /* VMCoordinating.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10000000000000000000104 /* VMCoordinating.swift */; };
-		E30000000000000000000001 /* USBAccessoryCoordinating.swift in Sources */ = {isa = PBXBuildFile; fileRef = E30000000000000000000101 /* USBAccessoryCoordinating.swift */; };
 		D10000000000000000000005 /* SessionStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10000000000000000000105 /* SessionStoreTests.swift */; };
 		D10000000000000000000006 /* VMAssetStorageLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10000000000000000000106 /* VMAssetStorageLayout.swift */; };
-		E10000000000000000000001 /* USBDeviceNameResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10000000000000000000101 /* USBDeviceNameResolver.swift */; };
-		E20000000000000000000001 /* ReplayableVideoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20000000000000000000101 /* ReplayableVideoView.swift */; };
-		E20000000000000000000002 /* HeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20000000000000000000102 /* HeaderView.swift */; };
-		E20000000000000000000003 /* CommandBlock.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20000000000000000000103 /* CommandBlock.swift */; };
-		E20000000000000000000004 /* LogTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20000000000000000000104 /* LogTextView.swift */; };
-		E20000000000000000000005 /* EventLogGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20000000000000000000105 /* EventLogGroup.swift */; };
-		F10000000000000000000001 /* AccessoryAccessOnboarding.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000101 /* AccessoryAccessOnboarding.mp4 */; };
-		F20000000000000000000001 /* VideoPlaybackStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000101 /* VideoPlaybackStore.swift */; };
-		G10000000000000000000001 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = G10000000000000000000101 /* Localizable.xcstrings */; };
-		H10000000000000000000001 /* EventLogStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = H10000000000000000000101 /* EventLogStore.swift */; };
 		DA1000000000000000000001 /* HostWireGuardTunnelStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA1000000000000000000101 /* HostWireGuardTunnelStatus.swift */; };
 		DA1000000000000000000003 /* HostWireGuardTunnelController.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA1000000000000000000103 /* HostWireGuardTunnelController.swift */; };
 		DA1000000000000000000004 /* WireGuardSystemExtensionActivator.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA1000000000000000000104 /* WireGuardSystemExtensionActivator.swift */; };
@@ -77,7 +66,6 @@
 		DA100000000000000000000C /* TunnelConfiguration+WgQuickConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA1000000000000000000107 /* TunnelConfiguration+WgQuickConfig.swift */; };
 		DA100000000000000000000E /* WireGuardKit in Frameworks */ = {isa = PBXBuildFile; productRef = DA1000000000000000000802 /* WireGuardKit */; };
 		DA100000000000000000000F /* WireGuardKit in Frameworks */ = {isa = PBXBuildFile; productRef = DA1000000000000000000802 /* WireGuardKit */; };
-		DA1000000000000000000010 /* ThruRNDISWireGuardNetworkExtension.systemextension in Embed System Extensions */ = {isa = PBXBuildFile; fileRef = DA100000000000000000010F /* ThruRNDISWireGuardNetworkExtension.systemextension */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		DA1000000000000000000011 /* ThruRNDISTunnel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA1000000000000000000110 /* ThruRNDISTunnel.swift */; };
 		DA1000000000000000000012 /* ThruRNDISTunnel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA1000000000000000000110 /* ThruRNDISTunnel.swift */; };
 		DA1000000000000000000013 /* WireGuardConnectionValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA1000000000000000000111 /* WireGuardConnectionValidator.swift */; };
@@ -94,6 +82,17 @@
 		DE1000000000000000000004 /* AppPreferencesStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE1000000000000000000104 /* AppPreferencesStoreTests.swift */; };
 		DE1000000000000000000005 /* WireGuardSessionStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE1000000000000000000105 /* WireGuardSessionStoreTests.swift */; };
 		DE1000000000000000000006 /* WireGuardConfigurationFileController.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE1000000000000000000106 /* WireGuardConfigurationFileController.swift */; };
+		E10000000000000000000001 /* USBDeviceNameResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10000000000000000000101 /* USBDeviceNameResolver.swift */; };
+		E20000000000000000000001 /* ReplayableVideoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20000000000000000000101 /* ReplayableVideoView.swift */; };
+		E20000000000000000000002 /* HeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20000000000000000000102 /* HeaderView.swift */; };
+		E20000000000000000000003 /* CommandBlock.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20000000000000000000103 /* CommandBlock.swift */; };
+		E20000000000000000000004 /* LogTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20000000000000000000104 /* LogTextView.swift */; };
+		E20000000000000000000005 /* EventLogGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20000000000000000000105 /* EventLogGroup.swift */; };
+		E30000000000000000000001 /* USBAccessoryCoordinating.swift in Sources */ = {isa = PBXBuildFile; fileRef = E30000000000000000000101 /* USBAccessoryCoordinating.swift */; };
+		F10000000000000000000001 /* AccessoryAccessOnboarding.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000101 /* AccessoryAccessOnboarding.mp4 */; };
+		F20000000000000000000001 /* VideoPlaybackStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000101 /* VideoPlaybackStore.swift */; };
+		G10000000000000000000001 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = G10000000000000000000101 /* Localizable.xcstrings */; };
+		H10000000000000000000001 /* EventLogStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = H10000000000000000000101 /* EventLogStore.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -127,19 +126,25 @@
 		};
 /* End PBXContainerItemProxy section */
 
-/* Begin PBXCopyFilesBuildPhase section */
-		DA1000000000000000000201 /* Embed System Extensions */ = {
-			isa = PBXCopyFilesBuildPhase;
+/* Begin PBXShellScriptBuildPhase section */
+		DA1000000000000000000201 /* Embed System Extension */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
-			dstPath = "$(SYSTEM_EXTENSIONS_FOLDER_PATH)";
-			dstSubfolderSpec = 16;
 			files = (
-				DA1000000000000000000010 /* ThruRNDISWireGuardNetworkExtension.systemextension in Embed System Extensions */,
 			);
-			name = "Embed System Extensions";
+			inputPaths = (
+				"$(BUILT_PRODUCTS_DIR)/$(THRURNDIS_WIREGUARD_EXTENSION_BUNDLE_IDENTIFIER).systemextension",
+			);
+			name = "Embed System Extension";
+			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(CONTENTS_FOLDER_PATH)/Library/SystemExtensions",
+			);
 			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -eu\n\nsource_extension=\"$SCRIPT_INPUT_FILE_0\"\ndestination_directory=\"$SCRIPT_OUTPUT_FILE_0\"\nexpected_extension_name=\"${THRURNDIS_WIREGUARD_EXTENSION_BUNDLE_IDENTIFIER}.systemextension\"\ndestination_extension=\"${destination_directory}/${expected_extension_name}\"\nexpected_destination_directory=\"${TARGET_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/Library/SystemExtensions\"\n\nif [ ! -d \"$source_extension\" ]; then\n  echo \"error: Network System Extension product not found at $source_extension\" >&2\n  exit 1\nfi\nextension_bundle_identifier=`/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' \"$source_extension/Contents/Info.plist\"`\nif [ \"$extension_bundle_identifier\" != \"$THRURNDIS_WIREGUARD_EXTENSION_BUNDLE_IDENTIFIER\" ]; then\n  echo \"error: Network System Extension bundle ID does not match its configured product name: $extension_bundle_identifier\" >&2\n  exit 1\nfi\nif [ \"${source_extension##*/}\" != \"$expected_extension_name\" ]; then\n  echo \"error: Network System Extension product name does not match its bundle ID: $source_extension\" >&2\n  exit 1\nfi\nif [ -z \"$TARGET_BUILD_DIR\" ] || [ -z \"$CONTENTS_FOLDER_PATH\" ] || [ \"$destination_directory\" != \"$expected_destination_directory\" ]; then\n  echo \"error: refusing unsafe System Extension destination: $destination_directory\" >&2\n  exit 1\nfi\n\n/bin/rm -rf \"$destination_directory\"\n/bin/mkdir -p \"$destination_directory\"\n/usr/bin/ditto \"$source_extension\" \"$destination_extension\"\n\nif [ ! -d \"$destination_extension\" ]; then\n  echo \"error: failed to embed Network System Extension at $destination_extension\" >&2\n  exit 1\nfi\n";
 		};
-/* End PBXCopyFilesBuildPhase section */
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXFileReference section */
 		374FD25724CBADD100890848 /* ThruRNDIS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ThruRNDIS.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -195,21 +200,8 @@
 		D10000000000000000000102 /* USBSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBSessionStore.swift; sourceTree = "<group>"; };
 		D10000000000000000000103 /* VMConfigurationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMConfigurationStore.swift; sourceTree = "<group>"; };
 		D10000000000000000000104 /* VMCoordinating.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMCoordinating.swift; sourceTree = "<group>"; };
-		E30000000000000000000101 /* USBAccessoryCoordinating.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBAccessoryCoordinating.swift; sourceTree = "<group>"; };
 		D10000000000000000000105 /* SessionStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStoreTests.swift; sourceTree = "<group>"; };
 		D10000000000000000000106 /* VMAssetStorageLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMAssetStorageLayout.swift; sourceTree = "<group>"; };
-		E10000000000000000000101 /* USBDeviceNameResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBDeviceNameResolver.swift; sourceTree = "<group>"; };
-		E20000000000000000000101 /* ReplayableVideoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReplayableVideoView.swift; sourceTree = "<group>"; };
-		E20000000000000000000102 /* HeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeaderView.swift; sourceTree = "<group>"; };
-		E20000000000000000000103 /* CommandBlock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandBlock.swift; sourceTree = "<group>"; };
-		E20000000000000000000104 /* LogTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogTextView.swift; sourceTree = "<group>"; };
-		E20000000000000000000105 /* EventLogGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventLogGroup.swift; sourceTree = "<group>"; };
-		E3865CF619CB3E4197A4D3AA /* LocalSigning.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = LocalSigning.xcconfig.example; path = Configuration/LocalSigning.xcconfig.example; sourceTree = "<group>"; };
-		E3865CF719CB3E4197A4D3A9 /* BuildSettings.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = BuildSettings.xcconfig; path = Configuration/BuildSettings.xcconfig; sourceTree = "<group>"; };
-		F10000000000000000000101 /* AccessoryAccessOnboarding.mp4 */ = {isa = PBXFileReference; lastKnownFileType = video.mp4; path = AccessoryAccessOnboarding.mp4; sourceTree = "<group>"; };
-		F20000000000000000000101 /* VideoPlaybackStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoPlaybackStore.swift; sourceTree = "<group>"; };
-		G10000000000000000000101 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
-		H10000000000000000000101 /* EventLogStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventLogStore.swift; sourceTree = "<group>"; };
 		DA1000000000000000000101 /* HostWireGuardTunnelStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostWireGuardTunnelStatus.swift; sourceTree = "<group>"; };
 		DA1000000000000000000103 /* HostWireGuardTunnelController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostWireGuardTunnelController.swift; sourceTree = "<group>"; };
 		DA1000000000000000000104 /* WireGuardSystemExtensionActivator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardSystemExtensionActivator.swift; sourceTree = "<group>"; };
@@ -221,7 +213,7 @@
 		DA100000000000000000010C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		DA100000000000000000010D /* Development.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Development.entitlements; sourceTree = "<group>"; };
 		DA100000000000000000010E /* Distribution.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Distribution.entitlements; sourceTree = "<group>"; };
-		DA100000000000000000010F /* ThruRNDISWireGuardNetworkExtension.systemextension */ = {isa = PBXFileReference; explicitFileType = "wrapper.system-extension"; includeInIndex = 0; path = ThruRNDISWireGuardNetworkExtension.systemextension; sourceTree = BUILT_PRODUCTS_DIR; };
+		DA100000000000000000010F /* ThruRNDISWireGuardNetworkExtension.systemextension */ = {isa = PBXFileReference; explicitFileType = "wrapper.system-extension"; includeInIndex = 0; path = "$(PRODUCT_NAME).systemextension"; sourceTree = BUILT_PRODUCTS_DIR; };
 		DA1000000000000000000110 /* ThruRNDISTunnel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThruRNDISTunnel.swift; sourceTree = "<group>"; };
 		DA1000000000000000000111 /* WireGuardConnectionValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardConnectionValidator.swift; sourceTree = "<group>"; };
 		DA1000000000000000000112 /* PacketTunnelProviderError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PacketTunnelProviderError.swift; sourceTree = "<group>"; };
@@ -237,6 +229,19 @@
 		DE1000000000000000000104 /* AppPreferencesStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPreferencesStoreTests.swift; sourceTree = "<group>"; };
 		DE1000000000000000000105 /* WireGuardSessionStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardSessionStoreTests.swift; sourceTree = "<group>"; };
 		DE1000000000000000000106 /* WireGuardConfigurationFileController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardConfigurationFileController.swift; sourceTree = "<group>"; };
+		E10000000000000000000101 /* USBDeviceNameResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBDeviceNameResolver.swift; sourceTree = "<group>"; };
+		E20000000000000000000101 /* ReplayableVideoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReplayableVideoView.swift; sourceTree = "<group>"; };
+		E20000000000000000000102 /* HeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeaderView.swift; sourceTree = "<group>"; };
+		E20000000000000000000103 /* CommandBlock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandBlock.swift; sourceTree = "<group>"; };
+		E20000000000000000000104 /* LogTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogTextView.swift; sourceTree = "<group>"; };
+		E20000000000000000000105 /* EventLogGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventLogGroup.swift; sourceTree = "<group>"; };
+		E30000000000000000000101 /* USBAccessoryCoordinating.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBAccessoryCoordinating.swift; sourceTree = "<group>"; };
+		E3865CF619CB3E4197A4D3AA /* LocalSigning.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = LocalSigning.xcconfig.example; path = Configuration/LocalSigning.xcconfig.example; sourceTree = "<group>"; };
+		E3865CF719CB3E4197A4D3A9 /* BuildSettings.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = BuildSettings.xcconfig; path = Configuration/BuildSettings.xcconfig; sourceTree = "<group>"; };
+		F10000000000000000000101 /* AccessoryAccessOnboarding.mp4 */ = {isa = PBXFileReference; lastKnownFileType = video.mp4; path = AccessoryAccessOnboarding.mp4; sourceTree = "<group>"; };
+		F20000000000000000000101 /* VideoPlaybackStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoPlaybackStore.swift; sourceTree = "<group>"; };
+		G10000000000000000000101 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		H10000000000000000000101 /* EventLogStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventLogStore.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -527,6 +532,19 @@
 			path = TestSupport;
 			sourceTree = "<group>";
 		};
+		DA1000000000000000000901 /* ThruRNDISWireGuardNetworkExtension */ = {
+			isa = PBXGroup;
+			children = (
+				DA100000000000000000010A /* main.swift */,
+				DA100000000000000000010B /* PacketTunnelProvider.swift */,
+				DA1000000000000000000112 /* PacketTunnelProviderError.swift */,
+				DA100000000000000000010C /* Info.plist */,
+				DA100000000000000000010D /* Development.entitlements */,
+				DA100000000000000000010E /* Distribution.entitlements */,
+			);
+			path = ThruRNDISWireGuardNetworkExtension;
+			sourceTree = "<group>";
+		};
 		DB1000000000000000000201 /* Support */ = {
 			isa = PBXGroup;
 			children = (
@@ -557,19 +575,6 @@
 			path = Resources;
 			sourceTree = "<group>";
 		};
-		DA1000000000000000000901 /* ThruRNDISWireGuardNetworkExtension */ = {
-			isa = PBXGroup;
-			children = (
-				DA100000000000000000010A /* main.swift */,
-				DA100000000000000000010B /* PacketTunnelProvider.swift */,
-				DA1000000000000000000112 /* PacketTunnelProviderError.swift */,
-				DA100000000000000000010C /* Info.plist */,
-				DA100000000000000000010D /* Development.entitlements */,
-				DA100000000000000000010E /* Distribution.entitlements */,
-			);
-			path = ThruRNDISWireGuardNetworkExtension;
-			sourceTree = "<group>";
-		};
 /* End PBXGroup section */
 
 /* Begin PBXLegacyTarget section */
@@ -579,8 +584,8 @@
 			buildConfigurationList = DA1000000000000000000714 /* Build configuration list for PBXLegacyTarget "WireGuardGoBridgemacOS" */;
 			buildPhases = (
 			);
-			buildToolPath = /usr/bin/make;
-			buildWorkingDirectory = "$(BUILD_DIR)/../../SourcePackages/checkouts/wireguard-apple/Sources/WireGuardKitGo";
+			buildToolPath = "$(PROJECT_DIR)/script/build_wireguard_go_bridge.sh";
+			buildWorkingDirectory = "$(PROJECT_DIR)";
 			dependencies = (
 			);
 			name = WireGuardGoBridgemacOS;
@@ -597,7 +602,7 @@
 				374FD25324CBADD100890848 /* Sources */,
 				374FD25424CBADD100890848 /* Frameworks */,
 				8D0000000000000000000301 /* Resources */,
-				DA1000000000000000000201 /* Embed System Extensions */,
+				DA1000000000000000000201 /* Embed System Extension */,
 			);
 			buildRules = (
 			);
@@ -613,6 +618,24 @@
 			productName = ThruRNDIS;
 			productReference = 374FD25724CBADD100890848 /* ThruRNDIS.app */;
 			productType = "com.apple.product-type.application";
+		};
+		C10000000000000000000401 /* ThruRNDISTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C10000000000000000000601 /* Build configuration list for PBXNativeTarget "ThruRNDISTests" */;
+			buildPhases = (
+				C10000000000000000000301 /* Sources */,
+				C10000000000000000000302 /* Frameworks */,
+				C10000000000000000000303 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C10000000000000000000702 /* PBXTargetDependency */,
+			);
+			name = ThruRNDISTests;
+			productName = ThruRNDISTests;
+			productReference = C10000000000000000000105 /* ThruRNDISTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
 		};
 		DA1000000000000000000601 /* ThruRNDISWireGuardNetworkExtension */ = {
 			isa = PBXNativeTarget;
@@ -635,24 +658,6 @@
 			productReference = DA100000000000000000010F /* ThruRNDISWireGuardNetworkExtension.systemextension */;
 			productType = "com.apple.product-type.system-extension";
 		};
-		C10000000000000000000401 /* ThruRNDISTests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = C10000000000000000000601 /* Build configuration list for PBXNativeTarget "ThruRNDISTests" */;
-			buildPhases = (
-				C10000000000000000000301 /* Sources */,
-				C10000000000000000000302 /* Frameworks */,
-				C10000000000000000000303 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				C10000000000000000000702 /* PBXTargetDependency */,
-			);
-			name = ThruRNDISTests;
-			productName = ThruRNDISTests;
-			productReference = C10000000000000000000105 /* ThruRNDISTests.xctest */;
-			productType = "com.apple.product-type.bundle.unit-test";
-		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -666,15 +671,15 @@
 					374FD25624CBADD100890848 = {
 						CreatedOnToolsVersion = 12.0;
 					};
+					C10000000000000000000401 = {
+						CreatedOnToolsVersion = 27.0;
+						TestTargetID = 374FD25624CBADD100890848;
+					};
 					DA1000000000000000000601 = {
 						CreatedOnToolsVersion = 27.0;
 					};
 					DA1000000000000000000602 = {
 						CreatedOnToolsVersion = 27.0;
-					};
-					C10000000000000000000401 = {
-						CreatedOnToolsVersion = 27.0;
-						TestTargetID = 374FD25624CBADD100890848;
 					};
 				};
 			};
@@ -1008,7 +1013,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = ThruRNDIS;
 				CODE_SIGN_ENTITLEMENTS = ThruRNDIS/Distribution.entitlements;
 				CODE_SIGN_IDENTITY = "Developer ID Application";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 7;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -1023,7 +1028,7 @@
 				MARKETING_VERSION = 0.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = "$(THRURNDIS_APP_BUNDLE_IDENTIFIER)";
 				PRODUCT_NAME = ThruRNDIS;
-				PROVISIONING_PROFILE_SPECIFIER = "";
+				PROVISIONING_PROFILE_SPECIFIER = "$(THRURNDIS_APP_DISTRIBUTION_PROVISIONING_PROFILE)";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
@@ -1201,7 +1206,7 @@
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = ThruRNDISWireGuardNetworkExtension/Distribution.entitlements;
 				CODE_SIGN_IDENTITY = "Developer ID Application";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 7;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -1212,6 +1217,7 @@
 				MARKETING_VERSION = 0.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = "$(THRURNDIS_WIREGUARD_EXTENSION_BUNDLE_IDENTIFIER)";
 				PRODUCT_NAME = "$(PRODUCT_BUNDLE_IDENTIFIER)";
+				PROVISIONING_PROFILE_SPECIFIER = "$(THRURNDIS_NETWORK_EXTENSION_DISTRIBUTION_PROVISIONING_PROFILE)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
