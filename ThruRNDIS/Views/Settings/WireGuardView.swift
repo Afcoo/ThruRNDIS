@@ -28,11 +28,10 @@ struct WireGuardView: View {
 
             Section("Network Extension") {
                 LabeledContent("Status") {
-                    Label(
-                        wireGuardSession.systemExtensionStatus.title,
-                        systemImage: systemExtensionStatusImage
+                    SettingsStatusLabel(
+                        title: wireGuardSession.systemExtensionStatus.title,
+                        appearance: systemExtensionStatusAppearance
                     )
-                    .foregroundStyle(systemExtensionStatusColor)
                 }
 
                 Text(systemExtensionStatusDetail)
@@ -230,37 +229,20 @@ struct WireGuardView: View {
         }
     }
 
-    private var systemExtensionStatusImage: String {
+    private var systemExtensionStatusAppearance: SettingsStatusAppearance {
         switch wireGuardSession.systemExtensionStatus {
         case .active:
-            "checkmark.shield.fill"
+            .active
         case .checking, .activationRequested:
-            "arrow.triangle.2.circlepath"
-        case .awaitingUserApproval:
-            "person.badge.clock"
-        case .restartRequired:
-            "restart.circle"
+            .transitioning
         case .inactive:
-            "xmark.shield"
-        case .uninstalling:
-            "trash"
+            .inactive
+        case .awaitingUserApproval, .uninstalling, .restartRequired:
+            .attention
         case .failed:
-            "exclamationmark.triangle.fill"
+            .failed
         case .unknown:
-            "questionmark.circle"
-        }
-    }
-
-    private var systemExtensionStatusColor: Color {
-        switch wireGuardSession.systemExtensionStatus {
-        case .active:
-            .green
-        case .checking, .activationRequested, .awaitingUserApproval, .restartRequired:
-            .orange
-        case .inactive, .uninstalling, .failed:
-            .red
-        case .unknown:
-            .secondary
+            .unknown
         }
     }
 }

@@ -23,13 +23,9 @@ struct USBDevicesView: View {
 
             Section {
                 LabeledContent("Status") {
-                    Label(
-                        usbSession.isAccessoryMonitoring
-                            ? String(localized: "Listening")
-                            : String(localized: "Stopped"),
-                        systemImage: usbSession.isAccessoryMonitoring
-                            ? "dot.radiowaves.left.and.right"
-                            : "stop.circle"
+                    SettingsStatusLabel(
+                        title: usbStatusTitle,
+                        appearance: usbStatusAppearance
                     )
                 }
 
@@ -101,6 +97,24 @@ struct USBDevicesView: View {
             get: { usbSession.selectedAccessoryID },
             set: { store.selectAccessory(id: $0) }
         )
+    }
+
+    private var usbStatusTitle: String {
+        guard store.runtimeEntitlements.accessoryAccessUSB else {
+            return String(localized: "Inactive")
+        }
+
+        return usbSession.isAccessoryMonitoring
+            ? String(localized: "Listening")
+            : String(localized: "Stopped")
+    }
+
+    private var usbStatusAppearance: SettingsStatusAppearance {
+        guard store.runtimeEntitlements.accessoryAccessUSB else {
+            return .inactive
+        }
+
+        return usbSession.isAccessoryMonitoring ? .active : .stopped
     }
 }
 

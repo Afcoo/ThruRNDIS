@@ -27,7 +27,12 @@ struct VirtualMachineView: View {
             }
 
             Section {
-                LabeledContent("Status", value: store.vmDisplayState.localizedName)
+                LabeledContent("Status") {
+                    SettingsStatusLabel(
+                        title: vmStatusTitle,
+                        appearance: vmStatusAppearance
+                    )
+                }
 
                 Text(store.statusMessage)
                     .foregroundStyle(.secondary)
@@ -223,6 +228,50 @@ struct VirtualMachineView: View {
             return .red
         default:
             return .secondary
+        }
+    }
+
+    private var vmStatusTitle: String {
+        guard store.runtimeEntitlements.virtualization else {
+            return String(localized: "Inactive")
+        }
+
+        if store.isRestartingVirtualMachine {
+            return String(localized: "Restarting")
+        }
+
+        switch store.runtimeState {
+        case .idle, .stopped:
+            return String(localized: "Stopped")
+        case .starting:
+            return String(localized: "Starting")
+        case .running:
+            return String(localized: "Running")
+        case .stopping:
+            return String(localized: "Stopping")
+        case .failed:
+            return String(localized: "Failed")
+        }
+    }
+
+    private var vmStatusAppearance: SettingsStatusAppearance {
+        guard store.runtimeEntitlements.virtualization else {
+            return .inactive
+        }
+
+        if store.isRestartingVirtualMachine {
+            return .transitioning
+        }
+
+        switch store.runtimeState {
+        case .idle, .stopped:
+            return .stopped
+        case .starting, .stopping:
+            return .transitioning
+        case .running:
+            return .active
+        case .failed:
+            return .failed
         }
     }
 }

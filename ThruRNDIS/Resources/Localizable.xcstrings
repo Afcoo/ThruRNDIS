@@ -2224,6 +2224,16 @@
         }
       }
     },
+    "Starting" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "시작 중"
+          }
+        }
+      }
+    },
     "Starting VM." : {
       "localizations" : {
         "ko" : {
@@ -2270,6 +2280,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "중지됨"
+          }
+        }
+      }
+    },
+    "Stopping" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "중지 중"
           }
         }
       }
