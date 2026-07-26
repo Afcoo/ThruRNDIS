@@ -58,9 +58,9 @@ struct GeneralView: View {
                     }
                     .labelsHidden()
                     .pickerStyle(.menu)
+                    .controlSize(.regular)
                     .frame(width: 125)
                 }
-                .controlSize(.small)
             }
         }
         .alert(item: $eventLogSaveError) { error in

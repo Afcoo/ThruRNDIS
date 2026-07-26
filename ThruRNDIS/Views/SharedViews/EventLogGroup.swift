@@ -17,14 +17,6 @@ struct EventLogGroup: View {
                 .frame(height: 300)
 
             HStack(spacing: 8) {
-                Button(action: clearAction) {
-                    Label("Clear All", systemImage: "trash")
-                }
-                .disabled(!hasEntries)
-                .help("Clear all event logs")
-
-                Spacer()
-
                 Button(action: copyAction) {
                     Label("Copy", systemImage: "doc.on.doc")
                 }
@@ -34,6 +26,14 @@ struct EventLogGroup: View {
                     Label("Save…", systemImage: "square.and.arrow.down")
                 }
                 .disabled(!hasEntries)
+
+                Spacer()
+
+                Button(action: clearAction) {
+                    Label("Clear All", systemImage: "trash")
+                }
+                .disabled(!hasEntries)
+                .help("Clear all event logs")
             }
         }
     }
