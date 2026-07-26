@@ -98,8 +98,8 @@
 		H20000000000000000000001 /* EventLogModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = H20000000000000000000101 /* EventLogModels.swift */; };
 		I10000000000000000000001 /* MenuBarCombinedStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = I10000000000000000000101 /* MenuBarCombinedStatus.swift */; };
 		I10000000000000000000002 /* MenuBarCombinedStatusTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = I10000000000000000000102 /* MenuBarCombinedStatusTests.swift */; };
-		I10000000000000000000003 /* MenuBarStatusItemView.swift in Sources */ = {isa = PBXBuildFile; fileRef = I10000000000000000000103 /* MenuBarStatusItemView.swift */; };
-		I10000000000000000000004 /* MenuBarStatusItemViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = I10000000000000000000104 /* MenuBarStatusItemViewTests.swift */; };
+		I10000000000000000000003 /* MenuBarStatusDotImageFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = I10000000000000000000103 /* MenuBarStatusDotImageFactory.swift */; };
+		I10000000000000000000004 /* MenuBarStatusDotImageFactoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = I10000000000000000000104 /* MenuBarStatusDotImageFactoryTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -254,8 +254,8 @@
 		H20000000000000000000101 /* EventLogModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventLogModels.swift; sourceTree = "<group>"; };
 		I10000000000000000000101 /* MenuBarCombinedStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarCombinedStatus.swift; sourceTree = "<group>"; };
 		I10000000000000000000102 /* MenuBarCombinedStatusTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarCombinedStatusTests.swift; sourceTree = "<group>"; };
-		I10000000000000000000103 /* MenuBarStatusItemView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarStatusItemView.swift; sourceTree = "<group>"; };
-		I10000000000000000000104 /* MenuBarStatusItemViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarStatusItemViewTests.swift; sourceTree = "<group>"; };
+		I10000000000000000000103 /* MenuBarStatusDotImageFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarStatusDotImageFactory.swift; sourceTree = "<group>"; };
+		I10000000000000000000104 /* MenuBarStatusDotImageFactoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarStatusDotImageFactoryTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -413,6 +413,7 @@
 				DC1000000000000000000101 /* EventLogErrorFormatter.swift */,
 				DC2000000000000000000101 /* EventLogExportFormatter.swift */,
 				8B000000000000000000010A /* FilePicker.swift */,
+				I10000000000000000000103 /* MenuBarStatusDotImageFactory.swift */,
 				DE1000000000000000000103 /* NetworkExtensionSettingsOpener.swift */,
 				8B0000000000000000000112 /* RuntimeEntitlements.swift */,
 				DA1000000000000000000108 /* NETunnelProviderProtocol+ThruRNDIS.swift */,
@@ -480,7 +481,6 @@
 				D10000000000000000000206 /* Stores */,
 				DB1000000000000000000201 /* Support */,
 				D10000000000000000000207 /* TestSupport */,
-				I10000000000000000000201 /* Views */,
 			);
 			path = ThruRNDISTests;
 			sourceTree = "<group>";
@@ -551,22 +551,6 @@
 			path = TestSupport;
 			sourceTree = "<group>";
 		};
-		I10000000000000000000201 /* Views */ = {
-			isa = PBXGroup;
-			children = (
-				I10000000000000000000203 /* SharedViews */,
-			);
-			path = Views;
-			sourceTree = "<group>";
-		};
-		I10000000000000000000203 /* SharedViews */ = {
-			isa = PBXGroup;
-			children = (
-				I10000000000000000000104 /* MenuBarStatusItemViewTests.swift */,
-			);
-			path = SharedViews;
-			sourceTree = "<group>";
-		};
 		I10000000000000000000202 /* Models */ = {
 			isa = PBXGroup;
 			children = (
@@ -591,6 +575,7 @@
 		DB1000000000000000000201 /* Support */ = {
 			isa = PBXGroup;
 			children = (
+				I10000000000000000000104 /* MenuBarStatusDotImageFactoryTests.swift */,
 				DB1000000000000000000101 /* WireGuardConfigurationBuilderTests.swift */,
 				DB1000000000000000000102 /* WireGuardConnectionValidatorTests.swift */,
 			);
@@ -605,7 +590,6 @@
 				E20000000000000000000103 /* CommandBlock.swift */,
 				E20000000000000000000104 /* LogTextView.swift */,
 				E20000000000000000000105 /* EventLogGroup.swift */,
-				I10000000000000000000103 /* MenuBarStatusItemView.swift */,
 				E20000000000000000000106 /* SettingsStatusLabel.swift */,
 			);
 			path = SharedViews;
@@ -797,7 +781,7 @@
 				H10000000000000000000001 /* EventLogStore.swift in Sources */,
 				H20000000000000000000001 /* EventLogModels.swift in Sources */,
 				I10000000000000000000001 /* MenuBarCombinedStatus.swift in Sources */,
-				I10000000000000000000003 /* MenuBarStatusItemView.swift in Sources */,
+				I10000000000000000000003 /* MenuBarStatusDotImageFactory.swift in Sources */,
 				D10000000000000000000001 /* ConsoleSessionStore.swift in Sources */,
 				D10000000000000000000002 /* USBSessionStore.swift in Sources */,
 				D10000000000000000000003 /* VMConfigurationStore.swift in Sources */,
@@ -862,7 +846,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				I10000000000000000000002 /* MenuBarCombinedStatusTests.swift in Sources */,
-				I10000000000000000000004 /* MenuBarStatusItemViewTests.swift in Sources */,
+				I10000000000000000000004 /* MenuBarStatusDotImageFactoryTests.swift in Sources */,
 				DE1000000000000000000004 /* AppPreferencesStoreTests.swift in Sources */,
 				D10000000000000000000005 /* SessionStoreTests.swift in Sources */,
 				DE1000000000000000000005 /* WireGuardSessionStoreTests.swift in Sources */,

@@ -20,15 +20,6 @@ private enum MenuBarPresentationMode: Equatable {
     var displaysVMControls: Bool {
         self == .debug
     }
-
-    var statusItemWidthBehavior: MenuBarStatusItemView.WidthBehavior {
-        switch self {
-        case .normal:
-            return .contentFitting
-        case .debug:
-            return .stable
-        }
-    }
 }
 
 @MainActor
@@ -359,8 +350,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         let combinedStatus = currentCombinedStatus
         let combinedStatusItem = statusItemLine(
             title: combinedStatus.title,
-            dotColor: combinedStatusColor(for: combinedStatus),
-            widthBehavior: currentPresentationMode.statusItemWidthBehavior
+            dotColor: combinedStatusColor(for: combinedStatus)
         )
         self.combinedStatusItem = combinedStatusItem
         menu.addItem(combinedStatusItem)
@@ -381,10 +371,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         dotColor: NSColor
     ) {
         item?.title = title
-        (item?.view as? MenuBarStatusItemView)?.update(
-            title: title,
-            dotColor: dotColor
-        )
+        item?.image = MenuBarStatusDotImageFactory.makeImage(color: dotColor)
     }
 
     private func refreshAttachSubmenu() {
@@ -536,15 +523,12 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     private func statusItemLine(
         title: String,
-        dotColor: NSColor,
-        widthBehavior: MenuBarStatusItemView.WidthBehavior = .stable
+        dotColor: NSColor
     ) -> NSMenuItem {
         let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
-        item.view = MenuBarStatusItemView(
-            title: title,
-            dotColor: dotColor,
-            widthBehavior: widthBehavior
-        )
+        item.image = MenuBarStatusDotImageFactory.makeImage(color: dotColor)
+        item.preferredImageVisibility = .visible
+        item.isEnabled = false
         return item
     }
 
