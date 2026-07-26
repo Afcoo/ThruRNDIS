@@ -199,13 +199,6 @@ struct OnboardingView: View {
                             }
                         }
 
-                        if !assetWorkflowCoordinator.installedReleases.isEmpty {
-                            Button("Use Installed Assets") {
-                                if let error = assetWorkflowCoordinator.useMostRecentInstalledAssets() {
-                                    alert = OnboardingAlert(message: error.localizedDescription)
-                                }
-                            }
-                        }
                     }
                     .disabled(!store.canEditVMConfiguration || assetWorkflowCoordinator.isBusy)
                 }

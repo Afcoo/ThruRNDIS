@@ -16,6 +16,16 @@ struct VirtualMachineView: View {
 
     var body: some View {
         Form {
+            if !store.runtimeEntitlements.virtualization {
+                Section {
+                    Label(
+                        "Virtual machines are unavailable in this unsigned build.",
+                        systemImage: "exclamationmark.triangle"
+                    )
+                    .foregroundStyle(.orange)
+                }
+            }
+
             Section {
                 LabeledContent("Status", value: store.vmDisplayState.localizedName)
 
@@ -83,10 +93,6 @@ struct VirtualMachineView: View {
                     ProgressView(value: progress)
                 }
 
-                if let release = assetWorkflowCoordinator.installedRelease {
-                    LabeledContent("Managed release", value: release.displayName)
-                }
-
                 LabeledContent("Asset folder") {
                     Group {
                         if let selectedFolderURL = assetWorkflowCoordinator.selectedFolderURL {
@@ -96,7 +102,7 @@ struct VirtualMachineView: View {
                         }
                     }
                         .foregroundStyle(.secondary)
-                        .lineLimit(2)
+                        .lineLimit(1)
                         .truncationMode(.middle)
                         .textSelection(.enabled)
                 }
@@ -123,14 +129,7 @@ struct VirtualMachineView: View {
                     }
                     .disabled(assetWorkflowCoordinator.isBusy)
 
-                    if !assetWorkflowCoordinator.installedReleases.isEmpty {
-                        Button("Use Installed") {
-                            if let error = assetWorkflowCoordinator.useMostRecentInstalledAssets() {
-                                assetAlert = VMAssetAlert(message: error.localizedDescription)
-                            }
-                        }
-                        .disabled(assetWorkflowCoordinator.isBusy)
-                    }
+                    Spacer()
 
                     Button("Clear") {
                         assetWorkflowCoordinator.clearSelection()

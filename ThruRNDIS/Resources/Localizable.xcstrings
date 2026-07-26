@@ -1443,16 +1443,6 @@
         }
       }
     },
-    "Managed release" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "관리형 릴리스"
-          }
-        }
-      }
-    },
     "Manually selected VM assets are ready." : {
       "localizations" : {
         "ko" : {
@@ -1570,16 +1560,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "VM 에셋 폴더에서 initramfs-thrurndis-* 램디스크를 찾을 수 없습니다: %@"
-          }
-        }
-      }
-    },
-    "No managed VM asset release is installed." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "설치된 관리형 VM 에셋 릴리스가 없습니다."
           }
         }
       }
@@ -2894,26 +2874,6 @@
         }
       }
     },
-    "Use Installed" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "설치된 항목 사용"
-          }
-        }
-      }
-    },
-    "Use Installed Assets" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "설치된 에셋 사용"
-          }
-        }
-      }
-    },
     "Use it with ThruRNDIS" : {
       "localizations" : {
         "ko" : {
@@ -3010,6 +2970,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "가상 머신"
+          }
+        }
+      }
+    },
+    "Virtual machines are unavailable in this unsigned build." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "서명되지 않은 빌드에서는 가상 머신을 사용할 수 없습니다."
           }
         }
       }

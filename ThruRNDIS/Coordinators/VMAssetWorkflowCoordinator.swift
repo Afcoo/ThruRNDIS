@@ -224,31 +224,6 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
         }
     }
 
-    @discardableResult
-    func useMostRecentInstalledAssets() -> Error? {
-        guard !isBusy else {
-            return VMAssetWorkflowCoordinatorError.operationInProgress
-        }
-        do {
-            installedReleases = try installService.installedReleases()
-            guard let release = installedReleases.first else {
-                throw VMAssetWorkflowCoordinatorError.noInstalledRelease
-            }
-            let selection = try selectionStore.selectManagedRelease(release)
-            currentSelection = selection
-            errorMessage = nil
-            eventLogErrorDescription = nil
-            installState = .ready(message: readyMessage(for: selection))
-            reportEventLog(
-                "Activated installed VM asset release \(release.displayName)."
-            )
-            return nil
-        } catch {
-            reportFailure(error)
-            return error
-        }
-    }
-
     func clearSelection() {
         guard !isBusy else {
             return
@@ -521,15 +496,12 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
 
 enum VMAssetWorkflowCoordinatorError: LocalizedError {
     case noSelection
-    case noInstalledRelease
     case operationInProgress
 
     var errorDescription: String? {
         switch self {
         case .noSelection:
             return String(localized: "Select or install VM assets first.")
-        case .noInstalledRelease:
-            return String(localized: "No managed VM asset release is installed.")
         case .operationInProgress:
             return String(localized: "Wait for the current VM asset operation to finish.")
         }
