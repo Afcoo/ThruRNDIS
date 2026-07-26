@@ -14,7 +14,10 @@ final class MenuBarCombinedStatusTests: XCTestCase {
                 wireGuardTunnelStatus: .disconnected,
                 expectedActivity: .inactive,
                 expectedStage: .inactive,
-                expectedTitle: String(localized: "Inactive")
+                expectedTitle: String(
+                    localized: "menuBar.combinedStatus.notRunning",
+                    defaultValue: "Not Running"
+                )
             ),
             .init(
                 vmRuntimeState: .stopped,
@@ -22,7 +25,10 @@ final class MenuBarCombinedStatusTests: XCTestCase {
                 wireGuardTunnelStatus: .connected,
                 expectedActivity: .partiallyActive,
                 expectedStage: .inactive,
-                expectedTitle: String(localized: "Inactive")
+                expectedTitle: String(
+                    localized: "menuBar.combinedStatus.notRunning",
+                    defaultValue: "Not Running"
+                )
             ),
             .init(
                 vmRuntimeState: .stopped,
@@ -30,7 +36,10 @@ final class MenuBarCombinedStatusTests: XCTestCase {
                 wireGuardTunnelStatus: .disconnected,
                 expectedActivity: .partiallyActive,
                 expectedStage: .inactive,
-                expectedTitle: String(localized: "Inactive")
+                expectedTitle: String(
+                    localized: "menuBar.combinedStatus.notRunning",
+                    defaultValue: "Not Running"
+                )
             ),
             .init(
                 vmRuntimeState: .stopped,
@@ -38,7 +47,10 @@ final class MenuBarCombinedStatusTests: XCTestCase {
                 wireGuardTunnelStatus: .connected,
                 expectedActivity: .partiallyActive,
                 expectedStage: .inactive,
-                expectedTitle: String(localized: "Inactive")
+                expectedTitle: String(
+                    localized: "menuBar.combinedStatus.notRunning",
+                    defaultValue: "Not Running"
+                )
             ),
             .init(
                 vmRuntimeState: .running,
@@ -70,7 +82,10 @@ final class MenuBarCombinedStatusTests: XCTestCase {
                 wireGuardTunnelStatus: .connected,
                 expectedActivity: .active,
                 expectedStage: .active,
-                expectedTitle: String(localized: "Active")
+                expectedTitle: String(
+                    localized: "menuBar.combinedStatus.running",
+                    defaultValue: "Running"
+                )
             ),
         ]
 
@@ -105,7 +120,13 @@ final class MenuBarCombinedStatusTests: XCTestCase {
 
             XCTAssertEqual(status.activity, .partiallyActive)
             XCTAssertEqual(status.stage, .inactive)
-            XCTAssertEqual(status.title, String(localized: "Inactive"))
+            XCTAssertEqual(
+                status.title,
+                String(
+                    localized: "menuBar.combinedStatus.notRunning",
+                    defaultValue: "Not Running"
+                )
+            )
         }
 
         let runningStatus = MenuBarCombinedStatus(
@@ -160,6 +181,14 @@ final class MenuBarCombinedStatusTests: XCTestCase {
 
         XCTAssertEqual(
             koreanBundle.localizedString(
+                forKey: "menuBar.combinedStatus.notRunning",
+                value: nil,
+                table: nil
+            ),
+            "비활성화됨"
+        )
+        XCTAssertEqual(
+            koreanBundle.localizedString(
                 forKey: "USB Not Attached",
                 value: nil,
                 table: nil
@@ -173,6 +202,14 @@ final class MenuBarCombinedStatusTests: XCTestCase {
                 table: nil
             ),
             "WireGuard 연결 안 됨"
+        )
+        XCTAssertEqual(
+            koreanBundle.localizedString(
+                forKey: "menuBar.combinedStatus.running",
+                value: nil,
+                table: nil
+            ),
+            "활성화됨"
         )
     }
 }

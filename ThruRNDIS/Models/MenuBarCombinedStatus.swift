@@ -57,13 +57,19 @@ struct MenuBarCombinedStatus: Equatable {
     var title: String {
         switch stage {
         case .inactive:
-            return String(localized: "Inactive")
+            return String(
+                localized: "menuBar.combinedStatus.notRunning",
+                defaultValue: "Not Running"
+            )
         case .usbNotAttached:
             return String(localized: "USB Not Attached")
         case .wireGuardDisconnected:
             return String(localized: "WireGuard Disconnected")
         case .active:
-            return String(localized: "Active")
+            return String(
+                localized: "menuBar.combinedStatus.running",
+                defaultValue: "Running"
+            )
         }
     }
 }

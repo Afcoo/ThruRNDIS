@@ -83,7 +83,7 @@ struct USBDevicesView: View {
                     Spacer()
 
                     Toggle(
-                        "Ask to Connect When a Device Is Detected",
+                        "Ask to attach when device is available",
                         isOn: $appPreferences.shouldAskToAttachDetectedUSBDevices
                     )
                     .toggleStyle(.checkbox)

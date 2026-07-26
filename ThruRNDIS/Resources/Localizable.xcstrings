@@ -239,7 +239,7 @@
         }
       }
     },
-    "Ask to Connect When a Device Is Detected" : {
+    "Ask to attach when device is available" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
@@ -636,7 +636,7 @@
         }
       }
     },
-    "Connect Automatically When a USB Device Is Attached" : {
+    "Connect automatically when device is attached" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
@@ -3370,6 +3370,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "WireGuard: 프로바이더 연결됨"
+          }
+        }
+      }
+    },
+    "menuBar.combinedStatus.notRunning" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not Running"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "비활성화됨"
+          }
+        }
+      }
+    },
+    "menuBar.combinedStatus.running" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Running"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "활성화됨"
           }
         }
       }

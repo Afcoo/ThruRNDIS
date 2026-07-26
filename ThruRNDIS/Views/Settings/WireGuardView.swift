@@ -136,7 +136,7 @@ struct WireGuardView: View {
                     Spacer()
 
                     Toggle(
-                        "Connect Automatically When a USB Device Is Attached",
+                        "Connect automatically when device is attached",
                         isOn: $appPreferences.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches
                     )
                     .toggleStyle(.checkbox)
@@ -180,7 +180,7 @@ struct WireGuardView: View {
 
                     Spacer()
 
-                    Button("Clear Discovered Endpoint") {
+                    Button("Reset") {
                         wireGuardSession.clearDiscoveredEndpoint(
                             reason: "manual request",
                             alwaysDisconnectTunnel: false
