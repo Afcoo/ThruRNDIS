@@ -1,0 +1,190 @@
+name: Update Homebrew cask
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: update-homebrew-cask
+  cancel-in-progress: false
+
+jobs:
+  update-homebrew-cask:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SOURCE_REPOSITORY: Afcoo/ThruRNDIS
+      TARGET_REPOSITORY: Afcoo/homebrew-tap
+      CASK_PATH: Casks/thrurndis.rb
+      BRANCH: automation/update-thrurndis-cask
+
+    steps:
+      - name: Resolve release artifact
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          release_tag="$(gh api \
+            "repos/$SOURCE_REPOSITORY/releases/latest" \
+            --jq '.tag_name')"
+
+          if [[ ! "$release_tag" =~ ^v([0-9]+(\.[0-9]+)*)$ ]]; then
+            echo "Expected the latest stable release tag to look like v0.2.0, got: $release_tag" >&2
+            exit 1
+          fi
+
+          version="${release_tag#v}"
+          asset_name="ThruRNDIS-${version}.dmg"
+          download_directory="$RUNNER_TEMP/thrurndis-release"
+          mkdir -p "$download_directory"
+
+          gh release download "$release_tag" \
+            --repo "$SOURCE_REPOSITORY" \
+            --pattern "$asset_name" \
+            --dir "$download_directory"
+
+          asset_path="$download_directory/$asset_name"
+          if [[ ! -f "$asset_path" ]]; then
+            echo "Release asset was not downloaded: $asset_name" >&2
+            exit 1
+          fi
+
+          sha256="$(sha256sum "$asset_path" | awk '{print $1}')"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "sha256=$sha256" >> "$GITHUB_OUTPUT"
+          echo "url=https://github.com/$SOURCE_REPOSITORY/releases/tag/$release_tag" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          client-id: ${{ secrets.HOMEBREW_TAP_APP_CLIENT_ID }}
+          private-key: ${{ secrets.HOMEBREW_TAP_APP_PRIVATE_KEY }}
+          owner: Afcoo
+          repositories: homebrew-tap
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Check out Homebrew tap
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: ${{ env.TARGET_REPOSITORY }}
+          ref: main
+          path: homebrew-tap
+          token: ${{ steps.app-token.outputs.token }}
+          fetch-depth: 0
+
+      - name: Configure GitHub App commit identity
+        id: app-user
+        env:
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          app_user_id="$(gh api "/users/${APP_SLUG}[bot]" --jq .id)"
+          echo "name=${APP_SLUG}[bot]" >> "$GITHUB_OUTPUT"
+          echo "email=${app_user_id}+${APP_SLUG}[bot]@users.noreply.github.com" >> "$GITHUB_OUTPUT"
+
+      - name: Update cask
+        id: update
+        working-directory: homebrew-tap
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          SHA256: ${{ steps.release.outputs.sha256 }}
+          APP_USER_NAME: ${{ steps.app-user.outputs.name }}
+          APP_USER_EMAIL: ${{ steps.app-user.outputs.email }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git config user.name "$APP_USER_NAME"
+          git config user.email "$APP_USER_EMAIL"
+          git switch --create "$BRANCH"
+
+          ruby - "$CASK_PATH" "$VERSION" "$SHA256" <<'RUBY'
+          path, version, sha256 = ARGV
+          content = File.read(path)
+
+          version_pattern = /^  version "[^"]+"$/
+          sha256_pattern = /^  sha256 "[0-9a-f]{64}"$/
+
+          abort "Expected exactly one version declaration in #{path}" unless content.scan(version_pattern).one?
+          abort "Expected exactly one sha256 declaration in #{path}" unless content.scan(sha256_pattern).one?
+
+          content.sub!(version_pattern, %(  version "#{version}"))
+          content.sub!(sha256_pattern, %(  sha256 "#{sha256}"))
+          File.write(path, content)
+          RUBY
+
+          ruby -c "$CASK_PATH"
+
+          if git diff --quiet -- "$CASK_PATH"; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git add "$CASK_PATH"
+          git commit -m "chore(cask): update ThruRNDIS to $VERSION"
+
+          if git ls-remote --exit-code --heads origin "$BRANCH" > /dev/null; then
+            git fetch origin "refs/heads/$BRANCH:refs/remotes/origin/$BRANCH"
+            git push --force-with-lease origin "HEAD:refs/heads/$BRANCH"
+          else
+            git push origin "HEAD:refs/heads/$BRANCH"
+          fi
+
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Synchronize pull request
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          VERSION: ${{ steps.release.outputs.version }}
+          RELEASE_URL: ${{ steps.release.outputs.url }}
+          CHANGED: ${{ steps.update.outputs.changed }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          pr_url="$(gh pr list \
+            --repo "$TARGET_REPOSITORY" \
+            --base main \
+            --head "$BRANCH" \
+            --state open \
+            --json url \
+            --jq '.[0].url // empty')"
+
+          if [[ "$CHANGED" != "true" ]]; then
+            if [[ -n "$pr_url" ]]; then
+              gh pr close "$pr_url" --repo "$TARGET_REPOSITORY"
+              echo "Closed obsolete Homebrew cask pull request: $pr_url" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "Homebrew cask already matches the latest release; no pull request is needed." \
+                >> "$GITHUB_STEP_SUMMARY"
+            fi
+            exit 0
+          fi
+
+          pr_title="chore(cask): update ThruRNDIS to $VERSION"
+          pr_body="Updates Casks/thrurndis.rb for ThruRNDIS $VERSION. Source release: $RELEASE_URL"
+
+          if [[ -z "$pr_url" ]]; then
+            pr_url="$(gh pr create \
+              --repo "$TARGET_REPOSITORY" \
+              --base main \
+              --head "$BRANCH" \
+              --title "$pr_title" \
+              --body "$pr_body")"
+          else
+            gh pr edit "$pr_url" \
+              --repo "$TARGET_REPOSITORY" \
+              --title "$pr_title" \
+              --body "$pr_body"
+          fi
+
+          echo "Homebrew cask pull request: $pr_url" >> "$GITHUB_STEP_SUMMARY"
