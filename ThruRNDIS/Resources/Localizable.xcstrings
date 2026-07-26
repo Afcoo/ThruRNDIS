@@ -2864,6 +2864,16 @@
         }
       }
     },
+    "USB Not Attached" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "USB 연결 안 됨"
+          }
+        }
+      }
+    },
     "USB listener registered." : {
       "localizations" : {
         "ko" : {
@@ -3340,6 +3350,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "WireGuard: %@"
+          }
+        }
+      }
+    },
+    "WireGuard Disconnected" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WireGuard 연결 안 됨"
           }
         }
       }

@@ -5,129 +5,29 @@ Copyright (C) 2026 Afcoo.
 import AppKit
 import Combine
 
-private final class StatusDotView: NSView {
-    private var dotColor: NSColor
+private enum MenuBarPresentationMode: Equatable {
+    case normal
+    case debug
 
-    init(color: NSColor) {
-        self.dotColor = color
-        super.init(frame: .zero)
+    init(isDebugModeEnabled: Bool) {
+        self = isDebugModeEnabled ? .debug : .normal
     }
 
-    override func draw(_ dirtyRect: NSRect) {
-        super.draw(dirtyRect)
+    var displaysIndividualStatusItems: Bool {
+        self == .debug
+    }
 
-        guard let context = NSGraphicsContext.current?.cgContext else {
-            return
+    var displaysVMControls: Bool {
+        self == .debug
+    }
+
+    var statusItemWidthBehavior: MenuBarStatusItemView.WidthBehavior {
+        switch self {
+        case .normal:
+            return .contentFitting
+        case .debug:
+            return .stable
         }
-
-        let color = dotColor.usingColorSpace(.deviceRGB) ?? dotColor
-        let colors = [
-            color.withAlphaComponent(0.64).cgColor,
-            color.withAlphaComponent(0.28).cgColor,
-            color.withAlphaComponent(0).cgColor,
-        ] as CFArray
-        let locations: [CGFloat] = [0, 0.5, 1]
-
-        guard let gradient = CGGradient(
-            colorsSpace: CGColorSpaceCreateDeviceRGB(),
-            colors: colors,
-            locations: locations
-        ) else {
-            return
-        }
-
-        let center = CGPoint(x: bounds.midX, y: bounds.midY)
-        context.drawRadialGradient(
-            gradient,
-            startCenter: center,
-            startRadius: 0,
-            endCenter: center,
-            endRadius: 9,
-            options: []
-        )
-        context.setFillColor(color.cgColor)
-        context.fillEllipse(in: CGRect(
-            x: center.x - 4,
-            y: center.y - 4,
-            width: 8,
-            height: 8
-        ))
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    func update(color: NSColor) {
-        dotColor = color
-        needsDisplay = true
-    }
-}
-
-private final class StatusMenuItemView: NSView {
-    private static let width: CGFloat = {
-        let font = NSFont.menuFont(ofSize: 0)
-        let referenceUSBID = "FFFF:FFFF"
-        let referenceTitles = [
-            String(localized: "USB: \(referenceUSBID)"),
-            String(localized: "USB: Not attached"),
-            String(localized: "WireGuard: Provider connected"),
-            String(localized: "Configure VM Assets in Settings"),
-        ]
-        let titleWidth = referenceTitles
-            .map { ($0 as NSString).size(withAttributes: [.font: font]).width }
-            .max() ?? 0
-        return ceil(titleWidth + 43)
-    }()
-
-    private let dotView: StatusDotView
-    private let titleLabel: NSTextField
-
-    init(title: String, dotColor: NSColor) {
-        let font = NSFont.menuFont(ofSize: 0)
-        self.dotView = StatusDotView(color: dotColor)
-        self.titleLabel = NSTextField(labelWithString: title)
-        super.init(frame: NSRect(
-            x: 0,
-            y: 0,
-            width: Self.width,
-            height: 22
-        ))
-        autoresizingMask = [.width]
-
-        dotView.translatesAutoresizingMaskIntoConstraints = false
-
-        titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        titleLabel.font = font
-        titleLabel.textColor = .secondaryLabelColor
-        titleLabel.lineBreakMode = .byTruncatingTail
-        titleLabel.maximumNumberOfLines = 1
-
-        addSubview(dotView)
-        addSubview(titleLabel)
-
-        NSLayoutConstraint.activate([
-            dotView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 9),
-            dotView.centerYAnchor.constraint(equalTo: centerYAnchor),
-            dotView.widthAnchor.constraint(equalToConstant: 18),
-            dotView.heightAnchor.constraint(equalToConstant: 18),
-            titleLabel.leadingAnchor.constraint(equalTo: dotView.trailingAnchor, constant: 2),
-            titleLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
-            titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -14),
-        ])
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    func update(title: String, dotColor: NSColor) {
-        if titleLabel.stringValue != title {
-            titleLabel.stringValue = title
-        }
-        dotView.update(color: dotColor)
     }
 }
 
@@ -152,6 +52,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private let statusItem: NSStatusItem
     private let menu = NSMenu()
     private var cancellables: Set<AnyCancellable> = []
+    private var combinedStatusItem: NSMenuItem?
     private var vmStatusItem: NSMenuItem?
     private var usbStatusItem: NSMenuItem?
     private var wireGuardStatusItem: NSMenuItem?
@@ -161,6 +62,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var attachSubmenu: NSMenu?
     private var detachItem: NSMenuItem?
     private var menuHasConfiguredAssets: Bool?
+    private var menuPresentationMode: MenuBarPresentationMode?
     private var isMenuOpen = false
     private var isPresentationRefreshScheduled = false
     private var isPresentingPrompt = false
@@ -313,47 +215,57 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         clearDynamicMenuReferences()
         menu.removeAllItems()
         let hasConfiguredAssets = assetWorkflowCoordinator.hasConfiguredAssets
+        let presentationMode = currentPresentationMode
         menuHasConfiguredAssets = hasConfiguredAssets
+        menuPresentationMode = presentationMode
 
         guard hasConfiguredAssets else {
-            menu.addItem(statusItemLine(
-                title: String(localized: "Configure VM Assets in Settings"),
-                systemImage: "exclamationmark.triangle"
+            menu.addItem(informationalItem(
+                title: String(localized: "Configure VM Assets in Settings")
             ))
             addSettingsAndQuitItems()
             return
         }
 
-        let vmStatusItem = statusItemLine(
-            title: String(localized: "VM: \(store.vmDisplayState.localizedName)"),
-            dotColor: vmStatusColor
-        )
-        self.vmStatusItem = vmStatusItem
-        menu.addItem(vmStatusItem)
+        if presentationMode.displaysIndividualStatusItems {
+            let vmStatusItem = statusItemLine(
+                title: String(localized: "VM: \(store.vmDisplayState.localizedName)"),
+                dotColor: vmStatusColor
+            )
+            self.vmStatusItem = vmStatusItem
+            menu.addItem(vmStatusItem)
 
-        let usbStatusItem = statusItemLine(
-            title: usbStatusTitle,
-            dotColor: usbStatusColor
-        )
-        self.usbStatusItem = usbStatusItem
-        menu.addItem(usbStatusItem)
+            let usbStatusItem = statusItemLine(
+                title: usbStatusTitle,
+                dotColor: usbStatusColor
+            )
+            self.usbStatusItem = usbStatusItem
+            menu.addItem(usbStatusItem)
 
-        let wireGuardStatusItem = statusItemLine(
-            title: wireGuardStatusTitle,
-            dotColor: wireGuardStatusColor
-        )
-        self.wireGuardStatusItem = wireGuardStatusItem
-        menu.addItem(wireGuardStatusItem)
+            let wireGuardStatusItem = statusItemLine(
+                title: wireGuardStatusTitle,
+                dotColor: wireGuardStatusColor
+            )
+            self.wireGuardStatusItem = wireGuardStatusItem
+            menu.addItem(wireGuardStatusItem)
+        } else {
+            addCombinedStatusItem()
+        }
 
         menu.addItem(.separator())
 
-        let vmActionItem = actionItem(title: "", action: #selector(startOrRestartVM))
-        self.vmActionItem = vmActionItem
-        menu.addItem(vmActionItem)
+        if presentationMode.displaysVMControls {
+            let vmActionItem = actionItem(title: "", action: #selector(startOrRestartVM))
+            self.vmActionItem = vmActionItem
+            menu.addItem(vmActionItem)
 
-        let stopItem = actionItem(title: String(localized: "Stop VM"), action: #selector(stopVM))
-        self.stopItem = stopItem
-        menu.addItem(stopItem)
+            let stopItem = actionItem(
+                title: String(localized: "Stop VM"),
+                action: #selector(stopVM)
+            )
+            self.stopItem = stopItem
+            menu.addItem(stopItem)
+        }
 
         let wireGuardItem = actionItem(title: "", action: #selector(connectWireGuard))
         self.wireGuardItem = wireGuardItem
@@ -373,6 +285,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     private func clearDynamicMenuReferences() {
+        combinedStatusItem = nil
         vmStatusItem = nil
         usbStatusItem = nil
         wireGuardStatusItem = nil
@@ -387,12 +300,16 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         updateStatusButton()
 
         let hasConfiguredAssets = assetWorkflowCoordinator.hasConfiguredAssets
-        guard menuHasConfiguredAssets == hasConfiguredAssets else {
+        let presentationMode = currentPresentationMode
+        guard menuHasConfiguredAssets == hasConfiguredAssets,
+              menuPresentationMode == presentationMode else {
             if !isMenuOpen {
                 rebuildMenu()
             }
             return
         }
+
+        refreshCombinedStatusItem()
 
         guard hasConfiguredAssets else {
             return
@@ -438,13 +355,36 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         detachItem?.isEnabled = store.canDetachAccessory
     }
 
+    private func addCombinedStatusItem() {
+        let combinedStatus = currentCombinedStatus
+        let combinedStatusItem = statusItemLine(
+            title: combinedStatus.title,
+            dotColor: combinedStatusColor(for: combinedStatus),
+            widthBehavior: currentPresentationMode.statusItemWidthBehavior
+        )
+        self.combinedStatusItem = combinedStatusItem
+        menu.addItem(combinedStatusItem)
+    }
+
+    private func refreshCombinedStatusItem() {
+        let combinedStatus = currentCombinedStatus
+        updateStatusItem(
+            combinedStatusItem,
+            title: combinedStatus.title,
+            dotColor: combinedStatusColor(for: combinedStatus)
+        )
+    }
+
     private func updateStatusItem(
         _ item: NSMenuItem?,
         title: String,
         dotColor: NSColor
     ) {
         item?.title = title
-        (item?.view as? StatusMenuItemView)?.update(title: title, dotColor: dotColor)
+        (item?.view as? MenuBarStatusItemView)?.update(
+            title: title,
+            dotColor: dotColor
+        )
     }
 
     private func refreshAttachSubmenu() {
@@ -538,6 +478,33 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         String(localized: "WireGuard: \(store.wireGuardSession.hostTunnelStatus.title)")
     }
 
+    private var currentPresentationMode: MenuBarPresentationMode {
+        MenuBarPresentationMode(
+            isDebugModeEnabled: store.appPreferences.isDebugModeEnabled
+        )
+    }
+
+    private var currentCombinedStatus: MenuBarCombinedStatus {
+        MenuBarCombinedStatus(
+            vmRuntimeState: store.runtimeState,
+            isUSBAttached: store.usbSession.attachedAccessoryID != nil,
+            wireGuardTunnelStatus: store.wireGuardSession.hostTunnelStatus
+        )
+    }
+
+    private func combinedStatusColor(
+        for combinedStatus: MenuBarCombinedStatus
+    ) -> NSColor {
+        switch combinedStatus.activity {
+        case .inactive:
+            return .systemRed
+        case .partiallyActive:
+            return .systemOrange
+        case .active:
+            return .systemGreen
+        }
+    }
+
     private var vmStatusColor: NSColor {
         switch store.vmDisplayState {
         case .running:
@@ -567,17 +534,23 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         }
     }
 
-    private func statusItemLine(title: String, dotColor: NSColor) -> NSMenuItem {
+    private func statusItemLine(
+        title: String,
+        dotColor: NSColor,
+        widthBehavior: MenuBarStatusItemView.WidthBehavior = .stable
+    ) -> NSMenuItem {
         let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
-        item.view = StatusMenuItemView(title: title, dotColor: dotColor)
+        item.view = MenuBarStatusItemView(
+            title: title,
+            dotColor: dotColor,
+            widthBehavior: widthBehavior
+        )
         return item
     }
 
-    private func statusItemLine(title: String, systemImage: String) -> NSMenuItem {
+    private func informationalItem(title: String) -> NSMenuItem {
         let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
         item.isEnabled = false
-        item.image = NSImage(systemSymbolName: systemImage, accessibilityDescription: nil)
-        item.image?.isTemplate = true
         return item
     }
 
