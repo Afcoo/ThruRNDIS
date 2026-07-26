@@ -400,7 +400,7 @@ final class WireGuardSessionStoreTests: XCTestCase {
             tunnelController.systemExtensionStatusRefreshCallCount
 
         tunnelController.onSystemExtensionStatusChange?(.awaitingUserApproval)
-        tunnelController.onEventLog?("Late test callback")
+        tunnelController.onEventLog?("Late test callback", .debug)
         store.refreshSystemExtensionStatus()
         store.openSystemExtensionSettings()
         XCTAssertFalse(store.requestSystemExtensionActivation())
@@ -520,7 +520,7 @@ private final class WireGuardSessionStoreTestTunnelController:
     HostWireGuardTunnelControlling {
     var onStatusChange: ((HostWireGuardTunnelStatus) -> Void)?
     var onSystemExtensionStatusChange: ((WireGuardSystemExtensionStatus) -> Void)?
-    var onEventLog: ((String) -> Void)?
+    var onEventLog: EventLogHandler?
     var shouldSuspendSystemExtensionActivation = false
     var disconnectResult = true
     var removeSavedTunnelResult = true

@@ -282,7 +282,8 @@ final class TetheringStore: ObservableObject {
         guard !isOnboardingPresented else {
             appendEventLog(
                 "USB listener start ignored while onboarding is presented.",
-                source: .accessoryAccess
+                level: .debug,
+                category: .usb
             )
             return
         }
@@ -307,7 +308,8 @@ final class TetheringStore: ObservableObject {
             shouldResumeAccessoryMonitoringAfterOnboarding = true
             appendEventLog(
                 "USB listener start deferred until onboarding closes.",
-                source: .accessoryAccess
+                level: .debug,
+                category: .usb
             )
             return
         }
@@ -327,7 +329,8 @@ final class TetheringStore: ObservableObject {
         guard usbCoordinator.isAccessoryMonitoring else {
             appendEventLog(
                 "AccessoryAccess USB listener remains stopped during onboarding.",
-                source: .accessoryAccess
+                level: .debug,
+                category: .usb
             )
             return
         }
@@ -368,7 +371,11 @@ final class TetheringStore: ObservableObject {
         refreshRuntimeEntitlements()
 
         guard runtimeEntitlements.accessoryAccessUSB else {
-            reportMissingEntitlement(.accessoryAccessUSB, action: "USB listener reload")
+            reportMissingEntitlement(
+                .accessoryAccessUSB,
+                action: "USB listener reload",
+                category: .usb
+            )
             return
         }
 
@@ -397,7 +404,8 @@ final class TetheringStore: ObservableObject {
             appendEventLog(
                 "VM asset validation failed before VM start: " +
                     EventLogErrorFormatter.description(for: error),
-                source: .vmAssets
+                level: .error,
+                category: .vmAsset
             )
             return false
         }
@@ -413,7 +421,11 @@ final class TetheringStore: ObservableObject {
         }
 
         guard runtimeEntitlements.virtualization else {
-            reportMissingEntitlement(.virtualization, action: "VM start")
+            reportMissingEntitlement(
+                .virtualization,
+                action: "VM start",
+                category: .vm
+            )
             return false
         }
 
@@ -433,7 +445,11 @@ final class TetheringStore: ObservableObject {
         let bootCommandLine = vmConfiguration.normalizedBootCommandLine()
         if bootCommandLine != vmConfiguration.kernelCommandLine {
             vmConfiguration.kernelCommandLine = bootCommandLine
-            appendEventLog("Adjusted kernel arguments for initramfs-only boot.", source: .virtualMachine)
+            appendEventLog(
+                "Adjusted kernel arguments for initramfs-only boot.",
+                level: .debug,
+                category: .vm
+            )
         }
 
         let input = VMCoordinatorStartInput(
@@ -447,9 +463,21 @@ final class TetheringStore: ObservableObject {
             guestMACAddress: guestMACAddress
         )
 
-        appendEventLog("Kernel asset: \(bootAssets.kernelURL.path)", source: .virtualMachine)
-        appendEventLog("Initramfs asset: \(bootAssets.initialRamdiskURL.path)", source: .virtualMachine)
-        appendEventLog("Kernel arguments: \(bootCommandLine)", source: .virtualMachine)
+        appendEventLog(
+            "Kernel asset: \(bootAssets.kernelURL.path)",
+            level: .debug,
+            category: .vm
+        )
+        appendEventLog(
+            "Initramfs asset: \(bootAssets.initialRamdiskURL.path)",
+            level: .debug,
+            category: .vm
+        )
+        appendEventLog(
+            "Kernel arguments: \(bootCommandLine)",
+            level: .debug,
+            category: .vm
+        )
         vmCoordinator.start(input: input)
         return true
     }
@@ -500,7 +528,11 @@ final class TetheringStore: ObservableObject {
         }
 
         guard runtimeEntitlements.accessoryAccessUSB else {
-            reportMissingEntitlement(.accessoryAccessUSB, action: "USB attach")
+            reportMissingEntitlement(
+                .accessoryAccessUSB,
+                action: "USB attach",
+                category: .usb
+            )
             return
         }
 
@@ -567,7 +599,7 @@ final class TetheringStore: ObservableObject {
         } else {
             appendEventLog(
                 "USB attach declined for registry \(prompt.accessory.registryIDText).",
-                source: .accessoryAccess
+                category: .usb
             )
         }
 
@@ -583,7 +615,8 @@ final class TetheringStore: ObservableObject {
               prompt.id == promptID else {
             appendEventLog(
                 "Ignoring a stale WireGuard connection prompt response.",
-                source: .wireGuard
+                level: .debug,
+                category: .wireGuard
             )
             return
         }
@@ -595,7 +628,7 @@ final class TetheringStore: ObservableObject {
             appendEventLog(
                 "Automatic WireGuard connection declined for USB registry " +
                     "\(prompt.accessory.registryIDText).",
-                source: .wireGuard
+                category: .wireGuard
             )
             return
         }
@@ -610,7 +643,8 @@ final class TetheringStore: ObservableObject {
             appendEventLog(
                 "WireGuard connection request ignored because USB registry " +
                     "\(prompt.accessory.registryIDText) is no longer part of the current attachment workflow.",
-                source: .wireGuard
+                level: .debug,
+                category: .wireGuard
             )
             return
         }
@@ -635,7 +669,7 @@ final class TetheringStore: ObservableObject {
         appendEventLog(
             "WireGuard connection queued for USB registry " +
                 "\(Self.registryIDText(accessoryID)); waiting for USB and VM readiness.",
-            source: .wireGuard
+            category: .wireGuard
         )
         attemptPendingWireGuardConnectionIfReady()
     }
@@ -645,7 +679,7 @@ final class TetheringStore: ObservableObject {
     ) async {
         isPreparingForApplicationTermination = true
         shouldResumeAccessoryMonitoringAfterOnboarding = false
-        appendEventLog("Application terminating.")
+        appendEventLog("Application terminating.", level: .debug)
         pendingWireGuardConnectionAccessoryID = nil
         wireGuardConnectionPrompt = nil
         await wireGuardSession.prepareForApplicationTermination(
@@ -665,7 +699,8 @@ final class TetheringStore: ObservableObject {
         guard !wireGuardSession.hostTunnelStatus.isTransitioning else {
             appendEventLog(
                 "Host WireGuard status refresh skipped during a tunnel transition.",
-                source: .wireGuard
+                level: .debug,
+                category: .wireGuard
             )
             return
         }
@@ -673,7 +708,8 @@ final class TetheringStore: ObservableObject {
             wireGuardSession.updateHostTunnelStatus(.missingPacketTunnelEntitlement)
             appendEventLog(
                 "Host WireGuard status not refreshed: missing NetworkExtension entitlement.",
-                source: .wireGuard
+                level: .warning,
+                category: .wireGuard
             )
             return
         }
@@ -698,7 +734,8 @@ final class TetheringStore: ObservableObject {
         guard runtimeEntitlements.systemExtensionInstall else {
             reportMissingEntitlement(
                 .systemExtensionInstall,
-                action: "network extension activation"
+                action: "network extension activation",
+                category: .wireGuard
             )
             wireGuardSession.updateSystemExtensionStatus(
                 .failed("System Extension installation entitlement is missing.")
@@ -726,7 +763,8 @@ final class TetheringStore: ObservableObject {
             wireGuardSession.updateHostTunnelStatus(.unconfigured)
             appendEventLog(
                 "Host WireGuard tunnel not started: VM is not running.",
-                source: .wireGuard
+                level: .warning,
+                category: .wireGuard
             )
             return
         }
@@ -734,12 +772,20 @@ final class TetheringStore: ObservableObject {
             return
         }
         guard runtimeEntitlements.packetTunnelProvider else {
-            reportMissingEntitlement(.packetTunnelProvider, action: "Host WireGuard tunnel start")
+            reportMissingEntitlement(
+                .packetTunnelProvider,
+                action: "Host WireGuard tunnel start",
+                category: .wireGuard
+            )
             wireGuardSession.updateHostTunnelStatus(.missingPacketTunnelEntitlement)
             return
         }
         guard runtimeEntitlements.systemExtensionInstall else {
-            reportMissingEntitlement(.systemExtensionInstall, action: "Host WireGuard tunnel start")
+            reportMissingEntitlement(
+                .systemExtensionInstall,
+                action: "Host WireGuard tunnel start",
+                category: .wireGuard
+            )
             wireGuardSession.updateHostTunnelStatus(
                 .missingSystemExtensionInstallEntitlement
             )
@@ -799,7 +845,8 @@ final class TetheringStore: ObservableObject {
             )
             appendEventLog(
                 "App settings reset cancelled: Host WireGuard tunnel could not be stopped.",
-                source: .wireGuard
+                level: .error,
+                category: .wireGuard
             )
             return false
         }
@@ -822,7 +869,8 @@ final class TetheringStore: ObservableObject {
                 )
                 appendEventLog(
                     "App settings reset cancelled: VM could not be stopped.",
-                    source: .virtualMachine
+                    level: .error,
+                    category: .vm
                 )
                 return false
             }
@@ -834,7 +882,8 @@ final class TetheringStore: ObservableObject {
             )
             appendEventLog(
                 "App settings reset cancelled: Saved WireGuard tunnel profile could not be removed.",
-                source: .wireGuard
+                level: .error,
+                category: .wireGuard
             )
             return false
         }
@@ -845,7 +894,9 @@ final class TetheringStore: ObservableObject {
             resetStatusMessage = String(localized: "Could not remove WireGuard configuration: \(error.localizedDescription)")
             appendEventLog(
                 "App settings reset cancelled: Could not remove WireGuard configuration: " +
-                    EventLogErrorFormatter.description(for: error)
+                    EventLogErrorFormatter.description(for: error),
+                level: .error,
+                category: .wireGuard
             )
             return false
         }
@@ -865,6 +916,11 @@ final class TetheringStore: ObservableObject {
             resetStatusMessage = String(localized: "App settings were reset.")
         } catch {
             resetStatusMessage = String(localized: "Settings reset, but Launch at Login could not be disabled: \(error.localizedDescription)")
+            appendEventLog(
+                "Launch at Login could not be disabled during app settings reset: " +
+                    EventLogErrorFormatter.description(for: error),
+                level: .error
+            )
         }
 
         appendEventLog("App settings and WireGuard configuration were reset; VM asset files were not deleted.")
@@ -917,8 +973,8 @@ final class TetheringStore: ObservableObject {
                 break
             }
         }
-        vmCoordinator.onEventLog = { [weak self] message in
-            self?.appendEventLog(message, source: .virtualMachine)
+        vmCoordinator.onEventLog = { [weak self] message, level in
+            self?.appendEventLog(message, level: level, category: .vm)
         }
         vmCoordinator.onConsoleOutput = { [weak self] data in
             self?.appendConsole(data)
@@ -989,8 +1045,8 @@ final class TetheringStore: ObservableObject {
         usbCoordinator.onStatusMessage = { [weak self] message in
             self?.statusMessage = message
         }
-        usbCoordinator.onEventLog = { [weak self] message in
-            self?.appendEventLog(message, source: .accessoryAccess)
+        usbCoordinator.onEventLog = { [weak self] message, level in
+            self?.appendEventLog(message, level: level, category: .usb)
         }
         usbCoordinator.onAccessoryAvailable = { [weak self] record in
             self?.offerAttachmentForAvailableAccessory(record)
@@ -1029,7 +1085,7 @@ final class TetheringStore: ObservableObject {
         appendEventLog(
             "USB and VM are ready; starting the queued WireGuard connection for registry " +
                 "\(Self.registryIDText(accessoryID)).",
-            source: .wireGuard
+            category: .wireGuard
         )
         connectHostWireGuardTunnel()
     }
@@ -1045,7 +1101,8 @@ final class TetheringStore: ObservableObject {
         appendEventLog(
             "Pending WireGuard connection cancelled for USB registry " +
                 "\(Self.registryIDText(accessoryID)): \(reason).",
-            source: .wireGuard
+            level: .debug,
+            category: .wireGuard
         )
     }
 
@@ -1053,7 +1110,8 @@ final class TetheringStore: ObservableObject {
         guard !isOnboardingPresented else {
             appendEventLog(
                 "USB attach prompt deferred while onboarding is presented.",
-                source: .accessoryAccess
+                level: .debug,
+                category: .usb
             )
             return
         }
@@ -1062,7 +1120,8 @@ final class TetheringStore: ObservableObject {
             appendEventLog(
                 "USB attach prompt skipped for registry \(record.registryIDText): " +
                     "asking on device detection is disabled.",
-                source: .accessoryAccess
+                level: .debug,
+                category: .usb
             )
             return
         }
@@ -1220,7 +1279,8 @@ final class TetheringStore: ObservableObject {
                     )
                     self.appendEventLog(
                         "Approved USB attach did not complete for registry \(Self.registryIDText(accessoryID)).",
-                        source: .accessoryAccess
+                        level: .warning,
+                        category: .usb
                     )
                 }
                 self.presentNextUSBAttachmentPromptIfNeeded()
@@ -1305,7 +1365,8 @@ final class TetheringStore: ObservableObject {
         appendEventLog(
             "Stopping VM because the USB passthrough lifecycle ended for registry " +
                 "\(Self.registryIDText(accessoryID)): \(reason)",
-            source: .accessoryAccess
+            level: .warning,
+            category: .usb
         )
         stopVirtualMachine(reason: "USB passthrough lifecycle ended")
     }
@@ -1323,7 +1384,11 @@ final class TetheringStore: ObservableObject {
         pendingAttachmentToken = nil
         pendingAttachmentStartedVM = false
         shouldStartPendingAttachmentAfterStop = false
-        appendEventLog("Pending USB attachment cancelled: \(reason).", source: .accessoryAccess)
+        appendEventLog(
+            "Pending USB attachment cancelled: \(reason).",
+            level: .debug,
+            category: .usb
+        )
         if presentNextPrompt {
             presentNextUSBAttachmentPromptIfNeeded()
         }
@@ -1334,7 +1399,8 @@ final class TetheringStore: ObservableObject {
             shouldResumeAccessoryMonitoringAfterOnboarding = true
             appendEventLog(
                 "USB listener start deferred while onboarding is presented: \(reason).",
-                source: .accessoryAccess
+                level: .debug,
+                category: .usb
             )
             return
         }
@@ -1342,7 +1408,11 @@ final class TetheringStore: ObservableObject {
         refreshRuntimeEntitlements()
 
         guard runtimeEntitlements.accessoryAccessUSB else {
-            reportMissingEntitlement(.accessoryAccessUSB, action: "USB listener")
+            reportMissingEntitlement(
+                .accessoryAccessUSB,
+                action: "USB listener",
+                category: .usb
+            )
             return
         }
 
@@ -1380,8 +1450,13 @@ final class TetheringStore: ObservableObject {
     private func appendScratchDiskSelectionSummaryIfNeeded() {
         if let diskImageURL = vmConfiguration.diskImageURL {
             appendEventLog(
-                "Restored optional scratch disk selection: \(diskImageURL.path).",
-                source: .virtualMachine
+                "Restored optional scratch disk selection.",
+                category: .vm
+            )
+            appendEventLog(
+                "Restored scratch disk path: \(diskImageURL.path).",
+                level: .debug,
+                category: .vm
             )
         }
     }
@@ -1398,12 +1473,25 @@ final class TetheringStore: ObservableObject {
         let summary = RuntimeEntitlement.allCases.map { entitlement in
             "\(entitlement.rawValue)=\(runtimeEntitlements.has(entitlement) ? "present" : "missing")"
         }
-        appendEventLog("Runtime entitlements: \(summary.joined(separator: ", ")).")
+        appendEventLog(
+            "Runtime entitlements: \(summary.joined(separator: ", ")).",
+            level: .debug
+        )
     }
 
-    private func reportMissingEntitlement(_ entitlement: RuntimeEntitlement, action: String) {
+    private func reportMissingEntitlement(
+        _ entitlement: RuntimeEntitlement,
+        action: String,
+        category: EventLogCategory
+    ) {
         statusMessage = String(localized: "\(entitlement.label) entitlement missing.")
-        appendEventLog("\(action) not started: missing \(entitlement.rawValue). The default ThruRNDIS scheme is for local UI builds; run the ThruRNDIS Runtime scheme with an approved provisioning profile to exercise this runtime path.")
+        appendEventLog(
+            "\(action) not started: missing \(entitlement.rawValue). The default " +
+                "ThruRNDIS scheme is for local UI builds; run the ThruRNDIS Runtime " +
+                "scheme with an approved provisioning profile to exercise this runtime path.",
+            level: .warning,
+            category: category
+        )
     }
 
     private func clearConsoleForVMStart() {
@@ -1418,9 +1506,10 @@ final class TetheringStore: ObservableObject {
 
     private func appendEventLog(
         _ message: String,
-        source: EventLogSource = .app
+        level: EventLogLevel = .info,
+        category: EventLogCategory = .application
     ) {
-        eventLog.append(message, source: source)
+        eventLog.append(message, level: level, category: category)
     }
 
     private static func registryIDText(_ registryID: UInt64) -> String {

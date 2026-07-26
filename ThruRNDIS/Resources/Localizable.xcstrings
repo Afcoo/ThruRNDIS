@@ -169,6 +169,16 @@
         }
       }
     },
+    "All" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "모두"
+          }
+        }
+      }
+    },
     "All settings except VM asset files will be reset." : {
       "localizations" : {
         "ko" : {
@@ -339,12 +349,32 @@
         }
       }
     },
+    "Application" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "앱"
+          }
+        }
+      }
+    },
     "Cancel" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "취소"
+          }
+        }
+      }
+    },
+    "Category" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "카테고리"
           }
         }
       }
@@ -502,6 +532,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "지우기"
+          }
+        }
+      }
+    },
+    "Clear All" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "모두 지우기"
+          }
+        }
+      }
+    },
+    "Clear all event logs" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "모든 이벤트 로그 지우기"
           }
         }
       }
@@ -952,6 +1002,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "VM 에셋 다운로드 중… %lld%%"
+          }
+        }
+      }
+    },
+    "Debug Mode" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "디버그 모드"
           }
         }
       }
@@ -2709,6 +2769,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "알 수 없는 VID:PID"
+          }
+        }
+      }
+    },
+    "USB" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "USB"
           }
         }
       }

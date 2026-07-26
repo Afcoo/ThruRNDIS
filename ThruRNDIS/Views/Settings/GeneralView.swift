@@ -8,6 +8,8 @@ struct GeneralView: View {
     @EnvironmentObject private var appPreferences: AppPreferencesStore
     @EnvironmentObject private var eventLog: EventLogStore
     @State private var eventLogSaveError: EventLogSaveError?
+    @State private var isEventLogDebugModeEnabled = false
+    @State private var selectedEventLogCategory: EventLogCategory?
 
     var body: some View {
         Form {
@@ -21,17 +23,44 @@ struct GeneralView: View {
                 )
             }
 
-            Section("Event Log") {
+            Section {
                 EventLogGroup(
-                    text: eventLog.text,
+                    text: displayedEventLogText,
+                    hasEntries: !eventLog.isEmpty,
                     clearAction: {
                         eventLog.clear()
                     },
                     copyAction: {
-                        Clipboard.copy(eventLog.text)
+                        Clipboard.copy(displayedEventLogText)
                     },
                     saveAction: saveEventLog
                 )
+            } header: {
+                HStack(spacing: 10) {
+                    Text("Event Log")
+
+                    Spacer()
+
+                    Toggle(
+                        "Debug Mode",
+                        isOn: $isEventLogDebugModeEnabled
+                    )
+                    .toggleStyle(.checkbox)
+
+                    Picker("Category", selection: $selectedEventLogCategory) {
+                        Text("All")
+                            .tag(nil as EventLogCategory?)
+
+                        ForEach(EventLogCategory.allCases) { category in
+                            Text(category.localizedName)
+                                .tag(category as EventLogCategory?)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .frame(width: 125)
+                }
+                .controlSize(.small)
             }
         }
         .alert(item: $eventLogSaveError) { error in
@@ -50,25 +79,35 @@ struct GeneralView: View {
             eventLog.append(
                 "Could not update Launch at Login: " +
                     EventLogErrorFormatter.description(for: error),
-                source: .app
+                level: .error,
+                category: .application
             )
         }
     }
 
     private func saveEventLog() {
-        guard !eventLog.text.isEmpty,
+        let logText = eventLog.text
+        guard !logText.isEmpty,
               let url = FilePicker.chooseSaveFile(
                 title: String(localized: "Event Log"),
-                defaultName: "ThruRNDIS Event Log.txt"
+                defaultName: EventLogExportFormatter.defaultFileName()
               ) else {
             return
         }
 
         do {
-            try eventLog.text.write(to: url, atomically: true, encoding: .utf8)
+            try EventLogExportFormatter.content(logText: logText)
+                .write(to: url, atomically: true, encoding: .utf8)
         } catch {
             eventLogSaveError = EventLogSaveError(message: error.localizedDescription)
         }
+    }
+
+    private var displayedEventLogText: String {
+        eventLog.text(
+            isDebugModeEnabled: isEventLogDebugModeEnabled,
+            category: selectedEventLogCategory
+        )
     }
 }
 

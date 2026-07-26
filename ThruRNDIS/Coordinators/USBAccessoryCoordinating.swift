@@ -9,7 +9,7 @@ import Foundation
 protocol USBAccessoryCoordinating: AnyObject {
     var onStateChange: (() -> Void)? { get set }
     var onStatusMessage: ((String) -> Void)? { get set }
-    var onEventLog: ((String) -> Void)? { get set }
+    var onEventLog: EventLogHandler? { get set }
     var onAccessoryAvailable: ((USBAccessoryRecord) -> Void)? { get set }
     var onAccessoryUnavailable: ((UInt64) -> Void)? { get set }
     var onUnexpectedDetach: ((UInt64, String) -> Void)? { get set }

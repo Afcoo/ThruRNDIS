@@ -125,8 +125,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         NSApp.setActivationPolicy(.accessory)
 
-        assetWorkflowCoordinator.onEventLog = { [weak self] message in
-            self?.eventLog.append(message, source: .vmAssets)
+        assetWorkflowCoordinator.onEventLog = { [weak self] message, level in
+            self?.eventLog.append(message, level: level, category: .vmAsset)
         }
         assetWorkflowCoordinator.reportCurrentStateToEventLog()
 

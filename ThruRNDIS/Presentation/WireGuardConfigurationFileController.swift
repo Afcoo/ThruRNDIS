@@ -27,27 +27,32 @@ final class WireGuardConfigurationFileController {
         ), isDirectory.boolValue else {
             appendEventLog(
                 "WireGuard configuration folder not opened because it does not exist: " +
-                    directoryURL.path
+                    directoryURL.path,
+                level: .warning
             )
             return
         }
 
         guard NSWorkspace.shared.open(directoryURL) else {
             appendEventLog(
-                "WireGuard configuration folder open failed: \(directoryURL.path)"
+                "WireGuard configuration folder open failed: \(directoryURL.path)",
+                level: .error
             )
             return
         }
 
+        appendEventLog("Opened WireGuard configuration folder.")
         appendEventLog(
-            "Opened WireGuard configuration folder: \(directoryURL.path)"
+            "WireGuard configuration folder path: \(directoryURL.path)",
+            level: .debug
         )
     }
 
     func copyConfiguration() {
         guard wireGuardSession.canExportConfiguration else {
             appendEventLog(
-                "WireGuard configuration not copied: VM endpoint is unknown."
+                "WireGuard configuration not copied: VM endpoint is unknown.",
+                level: .warning
             )
             return
         }
@@ -59,7 +64,8 @@ final class WireGuardConfigurationFileController {
     func saveConfiguration() {
         guard wireGuardSession.canExportConfiguration else {
             appendEventLog(
-                "WireGuard configuration not saved: VM endpoint is unknown."
+                "WireGuard configuration not saved: VM endpoint is unknown.",
+                level: .warning
             )
             return
         }
@@ -77,18 +83,24 @@ final class WireGuardConfigurationFileController {
                 atomically: true,
                 encoding: .utf8
             )
+            appendEventLog("WireGuard host configuration saved.")
             appendEventLog(
-                "WireGuard host configuration saved to \(url.path)."
+                "WireGuard host configuration save path: \(url.path).",
+                level: .debug
             )
         } catch {
             appendEventLog(
                 "WireGuard configuration save failed: " +
-                    EventLogErrorFormatter.description(for: error)
+                    EventLogErrorFormatter.description(for: error),
+                level: .error
             )
         }
     }
 
-    private func appendEventLog(_ message: String) {
-        eventLog.append(message, source: .wireGuard)
+    private func appendEventLog(
+        _ message: String,
+        level: EventLogLevel = .info
+    ) {
+        eventLog.append(message, level: level, category: .wireGuard)
     }
 }

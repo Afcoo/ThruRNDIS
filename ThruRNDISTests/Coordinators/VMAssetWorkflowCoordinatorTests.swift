@@ -207,7 +207,7 @@ final class VMAssetWorkflowCoordinatorTests: XCTestCase {
             selectionStore: FakeSelectionStore()
         )
         var events: [String] = []
-        coordinator.onEventLog = { events.append($0) }
+        coordinator.onEventLog = { message, _ in events.append(message) }
 
         coordinator.installLatest()
         try await waitUntilIdle(coordinator)
@@ -230,12 +230,14 @@ final class VMAssetWorkflowCoordinatorTests: XCTestCase {
             selectionStore: FakeSelectionStore(initialSelection: FakeSelectionStore.manualSelection)
         )
         var events: [String] = []
-        coordinator.onEventLog = { events.append($0) }
+        coordinator.onEventLog = { message, _ in events.append(message) }
 
         coordinator.reportCurrentStateToEventLog()
 
-        XCTAssertEqual(events.count, 1)
-        XCTAssertTrue(events[0].contains(FakeSelectionStore.manualSelection.folderURL.path))
+        XCTAssertEqual(events.count, 2)
+        XCTAssertTrue(events.contains {
+            $0.contains(FakeSelectionStore.manualSelection.folderURL.path)
+        })
     }
 
     private func waitUntilIdle(_ coordinator: VMAssetWorkflowCoordinator) async throws {

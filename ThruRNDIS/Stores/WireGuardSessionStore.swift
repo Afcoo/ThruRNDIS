@@ -196,9 +196,11 @@ final class WireGuardSessionStore: ObservableObject {
                     builder: configurationBuilder
                 )
             keyMaterial = prepared.keyMaterial
+            appendEventLog("Regenerated WireGuard configuration.")
             appendEventLog(
-                "Regenerated WireGuard configuration from keys in " +
-                    "\(prepared.files.wireGuardDirectoryURL.path): \(reason)."
+                "WireGuard configuration regeneration details: directory=" +
+                    "\(prepared.files.wireGuardDirectoryURL.path), reason=\(reason).",
+                level: .debug
             )
             notifyReadinessChange()
             return true
@@ -206,7 +208,8 @@ final class WireGuardSessionStore: ObservableObject {
             keyMaterial = nil
             appendEventLog(
                 "WireGuard configuration load failed: " +
-                    EventLogErrorFormatter.description(for: error)
+                    EventLogErrorFormatter.description(for: error),
+                level: .error
             )
             notifyReadinessChange()
             return false
@@ -246,7 +249,8 @@ final class WireGuardSessionStore: ObservableObject {
                 .joined(separator: ", ")
             appendEventLog(
                 "Host WireGuard tunnel not started: invalid connection values " +
-                    "(\(invalidFieldNames))."
+                    "(\(invalidFieldNames)).",
+                level: .warning
             )
             return false
         }
@@ -260,14 +264,16 @@ final class WireGuardSessionStore: ObservableObject {
         }
         guard systemExtensionStatus.isActive else {
             appendEventLog(
-                "Host WireGuard tunnel not started: network extension is not active."
+                "Host WireGuard tunnel not started: network extension is not active.",
+                level: .warning
             )
             return false
         }
         guard canExportConfiguration else {
             updateHostTunnelStatus(.unconfigured)
             appendEventLog(
-                "Host WireGuard tunnel not started: VM endpoint is unknown."
+                "Host WireGuard tunnel not started: VM endpoint is unknown.",
+                level: .warning
             )
             return false
         }
@@ -317,7 +323,8 @@ final class WireGuardSessionStore: ObservableObject {
     func refreshHostTunnelStatus() {
         guard !hostTunnelStatus.isTransitioning else {
             appendEventLog(
-                "Host WireGuard status refresh skipped during a tunnel transition."
+                "Host WireGuard status refresh skipped during a tunnel transition.",
+                level: .debug
             )
             return
         }
@@ -371,7 +378,10 @@ final class WireGuardSessionStore: ObservableObject {
             return
         }
         guard systemExtensionSettingsOpener() else {
-            appendEventLog("Could not open Network Extensions settings.")
+            appendEventLog(
+                "Could not open Network Extensions settings.",
+                level: .error
+            )
             return
         }
         appendEventLog("Opened Network Extensions settings.")
@@ -426,7 +436,10 @@ final class WireGuardSessionStore: ObservableObject {
         if alwaysDisconnectTunnel || resolvedEndpoint != previousResolvedEndpoint {
             cancelTunnel(reason: reason)
         }
-        appendEventLog("WireGuard endpoint cleared: \(reason).")
+        appendEventLog(
+            "WireGuard endpoint cleared: \(reason).",
+            level: .debug
+        )
         notifyReadinessChange()
     }
 
@@ -442,15 +455,20 @@ final class WireGuardSessionStore: ObservableObject {
            hostTunnelStatus.canRequestStop || connectTask != nil {
             cancelTunnel(reason: "VM WireGuard endpoint changed")
         }
+        appendEventLog("WireGuard guest address discovered from guest console.")
         appendEventLog(
-            "WireGuard guest address discovered from guest console: \(endpoint)."
+            "Discovered WireGuard guest endpoint: \(endpoint).",
+            level: .debug
         )
         notifyReadinessChange()
     }
 
     func updateHostTunnelStatus(_ status: HostWireGuardTunnelStatus) {
         hostTunnelStatus = status
-        appendEventLog("Provider: \(status.eventLogDescription)")
+        appendEventLog(
+            "Provider: \(status.eventLogDescription)",
+            level: Self.eventLogLevel(for: status)
+        )
         notifyReadinessChange()
     }
 
@@ -460,7 +478,10 @@ final class WireGuardSessionStore: ObservableObject {
             return
         }
         systemExtensionStatus = status
-        appendEventLog("Network Extension: \(status.eventLogDescription)")
+        appendEventLog(
+            "Network Extension: \(status.eventLogDescription)",
+            level: Self.eventLogLevel(for: status)
+        )
         notifyReadinessChange()
     }
 
@@ -476,11 +497,11 @@ final class WireGuardSessionStore: ObservableObject {
         tunnelController.onSystemExtensionStatusChange = { [weak self] status in
             self?.updateSystemExtensionStatus(status)
         }
-        tunnelController.onEventLog = { [weak self] message in
+        tunnelController.onEventLog = { [weak self] message, level in
             guard let self, !self.isPreparingForApplicationTermination else {
                 return
             }
-            self.appendEventLog(message)
+            self.appendEventLog(message, level: level)
         }
     }
 
@@ -490,15 +511,18 @@ final class WireGuardSessionStore: ObservableObject {
                 builder: configurationBuilder
             )
             keyMaterial = prepared.keyMaterial
+            appendEventLog("Prepared WireGuard configuration from Application Support keys.")
             appendEventLog(
-                "Prepared WireGuard configuration from Application Support keys: " +
-                    "\(prepared.files.wireGuardDirectoryURL.path)."
+                "WireGuard Application Support directory: " +
+                    "\(prepared.files.wireGuardDirectoryURL.path).",
+                level: .debug
             )
         } catch {
             keyMaterial = nil
             appendEventLog(
                 "WireGuard key/configuration initialization failed without replacing " +
-                    "existing keys: \(EventLogErrorFormatter.description(for: error))"
+                    "existing keys: \(EventLogErrorFormatter.description(for: error))",
+                level: .error
             )
         }
     }
@@ -558,8 +582,41 @@ final class WireGuardSessionStore: ObservableObject {
         onReadinessChange?()
     }
 
-    private func appendEventLog(_ message: String) {
-        eventLog.append(message, source: .wireGuard)
+    private func appendEventLog(
+        _ message: String,
+        level: EventLogLevel = .info
+    ) {
+        eventLog.append(message, level: level, category: .wireGuard)
+    }
+
+    private static func eventLogLevel(
+        for status: HostWireGuardTunnelStatus
+    ) -> EventLogLevel {
+        switch status {
+        case .activatingSystemExtension, .connecting, .disconnecting, .reasserting:
+            .debug
+        case .disconnected, .connected:
+            .info
+        case .unconfigured:
+            .warning
+        case .failed:
+            .error
+        }
+    }
+
+    private static func eventLogLevel(
+        for status: WireGuardSystemExtensionStatus
+    ) -> EventLogLevel {
+        switch status {
+        case .unknown, .checking, .activationRequested:
+            .debug
+        case .active:
+            .info
+        case .inactive, .awaitingUserApproval, .uninstalling, .restartRequired:
+            .warning
+        case .failed:
+            .error
+        }
     }
 
     private static func restoredInput(

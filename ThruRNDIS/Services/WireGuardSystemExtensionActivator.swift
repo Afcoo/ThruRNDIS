@@ -7,7 +7,7 @@ import Foundation
 
 @MainActor
 protocol WireGuardSystemExtensionActivating: AnyObject {
-    var onEventLog: ((String) -> Void)? { get set }
+    var onEventLog: EventLogHandler? { get set }
     var onActivationNeedsUserApproval: (() -> Void)? { get set }
 
     func status(bundleIdentifier: String) async throws -> WireGuardSystemExtensionStatus
@@ -23,7 +23,7 @@ struct WireGuardSystemExtensionPropertySnapshot: Equatable {
 
 @MainActor
 final class WireGuardSystemExtensionActivator: NSObject, WireGuardSystemExtensionActivating {
-    var onEventLog: ((String) -> Void)?
+    var onEventLog: EventLogHandler?
     var onActivationNeedsUserApproval: (() -> Void)?
 
     private let requestSubmitter: (OSSystemExtensionRequest) -> Void
@@ -57,8 +57,9 @@ final class WireGuardSystemExtensionActivator: NSObject, WireGuardSystemExtensio
             )
             request.delegate = self
             pendingPropertiesRequest = request
-            onEventLog?(
-                "Reading status for network extension \(bundleIdentifier)."
+            reportEventLog(
+                "Reading status for network extension \(bundleIdentifier).",
+                level: .debug
             )
             requestSubmitter(request)
         }
@@ -80,8 +81,10 @@ final class WireGuardSystemExtensionActivator: NSObject, WireGuardSystemExtensio
             )
             request.delegate = self
             pendingActivationRequest = request
-            onEventLog?(
-                "Requesting activation for network extension \(bundleIdentifier)."
+            reportEventLog("Requesting network extension activation.")
+            reportEventLog(
+                "Network extension activation bundle identifier: \(bundleIdentifier).",
+                level: .debug
             )
             requestSubmitter(request)
         }
@@ -133,6 +136,13 @@ final class WireGuardSystemExtensionActivator: NSObject, WireGuardSystemExtensio
         }
         return .inactive
     }
+
+    private func reportEventLog(
+        _ message: String,
+        level: EventLogLevel = .info
+    ) {
+        onEventLog?(message, level)
+    }
 }
 
 extension WireGuardSystemExtensionActivator: @MainActor OSSystemExtensionRequestDelegate {
@@ -151,7 +161,7 @@ extension WireGuardSystemExtensionActivator: @MainActor OSSystemExtensionRequest
         guard action == .replace else {
             return action
         }
-        onEventLog?(
+        reportEventLog(
             "Replacing network extension version \(existing.bundleShortVersion) " +
                 "with \(replacement.bundleShortVersion)."
         )
@@ -162,8 +172,9 @@ extension WireGuardSystemExtensionActivator: @MainActor OSSystemExtensionRequest
         guard request === pendingActivationRequest else {
             return
         }
-        onEventLog?(
-            "Network extension activation is waiting for user approval in System Settings."
+        reportEventLog(
+            "Network extension activation is waiting for user approval in System Settings.",
+            level: .warning
         )
         onActivationNeedsUserApproval?()
     }
@@ -177,7 +188,7 @@ extension WireGuardSystemExtensionActivator: @MainActor OSSystemExtensionRequest
         }
         switch result {
         case .completed:
-            onEventLog?("Network extension activation request completed.")
+            reportEventLog("Network extension activation request completed.")
             finish(with: .success(()))
         case .willCompleteAfterReboot:
             finish(with: .failure(WireGuardSystemExtensionActivationError.restartRequired))

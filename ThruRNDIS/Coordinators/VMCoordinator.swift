@@ -20,7 +20,7 @@ struct VMCoordinatorStartInput {
 @MainActor
 final class VMCoordinator {
     var onStateChange: ((VMRuntimeState, String) -> Void)?
-    var onEventLog: ((String) -> Void)?
+    var onEventLog: EventLogHandler?
     var onConsoleOutput: ((Data) -> Void)?
     var onUSBPassthroughDisconnect: ((VZUSBPassthroughDevice) -> Void)?
     var onStopped: (() -> Void)?
@@ -64,7 +64,10 @@ final class VMCoordinator {
         guard runtimeState != .starting,
               runtimeState != .running,
               runtimeState != .stopping else {
-            onEventLog?("VM start ignored while VM state is \(runtimeState.rawValue).")
+            reportEventLog(
+                "VM start ignored while VM state is \(runtimeState.rawValue).",
+                level: .debug
+            )
             return
         }
 
@@ -100,30 +103,42 @@ final class VMCoordinator {
             self.usbDelegate = usbDelegate
             self.runtimeResources = result.resources
             transition(to: .starting, message: String(localized: "Starting VM."))
-            onEventLog?("Starting ephemeral Alpine ThruRNDIS guest with NAT setup NIC, USB RNDIS upstream, and WireGuard peer support.")
+            reportEventLog(
+                "Starting ephemeral Alpine ThruRNDIS guest with NAT setup NIC, " +
+                    "USB RNDIS upstream, and WireGuard peer support.",
+                level: .debug
+            )
 
             virtualMachine.start { [weak self] startResult in
                 Task { @MainActor in
                     guard let self else { return }
                     guard self.isCurrent(virtualMachine, generation: generation) else {
-                        self.onEventLog?("Ignoring stale VM start completion from an earlier VM generation.")
+                        self.reportEventLog(
+                            "Ignoring stale VM start completion from an earlier VM generation.",
+                            level: .debug
+                        )
                         return
                     }
 
                     guard self.runtimeState == .starting else {
-                        self.onEventLog?("Ignoring VM start completion while VM state is \(self.runtimeState.rawValue).")
+                        self.reportEventLog(
+                            "Ignoring VM start completion while VM state is " +
+                                "\(self.runtimeState.rawValue).",
+                            level: .debug
+                        )
                         return
                     }
 
                     switch startResult {
                     case .success:
                         self.transition(to: .running, message: String(localized: "VM running."))
-                        self.onEventLog?("VM started.")
+                        self.reportEventLog("VM started.")
                         self.scheduleConsoleOutputWatchdog(generation: generation)
                     case .failure(let error):
                         self.transition(to: .failed, message: error.localizedDescription)
-                        self.onEventLog?(
-                            "VM start failed: " + EventLogErrorFormatter.description(for: error)
+                        self.reportEventLog(
+                            "VM start failed: " + EventLogErrorFormatter.description(for: error),
+                            level: .error
                         )
                         self.generation &+= 1
                         self.virtualMachine = nil
@@ -135,8 +150,9 @@ final class VMCoordinator {
             }
         } catch {
             transition(to: .failed, message: error.localizedDescription)
-            onEventLog?(
-                "VM configuration failed: " + EventLogErrorFormatter.description(for: error)
+            reportEventLog(
+                "VM configuration failed: " + EventLogErrorFormatter.description(for: error),
+                level: .error
             )
         }
     }
@@ -148,20 +164,24 @@ final class VMCoordinator {
         let generation = self.generation
 
         transition(to: .stopping, message: String(localized: "Stopping VM."))
-        onEventLog?("Stopping VM.")
+        reportEventLog("Stopping VM.")
 
         virtualMachine.stop { [weak self] error in
             Task { @MainActor in
                 guard let self else { return }
                 guard self.isCurrent(virtualMachine, generation: generation) else {
-                    self.onEventLog?("Ignoring stale VM stop completion from an earlier VM generation.")
+                    self.reportEventLog(
+                        "Ignoring stale VM stop completion from an earlier VM generation.",
+                        level: .debug
+                    )
                     return
                 }
 
                 if let error {
                     self.transition(to: .failed, message: error.localizedDescription)
-                    self.onEventLog?(
-                        "VM stop failed: " + EventLogErrorFormatter.description(for: error)
+                    self.reportEventLog(
+                        "VM stop failed: " + EventLogErrorFormatter.description(for: error),
+                        level: .error
                     )
                     self.resolveStopContinuations(didStop: false)
                 } else {
@@ -193,17 +213,23 @@ final class VMCoordinator {
 
     func restart(reason: String, startAgain: @escaping () -> Void) {
         guard let virtualMachine else {
-            onEventLog?("VM restart skipped: VM is not available (\(reason)).")
+            reportEventLog(
+                "VM restart skipped: VM is not available (\(reason)).",
+                level: .debug
+            )
             return
         }
 
         guard runtimeState == .running || runtimeState == .starting else {
-            onEventLog?("VM restart skipped while VM state is \(runtimeState.rawValue): \(reason).")
+            reportEventLog(
+                "VM restart skipped while VM state is \(runtimeState.rawValue): \(reason).",
+                level: .debug
+            )
             return
         }
 
         guard !isRestarting else {
-            onEventLog?("VM restart already pending: \(reason).")
+            reportEventLog("VM restart already pending: \(reason).", level: .debug)
             return
         }
         let generation = self.generation
@@ -211,13 +237,18 @@ final class VMCoordinator {
         isRestarting = true
         restartContinuation = startAgain
         transition(to: .stopping, message: String(localized: "Restarting VM."))
-        onEventLog?("Restarting VM to recreate the fixed usb0 RNDIS session (\(reason)).")
+        reportEventLog(
+            "Restarting VM to recreate the fixed usb0 RNDIS session (\(reason))."
+        )
 
         virtualMachine.stop { [weak self] error in
             Task { @MainActor in
                 guard let self else { return }
                 guard self.isCurrent(virtualMachine, generation: generation) else {
-                    self.onEventLog?("Ignoring stale VM restart completion from an earlier VM generation.")
+                    self.reportEventLog(
+                        "Ignoring stale VM restart completion from an earlier VM generation.",
+                        level: .debug
+                    )
                     return
                 }
 
@@ -225,9 +256,10 @@ final class VMCoordinator {
                     self.isRestarting = false
                     self.restartContinuation = nil
                     self.transition(to: .failed, message: error.localizedDescription)
-                    self.onEventLog?(
+                    self.reportEventLog(
                         "VM restart failed while stopping VM: " +
-                            EventLogErrorFormatter.description(for: error)
+                            EventLogErrorFormatter.description(for: error),
+                        level: .error
                     )
                     self.resolveStopContinuations(didStop: false)
                     return
@@ -248,7 +280,10 @@ final class VMCoordinator {
         }
 
         guard canSendConsoleInput else {
-            onEventLog?("Console input not sent: VM console input is unavailable.")
+            reportEventLog(
+                "Console input not sent: VM console input is unavailable.",
+                level: .warning
+            )
             return false
         }
 
@@ -299,8 +334,9 @@ final class VMCoordinator {
                 self.usbDelegate = nil
                 self.onStopped?()
                 self.resolveStopContinuations(didStop: true)
-                self.onEventLog?(
-                    "VM stopped with error: " + EventLogErrorFormatter.description(for: error)
+                self.reportEventLog(
+                    "VM stopped with error: " + EventLogErrorFormatter.description(for: error),
+                    level: .error
                 )
             }
         }
@@ -311,9 +347,10 @@ final class VMCoordinator {
                       self.isCurrent(callbackVirtualMachine, generation: generation) else {
                     return
                 }
-                self.onEventLog?(
+                self.reportEventLog(
                     "VM network attachment disconnected: " +
-                        EventLogErrorFormatter.description(for: error)
+                        EventLogErrorFormatter.description(for: error),
+                    level: .error
                 )
             }
         }
@@ -351,7 +388,7 @@ final class VMCoordinator {
         releaseRuntimeResources()
         transition(to: .stopped, message: message)
         onStopped?()
-        onEventLog?(eventMessage)
+        reportEventLog(eventMessage)
         resolveStopContinuations(didStop: true)
         continuation?()
     }
@@ -370,10 +407,17 @@ final class VMCoordinator {
                 Task { @MainActor in
                     guard let self else { return }
                     guard self.generation == generation else { return }
-                    let message = self.hasReceivedConsoleOutput
-                        ? "Console output pipe closed."
-                        : "Console output pipe closed before any data was received."
-                    self.onEventLog?(message)
+                    if self.hasReceivedConsoleOutput {
+                        self.reportEventLog(
+                            "Console output pipe closed.",
+                            level: .debug
+                        )
+                    } else {
+                        self.reportEventLog(
+                            "Console output pipe closed before any data was received.",
+                            level: .warning
+                        )
+                    }
                 }
                 return
             }
@@ -389,7 +433,10 @@ final class VMCoordinator {
         if !hasReceivedConsoleOutput {
             hasReceivedConsoleOutput = true
             cancelConsoleOutputWatchdog()
-            onEventLog?("Console output started: first read \(data.count) byte(s).")
+            reportEventLog(
+                "Console output started: first read \(data.count) byte(s).",
+                level: .debug
+            )
         }
 
         onConsoleOutput?(data)
@@ -397,7 +444,10 @@ final class VMCoordinator {
 
     private func writeConsolePayload(_ payload: Data, failureContext: String) -> Bool {
         guard let inputPipe = runtimeResources?.consoleInputPipe else {
-            onEventLog?("\(failureContext) not sent: VM console input is unavailable.")
+            reportEventLog(
+                "\(failureContext) not sent: VM console input is unavailable.",
+                level: .warning
+            )
             return false
         }
 
@@ -422,7 +472,10 @@ final class VMCoordinator {
         }
 
         if !success {
-            onEventLog?("\(failureContext) write failed: errno \(errno).")
+            reportEventLog(
+                "\(failureContext) write failed: errno \(errno).",
+                level: .error
+            )
             return false
         }
 
@@ -443,7 +496,12 @@ final class VMCoordinator {
             guard self.generation == generation else { return }
             guard self.runtimeState == .running, !self.hasReceivedConsoleOutput else { return }
 
-            self.onEventLog?("No VM console output received after 15s. Selected kernel/initramfs assets are logged above; confirm the installed release contains Image-lts and initramfs-thrurndis-lts.")
+            self.reportEventLog(
+                "No VM console output received after 15s. Selected kernel/initramfs " +
+                    "assets are logged in debug mode; confirm the installed release " +
+                    "contains Image-lts and initramfs-thrurndis-lts.",
+                level: .warning
+            )
         }
     }
 
@@ -455,6 +513,13 @@ final class VMCoordinator {
     private func transition(to state: VMRuntimeState, message: String) {
         runtimeState = state
         onStateChange?(state, message)
+    }
+
+    private func reportEventLog(
+        _ message: String,
+        level: EventLogLevel = .info
+    ) {
+        onEventLog?(message, level)
     }
 
     private func isCurrent(_ virtualMachine: VZVirtualMachine, generation: UInt64) -> Bool {

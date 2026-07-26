@@ -15,7 +15,7 @@ private struct ConnectionObservationContext: Equatable {
 protocol HostWireGuardTunnelControlling: AnyObject {
     var onStatusChange: ((HostWireGuardTunnelStatus) -> Void)? { get set }
     var onSystemExtensionStatusChange: ((WireGuardSystemExtensionStatus) -> Void)? { get set }
-    var onEventLog: ((String) -> Void)? { get set }
+    var onEventLog: EventLogHandler? { get set }
 
     func refreshStatus() async
     func refreshSystemExtensionStatus() async
@@ -30,7 +30,7 @@ protocol HostWireGuardTunnelControlling: AnyObject {
 final class HostWireGuardTunnelController: HostWireGuardTunnelControlling {
     var onStatusChange: ((HostWireGuardTunnelStatus) -> Void)?
     var onSystemExtensionStatusChange: ((WireGuardSystemExtensionStatus) -> Void)?
-    var onEventLog: ((String) -> Void)?
+    var onEventLog: EventLogHandler?
 
     private let systemExtensionActivator: any WireGuardSystemExtensionActivating
     private var vpnStatusObserverToken: NSObjectProtocol?
@@ -89,8 +89,9 @@ final class HostWireGuardTunnelController: HostWireGuardTunnelControlling {
             return
         }
         guard !isSystemExtensionActivationInProgress else {
-            onEventLog?(
-                "Skipped network extension status refresh during activation."
+            reportEventLog(
+                "Skipped network extension status refresh during activation.",
+                level: .debug
             )
             return
         }
@@ -124,7 +125,10 @@ final class HostWireGuardTunnelController: HostWireGuardTunnelControlling {
             return
         }
         guard !isSystemExtensionActivationInProgress else {
-            onEventLog?("Ignored a duplicate network extension activation request.")
+            reportEventLog(
+                "Ignored a duplicate network extension activation request.",
+                level: .debug
+            )
             return
         }
 
@@ -149,7 +153,10 @@ final class HostWireGuardTunnelController: HostWireGuardTunnelControlling {
                 return
             }
             setSystemExtensionStatus(.restartRequired)
-            onEventLog?("Network extension activation requires a macOS restart.")
+            reportEventLog(
+                "Network extension activation requires a macOS restart.",
+                level: .warning
+            )
         } catch {
             guard activeSystemExtensionOperationID == operationID else {
                 return
@@ -166,7 +173,10 @@ final class HostWireGuardTunnelController: HostWireGuardTunnelControlling {
 
     func refreshStatus() async {
         guard !currentStatus.isTransitioning else {
-            onEventLog?("Ignored Host WireGuard status refresh during a tunnel transition.")
+            reportEventLog(
+                "Ignored Host WireGuard status refresh during a tunnel transition.",
+                level: .debug
+            )
             return
         }
         let operationID = beginOperation()
@@ -265,11 +275,16 @@ final class HostWireGuardTunnelController: HostWireGuardTunnelControlling {
                 wgQuickConfiguration: wgQuickConfiguration,
                 operationID: operationID
             )
-            onEventLog?("Host WireGuard tunnel start requested with the current connection settings.")
+            reportEventLog(
+                "Host WireGuard tunnel start requested with the current connection settings."
+            )
         } catch is CancellationError {
-            onEventLog?("Cancelled a pending Host WireGuard tunnel start.")
+            reportEventLog("Cancelled a pending Host WireGuard tunnel start.")
         } catch HostWireGuardTunnelError.operationSuperseded {
-            onEventLog?("Superseded a pending Host WireGuard tunnel operation.")
+            reportEventLog(
+                "Superseded a pending Host WireGuard tunnel operation.",
+                level: .debug
+            )
         } catch {
             fail(action: "start", error: error)
         }
@@ -305,7 +320,7 @@ final class HostWireGuardTunnelController: HostWireGuardTunnelControlling {
             setStatus(.disconnecting)
             if connectionStatus != .disconnecting {
                 session.stopTunnel()
-                onEventLog?("Host WireGuard tunnel stop requested.")
+                reportEventLog("Host WireGuard tunnel stop requested.")
             }
 
             guard waitUntilStopped else {
@@ -320,7 +335,7 @@ final class HostWireGuardTunnelController: HostWireGuardTunnelControlling {
             }
 
             setStatus(.disconnected)
-            onEventLog?("Host WireGuard tunnel stopped.")
+            reportEventLog("Host WireGuard tunnel stopped.")
             return true
         } catch is CancellationError {
             return false
@@ -351,7 +366,9 @@ final class HostWireGuardTunnelController: HostWireGuardTunnelControlling {
             try ensureOperationIsCurrent(operationID)
             cachedManager = nil
             setStatus(.unconfigured)
-            onEventLog?("Removed the saved ThruRNDIS WireGuard tunnel profile.")
+            reportEventLog(
+                "Removed the saved ThruRNDIS WireGuard tunnel profile."
+            )
             return true
         } catch is CancellationError {
             return false
@@ -613,9 +630,10 @@ final class HostWireGuardTunnelController: HostWireGuardTunnelControlling {
         )
         try ensureSystemExtensionOperationIsCurrent(operationID)
         if !verifiedStatus.isActive {
-            onEventLog?(
+            reportEventLog(
                 "Network extension activation request completed; " +
-                    "verified status: \(verifiedStatus.eventLogDescription)"
+                    "verified status: \(verifiedStatus.eventLogDescription)",
+                level: .warning
             )
         }
         return verifiedStatus
@@ -723,15 +741,26 @@ final class HostWireGuardTunnelController: HostWireGuardTunnelControlling {
     private func failSystemExtension(action: String, error: Error) {
         let diagnostic = Self.diagnosticDescription(for: error)
         setSystemExtensionStatus(.failed(diagnostic))
-        onEventLog?(
-            "Network extension \(action) failed: \(diagnostic)"
+        reportEventLog(
+            "Network extension \(action) failed: \(diagnostic)",
+            level: .error
         )
     }
 
     private func fail(action: String, error: Error) {
         let diagnostic = Self.diagnosticDescription(for: error)
         setStatus(.failed(diagnostic))
-        onEventLog?("Host WireGuard tunnel \(action) failed: \(diagnostic)")
+        reportEventLog(
+            "Host WireGuard tunnel \(action) failed: \(diagnostic)",
+            level: .error
+        )
+    }
+
+    private func reportEventLog(
+        _ message: String,
+        level: EventLogLevel = .info
+    ) {
+        onEventLog?(message, level)
     }
 
     static func diagnosticDescription(for error: Error) -> String {

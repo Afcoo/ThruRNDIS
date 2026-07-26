@@ -132,7 +132,7 @@ final class HostWireGuardTunnelControllerTests: XCTestCase {
         var statuses: [WireGuardSystemExtensionStatus] = []
         var eventLogs: [String] = []
         controller.onSystemExtensionStatusChange = { statuses.append($0) }
-        controller.onEventLog = { eventLogs.append($0) }
+        controller.onEventLog = { message, _ in eventLogs.append(message) }
 
         let activationTask = Task {
             await controller.activateSystemExtension()
@@ -445,7 +445,7 @@ final class HostWireGuardTunnelControllerTests: XCTestCase {
 @MainActor
 private final class ImmediateWireGuardSystemExtensionActivator:
     WireGuardSystemExtensionActivating {
-    var onEventLog: ((String) -> Void)?
+    var onEventLog: EventLogHandler?
     var onActivationNeedsUserApproval: (() -> Void)?
     private(set) var statusCallCount = 0
     private(set) var activationCallCount = 0

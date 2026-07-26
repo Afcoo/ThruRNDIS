@@ -6,17 +6,9 @@ import Combine
 import Foundation
 import OSLog
 
-enum EventLogSource: String {
-    case app = "App"
-    case vmAssets = "VM Assets"
-    case virtualMachine = "VM"
-    case accessoryAccess = "AccessoryAccess"
-    case wireGuard = "WireGuard"
-}
-
 @MainActor
 final class EventLogStore: ObservableObject {
-    @Published private(set) var text = ""
+    @Published private(set) var records: [EventLogRecord] = []
 
     private static let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "ThruRNDIS",
@@ -32,41 +24,112 @@ final class EventLogStore: ObservableObject {
 
     func append(
         _ message: String,
-        source: EventLogSource,
+        level: EventLogLevel = .info,
+        category: EventLogCategory,
         at date: Date = Date()
     ) {
-        let timestamp = Self.timestampFormatter.string(from: date)
-        var next = text
-        next.append("[\(timestamp)] [\(source.rawValue)] \(message)\n")
-        trimToCharacterLimit(&next)
-        text = next
-
-        Self.logger.info(
-            "[\(source.rawValue, privacy: .public)] \(message, privacy: .private)"
+        let record = EventLogRecord(
+            date: date,
+            level: level,
+            category: category,
+            message: message
         )
+        var nextRecords = records
+        nextRecords.append(record)
+        trimToCharacterLimit(&nextRecords)
+        records = nextRecords
+
+        writeToUnifiedLog(record)
+    }
+
+    var text: String {
+        text(isDebugModeEnabled: true)
+    }
+
+    var isEmpty: Bool {
+        records.isEmpty
+    }
+
+    func text(
+        isDebugModeEnabled: Bool,
+        category: EventLogCategory? = nil
+    ) -> String {
+        let minimumLevel: EventLogLevel = isDebugModeEnabled ? .debug : .info
+        return records.lazy
+            .filter { $0.level >= minimumLevel }
+            .filter { category == nil || $0.category == category }
+            .map(Self.formattedLine)
+            .joined()
     }
 
     func clear() {
-        guard !text.isEmpty else {
+        guard !records.isEmpty else {
             return
         }
-        text = ""
+        records = []
     }
 
-    private func trimToCharacterLimit(_ value: inout String) {
-        while value.count > maximumCharacters {
-            guard let newlineIndex = value.firstIndex(of: "\n") else {
-                value = String(value.suffix(maximumCharacters))
-                return
-            }
-
-            let nextLineIndex = value.index(after: newlineIndex)
-            guard nextLineIndex < value.endIndex else {
-                value = String(value.suffix(maximumCharacters))
-                return
-            }
-            value.removeSubrange(..<nextLineIndex)
+    private func trimToCharacterLimit(_ value: inout [EventLogRecord]) {
+        var characterCount = value.reduce(0) {
+            $0 + Self.formattedLine($1).count
         }
+
+        while characterCount > maximumCharacters, value.count > 1 {
+            characterCount -= Self.formattedLine(value.removeFirst()).count
+        }
+
+        guard characterCount > maximumCharacters, let record = value.first else {
+            return
+        }
+
+        let emptyMessageRecord = EventLogRecord(
+            date: record.date,
+            level: record.level,
+            category: record.category,
+            message: ""
+        )
+        let metadataCharacterCount = Self.formattedLine(emptyMessageRecord).count
+        guard metadataCharacterCount < maximumCharacters else {
+            value = []
+            return
+        }
+
+        let availableMessageCharacters = maximumCharacters - metadataCharacterCount
+        value = [
+            EventLogRecord(
+                date: record.date,
+                level: record.level,
+                category: record.category,
+                message: String(record.message.suffix(availableMessageCharacters))
+            )
+        ]
+    }
+
+    private func writeToUnifiedLog(_ record: EventLogRecord) {
+        switch record.level {
+        case .debug:
+            Self.logger.debug(
+                "[\(record.category.rawValue, privacy: .public)] \(record.message, privacy: .private)"
+            )
+        case .info:
+            Self.logger.info(
+                "[\(record.category.rawValue, privacy: .public)] \(record.message, privacy: .private)"
+            )
+        case .warning:
+            Self.logger.warning(
+                "[\(record.category.rawValue, privacy: .public)] \(record.message, privacy: .private)"
+            )
+        case .error:
+            Self.logger.error(
+                "[\(record.category.rawValue, privacy: .public)] \(record.message, privacy: .private)"
+            )
+        }
+    }
+
+    private static func formattedLine(_ record: EventLogRecord) -> String {
+        let timestamp = timestampFormatter.string(from: record.date)
+        return "[\(timestamp)] [\(record.level.logLabel)] " +
+            "[\(record.category.rawValue)] \(record.message)\n"
     }
 
     private static let timestampFormatter: DateFormatter = {

@@ -70,7 +70,31 @@ final class ConsoleSessionStoreTests: XCTestCase {
 
 @MainActor
 final class EventLogStoreTests: XCTestCase {
-    func testAppendIncludesSourceAndNotifiesObservers() {
+    func testExportUsesSecondResolutionFileNameAndIncludesRuntimeMetadata() throws {
+        let timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
+        let fileName = EventLogExportFormatter.defaultFileName(
+            at: Date(timeIntervalSince1970: 1),
+            timeZone: timeZone
+        )
+        let content = EventLogExportFormatter.content(
+            logText: "[00:00:01] [INFO] [Application] Started.\n",
+            metadata: EventLogExportMetadata(
+                appVersion: "1.2.3",
+                appBuild: "45",
+                operatingSystemVersion: "Version 27.0 (Build TEST)"
+            )
+        )
+
+        XCTAssertEqual(fileName, "thrurndis-19700101-000001.log")
+        XCTAssertEqual(
+            content,
+            "ThruRNDIS Version: 1.2.3 (45)\n" +
+                "macOS: Version 27.0 (Build TEST)\n\n" +
+                "[00:00:01] [INFO] [Application] Started.\n"
+        )
+    }
+
+    func testAppendIncludesLevelAndCategoryAndNotifiesObservers() {
         let store = EventLogStore()
         var changeCount = 0
         let cancellable = store.objectWillChange.sink {
@@ -79,29 +103,75 @@ final class EventLogStoreTests: XCTestCase {
 
         store.append(
             "VM started.",
-            source: .virtualMachine,
+            category: .vm,
             at: Date(timeIntervalSince1970: 0)
         )
 
         XCTAssertEqual(changeCount, 1)
+        XCTAssertTrue(store.text.contains("[INFO] [VM] VM started."))
         XCTAssertTrue(store.text.contains("[VM] VM started."))
+        XCTAssertEqual(store.records.first?.level, .info)
+        XCTAssertEqual(store.records.first?.category, .vm)
         withExtendedLifetime(cancellable) {}
     }
 
-    func testTrimDropsOldestCompleteLineAndClearResetsText() {
-        let store = EventLogStore(maximumCharacters: 70)
+    func testModeAndCategoryFiltersPreserveStructuredRecords() {
+        let store = EventLogStore()
         let date = Date(timeIntervalSince1970: 0)
 
-        store.append("old entry", source: .app, at: date)
-        store.append(String(repeating: "x", count: 50), source: .virtualMachine, at: date)
+        store.append("VM details", level: .debug, category: .vm, at: date)
+        store.append("VM started", level: .info, category: .vm, at: date)
+        store.append("USB retry", level: .warning, category: .usb, at: date)
+        store.append("App failed", level: .error, category: .application, at: date)
 
-        XCTAssertLessThanOrEqual(store.text.count, 70)
+        let normalText = store.text(isDebugModeEnabled: false)
+        XCTAssertFalse(normalText.contains("VM details"))
+        XCTAssertTrue(normalText.contains("VM started"))
+        XCTAssertTrue(normalText.contains("USB retry"))
+        XCTAssertTrue(normalText.contains("App failed"))
+
+        let debugText = store.text(isDebugModeEnabled: true)
+        XCTAssertTrue(debugText.contains("[DEBUG] [VM] VM details"))
+        XCTAssertTrue(debugText.contains("[INFO] [VM] VM started"))
+        XCTAssertTrue(debugText.contains("[WARNING] [USB] USB retry"))
+        XCTAssertTrue(debugText.contains("[ERROR] [Application] App failed"))
+        XCTAssertEqual(store.text, debugText)
+
+        let usbText = store.text(isDebugModeEnabled: true, category: .usb)
+        XCTAssertEqual(usbText.components(separatedBy: "\n").filter { !$0.isEmpty }.count, 1)
+        XCTAssertTrue(usbText.contains("USB retry"))
+        XCTAssertFalse(usbText.contains("VM started"))
+        XCTAssertEqual(store.records.count, 4)
+    }
+
+    func testTrimDropsOldestCompleteLineAndClearResetsText() {
+        let store = EventLogStore(maximumCharacters: 90)
+        let date = Date(timeIntervalSince1970: 0)
+
+        store.append("old entry", category: .application, at: date)
+        store.append(String(repeating: "x", count: 50), category: .vm, at: date)
+
+        XCTAssertLessThanOrEqual(store.text.count, 90)
         XCTAssertFalse(store.text.contains("old entry"))
         XCTAssertTrue(store.text.contains(String(repeating: "x", count: 50)))
 
         store.clear()
 
         XCTAssertTrue(store.text.isEmpty)
+    }
+
+    func testTrimUsesFIFOAcrossLevels() {
+        let store = EventLogStore(maximumCharacters: 100)
+        let date = Date(timeIntervalSince1970: 0)
+
+        store.append("important info", category: .application, at: date)
+        store.append("debug one", level: .debug, category: .application, at: date)
+        store.append("debug two", level: .debug, category: .application, at: date)
+
+        XCTAssertFalse(store.text.contains("important info"))
+        XCTAssertTrue(store.text.contains("debug one"))
+        XCTAssertTrue(store.text.contains("debug two"))
+        XCTAssertLessThanOrEqual(store.text.count, 100)
     }
 }
 
@@ -308,6 +378,60 @@ final class TetheringStoreTests: XCTestCase {
             String(localized: "Could not stop the VM before resetting app settings.")
         )
         XCTAssertTrue(store.canResetAppSettings)
+    }
+
+    func testMissingEntitlementWarningsUseFeatureCategories() throws {
+        let suiteName = "TetheringStoreTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let eventLog = EventLogStore()
+        let store = TetheringStore(
+            assetProvider: ObservationTestAssetProvider(),
+            vmCoordinator: ObservationTestVMCoordinator(),
+            usbCoordinator: USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor()),
+            wireGuardConfigurationStore: ObservationTestWireGuardStore(),
+            wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
+            eventLog: eventLog,
+            consoleSession: ConsoleSessionStore(),
+            usbSession: USBSessionStore(),
+            vmConfiguration: VMConfigurationStore(defaults: defaults),
+            hostWireGuardTunnelController: ObservationTestHostWireGuardTunnelController(),
+            runtimeEntitlementSnapshotProvider: {
+                RuntimeEntitlementSnapshot(
+                    accessoryAccessUSB: false,
+                    packetTunnelProvider: false,
+                    systemExtensionInstall: false,
+                    virtualization: false
+                )
+            },
+            defaults: defaults
+        )
+
+        store.reloadAccessoryMonitoring()
+        XCTAssertFalse(store.startVirtualMachine())
+        XCTAssertFalse(store.requestWireGuardSystemExtensionActivation())
+
+        XCTAssertTrue(
+            eventLog.records.contains {
+                $0.level == .warning &&
+                    $0.category == .usb &&
+                    $0.message.contains("USB listener reload")
+            }
+        )
+        XCTAssertTrue(
+            eventLog.records.contains {
+                $0.level == .warning &&
+                    $0.category == .vm &&
+                    $0.message.contains("VM start")
+            }
+        )
+        XCTAssertTrue(
+            eventLog.records.contains {
+                $0.level == .warning &&
+                    $0.category == .wireGuard &&
+                    $0.message.contains("network extension activation")
+            }
+        )
     }
 
     func testFirstRunAccessoryMonitoringWaitsUntilOnboardingEnds() throws {
@@ -1347,7 +1471,7 @@ final class TetheringStoreTests: XCTestCase {
             eventLogChangeCount += 1
         }
 
-        vmCoordinator.onEventLog?("VM started.")
+        vmCoordinator.onEventLog?("VM started.", .info)
 
         XCTAssertEqual(eventLogChangeCount, 1)
         XCTAssertEqual(consoleChangeCount, 0)
@@ -1360,7 +1484,7 @@ final class TetheringStoreTests: XCTestCase {
 @MainActor
 private final class ObservationTestVMCoordinator: VMCoordinating {
     var onStateChange: ((VMRuntimeState, String) -> Void)?
-    var onEventLog: ((String) -> Void)?
+    var onEventLog: EventLogHandler?
     var onConsoleOutput: ((Data) -> Void)?
     var onUSBPassthroughDisconnect: ((VZUSBPassthroughDevice) -> Void)?
     var onStopped: (() -> Void)?
@@ -1456,7 +1580,7 @@ private final class ObservationTestUSBMonitor: USBAccessoryMonitoring {
 private final class ObservationTestUSBCoordinator: USBAccessoryCoordinating {
     var onStateChange: (() -> Void)?
     var onStatusMessage: ((String) -> Void)?
-    var onEventLog: ((String) -> Void)?
+    var onEventLog: EventLogHandler?
     var onAccessoryAvailable: ((USBAccessoryRecord) -> Void)?
     var onAccessoryUnavailable: ((UInt64) -> Void)?
     var onUnexpectedDetach: ((UInt64, String) -> Void)?
@@ -1615,7 +1739,7 @@ private final class ObservationTestUSBCoordinator: USBAccessoryCoordinating {
 private final class ObservationTestHostWireGuardTunnelController: HostWireGuardTunnelControlling {
     var onStatusChange: ((HostWireGuardTunnelStatus) -> Void)?
     var onSystemExtensionStatusChange: ((WireGuardSystemExtensionStatus) -> Void)?
-    var onEventLog: ((String) -> Void)?
+    var onEventLog: EventLogHandler?
     private(set) var connectCallCount = 0
     private(set) var disconnectCallCount = 0
     private(set) var lastDisconnectWaitUntilStopped: Bool?

@@ -74,6 +74,7 @@
 		DB1000000000000000000002 /* WireGuardConnectionValidatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB1000000000000000000102 /* WireGuardConnectionValidatorTests.swift */; };
 		DB1000000000000000000003 /* HostWireGuardTunnelControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB1000000000000000000103 /* HostWireGuardTunnelControllerTests.swift */; };
 		DC1000000000000000000001 /* EventLogErrorFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC1000000000000000000101 /* EventLogErrorFormatter.swift */; };
+		DC2000000000000000000001 /* EventLogExportFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC2000000000000000000101 /* EventLogExportFormatter.swift */; };
 		DD1000000000000000000001 /* ApplicationRelaunchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD1000000000000000000101 /* ApplicationRelaunchService.swift */; };
 		DD1000000000000000000002 /* ApplicationRelaunchServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD1000000000000000000102 /* ApplicationRelaunchServiceTests.swift */; };
 		DE1000000000000000000001 /* AppPreferencesStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE1000000000000000000101 /* AppPreferencesStore.swift */; };
@@ -93,6 +94,7 @@
 		F20000000000000000000001 /* VideoPlaybackStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000101 /* VideoPlaybackStore.swift */; };
 		G10000000000000000000001 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = G10000000000000000000101 /* Localizable.xcstrings */; };
 		H10000000000000000000001 /* EventLogStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = H10000000000000000000101 /* EventLogStore.swift */; };
+		H20000000000000000000001 /* EventLogModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = H20000000000000000000101 /* EventLogModels.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -221,6 +223,7 @@
 		DB1000000000000000000102 /* WireGuardConnectionValidatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardConnectionValidatorTests.swift; sourceTree = "<group>"; };
 		DB1000000000000000000103 /* HostWireGuardTunnelControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostWireGuardTunnelControllerTests.swift; sourceTree = "<group>"; };
 		DC1000000000000000000101 /* EventLogErrorFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventLogErrorFormatter.swift; sourceTree = "<group>"; };
+		DC2000000000000000000101 /* EventLogExportFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventLogExportFormatter.swift; sourceTree = "<group>"; };
 		DD1000000000000000000101 /* ApplicationRelaunchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationRelaunchService.swift; sourceTree = "<group>"; };
 		DD1000000000000000000102 /* ApplicationRelaunchServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationRelaunchServiceTests.swift; sourceTree = "<group>"; };
 		DE1000000000000000000101 /* AppPreferencesStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPreferencesStore.swift; sourceTree = "<group>"; };
@@ -242,6 +245,7 @@
 		F20000000000000000000101 /* VideoPlaybackStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoPlaybackStore.swift; sourceTree = "<group>"; };
 		G10000000000000000000101 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		H10000000000000000000101 /* EventLogStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventLogStore.swift; sourceTree = "<group>"; };
+		H20000000000000000000101 /* EventLogModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventLogModels.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -349,6 +353,7 @@
 		8B0000000000000000000202 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				H20000000000000000000101 /* EventLogModels.swift */,
 				8B0000000000000000000103 /* USBAccessoryRecord.swift */,
 				8B0000000000000000000104 /* VMRuntimeState.swift */,
 				8F0000000000000000000101 /* WireGuardKeyMaterial.swift */,
@@ -395,6 +400,7 @@
 			children = (
 				8B0000000000000000000109 /* Clipboard.swift */,
 				DC1000000000000000000101 /* EventLogErrorFormatter.swift */,
+				DC2000000000000000000101 /* EventLogExportFormatter.swift */,
 				8B000000000000000000010A /* FilePicker.swift */,
 				DE1000000000000000000103 /* NetworkExtensionSettingsOpener.swift */,
 				8B0000000000000000000112 /* RuntimeEntitlements.swift */,
@@ -750,6 +756,7 @@
 				8B0000000000000000000007 /* VMConfigurationFactory.swift in Sources */,
 				8B0000000000000000000008 /* TetheringStore.swift in Sources */,
 				H10000000000000000000001 /* EventLogStore.swift in Sources */,
+				H20000000000000000000001 /* EventLogModels.swift in Sources */,
 				D10000000000000000000001 /* ConsoleSessionStore.swift in Sources */,
 				D10000000000000000000002 /* USBSessionStore.swift in Sources */,
 				D10000000000000000000003 /* VMConfigurationStore.swift in Sources */,
@@ -772,6 +779,7 @@
 				DA1000000000000000000007 /* TunnelConfiguration+WgQuickConfig.swift in Sources */,
 				DA1000000000000000000013 /* WireGuardConnectionValidator.swift in Sources */,
 				DC1000000000000000000001 /* EventLogErrorFormatter.swift in Sources */,
+				DC2000000000000000000001 /* EventLogExportFormatter.swift in Sources */,
 				DA1000000000000000000008 /* NETunnelProviderProtocol+ThruRNDIS.swift in Sources */,
 				8F0000000000000000000003 /* VMCoordinator.swift in Sources */,
 				8F0000000000000000000004 /* USBAccessoryCoordinator.swift in Sources */,
