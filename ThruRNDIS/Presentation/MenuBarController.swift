@@ -183,8 +183,9 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         updateStatusButton()
         rebuildMenu()
 
-        Publishers.Merge4(
+        Publishers.Merge5(
             store.objectWillChange,
+            store.appPreferences.objectWillChange,
             store.usbSession.objectWillChange,
             store.wireGuardSession.objectWillChange,
             assetWorkflowCoordinator.objectWillChange

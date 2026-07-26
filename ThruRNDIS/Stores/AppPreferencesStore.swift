@@ -9,6 +9,18 @@ import Foundation
 final class AppPreferencesStore: ObservableObject {
     static let currentOnboardingVersion = 3
 
+    @Published var isDebugModeEnabled: Bool {
+        didSet {
+            guard !isResettingPersistedValues else {
+                return
+            }
+            defaults.set(
+                isDebugModeEnabled,
+                forKey: DefaultsKey.isDebugModeEnabled
+            )
+        }
+    }
+
     @Published var shouldAskToAttachDetectedUSBDevices: Bool {
         didSet {
             guard !isResettingPersistedValues else {
@@ -48,6 +60,9 @@ final class AppPreferencesStore: ObservableObject {
         let launchAtLoginService = launchAtLoginService ?? LaunchAtLoginService()
         self.launchAtLoginService = launchAtLoginService
         self.defaults = defaults
+        self.isDebugModeEnabled = defaults.bool(
+            forKey: DefaultsKey.isDebugModeEnabled
+        )
         self.shouldAskToAttachDetectedUSBDevices = defaults.object(
             forKey: DefaultsKey.shouldAskToAttachDetectedUSBDevices
         ) == nil
@@ -90,12 +105,14 @@ final class AppPreferencesStore: ObservableObject {
 
     func resetPersistedValues() throws {
         defaults.removeObject(forKey: DefaultsKey.onboardingVersion)
+        defaults.removeObject(forKey: DefaultsKey.isDebugModeEnabled)
         defaults.removeObject(forKey: DefaultsKey.shouldAskToAttachDetectedUSBDevices)
         defaults.removeObject(
             forKey: DefaultsKey.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches
         )
 
         isResettingPersistedValues = true
+        isDebugModeEnabled = false
         shouldAskToAttachDetectedUSBDevices = true
         shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches = false
         hasCompletedOnboarding = false
@@ -115,6 +132,7 @@ final class AppPreferencesStore: ObservableObject {
 
     private enum DefaultsKey {
         static let onboardingVersion = "Onboarding.completedVersion"
+        static let isDebugModeEnabled = "Application.debugModeEnabled"
         static let shouldAskToAttachDetectedUSBDevices = "USB.askToAttachDetectedDevices"
         static let shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches =
             "WireGuard.connectAutomaticallyWhenUSBDeviceAttaches"

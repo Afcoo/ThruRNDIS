@@ -8,18 +8,24 @@ struct GeneralView: View {
     @EnvironmentObject private var appPreferences: AppPreferencesStore
     @EnvironmentObject private var eventLog: EventLogStore
     @State private var eventLogSaveError: EventLogSaveError?
-    @State private var isEventLogDebugModeEnabled = false
     @State private var selectedEventLogCategory: EventLogCategory?
 
     var body: some View {
         Form {
-            Section("앱") {
+            Section {
                 Toggle(
                     "Open ThruRNDIS at Login",
                     isOn: Binding(
                         get: { appPreferences.launchAtLoginSnapshot.isEnabled },
                         set: setLaunchAtLoginEnabled
                     )
+                )
+            }
+
+            Section("Debug Mode") {
+                Toggle(
+                    "Enable Debug Mode",
+                    isOn: $appPreferences.isDebugModeEnabled
                 )
             }
 
@@ -40,12 +46,6 @@ struct GeneralView: View {
                     Text("Event Log")
 
                     Spacer()
-
-                    Toggle(
-                        "Debug Mode",
-                        isOn: $isEventLogDebugModeEnabled
-                    )
-                    .toggleStyle(.checkbox)
 
                     Picker("Category", selection: $selectedEventLogCategory) {
                         Text("All")
@@ -105,7 +105,7 @@ struct GeneralView: View {
 
     private var displayedEventLogText: String {
         eventLog.text(
-            isDebugModeEnabled: isEventLogDebugModeEnabled,
+            isDebugModeEnabled: appPreferences.isDebugModeEnabled,
             category: selectedEventLogCategory
         )
     }

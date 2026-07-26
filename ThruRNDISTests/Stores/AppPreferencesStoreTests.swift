@@ -18,9 +18,11 @@ final class AppPreferencesStoreTests: XCTestCase {
             defaults: defaults
         )
 
+        XCTAssertFalse(store.isDebugModeEnabled)
         XCTAssertTrue(store.shouldAskToAttachDetectedUSBDevices)
         XCTAssertFalse(store.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches)
 
+        store.isDebugModeEnabled = true
         store.shouldAskToAttachDetectedUSBDevices = false
         store.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches = true
 
@@ -28,6 +30,7 @@ final class AppPreferencesStoreTests: XCTestCase {
             launchAtLoginService: launchAtLoginService,
             defaults: defaults
         )
+        XCTAssertTrue(restoredStore.isDebugModeEnabled)
         XCTAssertFalse(restoredStore.shouldAskToAttachDetectedUSBDevices)
         XCTAssertTrue(restoredStore.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches)
     }
@@ -98,17 +101,20 @@ final class AppPreferencesStoreTests: XCTestCase {
             launchAtLoginService: launchAtLoginService,
             defaults: defaults
         )
+        store.isDebugModeEnabled = true
         store.shouldAskToAttachDetectedUSBDevices = false
         store.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches = true
         store.completeOnboarding()
 
         try store.resetPersistedValues()
 
+        XCTAssertFalse(store.isDebugModeEnabled)
         XCTAssertTrue(store.shouldAskToAttachDetectedUSBDevices)
         XCTAssertFalse(store.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches)
         XCTAssertFalse(store.hasCompletedOnboarding)
         XCTAssertEqual(launchAtLoginService.setEnabledValues, [false])
         XCTAssertNil(defaults.object(forKey: "Onboarding.completedVersion"))
+        XCTAssertNil(defaults.object(forKey: "Application.debugModeEnabled"))
         XCTAssertNil(defaults.object(forKey: "USB.askToAttachDetectedDevices"))
         XCTAssertNil(
             defaults.object(
@@ -126,6 +132,7 @@ final class AppPreferencesStoreTests: XCTestCase {
             launchAtLoginService: launchAtLoginService,
             defaults: defaults
         )
+        store.isDebugModeEnabled = true
         store.shouldAskToAttachDetectedUSBDevices = false
         store.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches = true
         store.completeOnboarding()
@@ -135,11 +142,13 @@ final class AppPreferencesStoreTests: XCTestCase {
             XCTAssertEqual(error as? AppPreferencesTestError, .rejected)
         }
 
+        XCTAssertFalse(store.isDebugModeEnabled)
         XCTAssertTrue(store.shouldAskToAttachDetectedUSBDevices)
         XCTAssertFalse(store.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches)
         XCTAssertFalse(store.hasCompletedOnboarding)
         XCTAssertEqual(launchAtLoginService.setEnabledValues, [false])
         XCTAssertNil(defaults.object(forKey: "Onboarding.completedVersion"))
+        XCTAssertNil(defaults.object(forKey: "Application.debugModeEnabled"))
         XCTAssertNil(defaults.object(forKey: "USB.askToAttachDetectedDevices"))
         XCTAssertNil(
             defaults.object(

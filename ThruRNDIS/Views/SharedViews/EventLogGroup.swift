@@ -14,7 +14,7 @@ struct EventLogGroup: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             LogTextView(text: text.isEmpty ? String(localized: "No events.") : text)
-                .frame(height: 260)
+                .frame(height: 300)
 
             HStack(spacing: 8) {
                 Button(action: clearAction) {

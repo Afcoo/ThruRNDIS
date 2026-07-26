@@ -1016,6 +1016,16 @@
         }
       }
     },
+    "Enable Debug Mode" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "디버그 모드 활성화"
+          }
+        }
+      }
+    },
     "Enable the Network Extension" : {
       "localizations" : {
         "ko" : {
@@ -3323,9 +3333,6 @@
           }
         }
       }
-    },
-    "앱" : {
-
     }
   },
   "version" : "1.0"
