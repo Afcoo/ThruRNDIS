@@ -26,7 +26,7 @@ struct VirtualMachineView: View {
                 }
             }
 
-            Section {
+            Section("Virtual Machine") {
                 LabeledContent("Status") {
                     SettingsStatusLabel(
                         title: vmStatusTitle,
@@ -67,16 +67,48 @@ struct VirtualMachineView: View {
             }
 
             Section("Runtime") {
-                Stepper(value: $vmConfiguration.cpuCount, in: 1...8) {
-                    LabeledContent("CPUs", value: "\(vmConfiguration.cpuCount)")
-                }
+                HStack(spacing: 32) {
+                    LabeledContent("CPUs") {
+                        HStack(spacing: 6) {
+                            TextField(
+                                "CPUs",
+                                value: cpuCountBinding,
+                                format: .number.grouping(.never)
+                            )
+                            .labelsHidden()
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 48)
 
-                Stepper(
-                    value: $vmConfiguration.memorySizeMiB,
-                    in: vmConfiguration.memorySizeRangeMiB,
-                    step: vmConfiguration.memorySizeStepMiB
-                ) {
-                    LabeledContent("Memory", value: vmConfiguration.memorySizeLabel)
+                            Stepper("CPUs", value: cpuCountBinding, in: 1...8)
+                                .labelsHidden()
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+
+                    LabeledContent("Memory") {
+                        HStack(spacing: 6) {
+                            TextField(
+                                "Memory",
+                                value: memorySizeBinding,
+                                format: .number.grouping(.never)
+                            )
+                            .labelsHidden()
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 72)
+
+                            Text(verbatim: "MiB")
+                                .foregroundStyle(.secondary)
+
+                            Stepper(
+                                "Memory",
+                                value: memorySizeBinding,
+                                in: vmConfiguration.memorySizeRangeMiB,
+                                step: vmConfiguration.memorySizeStepMiB
+                            )
+                            .labelsHidden()
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
                 }
 
                 VStack(alignment: .leading, spacing: 6) {
@@ -218,6 +250,27 @@ struct VirtualMachineView: View {
                 }
             )
         }
+    }
+
+    private var cpuCountBinding: Binding<Int> {
+        Binding(
+            get: { vmConfiguration.cpuCount },
+            set: { newValue in
+                vmConfiguration.cpuCount = min(max(newValue, 1), 8)
+            }
+        )
+    }
+
+    private var memorySizeBinding: Binding<Int> {
+        Binding(
+            get: { vmConfiguration.memorySizeMiB },
+            set: { newValue in
+                vmConfiguration.memorySizeMiB = min(
+                    max(newValue, vmConfiguration.memorySizeRangeMiB.lowerBound),
+                    vmConfiguration.memorySizeRangeMiB.upperBound
+                )
+            }
+        )
     }
 
     private var assetStatusColor: Color {

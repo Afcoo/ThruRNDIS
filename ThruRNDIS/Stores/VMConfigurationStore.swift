@@ -180,7 +180,7 @@ final class VMConfigurationStore: ObservableObject {
             max(restoredMemory, VMMemoryDefaults.minimumMiB),
             VMMemoryDefaults.maximumMiB
         )
-        return (clampedMemory / VMMemoryDefaults.stepMiB) * VMMemoryDefaults.stepMiB
+        return clampedMemory
     }
 
     private static func restoredKernelCommandLine(defaults: UserDefaults) -> String {

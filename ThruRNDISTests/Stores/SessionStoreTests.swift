@@ -216,10 +216,10 @@ final class VMConfigurationStoreTests: XCTestCase {
         let store = VMConfigurationStore(defaults: defaults)
 
         XCTAssertEqual(store.cpuCount, 8)
-        XCTAssertEqual(store.memorySizeMiB, 1_280)
+        XCTAssertEqual(store.memorySizeMiB, 1_300)
         XCTAssertEqual(store.diskImageURL?.path, "/tmp/scratch.img")
         XCTAssertEqual(defaults.integer(forKey: "VM.cpuCount"), 8)
-        XCTAssertEqual(defaults.integer(forKey: "VM.memorySizeMiB"), 1_280)
+        XCTAssertEqual(defaults.integer(forKey: "VM.memorySizeMiB"), 1_300)
         let normalized = store.normalizedBootCommandLine()
         XCTAssertTrue(normalized.contains("console=hvc0"))
         XCTAssertTrue(normalized.contains("rdinit=/sbin/init"))
