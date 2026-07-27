@@ -531,7 +531,7 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "지우기"
+            "value" : "초기화"
           }
         }
       }
@@ -542,16 +542,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "모두 지우기"
-          }
-        }
-      }
-    },
-    "Clear Display" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "화면 지우기"
           }
         }
       }
@@ -1117,12 +1107,12 @@
         }
       }
     },
-    "Export Log" : {
+    "Export" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "로그 내보내기"
+            "value" : "내보내기"
           }
         }
       }
@@ -1710,6 +1700,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "구성 폴더 열기"
+          }
+        }
+      }
+    },
+    "Open Logs Folder" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "로그 폴더 열기"
           }
         }
       }

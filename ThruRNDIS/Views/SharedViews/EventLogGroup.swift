@@ -8,9 +8,11 @@ struct EventLogGroup: View {
     let text: String
     let hasEntries: Bool
     let canExportLogs: Bool
+    let showsOpenLogsButton: Bool
     let clearAction: () -> Void
     let copyAction: () -> Void
     let exportAction: () -> Void
+    let openLogsAction: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -26,14 +28,20 @@ struct EventLogGroup: View {
                 .disabled(text.isEmpty)
 
                 Button(action: exportAction) {
-                    Label("Export Log", systemImage: "square.and.arrow.down")
+                    Label("Export", systemImage: "square.and.arrow.down")
                 }
                 .disabled(!canExportLogs)
+
+                if showsOpenLogsButton {
+                    Button(action: openLogsAction) {
+                        Label("Open Logs Folder", systemImage: "folder")
+                    }
+                }
 
                 Spacer()
 
                 Button(action: clearAction) {
-                    Label("Clear Display", systemImage: "trash")
+                    Label("Clear", systemImage: "trash")
                 }
                 .disabled(!hasEntries)
                 .help("Clear event logs from this window without deleting saved log files")

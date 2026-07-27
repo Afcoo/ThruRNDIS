@@ -269,6 +269,12 @@ final class EventLogStoreTests: XCTestCase {
             await persistence.appendedLinesSnapshot().count
         XCTAssertEqual(appendedLineCountAfterClear, 2)
         XCTAssertTrue(store.hasPersistedLogFiles)
+        let logsDirectoryURL =
+            try await store.preparePersistedLogsDirectory()
+        XCTAssertEqual(
+            logsDirectoryURL,
+            persistence.preparedLogsDirectoryURL
+        )
 
         let destinationURL = URL(fileURLWithPath: "/tmp/export")
         let exportedDirectoryURL =
@@ -366,6 +372,9 @@ private actor EventLogFilePersistenceSpy: EventLogFilePersisting {
     nonisolated let exportedDirectoryURL = URL(
         fileURLWithPath: "/tmp/exported-logs"
     )
+    nonisolated let preparedLogsDirectoryURL = URL(
+        fileURLWithPath: "/tmp/persisted-logs"
+    )
 
     private var hasLogFilesValue: Bool
     private var appendedLines: [String] = []
@@ -390,6 +399,10 @@ private actor EventLogFilePersistenceSpy: EventLogFilePersisting {
     func hasLogFiles() -> Bool {
         hasLogFilesCallCount += 1
         return hasLogFilesValue
+    }
+
+    func prepareLogsDirectory() -> URL {
+        preparedLogsDirectoryURL
     }
 
     func append(_ line: String) throws {

@@ -164,6 +164,15 @@ final class EventLogStore: ObservableObject {
         return try await exportTask.value.get()
     }
 
+    func preparePersistedLogsDirectory() async throws -> URL {
+        guard let filePersistence else {
+            throw EventLogStoreError.filePersistenceUnavailable
+        }
+
+        await filePersistenceTask?.value
+        return try await filePersistence.prepareLogsDirectory()
+    }
+
     func flushFilePersistence() async {
         guard let filePersistence else {
             return

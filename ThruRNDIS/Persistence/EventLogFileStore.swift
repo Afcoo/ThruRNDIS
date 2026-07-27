@@ -8,6 +8,7 @@ import OSLog
 
 protocol EventLogFilePersisting: Actor {
     func hasLogFiles() throws -> Bool
+    func prepareLogsDirectory() throws -> URL
     func append(_ line: String) throws
     /// Synchronizes appends that the caller awaited before this barrier.
     func flush() throws
@@ -121,6 +122,11 @@ actor EventLogFileStore: EventLogFilePersisting {
         try rotateCurrentFileIfNeeded(at: inspectionDate)
         try removeExpiredLogFilesIfNeeded(at: inspectionDate)
         return availableCurrentSessionFileURLs().isEmpty == false
+    }
+
+    func prepareLogsDirectory() throws -> URL {
+        try prepareIfNeeded(at: now())
+        return logsDirectoryURL
     }
 
     func append(_ line: String) throws {

@@ -37,13 +37,15 @@ struct GeneralView: View {
                     hasEntries: !eventLog.isEmpty,
                     canExportLogs: eventLog.hasPersistedLogFiles
                         && !isExportingEventLogs,
+                    showsOpenLogsButton: appPreferences.isDebugModeEnabled,
                     clearAction: {
                         eventLog.clear()
                     },
                     copyAction: {
                         Clipboard.copy(displayedEventLogText)
                     },
-                    exportAction: exportEventLogs
+                    exportAction: exportEventLogs,
+                    openLogsAction: openEventLogs
                 )
             } header: {
                 HStack(spacing: 10) {
@@ -112,6 +114,20 @@ struct GeneralView: View {
                 NSWorkspace.shared.activateFileViewerSelecting([
                     exportedURL,
                 ])
+            } catch {
+                eventLogSaveError = EventLogSaveError(
+                    message: error.localizedDescription
+                )
+            }
+        }
+    }
+
+    private func openEventLogs() {
+        Task { @MainActor in
+            do {
+                let logsDirectoryURL =
+                    try await eventLog.preparePersistedLogsDirectory()
+                _ = NSWorkspace.shared.open(logsDirectoryURL)
             } catch {
                 eventLogSaveError = EventLogSaveError(
                     message: error.localizedDescription
