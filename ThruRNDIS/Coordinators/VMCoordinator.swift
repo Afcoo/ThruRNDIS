@@ -132,7 +132,7 @@ final class VMCoordinator {
                     switch startResult {
                     case .success:
                         self.transition(to: .running, message: String(localized: "VM running."))
-                        self.reportEventLog("VM started.")
+                        self.reportEventLog("VM started.", level: .info)
                         self.scheduleConsoleOutputWatchdog(generation: generation)
                     case .failure(let error):
                         self.transition(to: .failed, message: error.localizedDescription)
@@ -164,7 +164,7 @@ final class VMCoordinator {
         let generation = self.generation
 
         transition(to: .stopping, message: String(localized: "Stopping VM."))
-        reportEventLog("Stopping VM.")
+        reportEventLog("Stopping VM.", level: .debug)
 
         virtualMachine.stop { [weak self] error in
             Task { @MainActor in
@@ -238,7 +238,8 @@ final class VMCoordinator {
         restartContinuation = startAgain
         transition(to: .stopping, message: String(localized: "Restarting VM."))
         reportEventLog(
-            "Restarting VM to recreate the fixed usb0 RNDIS session (\(reason))."
+            "Restarting VM to recreate the fixed usb0 RNDIS session (\(reason)).",
+            level: .info
         )
 
         virtualMachine.stop { [weak self] error in
@@ -377,7 +378,11 @@ final class VMCoordinator {
         return delegate
     }
 
-    private func markStopped(message: String, eventMessage: String) {
+    private func markStopped(
+        message: String,
+        eventMessage: String
+    ) {
+        let wasRestarting = isRestarting || restartContinuation != nil
         let continuation = restartContinuation
         restartContinuation = nil
         isRestarting = false
@@ -388,7 +393,10 @@ final class VMCoordinator {
         releaseRuntimeResources()
         transition(to: .stopped, message: message)
         onStopped?()
-        reportEventLog(eventMessage)
+        reportEventLog(
+            eventMessage,
+            level: wasRestarting ? .debug : .info
+        )
         resolveStopContinuations(didStop: true)
         continuation?()
     }
@@ -407,6 +415,7 @@ final class VMCoordinator {
                 Task { @MainActor in
                     guard let self else { return }
                     guard self.generation == generation else { return }
+                    self.cancelConsoleOutputWatchdog()
                     if self.hasReceivedConsoleOutput {
                         self.reportEventLog(
                             "Console output pipe closed.",
@@ -517,7 +526,7 @@ final class VMCoordinator {
 
     private func reportEventLog(
         _ message: String,
-        level: EventLogLevel = .info
+        level: EventLogLevel
     ) {
         onEventLog?(message, level)
     }

@@ -147,6 +147,12 @@ final class WireGuardSessionStoreTests: XCTestCase {
         XCTAssertEqual(store.discoveredEndpoint, "192.168.64.2:51820")
         XCTAssertEqual(store.resolvedEndpoint, "192.168.64.2:51820")
         XCTAssertEqual(readinessChangeCount, 1)
+        XCTAssertEqual(
+            eventLog.records.first {
+                $0.message == "WireGuard guest address discovered from guest console."
+            }?.level,
+            .debug
+        )
 
         store.updateDiscoveredEndpoint("192.168.64.2:51820")
 
@@ -280,6 +286,110 @@ final class WireGuardSessionStoreTests: XCTestCase {
         XCTAssertEqual(
             tunnelController.hostStatusRefreshCallCount,
             refreshCount
+        )
+    }
+
+    func testHostStatusLogsUseFixedStatusLevelsAndIgnoreDuplicates() throws {
+        let suiteName = "WireGuardSessionStoreTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let eventLog = EventLogStore()
+        let store = makeStore(
+            eventLog: eventLog,
+            defaults: defaults
+        )
+        eventLog.clear()
+
+        store.updateHostTunnelStatus(.connecting)
+        store.updateHostTunnelStatus(.connecting)
+        store.updateHostTunnelStatus(.connected)
+        store.updateHostTunnelStatus(.connected)
+        store.updateHostTunnelStatus(.reasserting)
+        store.updateHostTunnelStatus(.disconnecting)
+        store.updateHostTunnelStatus(.disconnected)
+        store.updateHostTunnelStatus(.unconfigured)
+        store.updateHostTunnelStatus(.failed("domain=Test; code=7"))
+
+        let providerRecords = eventLog.records.filter {
+            $0.message.hasPrefix("Provider:")
+        }
+        XCTAssertEqual(providerRecords.count, 7)
+        XCTAssertEqual(
+            providerRecords.map(\.level),
+            [.debug, .info, .debug, .debug, .info, .warning, .error]
+        )
+        XCTAssertEqual(
+            providerRecords.filter {
+                $0.message.contains("Provider connected")
+            }.count,
+            1
+        )
+    }
+
+    func testSystemExtensionStatusLogsUseFixedStatusLevelsAndIgnoreDuplicates() throws {
+        let suiteName = "WireGuardSessionStoreTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let eventLog = EventLogStore()
+        let store = makeStore(
+            eventLog: eventLog,
+            defaults: defaults
+        )
+        eventLog.clear()
+
+        store.updateSystemExtensionStatus(.checking)
+        store.updateSystemExtensionStatus(.active)
+        store.updateSystemExtensionStatus(.active)
+        store.updateSystemExtensionStatus(.inactive)
+        store.updateSystemExtensionStatus(.activationRequested)
+        store.updateSystemExtensionStatus(.awaitingUserApproval)
+        store.updateSystemExtensionStatus(.active)
+        store.updateSystemExtensionStatus(.uninstalling)
+        store.updateSystemExtensionStatus(.failed("domain=Test; code=8"))
+
+        let statusRecords = eventLog.records.filter {
+            $0.message.hasPrefix("Network Extension:")
+        }
+        XCTAssertEqual(statusRecords.count, 8)
+        XCTAssertEqual(
+            statusRecords.map(\.level),
+            [
+                .debug, .info, .warning, .debug,
+                .warning, .info, .warning, .error,
+            ]
+        )
+        let normalModeText = eventLog.text(isDebugModeEnabled: false)
+        XCTAssertEqual(
+            normalModeText
+                .components(separatedBy: "\n")
+                .filter { !$0.isEmpty }
+                .count,
+            6
+        )
+        XCTAssertTrue(normalModeText.contains("Awaiting User Approval"))
+    }
+
+    func testConnectLogsErrorWhenNetworkExtensionIsInactive() throws {
+        let suiteName = "WireGuardSessionStoreTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let eventLog = EventLogStore()
+        let store = makeStore(
+            eventLog: eventLog,
+            defaults: defaults
+        )
+        store.endpointText = "vpn.example.com:51820"
+        store.updateSystemExtensionStatus(.inactive)
+        eventLog.clear()
+
+        XCTAssertFalse(store.connect())
+
+        XCTAssertEqual(eventLog.records.count, 1)
+        XCTAssertEqual(eventLog.records.first?.level, .error)
+        XCTAssertEqual(eventLog.records.first?.category, .wireGuard)
+        XCTAssertEqual(
+            eventLog.records.first?.message,
+            "Host WireGuard tunnel not started: network extension is not active."
         )
     }
 
