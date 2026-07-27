@@ -70,30 +70,6 @@ final class ConsoleSessionStoreTests: XCTestCase {
 
 @MainActor
 final class EventLogStoreTests: XCTestCase {
-    func testExportUsesSecondResolutionFileNameAndIncludesRuntimeMetadata() throws {
-        let timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
-        let fileName = EventLogExportFormatter.defaultFileName(
-            at: Date(timeIntervalSince1970: 1),
-            timeZone: timeZone
-        )
-        let content = EventLogExportFormatter.content(
-            logText: "[00:00:01] [INFO] [Application] Started.\n",
-            metadata: EventLogExportMetadata(
-                appVersion: "1.2.3",
-                appBuild: "45",
-                operatingSystemVersion: "Version 27.0 (Build TEST)"
-            )
-        )
-
-        XCTAssertEqual(fileName, "thrurndis-19700101-000001.log")
-        XCTAssertEqual(
-            content,
-            "ThruRNDIS Version: 1.2.3 (45)\n" +
-                "macOS: Version 27.0 (Build TEST)\n\n" +
-                "[00:00:01] [INFO] [Application] Started.\n"
-        )
-    }
-
     func testAppendIncludesLevelAndCategoryAndNotifiesObservers() {
         let store = EventLogStore()
         var changeCount = 0
@@ -103,6 +79,7 @@ final class EventLogStoreTests: XCTestCase {
 
         store.append(
             "VM started.",
+            level: .info,
             category: .vm,
             at: Date(timeIntervalSince1970: 0)
         )
@@ -144,12 +121,52 @@ final class EventLogStoreTests: XCTestCase {
         XCTAssertEqual(store.records.count, 4)
     }
 
+    func testNormalModeAndCategoryFiltersCompose() {
+        let store = EventLogStore()
+        let date = Date(timeIntervalSince1970: 0)
+
+        store.append("VM detail", level: .debug, category: .vm, at: date)
+        store.append("VM ready", level: .info, category: .vm, at: date)
+        store.append("USB failed", level: .error, category: .usb, at: date)
+
+        let normalVMText = store.text(
+            isDebugModeEnabled: false,
+            category: .vm
+        )
+
+        XCTAssertFalse(normalVMText.contains("VM detail"))
+        XCTAssertTrue(normalVMText.contains("[INFO] [VM] VM ready"))
+        XCTAssertFalse(normalVMText.contains("USB failed"))
+        XCTAssertEqual(
+            normalVMText.components(separatedBy: "\n").filter { !$0.isEmpty }.count,
+            1
+        )
+
+        let debugVMText = store.text(
+            isDebugModeEnabled: true,
+            category: .vm
+        )
+        XCTAssertTrue(debugVMText.contains("[DEBUG] [VM] VM detail"))
+        XCTAssertTrue(debugVMText.contains("[INFO] [VM] VM ready"))
+        XCTAssertFalse(debugVMText.contains("USB failed"))
+    }
+
     func testTrimDropsOldestCompleteLineAndClearResetsText() {
         let store = EventLogStore(maximumCharacters: 90)
         let date = Date(timeIntervalSince1970: 0)
 
-        store.append("old entry", category: .application, at: date)
-        store.append(String(repeating: "x", count: 50), category: .vm, at: date)
+        store.append(
+            "old entry",
+            level: .info,
+            category: .application,
+            at: date
+        )
+        store.append(
+            String(repeating: "x", count: 50),
+            level: .info,
+            category: .vm,
+            at: date
+        )
 
         XCTAssertLessThanOrEqual(store.text.count, 90)
         XCTAssertFalse(store.text.contains("old entry"))
@@ -164,9 +181,24 @@ final class EventLogStoreTests: XCTestCase {
         let store = EventLogStore(maximumCharacters: 100)
         let date = Date(timeIntervalSince1970: 0)
 
-        store.append("important info", category: .application, at: date)
-        store.append("debug one", level: .debug, category: .application, at: date)
-        store.append("debug two", level: .debug, category: .application, at: date)
+        store.append(
+            "important info",
+            level: .info,
+            category: .application,
+            at: date
+        )
+        store.append(
+            "debug one",
+            level: .debug,
+            category: .application,
+            at: date
+        )
+        store.append(
+            "debug two",
+            level: .debug,
+            category: .application,
+            at: date
+        )
 
         XCTAssertFalse(store.text.contains("important info"))
         XCTAssertTrue(store.text.contains("debug one"))

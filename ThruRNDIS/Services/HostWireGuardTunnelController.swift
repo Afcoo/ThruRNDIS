@@ -144,6 +144,13 @@ final class HostWireGuardTunnelController: HostWireGuardTunnelControlling {
                 operationID: operationID
             )
             setSystemExtensionStatus(verifiedStatus)
+            if !verifiedStatus.isActive {
+                reportEventLog(
+                    "Network extension activation failed; verified status: " +
+                        "\(verifiedStatus.eventLogDescription)",
+                    level: .error
+                )
+            }
         } catch is CancellationError {
             return
         } catch HostWireGuardTunnelError.operationSuperseded {
@@ -276,10 +283,14 @@ final class HostWireGuardTunnelController: HostWireGuardTunnelControlling {
                 operationID: operationID
             )
             reportEventLog(
-                "Host WireGuard tunnel start requested with the current connection settings."
+                "Host WireGuard tunnel start requested with the current connection settings.",
+                level: .debug
             )
         } catch is CancellationError {
-            reportEventLog("Cancelled a pending Host WireGuard tunnel start.")
+            reportEventLog(
+                "Cancelled a pending Host WireGuard tunnel start.",
+                level: .debug
+            )
         } catch HostWireGuardTunnelError.operationSuperseded {
             reportEventLog(
                 "Superseded a pending Host WireGuard tunnel operation.",
@@ -320,7 +331,10 @@ final class HostWireGuardTunnelController: HostWireGuardTunnelControlling {
             setStatus(.disconnecting)
             if connectionStatus != .disconnecting {
                 session.stopTunnel()
-                reportEventLog("Host WireGuard tunnel stop requested.")
+                reportEventLog(
+                    "Host WireGuard tunnel stop requested.",
+                    level: .debug
+                )
             }
 
             guard waitUntilStopped else {
@@ -335,7 +349,10 @@ final class HostWireGuardTunnelController: HostWireGuardTunnelControlling {
             }
 
             setStatus(.disconnected)
-            reportEventLog("Host WireGuard tunnel stopped.")
+            reportEventLog(
+                "Host WireGuard tunnel stopped.",
+                level: .debug
+            )
             return true
         } catch is CancellationError {
             return false
@@ -367,7 +384,8 @@ final class HostWireGuardTunnelController: HostWireGuardTunnelControlling {
             cachedManager = nil
             setStatus(.unconfigured)
             reportEventLog(
-                "Removed the saved ThruRNDIS WireGuard tunnel profile."
+                "Removed the saved ThruRNDIS WireGuard tunnel profile.",
+                level: .debug
             )
             return true
         } catch is CancellationError {
@@ -464,6 +482,16 @@ final class HostWireGuardTunnelController: HostWireGuardTunnelControlling {
             } catch let error as NEVPNError
                 where retryCount < 8 &&
                 (error.code == .configurationInvalid || error.code == .configurationStale) {
+                let retryAttempt = retryCount + 1
+                let errorKind = error.code == .configurationStale
+                    ? "configuration-stale"
+                    : "configuration-invalid"
+                reportEventLog(
+                    "Retrying Host WireGuard tunnel start after NEVPN \(errorKind) " +
+                        "error (attempt \(retryAttempt)/8): " +
+                        Self.diagnosticDescription(for: error),
+                    level: .debug
+                )
                 try await loadFromPreferences(manager)
                 try ensureOperationIsCurrent(operationID)
                 retryCount += 1
@@ -629,13 +657,6 @@ final class HostWireGuardTunnelController: HostWireGuardTunnelControlling {
             bundleIdentifier: bundleIdentifier
         )
         try ensureSystemExtensionOperationIsCurrent(operationID)
-        if !verifiedStatus.isActive {
-            reportEventLog(
-                "Network extension activation request completed; " +
-                    "verified status: \(verifiedStatus.eventLogDescription)",
-                level: .warning
-            )
-        }
         return verifiedStatus
     }
 
@@ -758,7 +779,7 @@ final class HostWireGuardTunnelController: HostWireGuardTunnelControlling {
 
     private func reportEventLog(
         _ message: String,
-        level: EventLogLevel = .info
+        level: EventLogLevel
     ) {
         onEventLog?(message, level)
     }

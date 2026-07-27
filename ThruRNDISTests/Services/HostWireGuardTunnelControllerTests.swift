@@ -130,9 +130,11 @@ final class HostWireGuardTunnelControllerTests: XCTestCase {
             systemExtensionActivator: activator
         )
         var statuses: [WireGuardSystemExtensionStatus] = []
-        var eventLogs: [String] = []
+        var eventLogs: [(message: String, level: EventLogLevel)] = []
         controller.onSystemExtensionStatusChange = { statuses.append($0) }
-        controller.onEventLog = { message, _ in eventLogs.append(message) }
+        controller.onEventLog = { message, level in
+            eventLogs.append((message, level))
+        }
 
         let activationTask = Task {
             await controller.activateSystemExtension()
@@ -155,11 +157,25 @@ final class HostWireGuardTunnelControllerTests: XCTestCase {
 
         XCTAssertEqual(statuses, [.activationRequested, .inactive])
         XCTAssertFalse(statuses.contains(.active))
-        XCTAssertTrue(eventLogs.contains(
-            "Network extension activation request completed."
-        ))
+        XCTAssertTrue(eventLogs.contains {
+            $0.message == "Requesting network extension activation."
+                && $0.level == .debug
+        })
+        XCTAssertTrue(eventLogs.contains {
+            $0.message == "Network extension activation request completed."
+                && $0.level == .debug
+        })
+        XCTAssertTrue(eventLogs.contains {
+            $0.message.hasPrefix(
+                "Network extension activation failed; verified status:"
+            ) && $0.level == .error
+        })
+        XCTAssertEqual(
+            eventLogs.filter { $0.level >= .info }.count,
+            1
+        )
         XCTAssertFalse(eventLogs.contains(where: {
-            $0.localizedCaseInsensitiveContains("WireGuard system extension")
+            $0.message.localizedCaseInsensitiveContains("WireGuard system extension")
         }))
     }
 

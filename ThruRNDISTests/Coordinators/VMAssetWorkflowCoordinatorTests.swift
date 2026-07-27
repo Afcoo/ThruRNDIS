@@ -50,11 +50,17 @@ final class VMAssetWorkflowCoordinatorTests: XCTestCase {
             installService: FakeInstaller(installed: [], matching: nil),
             selectionStore: FakeSelectionStore(initialSelection: previous)
         )
+        var events: [(message: String, level: EventLogLevel)] = []
+        coordinator.onEventLog = { events.append(($0, $1)) }
 
         coordinator.installLatest()
         try await waitUntilIdle(coordinator)
 
         XCTAssertEqual(coordinator.currentSelection, previous)
+        XCTAssertTrue(events.contains {
+            $0.message.contains("VM asset operation failed") &&
+                $0.level == .error
+        })
         guard case .failed = coordinator.installState else {
             return XCTFail("Expected failed state")
         }
@@ -69,6 +75,8 @@ final class VMAssetWorkflowCoordinatorTests: XCTestCase {
             installService: FakeInstaller(installed: [], matching: nil),
             selectionStore: selectionStore
         )
+        var events: [(message: String, level: EventLogLevel)] = []
+        coordinator.onEventLog = { events.append(($0, $1)) }
 
         coordinator.installLatest()
         try await waitUntil { downloader.callCount == 1 }
@@ -78,6 +86,10 @@ final class VMAssetWorkflowCoordinatorTests: XCTestCase {
         XCTAssertEqual(coordinator.currentSelection, FakeSelectionStore.manualSelection)
         XCTAssertNil(coordinator.errorMessage)
         XCTAssertEqual(downloader.discardedOperationIDs.count, 1)
+        XCTAssertTrue(events.contains {
+            $0.message == "VM asset installation cancelled." &&
+                $0.level == .info
+        })
         guard case .ready = coordinator.installState else {
             return XCTFail("Expected ready state after cancellation")
         }
@@ -196,7 +208,77 @@ final class VMAssetWorkflowCoordinatorTests: XCTestCase {
         )
     }
 
-    func testInstallEmitsHighSignalStageEvents() async throws {
+    func testActivationRollbackRemovalFailureEmitsWarning() async throws {
+        let installed = VMAssetTestSupport.installedRelease(
+            at: URL(fileURLWithPath: "/managed/42-100", isDirectory: true)
+        )
+        let installer = FakeInstaller(
+            installed: [installed],
+            matching: nil,
+            removeInstalledReleaseError: CocoaError(.fileWriteNoPermission)
+        )
+        let selectionStore = FakeSelectionStore(
+            managedSelectionError: CocoaError(.fileWriteUnknown)
+        )
+        let coordinator = VMAssetWorkflowCoordinator(
+            releaseService: FakeReleaseService(result: .success(VMAssetTestSupport.release())),
+            downloadService: FakeDownloader(),
+            installService: installer,
+            selectionStore: selectionStore
+        )
+        var events: [(message: String, level: EventLogLevel)] = []
+        coordinator.onEventLog = { events.append(($0, $1)) }
+
+        coordinator.installLatest()
+        try await waitUntilIdle(coordinator)
+
+        XCTAssertTrue(events.contains {
+            $0.message.contains(
+                "VM asset rollback cleanup failed after activation failure"
+            ) && $0.level == .warning
+        })
+        XCTAssertTrue(events.contains {
+            $0.message.contains("VM asset operation failed") &&
+                $0.level == .error
+        })
+    }
+
+    func testCancellationRollbackRemovalFailureEmitsWarningAndInfoOutcome() async throws {
+        let installed = VMAssetTestSupport.installedRelease(
+            at: URL(fileURLWithPath: "/managed/42-100", isDirectory: true)
+        )
+        let installer = FakeInstaller(
+            installed: [installed],
+            matching: nil,
+            removeInstalledReleaseError: CocoaError(.fileWriteNoPermission)
+        )
+        let selectionStore = FakeSelectionStore(
+            managedSelectionError: CancellationError()
+        )
+        let coordinator = VMAssetWorkflowCoordinator(
+            releaseService: FakeReleaseService(result: .success(VMAssetTestSupport.release())),
+            downloadService: FakeDownloader(),
+            installService: installer,
+            selectionStore: selectionStore
+        )
+        var events: [(message: String, level: EventLogLevel)] = []
+        coordinator.onEventLog = { events.append(($0, $1)) }
+
+        coordinator.installLatest()
+        try await waitUntilIdle(coordinator)
+
+        XCTAssertTrue(events.contains {
+            $0.message.contains(
+                "VM asset rollback cleanup failed after installation cancellation"
+            ) && $0.level == .warning
+        })
+        XCTAssertTrue(events.contains {
+            $0.message == "VM asset installation cancelled." &&
+                $0.level == .info
+        })
+    }
+
+    func testInstallUsesDebugForProgressAndInfoForSuccess() async throws {
         let installed = VMAssetTestSupport.installedRelease(
             at: URL(fileURLWithPath: "/managed/42-100", isDirectory: true)
         )
@@ -206,38 +288,68 @@ final class VMAssetWorkflowCoordinatorTests: XCTestCase {
             installService: FakeInstaller(installed: [installed], matching: nil),
             selectionStore: FakeSelectionStore()
         )
-        var events: [String] = []
-        coordinator.onEventLog = { message, _ in events.append(message) }
+        var events: [(message: String, level: EventLogLevel)] = []
+        coordinator.onEventLog = { events.append(($0, $1)) }
 
         coordinator.installLatest()
         try await waitUntilIdle(coordinator)
         await Task.yield()
 
-        XCTAssertTrue(events.contains { $0.contains("Checking the latest VM asset release") })
-        XCTAssertTrue(events.contains { $0.contains("Downloading VM assets") })
-        XCTAssertTrue(events.contains { $0.contains("Downloaded VM assets") })
-        XCTAssertTrue(events.contains { $0.contains("Verifying the downloaded VM assets") })
-        XCTAssertTrue(events.contains { $0.contains("Extracting the verified VM assets") })
-        XCTAssertTrue(events.contains { $0.contains("Activating VM assets") })
-        XCTAssertTrue(events.contains { $0.contains("Installed and activated VM assets") })
+        XCTAssertGreaterThan(
+            events.filter { $0.level == .debug }.count,
+            1
+        )
+        let visibleEvents = events.filter { $0.level != .debug }
+        XCTAssertEqual(visibleEvents.count, 1)
+        XCTAssertEqual(visibleEvents.first?.level, .info)
+        XCTAssertTrue(
+            visibleEvents.first?.message.contains(
+                "Installed and activated VM assets"
+            ) == true
+        )
     }
 
-    func testCurrentStateReportIncludesRestoredManualSelection() {
+    func testCurrentStateReportClassifiesRestoredManualSelectionAsDebug() {
         let coordinator = VMAssetWorkflowCoordinator(
             releaseService: FakeReleaseService(result: .success(VMAssetTestSupport.release())),
             downloadService: FakeDownloader(),
             installService: FakeInstaller(installed: [], matching: nil),
             selectionStore: FakeSelectionStore(initialSelection: FakeSelectionStore.manualSelection)
         )
-        var events: [String] = []
-        coordinator.onEventLog = { message, _ in events.append(message) }
+        var events: [(message: String, level: EventLogLevel)] = []
+        coordinator.onEventLog = { events.append(($0, $1)) }
 
         coordinator.reportCurrentStateToEventLog()
 
         XCTAssertEqual(events.count, 2)
+        XCTAssertTrue(events.allSatisfy { $0.level == .debug })
         XCTAssertTrue(events.contains {
-            $0.contains(FakeSelectionStore.manualSelection.folderURL.path)
+            $0.message.contains(FakeSelectionStore.manualSelection.folderURL.path)
         })
+    }
+
+    func testClearSelectionUsesInfoLevel() {
+        let selectionStore = FakeSelectionStore(
+            initialSelection: FakeSelectionStore.manualSelection
+        )
+        let coordinator = VMAssetWorkflowCoordinator(
+            releaseService: FakeReleaseService(result: .success(VMAssetTestSupport.release())),
+            downloadService: FakeDownloader(),
+            installService: FakeInstaller(installed: [], matching: nil),
+            selectionStore: selectionStore
+        )
+        var events: [(message: String, level: EventLogLevel)] = []
+        coordinator.onEventLog = { events.append(($0, $1)) }
+
+        coordinator.clearSelection()
+
+        XCTAssertNil(coordinator.currentSelection)
+        XCTAssertNil(selectionStore.selection)
+        XCTAssertEqual(events.last?.level, .info)
+        XCTAssertEqual(
+            events.last?.message,
+            "Cleared the VM asset selection; managed release files were preserved."
+        )
     }
 
     private func waitUntilIdle(_ coordinator: VMAssetWorkflowCoordinator) async throws {
@@ -416,17 +528,20 @@ private final class FakeInstaller: VMAssetInstalling {
     var installed: [InstalledVMAssetRelease]
     let matching: InstalledVMAssetRelease?
     let installedReleasesError: Error?
+    let removeInstalledReleaseError: Error?
     private(set) var pruneCount = 0
     private(set) var protectedDirectoryURL: URL?
 
     init(
         installed: [InstalledVMAssetRelease],
         matching: InstalledVMAssetRelease?,
-        installedReleasesError: Error? = nil
+        installedReleasesError: Error? = nil,
+        removeInstalledReleaseError: Error? = nil
     ) {
         self.installed = installed
         self.matching = matching
         self.installedReleasesError = installedReleasesError
+        self.removeInstalledReleaseError = removeInstalledReleaseError
     }
 
     func installedRelease(matching release: VMAssetReleaseDescriptor) throws -> InstalledVMAssetRelease? {
@@ -453,6 +568,9 @@ private final class FakeInstaller: VMAssetInstalling {
     }
 
     func removeInstalledRelease(_ release: InstalledVMAssetRelease) throws {
+        if let removeInstalledReleaseError {
+            throw removeInstalledReleaseError
+        }
         installed.removeAll { $0 == release }
     }
 
@@ -478,10 +596,15 @@ private final class FakeSelectionStore: VMAssetSelectionStoring {
     )
 
     var selection: VMAssetSelection?
+    let managedSelectionError: Error?
     private(set) var managedSelectionCount = 0
 
-    init(initialSelection: VMAssetSelection? = nil) {
+    init(
+        initialSelection: VMAssetSelection? = nil,
+        managedSelectionError: Error? = nil
+    ) {
         selection = initialSelection
+        self.managedSelectionError = managedSelectionError
     }
 
     func restoreSelection() throws -> VMAssetSelection? {
@@ -493,6 +616,9 @@ private final class FakeSelectionStore: VMAssetSelectionStoring {
     }
 
     func selectManagedRelease(_ release: InstalledVMAssetRelease) throws -> VMAssetSelection {
+        if let managedSelectionError {
+            throw managedSelectionError
+        }
         managedSelectionCount += 1
         let selection = VMAssetSelection(
             source: .managed,

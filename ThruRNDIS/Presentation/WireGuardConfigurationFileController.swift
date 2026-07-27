@@ -41,7 +41,10 @@ final class WireGuardConfigurationFileController {
             return
         }
 
-        appendEventLog("Opened WireGuard configuration folder.")
+        appendEventLog(
+            "Opened WireGuard configuration folder.",
+            level: .info
+        )
         appendEventLog(
             "WireGuard configuration folder path: \(directoryURL.path)",
             level: .debug
@@ -58,7 +61,10 @@ final class WireGuardConfigurationFileController {
         }
 
         Clipboard.copy(wireGuardSession.clientConfiguration)
-        appendEventLog("WireGuard host configuration copied to clipboard.")
+        appendEventLog(
+            "WireGuard host configuration copied to clipboard.",
+            level: .info
+        )
     }
 
     func saveConfiguration() {
@@ -83,7 +89,10 @@ final class WireGuardConfigurationFileController {
                 atomically: true,
                 encoding: .utf8
             )
-            appendEventLog("WireGuard host configuration saved.")
+            appendEventLog(
+                "WireGuard host configuration saved.",
+                level: .info
+            )
             appendEventLog(
                 "WireGuard host configuration save path: \(url.path).",
                 level: .debug
@@ -99,7 +108,7 @@ final class WireGuardConfigurationFileController {
 
     private func appendEventLog(
         _ message: String,
-        level: EventLogLevel = .info
+        level: EventLogLevel
     ) {
         eventLog.append(message, level: level, category: .wireGuard)
     }

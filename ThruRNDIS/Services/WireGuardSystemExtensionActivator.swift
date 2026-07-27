@@ -81,7 +81,10 @@ final class WireGuardSystemExtensionActivator: NSObject, WireGuardSystemExtensio
             )
             request.delegate = self
             pendingActivationRequest = request
-            reportEventLog("Requesting network extension activation.")
+            reportEventLog(
+                "Requesting network extension activation.",
+                level: .debug
+            )
             reportEventLog(
                 "Network extension activation bundle identifier: \(bundleIdentifier).",
                 level: .debug
@@ -139,7 +142,7 @@ final class WireGuardSystemExtensionActivator: NSObject, WireGuardSystemExtensio
 
     private func reportEventLog(
         _ message: String,
-        level: EventLogLevel = .info
+        level: EventLogLevel
     ) {
         onEventLog?(message, level)
     }
@@ -163,7 +166,8 @@ extension WireGuardSystemExtensionActivator: @MainActor OSSystemExtensionRequest
         }
         reportEventLog(
             "Replacing network extension version \(existing.bundleShortVersion) " +
-                "with \(replacement.bundleShortVersion)."
+                "with \(replacement.bundleShortVersion).",
+            level: .debug
         )
         return action
     }
@@ -188,7 +192,10 @@ extension WireGuardSystemExtensionActivator: @MainActor OSSystemExtensionRequest
         }
         switch result {
         case .completed:
-            reportEventLog("Network extension activation request completed.")
+            reportEventLog(
+                "Network extension activation request completed.",
+                level: .debug
+            )
             finish(with: .success(()))
         case .willCompleteAfterReboot:
             finish(with: .failure(WireGuardSystemExtensionActivationError.restartRequired))

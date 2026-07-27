@@ -136,9 +136,15 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
             switch currentSelection.source {
             case .managed:
                 let name = currentSelection.managedRelease?.displayName ?? "unknown release"
-                reportEventLog("Loaded selected VM asset release \(name).")
+                reportEventLog(
+                    "Loaded selected VM asset release \(name).",
+                    level: .debug
+                )
             case .manual:
-                reportEventLog("Loaded manually selected VM assets.")
+                reportEventLog(
+                    "Loaded manually selected VM assets.",
+                    level: .debug
+                )
                 reportEventLog(
                     "Loaded manual VM asset path: \(currentSelection.folderURL.path).",
                     level: .debug
@@ -173,7 +179,10 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
         }
         operationTask = task
         installState = .checking
-        reportEventLog("Checking the latest VM asset release.")
+        reportEventLog(
+            "Checking the latest VM asset release.",
+            level: .debug
+        )
     }
 
     func cancelInstall() {
@@ -198,7 +207,10 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
             errorMessage = nil
             eventLogErrorDescription = nil
             installState = .ready(message: readyMessage(for: selection))
-            reportEventLog("Selected VM assets manually.")
+            reportEventLog(
+                "Selected VM assets manually.",
+                level: .info
+            )
             reportEventLog(
                 "Selected manual VM asset path: \(selection.folderURL.path).",
                 level: .debug
@@ -234,7 +246,8 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
         eventLogErrorDescription = nil
         installState = .idle
         reportEventLog(
-            "Cleared the VM asset selection; managed release files were preserved."
+            "Cleared the VM asset selection; managed release files were preserved.",
+            level: .info
         )
     }
 
@@ -264,13 +277,17 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
             let release = try await releaseService.fetchLatestRelease()
             try requireCurrentOperation(operationID)
             let releaseName = displayName(for: release)
-            reportEventLog("Latest VM asset release found: \(releaseName).")
+            reportEventLog(
+                "Latest VM asset release found: \(releaseName).",
+                level: .debug
+            )
 
             if let installed = try installService.installedRelease(matching: release) {
                 installState = .activating
                 reportEventLog(
                     "VM assets \(installed.displayName) are already installed; " +
-                        "activating them."
+                        "activating them.",
+                    level: .debug
                 )
                 try activate(installed)
                 try requireMatchingOperation(operationID)
@@ -286,7 +303,10 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
             }
 
             installState = .downloading(progress: 0)
-            reportEventLog("Downloading VM assets \(releaseName).")
+            reportEventLog(
+                "Downloading VM assets \(releaseName).",
+                level: .debug
+            )
             let package = try await downloadService.download(
                 release: release,
                 operationID: operationID,
@@ -302,7 +322,10 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
                 }
             )
             try requireCurrentOperation(operationID)
-            reportEventLog("Downloaded VM assets \(releaseName).")
+            reportEventLog(
+                "Downloaded VM assets \(releaseName).",
+                level: .debug
+            )
 
             let installed = try await installService.install(
                 package: package,
@@ -316,14 +339,16 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
                             if self.installState != .verifying {
                                 self.installState = .verifying
                                 self.reportEventLog(
-                                    "Verifying the downloaded VM assets."
+                                    "Verifying the downloaded VM assets.",
+                                    level: .debug
                                 )
                             }
                         case .extracting:
                             if self.installState != .extracting {
                                 self.installState = .extracting
                                 self.reportEventLog(
-                                    "Extracting the verified VM assets."
+                                    "Extracting the verified VM assets.",
+                                    level: .debug
                                 )
                             }
                         }
@@ -338,11 +363,19 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
             try requireMatchingOperation(operationID)
 
             installState = .activating
-            reportEventLog("Activating VM assets \(installed.displayName).")
+            reportEventLog(
+                "Activating VM assets \(installed.displayName).",
+                level: .debug
+            )
             do {
                 try activate(installed)
             } catch {
-                try? installService.removeInstalledRelease(installed)
+                if !Task.isCancelled, !(error is CancellationError) {
+                    removeInstalledReleaseAfterRollbackFailure(
+                        installed,
+                        context: "activation failure"
+                    )
+                }
                 throw error
             }
             try requireMatchingOperation(operationID)
@@ -364,7 +397,10 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
             if Task.isCancelled || error is CancellationError {
                 if let newlyInstalledRelease,
                    currentSelection?.managedRelease != newlyInstalledRelease {
-                    try? installService.removeInstalledRelease(newlyInstalledRelease)
+                    removeInstalledReleaseAfterRollbackFailure(
+                        newlyInstalledRelease,
+                        context: "installation cancellation"
+                    )
                 }
                 finishOperation(operationID)
                 errorMessage = nil
@@ -374,7 +410,7 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
                 } ?? .idle
                 reportEventLog(
                     "VM asset installation cancelled.",
-                    level: .warning
+                    level: .info
                 )
                 return
             }
@@ -415,7 +451,7 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
         errorMessage = nil
         eventLogErrorDescription = nil
         installState = .ready(message: message)
-        reportEventLog(eventMessage)
+        reportEventLog(eventMessage, level: .info)
     }
 
     private func finishOperation(_ operationID: UUID) {
@@ -455,7 +491,10 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
             errorMessage = nil
             eventLogErrorDescription = nil
             installState = .ready(message: readyMessage(for: selection))
-            reportEventLog("Updated VM asset overrides.")
+            reportEventLog(
+                "Updated VM asset overrides.",
+                level: .info
+            )
             return nil
         } catch {
             reportFailure(error)
@@ -475,6 +514,21 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
         )
     }
 
+    private func removeInstalledReleaseAfterRollbackFailure(
+        _ release: InstalledVMAssetRelease,
+        context: String
+    ) {
+        do {
+            try installService.removeInstalledRelease(release)
+        } catch {
+            reportEventLog(
+                "VM asset rollback cleanup failed after \(context): " +
+                    EventLogErrorFormatter.description(for: error),
+                level: .warning
+            )
+        }
+    }
+
     private func readyMessage(for selection: VMAssetSelection) -> String {
         if let release = selection.managedRelease {
             return String(localized: "VM assets \(release.displayName) are ready.")
@@ -488,7 +542,7 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
 
     private func reportEventLog(
         _ message: String,
-        level: EventLogLevel = .info
+        level: EventLogLevel
     ) {
         onEventLog?(message, level)
     }
