@@ -35,6 +35,7 @@ final class USBAccessoryCoordinator {
     private var isRegistrationPending = false
     private var isUnregistrationPending = false
     private var isReloadInProgress = false
+    private var stopMonitoringCompletions: [() -> Void] = []
 
     private(set) var accessories: [USBAccessoryRecord] = []
     private(set) var isAccessoryMonitoring = false
@@ -88,6 +89,10 @@ final class USBAccessoryCoordinator {
 
     func selectAccessory(id: UInt64?) {
         selectedAccessoryID = id
+        reportEventLog(
+            "Selected USB registry: \(id.map(Self.registryIDText) ?? "none").",
+            level: .debug
+        )
         notifyStateChanged()
     }
 
@@ -101,7 +106,10 @@ final class USBAccessoryCoordinator {
         isRegistrationPending = true
         isAccessoryMonitoring = true
         notifyStateChanged()
-        reportEventLog("Registering AccessoryAccess USB listener: \(reason).")
+        reportEventLog(
+            "Registering AccessoryAccess USB listener: \(reason).",
+            level: .debug
+        )
 
         monitor.start { [weak self] result in
             Task { @MainActor in
@@ -119,9 +127,13 @@ final class USBAccessoryCoordinator {
                         self.notifyStateChanged()
                         self.monitor.stop { [weak self] in
                             Task { @MainActor in
-                                self?.isUnregistrationPending = false
-                                self?.notifyStateChanged()
+                                guard let self else {
+                                    return
+                                }
+                                self.isUnregistrationPending = false
+                                self.notifyStateChanged()
                                 completion?()
+                                self.finishStopMonitoringIfSettled()
                             }
                         }
                         return
@@ -131,7 +143,8 @@ final class USBAccessoryCoordinator {
                     self.onStatusMessage?(String(localized: "USB listener registered."))
                     self.reportEventLog(
                         "USB listener registered with \(connectedAccessories.count) " +
-                            "existing device(s)."
+                            "existing device(s).",
+                        level: self.isReloadInProgress ? .debug : .info
                     )
                     self.notifyStateChanged()
                     completion?()
@@ -144,19 +157,49 @@ final class USBAccessoryCoordinator {
                     )
                     self.notifyStateChanged()
                     completion?()
+                    self.finishStopMonitoringIfSettled()
                 }
             }
         }
     }
 
     func stopMonitoring(reason: String, completion: (() -> Void)? = nil) {
-        guard isAccessoryMonitoring || !accessoryObjects.isEmpty || !accessories.isEmpty else {
-            completion?()
+        stopMonitoring(
+            reason: reason,
+            cancelsReload: true,
+            completion: completion
+        )
+    }
+
+    private func stopMonitoring(
+        reason: String,
+        cancelsReload: Bool,
+        completion: (() -> Void)?
+    ) {
+        if cancelsReload, isReloadInProgress {
+            isReloadInProgress = false
+            reportEventLog(
+                "AccessoryAccess USB listener reload cancelled: \(reason)",
+                level: .debug
+            )
+            notifyStateChanged()
+        }
+
+        if let completion {
+            stopMonitoringCompletions.append(completion)
+        }
+
+        let hasMonitoringState = isAccessoryMonitoring
+            || isRegistrationPending
+            || isUnregistrationPending
+            || !accessoryObjects.isEmpty
+            || !accessories.isEmpty
+        guard hasMonitoringState else {
+            finishStopMonitoringIfSettled()
             return
         }
 
         isAccessoryMonitoring = false
-        isUnregistrationPending = true
         accessoryObjects.removeAll()
         accessories.removeAll()
         selectedAccessoryID = nil
@@ -164,12 +207,23 @@ final class USBAccessoryCoordinator {
         announcedAccessoryIDs.removeAll()
         notifyStateChanged()
 
+        guard !isRegistrationPending, !isUnregistrationPending else {
+            return
+        }
+
+        isUnregistrationPending = true
         monitor.stop { [weak self] in
             Task { @MainActor in
-                self?.reportEventLog("AccessoryAccess USB listener stopped: \(reason)")
-                self?.isUnregistrationPending = false
-                self?.notifyStateChanged()
-                completion?()
+                guard let self else {
+                    return
+                }
+                self.reportEventLog(
+                    "AccessoryAccess USB listener stopped: \(reason)",
+                    level: self.isReloadInProgress ? .debug : .info
+                )
+                self.isUnregistrationPending = false
+                self.notifyStateChanged()
+                self.finishStopMonitoringIfSettled()
             }
         }
     }
@@ -185,14 +239,31 @@ final class USBAccessoryCoordinator {
 
         isReloadInProgress = true
         notifyStateChanged()
-        stopMonitoring(reason: "Reloading USB listener: \(reason)") { [weak self] in
+        stopMonitoring(
+            reason: "Reloading USB listener: \(reason)",
+            cancelsReload: false
+        ) { [weak self] in
             guard let self else { return }
+            guard self.isReloadInProgress else {
+                return
+            }
             self.startMonitoring(reason: "reload after \(reason)") { [weak self] in
                 guard let self else { return }
+                guard self.isReloadInProgress else {
+                    return
+                }
                 self.isReloadInProgress = false
-                self.reportEventLog(
-                    "AccessoryAccess USB listener reload completed: \(reason)."
-                )
+                if self.isAccessoryMonitoring {
+                    self.reportEventLog(
+                        "AccessoryAccess USB listener reload completed: \(reason).",
+                        level: .info
+                    )
+                } else {
+                    self.reportEventLog(
+                        "AccessoryAccess USB listener reload did not complete: \(reason).",
+                        level: .debug
+                    )
+                }
                 self.notifyStateChanged()
             }
         }
@@ -200,6 +271,10 @@ final class USBAccessoryCoordinator {
 
     func prepareForIntentionalVMStop() {
         isIntentionalVMStopInProgress = true
+        reportEventLog(
+            "Marked USB passthrough teardown as an intentional VM stop.",
+            level: .debug
+        )
     }
 
     func resetForVMStart() {
@@ -212,6 +287,10 @@ final class USBAccessoryCoordinator {
         reconnectDescriptorKey = nil
         vmSessionAccessoryID = nil
         isIntentionalVMStopInProgress = false
+        reportEventLog(
+            "Reset USB passthrough state for a new VM session.",
+            level: .debug
+        )
         notifyStateChanged()
     }
 
@@ -223,6 +302,10 @@ final class USBAccessoryCoordinator {
         reconnectDescriptorKey = nil
         vmSessionAccessoryID = nil
         isIntentionalVMStopInProgress = false
+        reportEventLog(
+            "Cleared USB passthrough state after VM stop.",
+            level: .debug
+        )
         notifyStateChanged()
     }
 
@@ -233,11 +316,21 @@ final class USBAccessoryCoordinator {
     ) {
         guard let virtualMachine else {
             onStatusMessage?(String(localized: "Start the VM before attaching USB."))
+            reportEventLog(
+                "USB attach preflight failed for registry " +
+                    "\(Self.registryIDText(accessoryID)): virtual machine reference unavailable.",
+                level: .warning
+            )
             completion?(false)
             return
         }
         guard let accessory = accessoryObjects[accessoryID] else {
             onStatusMessage?(String(localized: "The selected USB accessory is no longer available."))
+            reportEventLog(
+                "USB attach preflight failed for registry " +
+                    "\(Self.registryIDText(accessoryID)): AccessoryAccess object no longer available.",
+                level: .warning
+            )
             completion?(false)
             return
         }
@@ -389,7 +482,6 @@ final class USBAccessoryCoordinator {
         pendingAttachToken = attachToken
         lastAttachAttemptByDescriptor[descriptorKey] = Date()
         notifyStateChanged()
-        reportEventLog("USB attach requested.")
         reportEventLog(
             "USB attach details: \(record.descriptorDiagnosticText), registry " +
                 "\(record.registryIDText), reason=\(reason), " +
@@ -451,7 +543,7 @@ final class USBAccessoryCoordinator {
                         self.attachedDevice = device
                         self.vmSessionAccessoryID = registryID
                         self.onStatusMessage?(String(localized: "USB accessory attached."))
-                        self.reportEventLog("USB accessory attached.")
+                        self.reportEventLog("USB accessory attached.", level: .info)
                         self.reportEventLog(
                             "Attached USB registry: \(record.registryIDText).",
                             level: .debug
@@ -503,7 +595,14 @@ final class USBAccessoryCoordinator {
             reconnectDescriptorKey = nil
         }
         notifyStateChanged()
-        reportEventLog("USB connected: \(record.deviceName).")
+        if previousRecord == nil {
+            reportEventLog("USB connected: \(record.deviceName).", level: .info)
+        } else {
+            reportEventLog(
+                "USB descriptor state updated: \(record.deviceName).",
+                level: .debug
+            )
+        }
         reportEventLog(
             "USB connect details: \(record.descriptorDiagnosticText), registry " +
                 "\(record.registryIDText), " +
@@ -525,6 +624,7 @@ final class USBAccessoryCoordinator {
         let record = USBAccessoryRecord(accessory: accessory)
         let wasSelected = selectedAccessoryID == accessory.registryID
         let wasAttached = attachedAccessoryID == accessory.registryID
+        let wasPendingAttach = pendingAttachAccessoryID == accessory.registryID
 
         accessoryObjects[accessory.registryID] = nil
         accessories.removeAll { $0.id == accessory.registryID }
@@ -540,7 +640,7 @@ final class USBAccessoryCoordinator {
             attachedDevice = nil
         }
 
-        if pendingAttachAccessoryID == accessory.registryID {
+        if wasPendingAttach {
             pendingAttachAccessoryID = nil
             pendingAttachToken = nil
             suppressAttach(
@@ -561,7 +661,10 @@ final class USBAccessoryCoordinator {
         if !isIntentionalSessionDevice {
             onAccessoryUnavailable?(record.id)
         }
-        reportEventLog("USB disconnected: \(record.deviceName).")
+        reportEventLog(
+            "USB disconnected: \(record.deviceName).",
+            level: wasAttached || wasPendingAttach ? .debug : .info
+        )
         reportEventLog(
             "USB disconnect details: \(record.descriptorDiagnosticText), registry " +
                 "\(record.registryIDText), wasSelected=\(wasSelected), " +
@@ -651,9 +754,21 @@ final class USBAccessoryCoordinator {
         onStateChange?()
     }
 
+    private func finishStopMonitoringIfSettled() {
+        guard !isAccessoryMonitoring,
+              !isRegistrationPending,
+              !isUnregistrationPending else {
+            return
+        }
+
+        let completions = stopMonitoringCompletions
+        stopMonitoringCompletions.removeAll()
+        completions.forEach { $0() }
+    }
+
     private func reportEventLog(
         _ message: String,
-        level: EventLogLevel = .info
+        level: EventLogLevel
     ) {
         onEventLog?(message, level)
     }

@@ -205,6 +205,418 @@ final class EventLogStoreTests: XCTestCase {
         XCTAssertTrue(store.text.contains("debug two"))
         XCTAssertLessThanOrEqual(store.text.count, 100)
     }
+
+    func testClearRemovesDebugRecordsHiddenInNormalMode() {
+        let store = EventLogStore()
+
+        store.append(
+            "hidden detail",
+            level: .debug,
+            category: .application,
+            at: Date(timeIntervalSince1970: 0)
+        )
+
+        XCTAssertTrue(store.text(isDebugModeEnabled: false).isEmpty)
+        XCTAssertFalse(store.isEmpty)
+
+        store.clear()
+
+        XCTAssertTrue(store.isEmpty)
+        XCTAssertTrue(store.records.isEmpty)
+        XCTAssertTrue(store.text(isDebugModeEnabled: true).isEmpty)
+    }
+
+    func testPersistenceReceivesAllRecordsIndependentlyOfDisplayFiltersAndClear() async throws {
+        let persistence = EventLogFilePersistenceSpy(hasLogFiles: true)
+        let store = EventLogStore(
+            maximumCharacters: 80,
+            filePersistence: persistence
+        )
+        let date = Date(timeIntervalSince1970: 0)
+
+        store.append(
+            "hidden detail",
+            level: .debug,
+            category: .vm,
+            at: date
+        )
+        store.append(
+            "visible state",
+            level: .info,
+            category: .application,
+            at: date
+        )
+
+        await store.flushFilePersistence()
+        let appendedLines = await persistence.appendedLinesSnapshot()
+        XCTAssertEqual(appendedLines.count, 2)
+        XCTAssertTrue(
+            appendedLines[0].hasPrefix(
+                "[1970-01-01T00:00:00.000Z]"
+            )
+        )
+        XCTAssertTrue(appendedLines[0].contains("[DEBUG] [VM] hidden detail"))
+        XCTAssertTrue(appendedLines[1].contains("[INFO] [Application] visible state"))
+        XCTAssertEqual(store.records.map(\.message), ["visible state"])
+        XCTAssertFalse(
+            store.text(isDebugModeEnabled: false).contains("hidden detail")
+        )
+
+        store.clear()
+
+        XCTAssertTrue(store.records.isEmpty)
+        let appendedLineCountAfterClear =
+            await persistence.appendedLinesSnapshot().count
+        XCTAssertEqual(appendedLineCountAfterClear, 2)
+        XCTAssertTrue(store.hasPersistedLogFiles)
+
+        let destinationURL = URL(fileURLWithPath: "/tmp/export")
+        let exportedDirectoryURL =
+            try await store.exportPersistedLogFiles(to: destinationURL)
+        XCTAssertEqual(
+            exportedDirectoryURL,
+            persistence.exportedDirectoryURL
+        )
+        let exportedDestination =
+            await persistence.exportDestinationSnapshot()
+        XCTAssertEqual(
+            exportedDestination,
+            destinationURL
+        )
+    }
+
+    func testPersistenceFailureIsReportedOnceWithoutDroppingScreenRecords() async {
+        let persistence = EventLogFilePersistenceSpy(
+            appendError: EventLogFilePersistenceSpyError.writeFailed
+        )
+        let store = EventLogStore(filePersistence: persistence)
+
+        store.append(
+            "first event",
+            level: .info,
+            category: .application
+        )
+        store.append(
+            "second event",
+            level: .info,
+            category: .application
+        )
+
+        await store.flushFilePersistence()
+        XCTAssertEqual(
+            store.records.filter {
+                $0.message.hasPrefix("Event log file storage failed:")
+            }.count,
+            1
+        )
+        XCTAssertTrue(store.text.contains("first event"))
+        XCTAssertTrue(store.text.contains("second event"))
+        let appendedLineCount = await persistence.appendedLinesSnapshot().count
+        XCTAssertEqual(appendedLineCount, 2)
+    }
+
+    func testPersistenceRunsOffMainActorAndPreservesRapidAppendOrder() async {
+        let appendStarted = expectation(description: "background append started")
+        let appendGate = DispatchSemaphore(value: 0)
+        let persistence = EventLogFilePersistenceSpy(
+            firstAppendStarted: appendStarted,
+            firstAppendGate: appendGate
+        )
+        let store = EventLogStore(filePersistence: persistence)
+
+        store.append(
+            "first",
+            level: .debug,
+            category: .application,
+            at: Date(timeIntervalSince1970: 1)
+        )
+        store.append(
+            "second",
+            level: .info,
+            category: .vm,
+            at: Date(timeIntervalSince1970: 2)
+        )
+
+        XCTAssertEqual(store.records.map(\.message), ["first", "second"])
+        await fulfillment(of: [appendStarted], timeout: 1)
+        appendGate.signal()
+        await store.flushFilePersistence()
+
+        let appendedLines = await persistence.appendedLinesSnapshot()
+        XCTAssertEqual(appendedLines.count, 2)
+        XCTAssertTrue(appendedLines[0].contains("[DEBUG] [Application] first"))
+        XCTAssertTrue(appendedLines[1].contains("[INFO] [VM] second"))
+    }
+
+    func testInitialPersistedFileStateIsCachedWithoutViewDirectoryReads() async {
+        let persistence = EventLogFilePersistenceSpy(hasLogFiles: true)
+        let store = EventLogStore(filePersistence: persistence)
+
+        await store.flushFilePersistence()
+
+        XCTAssertTrue(store.hasPersistedLogFiles)
+        let hasLogFilesCallCount =
+            await persistence.hasLogFilesCallCountSnapshot()
+        XCTAssertGreaterThanOrEqual(hasLogFilesCallCount, 1)
+    }
+
+}
+
+private actor EventLogFilePersistenceSpy: EventLogFilePersisting {
+    nonisolated let exportedDirectoryURL = URL(
+        fileURLWithPath: "/tmp/exported-logs"
+    )
+
+    private var hasLogFilesValue: Bool
+    private var appendedLines: [String] = []
+    private var appendError: Error?
+    private let firstAppendStarted: XCTestExpectation?
+    private var firstAppendGate: DispatchSemaphore?
+    private var exportDestinationDirectoryURL: URL?
+    private var hasLogFilesCallCount = 0
+
+    init(
+        hasLogFiles: Bool = false,
+        appendError: Error? = nil,
+        firstAppendStarted: XCTestExpectation? = nil,
+        firstAppendGate: DispatchSemaphore? = nil
+    ) {
+        hasLogFilesValue = hasLogFiles
+        self.appendError = appendError
+        self.firstAppendStarted = firstAppendStarted
+        self.firstAppendGate = firstAppendGate
+    }
+
+    func hasLogFiles() -> Bool {
+        hasLogFilesCallCount += 1
+        return hasLogFilesValue
+    }
+
+    func append(_ line: String) throws {
+        if let firstAppendGate {
+            self.firstAppendGate = nil
+            firstAppendStarted?.fulfill()
+            firstAppendGate.wait()
+        }
+        appendedLines.append(line)
+        if let appendError {
+            throw appendError
+        }
+        hasLogFilesValue = true
+    }
+
+    func flush() {}
+
+    func performMaintenance() {}
+
+    func appendedLinesSnapshot() -> [String] {
+        appendedLines
+    }
+
+    func exportDestinationSnapshot() -> URL? {
+        exportDestinationDirectoryURL
+    }
+
+    func hasLogFilesCallCountSnapshot() -> Int {
+        hasLogFilesCallCount
+    }
+
+    func exportLogFiles(
+        to destinationDirectoryURL: URL
+    ) throws -> URL {
+        exportDestinationDirectoryURL = destinationDirectoryURL
+        hasLogFilesValue = true
+        return exportedDirectoryURL
+    }
+}
+
+private enum EventLogFilePersistenceSpyError: Error {
+    case writeFailed
+}
+
+@MainActor
+final class USBAccessoryCoordinatorEventLogTests: XCTestCase {
+    func testMissingVirtualMachineAttachPreflightRemainsVisibleInNormalMode() {
+        let coordinator = USBAccessoryCoordinator(
+            monitor: ObservationTestUSBMonitor()
+        )
+        var events: [(message: String, level: EventLogLevel)] = []
+        var results: [Bool] = []
+        coordinator.onEventLog = { events.append(($0, $1)) }
+
+        coordinator.attachAccessory(id: 42, to: nil) {
+            results.append($0)
+        }
+
+        XCTAssertEqual(results, [false])
+        XCTAssertEqual(events.map { $0.level }, [.warning])
+        XCTAssertTrue(events[0].message.contains("virtual machine reference unavailable"))
+    }
+
+    func testListenerAndReloadSuccessUseSemanticLevels() async {
+        let coordinator = USBAccessoryCoordinator(
+            monitor: ObservationTestUSBMonitor()
+        )
+        var events: [(message: String, level: EventLogLevel)] = []
+        let reloadCompleted = expectation(
+            description: "listener reload completed"
+        )
+        let finalStopCompleted = expectation(
+            description: "listener stopped"
+        )
+        coordinator.onEventLog = {
+            events.append(($0, $1))
+            if $0.contains("listener reload completed") {
+                reloadCompleted.fulfill()
+            }
+        }
+
+        coordinator.startMonitoring(
+            reason: "manual test",
+            completion: nil
+        )
+        await Task.yield()
+
+        coordinator.reloadMonitoring(reason: "reload test")
+        await fulfillment(of: [reloadCompleted], timeout: 1)
+
+        coordinator.stopMonitoring(
+            reason: "manual test"
+        ) {
+            finalStopCompleted.fulfill()
+        }
+        await fulfillment(of: [finalStopCompleted], timeout: 1)
+
+        XCTAssertEqual(
+            events
+                .filter { $0.message.contains("USB listener registered") }
+                .map { $0.level },
+            [.info, .debug]
+        )
+        XCTAssertEqual(
+            events
+                .filter {
+                    $0.message.contains(
+                        "AccessoryAccess USB listener stopped"
+                    )
+                }
+                .map { $0.level },
+            [.debug, .info]
+        )
+        XCTAssertTrue(events.contains {
+            $0.message.contains("listener reload completed") &&
+                $0.level == .info
+        })
+    }
+
+    func testStopCompletionWaitsForPendingRegistrationToSettle() async {
+        let monitor = DeferredObservationTestUSBMonitor()
+        let coordinator = USBAccessoryCoordinator(monitor: monitor)
+        var didCompleteStop = false
+
+        coordinator.startMonitoring(
+            reason: "pending registration test"
+        )
+        coordinator.stopMonitoring(
+            reason: "application termination"
+        ) {
+            didCompleteStop = true
+        }
+
+        XCTAssertFalse(didCompleteStop)
+        XCTAssertEqual(monitor.stopCallCount, 0)
+
+        monitor.completeStart(.success([]))
+        await Task.yield()
+        await Task.yield()
+
+        XCTAssertFalse(didCompleteStop)
+        XCTAssertEqual(monitor.stopCallCount, 1)
+
+        monitor.completeStop()
+        await Task.yield()
+        await Task.yield()
+
+        XCTAssertTrue(didCompleteStop)
+    }
+
+    func testTerminationStopCancelsReloadBeforeCompletingItsWaiter() async {
+        let monitor = DeferredObservationTestUSBMonitor()
+        let coordinator = USBAccessoryCoordinator(monitor: monitor)
+        var didCompleteTerminationStop = false
+
+        coordinator.startMonitoring(
+            reason: "initial registration"
+        )
+        monitor.completeStart(.success([]))
+        await Task.yield()
+        await Task.yield()
+
+        XCTAssertTrue(coordinator.isAccessoryMonitoring)
+        XCTAssertEqual(monitor.startCallCount, 1)
+
+        coordinator.reloadMonitoring(reason: "settings request")
+        XCTAssertEqual(monitor.stopCallCount, 1)
+
+        coordinator.stopMonitoring(
+            reason: "application termination"
+        ) {
+            didCompleteTerminationStop = true
+        }
+
+        monitor.completeStop()
+        await Task.yield()
+        await Task.yield()
+
+        XCTAssertTrue(didCompleteTerminationStop)
+        XCTAssertFalse(coordinator.isAccessoryMonitoring)
+        XCTAssertTrue(coordinator.canStartMonitoring)
+        XCTAssertEqual(
+            monitor.startCallCount,
+            1,
+            "A cancelled reload must not register the listener again."
+        )
+    }
+
+    func testTerminationWaitsWhenReloadRegistrationAlreadyStarted() async {
+        let monitor = DeferredObservationTestUSBMonitor()
+        let coordinator = USBAccessoryCoordinator(monitor: monitor)
+        var didCompleteTerminationStop = false
+
+        coordinator.startMonitoring(
+            reason: "initial registration"
+        )
+        monitor.completeStart(.success([]))
+        await Task.yield()
+        await Task.yield()
+
+        coordinator.reloadMonitoring(reason: "settings request")
+        monitor.completeStop()
+        await Task.yield()
+        await Task.yield()
+
+        XCTAssertEqual(monitor.startCallCount, 2)
+
+        coordinator.stopMonitoring(
+            reason: "application termination"
+        ) {
+            didCompleteTerminationStop = true
+        }
+        monitor.completeStart(.success([]))
+        await Task.yield()
+        await Task.yield()
+
+        XCTAssertFalse(didCompleteTerminationStop)
+        XCTAssertEqual(monitor.stopCallCount, 2)
+
+        monitor.completeStop()
+        await Task.yield()
+        await Task.yield()
+
+        XCTAssertTrue(didCompleteTerminationStop)
+        XCTAssertFalse(coordinator.isAccessoryMonitoring)
+        XCTAssertTrue(coordinator.canStartMonitoring)
+    }
 }
 
 @MainActor
@@ -412,7 +824,7 @@ final class TetheringStoreTests: XCTestCase {
         XCTAssertTrue(store.canResetAppSettings)
     }
 
-    func testMissingEntitlementWarningsUseFeatureCategories() throws {
+    func testMissingEntitlementErrorsUseFeatureCategories() throws {
         let suiteName = "TetheringStoreTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
         defer { defaults.removePersistentDomain(forName: suiteName) }
@@ -442,26 +854,34 @@ final class TetheringStoreTests: XCTestCase {
         store.reloadAccessoryMonitoring()
         XCTAssertFalse(store.startVirtualMachine())
         XCTAssertFalse(store.requestWireGuardSystemExtensionActivation())
+        store.refreshHostWireGuardTunnelStatus()
 
         XCTAssertTrue(
             eventLog.records.contains {
-                $0.level == .warning &&
+                $0.level == .error &&
                     $0.category == .usb &&
                     $0.message.contains("USB listener reload")
             }
         )
         XCTAssertTrue(
             eventLog.records.contains {
-                $0.level == .warning &&
+                $0.level == .error &&
                     $0.category == .vm &&
                     $0.message.contains("VM start")
             }
         )
         XCTAssertTrue(
             eventLog.records.contains {
-                $0.level == .warning &&
+                $0.level == .error &&
                     $0.category == .wireGuard &&
                     $0.message.contains("network extension activation")
+            }
+        )
+        XCTAssertTrue(
+            eventLog.records.contains {
+                $0.level == .error &&
+                    $0.category == .wireGuard &&
+                    $0.message.contains("status not refreshed")
             }
         )
     }
@@ -702,6 +1122,11 @@ final class TetheringStoreTests: XCTestCase {
             eventLog.text.components(separatedBy: queuedConnectionMessage).count,
             queuedConnectionCount + 1
         )
+        XCTAssertFalse(
+            eventLog.text(isDebugModeEnabled: false).contains(
+                queuedConnectionMessage
+            )
+        )
     }
 
     func testDetectedUSBAttachmentApprovalPresentsWireGuardPrompt() throws {
@@ -847,6 +1272,20 @@ final class TetheringStoreTests: XCTestCase {
         vmCoordinator.onStopped?()
 
         XCTAssertEqual(vmCoordinator.startCallCount, 1)
+        XCTAssertTrue(
+            eventLog.records.contains {
+                $0.level == .debug &&
+                    $0.category == .vm &&
+                    $0.message.contains(
+                        "VM start parameters: cpuCount=1, memoryMiB=1024"
+                    )
+            }
+        )
+        XCTAssertFalse(
+            eventLog.text(isDebugModeEnabled: false).contains(
+                "VM start parameters:"
+            )
+        )
         XCTAssertFalse(
             eventLog.text.contains(
                 "Pending WireGuard connection cancelled for USB registry 0x2A: VM stopped."
@@ -1358,7 +1797,7 @@ final class TetheringStoreTests: XCTestCase {
         XCTAssertEqual(tunnelController.connectCallCount, 0)
         XCTAssertFalse(store.canConnectHostWireGuardTunnel)
         XCTAssertTrue(eventLog.text.contains("VM is not running"))
-        XCTAssertTrue(
+        XCTAssertFalse(
             eventLog.text.contains(
                 "Provider: Not configured — " +
                     "Start the VM and wait for its WireGuard endpoint."
@@ -1608,6 +2047,40 @@ private final class ObservationTestUSBMonitor: USBAccessoryMonitoring {
     }
 }
 
+private final class DeferredObservationTestUSBMonitor: USBAccessoryMonitoring {
+    var onConnect: ((AAUSBAccessory) -> Void)?
+    var onDisconnect: ((AAUSBAccessory) -> Void)?
+    private(set) var startCallCount = 0
+    private(set) var stopCallCount = 0
+
+    private var startCompletion: ((Result<[AAUSBAccessory], Error>) -> Void)?
+    private var stopCompletions: [() -> Void] = []
+
+    func start(completion: @escaping (Result<[AAUSBAccessory], Error>) -> Void) {
+        startCallCount += 1
+        startCompletion = completion
+    }
+
+    func stop(completion: (() -> Void)?) {
+        stopCallCount += 1
+        if let completion {
+            stopCompletions.append(completion)
+        }
+    }
+
+    func completeStart(_ result: Result<[AAUSBAccessory], Error>) {
+        let completion = startCompletion
+        startCompletion = nil
+        completion?(result)
+    }
+
+    func completeStop() {
+        let completions = stopCompletions
+        stopCompletions.removeAll()
+        completions.forEach { $0() }
+    }
+}
+
 @MainActor
 private final class ObservationTestUSBCoordinator: USBAccessoryCoordinating {
     var onStateChange: (() -> Void)?
@@ -1655,13 +2128,19 @@ private final class ObservationTestUSBCoordinator: USBAccessoryCoordinating {
         onStateChange?()
     }
 
-    func startMonitoring(reason: String, completion: (() -> Void)?) {
+    func startMonitoring(
+        reason: String,
+        completion: (() -> Void)?
+    ) {
         isAccessoryMonitoring = true
         onStateChange?()
         completion?()
     }
 
-    func stopMonitoring(reason: String, completion: (() -> Void)?) {
+    func stopMonitoring(
+        reason: String,
+        completion: (() -> Void)?
+    ) {
         isAccessoryMonitoring = false
         accessories.removeAll()
         selectedAccessoryID = nil

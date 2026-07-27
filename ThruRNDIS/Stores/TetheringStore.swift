@@ -292,6 +292,13 @@ final class TetheringStore: ObservableObject {
             statusMessage = assetProvider.isBusy
                 ? String(localized: "Wait for VM asset installation to finish before starting the USB listener.")
                 : String(localized: "Install or select valid VM assets before starting the USB listener.")
+            appendEventLog(
+                assetProvider.isBusy
+                    ? "USB listener start rejected: a VM asset operation is active."
+                    : "USB listener start rejected: no valid VM assets are selected.",
+                level: .debug,
+                category: .usb
+            )
             return
         }
 
@@ -359,6 +366,11 @@ final class TetheringStore: ObservableObject {
     func stopAccessoryMonitoring() {
         guard pendingAttachmentAccessoryID == nil else {
             statusMessage = String(localized: "Wait for the current USB attachment workflow before stopping the listener.")
+            appendEventLog(
+                "USB listener stop rejected: a USB attachment workflow is active.",
+                level: .debug,
+                category: .usb
+            )
             return
         }
         usbCoordinator.stopMonitoring(
@@ -381,6 +393,11 @@ final class TetheringStore: ObservableObject {
 
         guard pendingAttachmentAccessoryID == nil else {
             statusMessage = String(localized: "Wait for the current USB attachment workflow before reloading the listener.")
+            appendEventLog(
+                "USB listener reload rejected: a USB attachment workflow is active.",
+                level: .debug,
+                category: .usb
+            )
             return
         }
 
@@ -393,6 +410,11 @@ final class TetheringStore: ObservableObject {
 
         guard !assetProvider.isBusy else {
             statusMessage = String(localized: "Wait for VM asset installation to finish before starting the VM.")
+            appendEventLog(
+                "VM start rejected: a VM asset operation is active.",
+                level: .debug,
+                category: .vm
+            )
             return false
         }
 
@@ -412,11 +434,22 @@ final class TetheringStore: ObservableObject {
 
         guard wireGuardSession.hasKeyMaterial else {
             statusMessage = String(localized: "Fix the WireGuard configuration error before starting the VM.")
+            appendEventLog(
+                "VM start rejected: WireGuard key material is unavailable.",
+                level: .debug,
+                category: .wireGuard
+            )
             return false
         }
 
         guard vmCoordinator.canStart else {
             statusMessage = String(localized: "Wait for the current VM transition to finish.")
+            appendEventLog(
+                "VM start rejected while VM state is \(runtimeState.rawValue); " +
+                    "hasVirtualMachine=\(vmCoordinator.hasVirtualMachine).",
+                level: .debug,
+                category: .vm
+            )
             return false
         }
 
@@ -434,6 +467,11 @@ final class TetheringStore: ObservableObject {
             requireExisting: true
         ) else {
             statusMessage = String(localized: "Fix the WireGuard configuration error before starting the VM.")
+            appendEventLog(
+                "VM start rejected: existing WireGuard configuration could not be regenerated.",
+                level: .debug,
+                category: .wireGuard
+            )
             return false
         }
 
@@ -478,6 +516,14 @@ final class TetheringStore: ObservableObject {
             level: .debug,
             category: .vm
         )
+        appendEventLog(
+            "VM start parameters: cpuCount=\(vmConfiguration.cpuCount), " +
+                "memoryMiB=\(vmConfiguration.memorySizeMiB), " +
+                "scratchDisk=\(vmConfiguration.diskImageURL == nil ? "none" : "present"), " +
+                "guestMAC=\(guestMACAddress).",
+            level: .debug,
+            category: .vm
+        )
         vmCoordinator.start(input: input)
         return true
     }
@@ -509,6 +555,11 @@ final class TetheringStore: ObservableObject {
     func requestAttachSelectedAccessory() {
         guard let selectedAccessoryID else {
             statusMessage = String(localized: "Select a USB accessory.")
+            appendEventLog(
+                "USB attach request rejected: no USB accessory is selected.",
+                level: .debug,
+                category: .usb
+            )
             return
         }
 
@@ -522,11 +573,6 @@ final class TetheringStore: ObservableObject {
     func requestAttachAccessory(id accessoryID: UInt64) {
         refreshRuntimeEntitlements()
 
-        guard !assetProvider.isBusy else {
-            statusMessage = String(localized: "Wait for VM asset installation to finish before attaching USB.")
-            return
-        }
-
         guard runtimeEntitlements.accessoryAccessUSB else {
             reportMissingEntitlement(
                 .accessoryAccessUSB,
@@ -536,45 +582,20 @@ final class TetheringStore: ObservableObject {
             return
         }
 
-        guard pendingAttachmentAccessoryID == nil else {
-            statusMessage = String(localized: "Wait for the current USB attachment workflow to finish.")
+        guard let record = beginAttachmentWorkflow(accessoryID: accessoryID) else {
             return
         }
 
-        guard !attachmentRequiresVMStopRetry else {
-            statusMessage = String(localized: "The VM did not stop cleanly. Retry Stop before attaching a USB accessory.")
-            return
-        }
-
-        if attachedAccessoryID == accessoryID {
-            statusMessage = String(localized: "The selected USB accessory is already attached.")
-            return
-        }
-
-        guard vmSessionAccessoryID == nil else {
-            statusMessage = String(localized: "Detach the current USB accessory before attaching another USB accessory.")
-            return
-        }
-
-        guard let record = accessories.first(where: { $0.id == accessoryID }) else {
-            statusMessage = String(localized: "The selected USB accessory is no longer available.")
-            return
-        }
-
-        guard hasConfiguredVMAssets else {
-            enqueueUSBAttachmentPrompt(
-                USBAttachmentPrompt(accessory: record, kind: .assetsRequired)
-            )
-            return
-        }
-
-        if beginAttachmentWorkflow(accessoryID: accessoryID) {
-            prepareWireGuardConnectionForUSBAttachment(record)
-        }
+        prepareWireGuardConnectionForUSBAttachment(record)
     }
 
     func detachAccessory() {
         guard attachedAccessoryID != nil else {
+            appendEventLog(
+                "USB detach request ignored: no accessory is attached.",
+                level: .debug,
+                category: .usb
+            )
             return
         }
 
@@ -590,8 +611,8 @@ final class TetheringStore: ObservableObject {
         if accepted {
             switch prompt.kind {
             case .attach:
-                if beginAttachmentWorkflow(accessoryID: prompt.accessory.id) {
-                    prepareWireGuardConnectionForUSBAttachment(prompt.accessory)
+                if let record = beginAttachmentWorkflow(accessoryID: prompt.accessory.id) {
+                    prepareWireGuardConnectionForUSBAttachment(record)
                 }
             case .assetsRequired:
                 accessoriesAwaitingAssetSetup.insert(prompt.accessory.id)
@@ -599,6 +620,7 @@ final class TetheringStore: ObservableObject {
         } else {
             appendEventLog(
                 "USB attach declined for registry \(prompt.accessory.registryIDText).",
+                level: .debug,
                 category: .usb
             )
         }
@@ -628,6 +650,7 @@ final class TetheringStore: ObservableObject {
             appendEventLog(
                 "Automatic WireGuard connection declined for USB registry " +
                     "\(prompt.accessory.registryIDText).",
+                level: .debug,
                 category: .wireGuard
             )
             return
@@ -669,6 +692,7 @@ final class TetheringStore: ObservableObject {
         appendEventLog(
             "WireGuard connection queued for USB registry " +
                 "\(Self.registryIDText(accessoryID)); waiting for USB and VM readiness.",
+            level: .debug,
             category: .wireGuard
         )
         attemptPendingWireGuardConnectionIfReady()
@@ -679,7 +703,11 @@ final class TetheringStore: ObservableObject {
     ) async {
         isPreparingForApplicationTermination = true
         shouldResumeAccessoryMonitoringAfterOnboarding = false
-        appendEventLog("Application terminating.", level: .debug)
+        appendEventLog(
+            "Application terminating.",
+            level: .debug,
+            category: .application
+        )
         pendingWireGuardConnectionAccessoryID = nil
         wireGuardConnectionPrompt = nil
         await wireGuardSession.prepareForApplicationTermination(
@@ -687,10 +715,11 @@ final class TetheringStore: ObservableObject {
         )
         usbCoordinator.prepareForIntentionalVMStop()
         vmCoordinator.invalidate()
-        usbCoordinator.stopMonitoring(
-            reason: "Application terminating.",
-            completion: nil
-        )
+        await withCheckedContinuation { continuation in
+            usbCoordinator.stopMonitoring(reason: "Application terminating.") {
+                continuation.resume()
+            }
+        }
     }
 
     func refreshHostWireGuardTunnelStatus() {
@@ -708,7 +737,7 @@ final class TetheringStore: ObservableObject {
             wireGuardSession.updateHostTunnelStatus(.missingPacketTunnelEntitlement)
             appendEventLog(
                 "Host WireGuard status not refreshed: missing NetworkExtension entitlement.",
-                level: .warning,
+                level: .error,
                 category: .wireGuard
             )
             return
@@ -743,6 +772,14 @@ final class TetheringStore: ObservableObject {
             return false
         }
         guard canRequestWireGuardSystemExtensionActivation else {
+            appendEventLog(
+                "Network extension activation request rejected: status=" +
+                    "\(wireGuardSession.systemExtensionStatus.eventLogDescription), " +
+                    "activationInProgress=" +
+                    "\(wireGuardSession.isSystemExtensionActivationInProgress).",
+                level: .debug,
+                category: .wireGuard
+            )
             return false
         }
 
@@ -819,7 +856,11 @@ final class TetheringStore: ObservableObject {
         }
 
         appPreferences.completeOnboarding()
-        appendEventLog("Onboarding completed.")
+        appendEventLog(
+            "Onboarding completed.",
+            level: .info,
+            category: .application
+        )
 
         resumeAttachmentsAwaitingAssetSetup()
         presentNextUSBAttachmentPromptIfNeeded()
@@ -833,6 +874,12 @@ final class TetheringStore: ObservableObject {
                     localized: "Wait for the current VM asset operation to finish."
                 )
             }
+            appendEventLog(
+                "App settings reset rejected: resetInProgress=\(isResettingAppSettings), " +
+                    "vmAssetOperationActive=\(assetProvider.isBusy).",
+                level: .debug,
+                category: .application
+            )
             return false
         }
 
@@ -919,11 +966,16 @@ final class TetheringStore: ObservableObject {
             appendEventLog(
                 "Launch at Login could not be disabled during app settings reset: " +
                     EventLogErrorFormatter.description(for: error),
-                level: .error
+                level: .warning,
+                category: .application
             )
         }
 
-        appendEventLog("App settings and WireGuard configuration were reset; VM asset files were not deleted.")
+        appendEventLog(
+            "App settings and WireGuard configuration were reset; VM asset files were not deleted.",
+            level: .info,
+            category: .application
+        )
         return true
     }
 
@@ -984,6 +1036,15 @@ final class TetheringStore: ObservableObject {
         }
         vmCoordinator.onStopped = { [weak self] in
             guard let self else { return }
+            self.appendEventLog(
+                "VM stop workflow snapshot: pendingUSB=" +
+                    "\(self.pendingAttachmentAccessoryID.map(Self.registryIDText) ?? "none"), " +
+                    "startAfterStop=\(self.shouldStartPendingAttachmentAfterStop), " +
+                    "restartWillStart=\(self.restartWillStartVM), pendingWireGuard=" +
+                    "\(self.pendingWireGuardConnectionAccessoryID.map(Self.registryIDText) ?? "none").",
+                level: .debug,
+                category: .application
+            )
             let continuingAttachmentID = self.pendingAttachmentAccessoryID.flatMap { accessoryID in
                 self.shouldStartPendingAttachmentAfterStop || self.restartWillStartVM
                     ? accessoryID
@@ -1071,6 +1132,12 @@ final class TetheringStore: ObservableObject {
 
         if wireGuardSession.hostTunnelStatus.isConnectingOrConnected {
             pendingWireGuardConnectionAccessoryID = nil
+            appendEventLog(
+                "Queued WireGuard connection cleared because the provider is already " +
+                    "connecting or connected.",
+                level: .debug,
+                category: .wireGuard
+            )
             return
         }
 
@@ -1085,6 +1152,7 @@ final class TetheringStore: ObservableObject {
         appendEventLog(
             "USB and VM are ready; starting the queued WireGuard connection for registry " +
                 "\(Self.registryIDText(accessoryID)).",
+            level: .debug,
             category: .wireGuard
         )
         connectHostWireGuardTunnel()
@@ -1183,46 +1251,81 @@ final class TetheringStore: ObservableObject {
         return USBAttachmentPrompt(accessory: record, kind: .attach)
     }
 
-    @discardableResult
-    private func beginAttachmentWorkflow(accessoryID: UInt64) -> Bool {
+    private func beginAttachmentWorkflow(
+        accessoryID: UInt64
+    ) -> USBAccessoryRecord? {
         guard pendingAttachmentAccessoryID == nil else {
             statusMessage = String(localized: "Wait for the current USB attachment workflow to finish.")
-            return false
+            appendEventLog(
+                "USB attachment workflow not started for registry " +
+                    "\(Self.registryIDText(accessoryID)): another workflow is active.",
+                level: .debug,
+                category: .usb
+            )
+            return nil
         }
 
         guard !assetProvider.isBusy else {
             statusMessage = String(localized: "Wait for VM asset installation to finish before attaching USB.")
-            return false
+            appendEventLog(
+                "USB attachment workflow not started for registry " +
+                    "\(Self.registryIDText(accessoryID)): a VM asset operation is active.",
+                level: .debug,
+                category: .usb
+            )
+            return nil
         }
 
         guard !attachmentRequiresVMStopRetry else {
             statusMessage = String(localized: "The VM did not stop cleanly. Retry Stop before attaching a USB accessory.")
+            appendEventLog(
+                "USB attachment workflow not started for registry " +
+                    "\(Self.registryIDText(accessoryID)): failed VM cleanup is pending.",
+                level: .debug,
+                category: .usb
+            )
             presentNextUSBAttachmentPromptIfNeeded()
-            return false
-        }
-
-        guard hasConfiguredVMAssets else {
-            if let record = accessories.first(where: { $0.id == accessoryID }) {
-                enqueueUSBAttachmentPrompt(
-                    USBAttachmentPrompt(accessory: record, kind: .assetsRequired)
-                )
-            }
-            return false
-        }
-
-        guard accessories.contains(where: { $0.id == accessoryID }) else {
-            statusMessage = String(localized: "The selected USB accessory is no longer available.")
-            return false
+            return nil
         }
 
         if attachedAccessoryID == accessoryID {
             statusMessage = String(localized: "The selected USB accessory is already attached.")
-            return false
+            appendEventLog(
+                "USB attachment workflow ignored for registry " +
+                    "\(Self.registryIDText(accessoryID)): accessory is already attached.",
+                level: .debug,
+                category: .usb
+            )
+            return nil
         }
 
         guard vmSessionAccessoryID == nil else {
             statusMessage = String(localized: "Detach the current USB accessory before attaching another USB accessory.")
-            return false
+            appendEventLog(
+                "USB attachment workflow not started for registry " +
+                    "\(Self.registryIDText(accessoryID)): this VM session already used a USB accessory.",
+                level: .debug,
+                category: .usb
+            )
+            return nil
+        }
+
+        guard let record = accessories.first(where: { $0.id == accessoryID }) else {
+            statusMessage = String(localized: "The selected USB accessory is no longer available.")
+            appendEventLog(
+                "USB attachment workflow not started for registry " +
+                    "\(Self.registryIDText(accessoryID)): accessory is unavailable.",
+                level: .debug,
+                category: .usb
+            )
+            return nil
+        }
+
+        guard hasConfiguredVMAssets else {
+            enqueueUSBAttachmentPrompt(
+                USBAttachmentPrompt(accessory: record, kind: .assetsRequired)
+            )
+            return nil
         }
 
         pendingAttachmentAccessoryID = accessoryID
@@ -1231,8 +1334,11 @@ final class TetheringStore: ObservableObject {
         shouldStartPendingAttachmentAfterStop = false
         usbCoordinator.selectAccessory(id: accessoryID)
         continuePendingAttachmentIfPossible()
-        return pendingAttachmentAccessoryID == accessoryID
-            || attachedAccessoryID == accessoryID
+        guard pendingAttachmentAccessoryID == accessoryID
+                || attachedAccessoryID == accessoryID else {
+            return nil
+        }
+        return record
     }
 
     private func continuePendingAttachmentIfPossible() {
@@ -1279,7 +1385,7 @@ final class TetheringStore: ObservableObject {
                     )
                     self.appendEventLog(
                         "Approved USB attach did not complete for registry \(Self.registryIDText(accessoryID)).",
-                        level: .warning,
+                        level: .debug,
                         category: .usb
                     )
                 }
@@ -1365,7 +1471,7 @@ final class TetheringStore: ObservableObject {
         appendEventLog(
             "Stopping VM because the USB passthrough lifecycle ended for registry " +
                 "\(Self.registryIDText(accessoryID)): \(reason)",
-            level: .warning,
+            level: .debug,
             category: .usb
         )
         stopVirtualMachine(reason: "USB passthrough lifecycle ended")
@@ -1451,6 +1557,7 @@ final class TetheringStore: ObservableObject {
         if let diskImageURL = vmConfiguration.diskImageURL {
             appendEventLog(
                 "Restored optional scratch disk selection.",
+                level: .debug,
                 category: .vm
             )
             appendEventLog(
@@ -1475,7 +1582,8 @@ final class TetheringStore: ObservableObject {
         }
         appendEventLog(
             "Runtime entitlements: \(summary.joined(separator: ", ")).",
-            level: .debug
+            level: .debug,
+            category: .application
         )
     }
 
@@ -1489,7 +1597,7 @@ final class TetheringStore: ObservableObject {
             "\(action) not started: missing \(entitlement.rawValue). The default " +
                 "ThruRNDIS scheme is for local UI builds; run the ThruRNDIS Runtime " +
                 "scheme with an approved provisioning profile to exercise this runtime path.",
-            level: .warning,
+            level: .error,
             category: category
         )
     }
@@ -1506,8 +1614,8 @@ final class TetheringStore: ObservableObject {
 
     private func appendEventLog(
         _ message: String,
-        level: EventLogLevel = .info,
-        category: EventLogCategory = .application
+        level: EventLogLevel,
+        category: EventLogCategory
     ) {
         eventLog.append(message, level: level, category: category)
     }
