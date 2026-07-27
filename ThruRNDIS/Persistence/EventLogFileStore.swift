@@ -13,7 +13,7 @@ protocol EventLogFilePersisting: Actor {
     func flush() throws
     /// Performs time rotation and retention cleanup even when no events arrive.
     func performMaintenance() throws
-    /// Flushes prior awaited appends and exports one serialized snapshot.
+    /// Flushes prior awaited appends and exports this app session's files.
     func exportLogFiles(to destinationDirectoryURL: URL) throws -> URL
 }
 
@@ -45,7 +45,6 @@ actor EventLogFileStore: EventLogFilePersisting {
     )
 
     private let fileManager = FileManager.default
-    private let timeZone: TimeZone
     private let maximumFileSizeBytes: Int
     private let rotationInterval: TimeInterval
     private let retentionInterval: TimeInterval
@@ -58,6 +57,7 @@ actor EventLogFileStore: EventLogFilePersisting {
     private var currentFileOpenedAt: Date?
     private var currentFileSizeBytes = 0
     private var nextFileSequence = 1
+    private var currentSessionFileURLs: [URL] = []
     private var nextCleanupDate: Date?
     private var isPrepared = false
 
@@ -84,7 +84,6 @@ actor EventLogFileStore: EventLogFilePersisting {
         let resolvedHeaderData = Data(resolvedHeader.utf8)
         precondition(resolvedHeaderData.count < maximumFileSizeBytes)
 
-        self.timeZone = timeZone
         self.maximumFileSizeBytes = maximumFileSizeBytes
         self.rotationInterval = rotationInterval
         self.retentionInterval = retentionInterval
@@ -121,7 +120,7 @@ actor EventLogFileStore: EventLogFilePersisting {
         try prepareIfNeeded(at: inspectionDate)
         try rotateCurrentFileIfNeeded(at: inspectionDate)
         try removeExpiredLogFilesIfNeeded(at: inspectionDate)
-        return try logFileURLs().isEmpty == false
+        return availableCurrentSessionFileURLs().isEmpty == false
     }
 
     func append(_ line: String) throws {
@@ -180,35 +179,29 @@ actor EventLogFileStore: EventLogFilePersisting {
         nextCleanupDate = exportDate.addingTimeInterval(
             Self.cleanupInterval
         )
-        let sourceURLs = try logFileURLs()
+        let sourceURLs = availableCurrentSessionFileURLs()
         guard !sourceURLs.isEmpty else {
             throw EventLogFileStoreError.noLogFilesAvailable
         }
-        let exportStem = "ThruRNDIS Logs " + Self.timestampStem(
-            for: exportDate,
-            timeZone: timeZone
-        )
-        let exportDirectoryURL = try createUniqueDirectory(
-            in: destinationDirectoryURL,
-            stem: exportStem
-        )
 
+        var exportedURLs: [URL] = []
         do {
             for sourceURL in sourceURLs {
-                try fileManager.copyItem(
-                    at: sourceURL,
-                    to: exportDirectoryURL.appendingPathComponent(
-                        sourceURL.lastPathComponent,
-                        isDirectory: false
-                    )
-                )
+                let exportedURL = destinationDirectoryURL
+                    .appendingPathComponent(sourceURL.lastPathComponent)
+                try fileManager.copyItem(at: sourceURL, to: exportedURL)
+                exportedURLs.append(exportedURL)
             }
         } catch {
-            try? fileManager.removeItem(at: exportDirectoryURL)
+            for exportedURL in exportedURLs {
+                try? fileManager.removeItem(at: exportedURL)
+            }
             throw error
         }
 
-        return exportDirectoryURL
+        return exportedURLs.count == 1
+            ? exportedURLs[0]
+            : destinationDirectoryURL
     }
 
     private func prepareIfNeeded(at date: Date) throws {
@@ -267,6 +260,7 @@ actor EventLogFileStore: EventLogFilePersisting {
                 currentFileURL = candidateURL.standardizedFileURL
                 currentFileOpenedAt = date
                 currentFileSizeBytes = headerData.count
+                currentSessionFileURLs.append(candidateURL.standardizedFileURL)
                 nextFileSequence += 1
                 return
 
@@ -360,20 +354,15 @@ actor EventLogFileStore: EventLogFilePersisting {
         }
     }
 
-    private func logFileURLs() throws -> [URL] {
+    private func availableCurrentSessionFileURLs() -> [URL] {
         let resourceKeys: Set<URLResourceKey> = [
             .isRegularFileKey,
             .isSymbolicLinkKey
         ]
-        return try fileManager.contentsOfDirectory(
-            at: logsDirectoryURL,
-            includingPropertiesForKeys: Array(resourceKeys),
-            options: []
-        )
-        .filter { url in
-            guard url.pathExtension.lowercased() == "log",
-                  let values = try? url.resourceValues(forKeys: resourceKeys)
-            else {
+        return currentSessionFileURLs.filter { url in
+            guard let values = try? url.resourceValues(
+                forKeys: resourceKeys
+            ) else {
                 return false
             }
             return values.isRegularFile == true
@@ -387,29 +376,6 @@ actor EventLogFileStore: EventLogFilePersisting {
             "\(sessionFileStem)\(suffix).log",
             isDirectory: false
         )
-    }
-
-    private func createUniqueDirectory(
-        in parentDirectoryURL: URL,
-        stem: String
-    ) throws -> URL {
-        var sequence = 1
-        while true {
-            let suffix = sequence == 1 ? "" : "-\(sequence)"
-            let candidateURL = parentDirectoryURL.appendingPathComponent(
-                stem + suffix,
-                isDirectory: true
-            )
-            let result = Self.createExclusiveDirectory(at: candidateURL)
-            switch result {
-            case .created:
-                return candidateURL
-            case .alreadyExists:
-                sequence += 1
-            case .failed(let code):
-                throw Self.posixError(code: code, url: candidateURL)
-            }
-        }
     }
 
     private static func timestampStem(
@@ -470,26 +436,6 @@ actor EventLogFileStore: EventLogFilePersisting {
         return .failed(result.1)
     }
 
-    private static func createExclusiveDirectory(
-        at url: URL
-    ) -> ExclusiveDirectoryCreationResult {
-        let result = url.withUnsafeFileSystemRepresentation { path -> (Int32, Int32) in
-            guard let path else {
-                return (-1, EINVAL)
-            }
-            let status = Darwin.mkdir(path, mode_t(0o700))
-            return (status, status == -1 ? errno : 0)
-        }
-
-        if result.0 == 0 {
-            return .created
-        }
-        if result.1 == EEXIST {
-            return .alreadyExists
-        }
-        return .failed(result.1)
-    }
-
     private static func posixError(code: Int32, url: URL) -> NSError {
         NSError(
             domain: NSPOSIXErrorDomain,
@@ -501,12 +447,6 @@ actor EventLogFileStore: EventLogFilePersisting {
 
 private enum ExclusiveFileOpenResult {
     case opened(Int32)
-    case alreadyExists
-    case failed(Int32)
-}
-
-private enum ExclusiveDirectoryCreationResult {
-    case created
     case alreadyExists
     case failed(Int32)
 }

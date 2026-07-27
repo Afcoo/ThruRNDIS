@@ -439,7 +439,7 @@ final class EventLogFileStoreTests: XCTestCase {
     }
 
     @MainActor
-    func testExportCopiesPriorCurrentAndRotatedLogsByteForByte() async throws {
+    func testExportCopiesOnlyCurrentSessionFilesWithOriginalNames() async throws {
         let now = Date(timeIntervalSince1970: 1_785_153_600)
         let store = makeStore(
             sessionStartDate: now,
@@ -448,17 +448,23 @@ final class EventLogFileStoreTests: XCTestCase {
         )
         try await store.performMaintenance()
         let priorURL = store.logsDirectoryURL.appendingPathComponent(
-            "20260726-120000.log"
+            "20260727-120000.log"
         )
         let priorRotationURL = store.logsDirectoryURL.appendingPathComponent(
-            "20260726-120000-2.log"
+            "20260727-120000-2.log"
         )
         try Data("prior".utf8).write(to: priorURL)
         try Data("older rotation".utf8).write(to: priorRotationURL)
         try Data("not exported".utf8).write(
             to: store.logsDirectoryURL.appendingPathComponent("notes.txt")
         )
-        try await store.append("abcdefgh")
+        let hasLogFilesBeforeAppend = try await store.hasLogFiles()
+        XCTAssertFalse(hasLogFilesBeforeAppend)
+
+        try await store.append("abcde")
+        try await store.append("fgh")
+        let hasLogFilesAfterAppend = try await store.hasLogFiles()
+        XCTAssertTrue(hasLogFilesAfterAppend)
 
         let destinationURL = temporaryDirectoryURL.appendingPathComponent(
             "Export Destination",
@@ -469,42 +475,42 @@ final class EventLogFileStoreTests: XCTestCase {
             withIntermediateDirectories: false
         )
 
-        let exportedDirectoryURL = try await store.exportLogFiles(
+        let exportedURL = try await store.exportLogFiles(
             to: destinationURL
         )
 
         XCTAssertEqual(
-            exportedDirectoryURL.deletingLastPathComponent().standardizedFileURL,
+            exportedURL,
             destinationURL.standardizedFileURL
         )
-        XCTAssertEqual(
-            exportedDirectoryURL.lastPathComponent,
-            "ThruRNDIS Logs 20260727-120000"
-        )
-        let sourceFilesByName = try logFilesByName(
-            in: store.logsDirectoryURL
-        )
-        let exportedFilesByName = try logFilesByName(
-            in: exportedDirectoryURL
-        )
+        let exportedFilesByName = try logFilesByName(in: destinationURL)
         XCTAssertEqual(
             Set(exportedFilesByName.keys),
-            Set(sourceFilesByName.keys)
+            Set([
+                "20260727-120000-3.log",
+                "20260727-120000-4.log"
+            ])
         )
-        for (name, sourceURL) in sourceFilesByName {
-            let exportedURL = try XCTUnwrap(exportedFilesByName[name])
-            XCTAssertEqual(
-                try Data(contentsOf: exportedURL),
-                try Data(contentsOf: sourceURL),
-                name
-            )
-        }
-        XCTAssertFalse(
-            FileManager.default.fileExists(
-                atPath: exportedDirectoryURL
-                    .appendingPathComponent("notes.txt")
-                    .path
-            )
+        XCTAssertEqual(
+            try Data(
+                contentsOf: XCTUnwrap(
+                    exportedFilesByName["20260727-120000-3.log"]
+                )
+            ),
+            Data("abcde".utf8)
+        )
+        XCTAssertEqual(
+            try Data(
+                contentsOf: XCTUnwrap(
+                    exportedFilesByName["20260727-120000-4.log"]
+                )
+            ),
+            Data("fgh".utf8)
+        )
+        XCTAssertEqual(try Data(contentsOf: priorURL), Data("prior".utf8))
+        XCTAssertEqual(
+            try Data(contentsOf: priorRotationURL),
+            Data("older rotation".utf8)
         )
     }
 

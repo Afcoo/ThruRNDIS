@@ -26,7 +26,7 @@ struct EventLogGroup: View {
                 .disabled(text.isEmpty)
 
                 Button(action: exportAction) {
-                    Label("Export Logs…", systemImage: "square.and.arrow.down")
+                    Label("Export Log", systemImage: "square.and.arrow.down")
                 }
                 .disabled(!canExportLogs)
 

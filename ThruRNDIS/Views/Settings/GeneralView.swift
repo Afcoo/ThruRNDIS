@@ -93,7 +93,7 @@ struct GeneralView: View {
         guard !isExportingEventLogs,
               eventLog.hasPersistedLogFiles,
               let destinationDirectoryURL = FilePicker.chooseDirectory(
-                title: String(localized: "Export Event Logs")
+                title: String(localized: "Export Event Log")
               ) else {
             return
         }
@@ -105,12 +105,12 @@ struct GeneralView: View {
             }
 
             do {
-                let exportedDirectoryURL =
+                let exportedURL =
                     try await eventLog.exportPersistedLogFiles(
                         to: destinationDirectoryURL
                     )
                 NSWorkspace.shared.activateFileViewerSelecting([
-                    exportedDirectoryURL,
+                    exportedURL,
                 ])
             } catch {
                 eventLogSaveError = EventLogSaveError(

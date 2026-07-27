@@ -1107,7 +1107,7 @@
         }
       }
     },
-    "Export Event Logs" : {
+    "Export Event Log" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
@@ -1117,12 +1117,12 @@
         }
       }
     },
-    "Export Logs…" : {
+    "Export Log" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "로그 내보내기…"
+            "value" : "로그 내보내기"
           }
         }
       }
