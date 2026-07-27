@@ -546,12 +546,32 @@
         }
       }
     },
+    "Clear Display" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "화면 지우기"
+          }
+        }
+      }
+    },
     "Clear all event logs" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "모든 이벤트 로그 지우기"
+          }
+        }
+      }
+    },
+    "Clear event logs from this window without deleting saved log files" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "저장된 로그 파일을 삭제하지 않고 이 창의 이벤트 로그를 지웁니다"
           }
         }
       }
@@ -1073,6 +1093,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "이벤트 로그"
+          }
+        }
+      }
+    },
+    "Event log file storage is unavailable." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이벤트 로그 파일 저장소를 사용할 수 없습니다."
+          }
+        }
+      }
+    },
+    "Export Event Logs" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이벤트 로그 내보내기"
+          }
+        }
+      }
+    },
+    "Export Logs…" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "로그 내보내기…"
           }
         }
       }

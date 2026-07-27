@@ -7,13 +7,16 @@ import SwiftUI
 struct EventLogGroup: View {
     let text: String
     let hasEntries: Bool
+    let canExportLogs: Bool
     let clearAction: () -> Void
     let copyAction: () -> Void
-    let saveAction: () -> Void
+    let exportAction: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            LogTextView(text: text.isEmpty ? String(localized: "No events.") : text)
+            LogTextView(
+                text: text.isEmpty ? String(localized: "No events.") : text
+            )
                 .frame(height: 300)
 
             HStack(spacing: 8) {
@@ -22,18 +25,18 @@ struct EventLogGroup: View {
                 }
                 .disabled(text.isEmpty)
 
-                Button(action: saveAction) {
-                    Label("Save…", systemImage: "square.and.arrow.down")
+                Button(action: exportAction) {
+                    Label("Export Logs…", systemImage: "square.and.arrow.down")
                 }
-                .disabled(!hasEntries)
+                .disabled(!canExportLogs)
 
                 Spacer()
 
                 Button(action: clearAction) {
-                    Label("Clear All", systemImage: "trash")
+                    Label("Clear Display", systemImage: "trash")
                 }
                 .disabled(!hasEntries)
-                .help("Clear all event logs")
+                .help("Clear event logs from this window without deleting saved log files")
             }
         }
     }

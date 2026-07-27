@@ -91,6 +91,8 @@
 		E20000000000000000000005 /* EventLogGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20000000000000000000105 /* EventLogGroup.swift */; };
 		E20000000000000000000006 /* SettingsStatusLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20000000000000000000106 /* SettingsStatusLabel.swift */; };
 		E30000000000000000000001 /* USBAccessoryCoordinating.swift in Sources */ = {isa = PBXBuildFile; fileRef = E30000000000000000000101 /* USBAccessoryCoordinating.swift */; };
+		EL3000000000000000000001 /* EventLogFileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = EL3000000000000000000101 /* EventLogFileStore.swift */; };
+		EL3000000000000000000002 /* EventLogFileStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EL3000000000000000000102 /* EventLogFileStoreTests.swift */; };
 		F10000000000000000000001 /* AccessoryAccessOnboarding.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000101 /* AccessoryAccessOnboarding.mp4 */; };
 		F20000000000000000000001 /* VideoPlaybackStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000101 /* VideoPlaybackStore.swift */; };
 		G10000000000000000000001 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = G10000000000000000000101 /* Localizable.xcstrings */; };
@@ -245,6 +247,8 @@
 		E20000000000000000000105 /* EventLogGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventLogGroup.swift; sourceTree = "<group>"; };
 		E20000000000000000000106 /* SettingsStatusLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStatusLabel.swift; sourceTree = "<group>"; };
 		E30000000000000000000101 /* USBAccessoryCoordinating.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBAccessoryCoordinating.swift; sourceTree = "<group>"; };
+		EL3000000000000000000101 /* EventLogFileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventLogFileStore.swift; sourceTree = "<group>"; };
+		EL3000000000000000000102 /* EventLogFileStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventLogFileStoreTests.swift; sourceTree = "<group>"; };
 		E3865CF619CB3E4197A4D3AA /* LocalSigning.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = LocalSigning.xcconfig.example; path = Configuration/LocalSigning.xcconfig.example; sourceTree = "<group>"; };
 		E3865CF719CB3E4197A4D3A9 /* BuildSettings.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = BuildSettings.xcconfig; path = Configuration/BuildSettings.xcconfig; sourceTree = "<group>"; };
 		F10000000000000000000101 /* AccessoryAccessOnboarding.mp4 */ = {isa = PBXFileReference; lastKnownFileType = video.mp4; path = AccessoryAccessOnboarding.mp4; sourceTree = "<group>"; };
@@ -500,6 +504,7 @@
 		D10000000000000000000202 /* Persistence */ = {
 			isa = PBXGroup;
 			children = (
+				EL3000000000000000000101 /* EventLogFileStore.swift */,
 				D10000000000000000000106 /* VMAssetStorageLayout.swift */,
 				B10000000000000000000106 /* VMAssetSelectionStore.swift */,
 				8F0000000000000000000105 /* WireGuardConfigurationStore.swift */,
@@ -518,6 +523,7 @@
 		D10000000000000000000204 /* Persistence */ = {
 			isa = PBXGroup;
 			children = (
+				EL3000000000000000000102 /* EventLogFileStoreTests.swift */,
 				C10000000000000000000102 /* VMAssetSelectionStoreTests.swift */,
 			);
 			path = Persistence;
@@ -789,6 +795,7 @@
 				D10000000000000000000004 /* VMCoordinating.swift in Sources */,
 				E30000000000000000000001 /* USBAccessoryCoordinating.swift in Sources */,
 				D10000000000000000000006 /* VMAssetStorageLayout.swift in Sources */,
+				EL3000000000000000000001 /* EventLogFileStore.swift in Sources */,
 				E10000000000000000000001 /* USBDeviceNameResolver.swift in Sources */,
 				8B0000000000000000000009 /* Clipboard.swift in Sources */,
 				8B000000000000000000000A /* FilePicker.swift in Sources */,
@@ -852,6 +859,7 @@
 				DE1000000000000000000005 /* WireGuardSessionStoreTests.swift in Sources */,
 				C10000000000000000000001 /* VMAssetTestSupport.swift in Sources */,
 				C10000000000000000000002 /* VMAssetSelectionStoreTests.swift in Sources */,
+				EL3000000000000000000002 /* EventLogFileStoreTests.swift in Sources */,
 				C10000000000000000000003 /* VMAssetServiceTests.swift in Sources */,
 				C10000000000000000000004 /* VMAssetWorkflowCoordinatorTests.swift in Sources */,
 				DB1000000000000000000001 /* WireGuardConfigurationBuilderTests.swift in Sources */,

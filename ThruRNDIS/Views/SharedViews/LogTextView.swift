@@ -15,6 +15,9 @@ struct LogTextView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(8)
         }
-        .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 6))
+        .background(
+            .quaternary.opacity(0.35),
+            in: RoundedRectangle(cornerRadius: 6)
+        )
     }
 }

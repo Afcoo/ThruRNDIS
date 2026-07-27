@@ -2,6 +2,7 @@
 Copyright (C) 2026 Afcoo.
 */
 
+import AppKit
 import SwiftUI
 
 struct GeneralView: View {
@@ -9,6 +10,7 @@ struct GeneralView: View {
     @EnvironmentObject private var eventLog: EventLogStore
     @State private var eventLogSaveError: EventLogSaveError?
     @State private var selectedEventLogCategory: EventLogCategory?
+    @State private var isExportingEventLogs = false
 
     var body: some View {
         Form {
@@ -33,13 +35,15 @@ struct GeneralView: View {
                 EventLogGroup(
                     text: displayedEventLogText,
                     hasEntries: !eventLog.isEmpty,
+                    canExportLogs: eventLog.hasPersistedLogFiles
+                        && !isExportingEventLogs,
                     clearAction: {
                         eventLog.clear()
                     },
                     copyAction: {
                         Clipboard.copy(displayedEventLogText)
                     },
-                    saveAction: saveEventLog
+                    exportAction: exportEventLogs
                 )
             } header: {
                 HStack(spacing: 10) {
@@ -85,21 +89,34 @@ struct GeneralView: View {
         }
     }
 
-    private func saveEventLog() {
-        let logText = eventLog.text
-        guard !logText.isEmpty,
-              let url = FilePicker.chooseSaveFile(
-                title: String(localized: "Event Log"),
-                defaultName: EventLogExportFormatter.defaultFileName()
+    private func exportEventLogs() {
+        guard !isExportingEventLogs,
+              eventLog.hasPersistedLogFiles,
+              let destinationDirectoryURL = FilePicker.chooseDirectory(
+                title: String(localized: "Export Event Logs")
               ) else {
             return
         }
 
-        do {
-            try EventLogExportFormatter.content(logText: logText)
-                .write(to: url, atomically: true, encoding: .utf8)
-        } catch {
-            eventLogSaveError = EventLogSaveError(message: error.localizedDescription)
+        isExportingEventLogs = true
+        Task { @MainActor in
+            defer {
+                isExportingEventLogs = false
+            }
+
+            do {
+                let exportedDirectoryURL =
+                    try await eventLog.exportPersistedLogFiles(
+                        to: destinationDirectoryURL
+                    )
+                NSWorkspace.shared.activateFileViewerSelecting([
+                    exportedDirectoryURL,
+                ])
+            } catch {
+                eventLogSaveError = EventLogSaveError(
+                    message: error.localizedDescription
+                )
+            }
         }
     }
 

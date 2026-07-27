@@ -74,7 +74,9 @@ enum App {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     lazy var assetWorkflowCoordinator = VMAssetWorkflowCoordinator()
-    lazy var eventLog = EventLogStore()
+    lazy var eventLog = EventLogStore(
+        filePersistence: EventLogFileStore()
+    )
     lazy var consoleSession = ConsoleSessionStore()
     lazy var usbSession = USBSessionStore()
     lazy var vmConfiguration = VMConfigurationStore()
@@ -108,6 +110,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var pendingTerminationApplication: NSApplication?
     private var didPrepareForTermination = false
     private var storeTerminationTask: Task<Void, Never>?
+    private var eventLogTerminationTask: Task<Void, Never>?
     private var resetAndRestartTask: Task<Void, Never>?
     private let applicationRelaunchService = ApplicationRelaunchService()
     private var isPreparedForResetRelaunchTermination = false
@@ -128,6 +131,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         assetWorkflowCoordinator.onEventLog = { [weak self] message, level in
             self?.eventLog.append(message, level: level, category: .vmAsset)
         }
+        eventLog.append(
+            "Application finished launching.",
+            level: .debug,
+            category: .application
+        )
         assetWorkflowCoordinator.reportCurrentStateToEventLog()
 
         menuBarController = MenuBarController(
@@ -234,6 +242,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         guard confirmApplicationTerminationIfNeeded() else {
+            eventLog.append(
+                "Application termination cancelled by the user.",
+                level: .debug,
+                category: .application
+            )
             return .terminateCancel
         }
 
@@ -301,15 +314,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     applicationURL: Bundle.main.bundleURL
                 )
             } catch {
+                self.eventLog.append(
+                    "App settings reset completed, but scheduling application relaunch failed: " +
+                        EventLogErrorFormatter.description(for: error),
+                    level: .error,
+                    category: .application
+                )
                 self.resetAndRestartTask = nil
                 self.presentRestartFailure(error)
                 return
             }
+            self.eventLog.append(
+                "Scheduled application relaunch after settings reset.",
+                level: .debug,
+                category: .application
+            )
 
             self.assetWorkflowCoordinator.prepareForApplicationTermination()
             await self.store.prepareForApplicationTermination(
                 disconnectWireGuard: false
             )
+            await self.eventLog.prepareForApplicationTermination()
             self.didPrepareForTermination = true
             self.isPreparedForResetRelaunchTermination = true
             self.resetAndRestartTask = nil
@@ -404,6 +429,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         didPrepareForTermination = true
+        eventLog.append(
+            "Preparing application services for termination.",
+            level: .debug,
+            category: .application
+        )
         assetWorkflowCoordinator.prepareForApplicationTermination()
         storeTerminationTask = Task { @MainActor [weak self] in
             guard let self else {
@@ -421,7 +451,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
               storeTerminationTask == nil else {
             return
         }
-        pendingTerminationApplication = nil
-        application.reply(toApplicationShouldTerminate: true)
+        guard eventLogTerminationTask == nil else {
+            return
+        }
+
+        eventLogTerminationTask = Task { @MainActor [weak self] in
+            guard let self else {
+                return
+            }
+            await self.eventLog.prepareForApplicationTermination()
+            guard self.pendingTerminationApplication === application else {
+                self.eventLogTerminationTask = nil
+                return
+            }
+            self.eventLogTerminationTask = nil
+            self.pendingTerminationApplication = nil
+            application.reply(toApplicationShouldTerminate: true)
+        }
     }
 }

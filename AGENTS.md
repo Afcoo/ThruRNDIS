@@ -37,10 +37,13 @@ WireGuard-over-VZNAT architecture as the baseline.
   presentation/listener coordination, and the serialized USB approval, VM
   start/stop, passthrough, and optional WireGuard auto-connect workflow. State
   that can be observed independently lives in child stores. `EventLogStore`
-  owns the bounded app event log, `ConsoleSessionStore` owns only VM
-  serial-console output and endpoint scanning, `USBSessionStore` owns the
-  atomic USB UI snapshot and pending prompt, `VMConfigurationStore` owns
-  persisted VM settings including the optional scratch disk,
+  owns the bounded in-memory app event log and screen filtering, while
+  `EventLogFileStore` serially persists every event under Application Support
+  with 10 MiB or 24-hour session-file rotation and seven-day retention.
+  `ConsoleSessionStore`
+  owns only VM serial-console output and endpoint scanning, `USBSessionStore`
+  owns the atomic USB UI snapshot and pending prompt, `VMConfigurationStore`
+  owns persisted VM settings including the optional scratch disk,
   `WireGuardSessionStore` owns host-tunnel/System Extension presentation state,
   WireGuard inputs, validation, and configuration readiness, and
   `AppPreferencesStore` owns onboarding completion, USB/WireGuard preferences,
@@ -274,7 +277,8 @@ target membership, and build phase as applicable.
   required.
 - `ThruRNDIS/Stores`: `@MainActor`/observable UI-facing state owners.
   `TetheringStore` owns cross-feature orchestration, `EventLogStore` owns the
-  app event log, `ConsoleSessionStore` owns VM serial-console state,
+  bounded in-memory app event log and view filters, `ConsoleSessionStore` owns VM
+  serial-console state,
   `USBSessionStore` owns the USB UI projection, and `VMConfigurationStore` owns
   editable VM settings and their UserDefaults persistence.
   `WireGuardSessionStore` owns WireGuard presentation/session state and editable
@@ -283,9 +287,11 @@ target membership, and build phase as applicable.
   state such as `VideoPlaybackStore` also belongs here when it is substantial
   enough to live outside its SwiftUI view.
 - `ThruRNDIS/Persistence`: non-observable durable-storage adapters and path
-  definitions. `VMAssetSelectionStore` persists Asset selection,
-  `WireGuardConfigurationStore` owns Application Support keys/configuration, and
-  `VMAssetStorageLayout` defines VM Asset staging and release locations.
+  definitions. `EventLogFileStore` owns rotated Application Support log files,
+  retention cleanup, and file-based export. `VMAssetSelectionStore` persists
+  Asset selection, `WireGuardConfigurationStore` owns Application Support
+  keys/configuration, and `VMAssetStorageLayout` defines VM Asset staging and
+  release locations.
 - `ThruRNDIS/Services`: external/system operations such as GitHub release
   lookup, downloads, archive verification/install, AccessoryAccess monitoring,
   launch-at-login integration, Network System Extension activation, host

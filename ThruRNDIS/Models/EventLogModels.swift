@@ -4,10 +4,14 @@ Copyright (C) 2026 Afcoo.
 
 import Foundation
 
-enum EventLogLevel: Int, CaseIterable, Comparable {
+enum EventLogLevel: Int, CaseIterable, Comparable, Sendable {
+    /// Internal decisions, identifiers, parameters, and routine transitions.
     case debug
+    /// A completed user-visible action or meaningful runtime state change.
     case info
+    /// A degraded or blocked operation that may need user attention.
     case warning
+    /// An operation failed and did not reach its intended outcome.
     case error
 
     static func < (lhs: EventLogLevel, rhs: EventLogLevel) -> Bool {
@@ -28,7 +32,7 @@ enum EventLogLevel: Int, CaseIterable, Comparable {
     }
 }
 
-enum EventLogCategory: String, CaseIterable, Identifiable {
+enum EventLogCategory: String, CaseIterable, Identifiable, Sendable {
     case usb = "USB"
     case vm = "VM"
     case vmAsset = "VM Assets"
@@ -53,7 +57,7 @@ enum EventLogCategory: String, CaseIterable, Identifiable {
     }
 }
 
-struct EventLogRecord: Equatable {
+struct EventLogRecord: Equatable, Sendable {
     let date: Date
     let level: EventLogLevel
     let category: EventLogCategory
