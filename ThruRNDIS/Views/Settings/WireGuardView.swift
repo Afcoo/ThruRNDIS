@@ -144,20 +144,17 @@ struct WireGuardView: View {
             }
 
             Section("Host Configuration (Debug / Export)") {
-                ScrollView([.horizontal, .vertical]) {
-                    Text(verbatim: wireGuardSession.clientConfiguration)
-                        .font(.system(.body, design: .monospaced))
-                        .textSelection(.enabled)
-                        .fixedSize(horizontal: true, vertical: false)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(8)
+                GroupBox {
+                    ScrollView([.horizontal, .vertical]) {
+                        Text(verbatim: wireGuardSession.clientConfiguration)
+                            .font(.system(.body, design: .monospaced))
+                            .textSelection(.enabled)
+                            .fixedSize(horizontal: true, vertical: false)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(8)
+                    }
                 }
                 .frame(height: 260)
-                .background(.quaternary.opacity(0.2))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 5)
-                        .stroke(.quaternary)
-                }
 
                 HStack {
                     Button("Copy") {

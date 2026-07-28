@@ -35,16 +35,6 @@ struct OnboardingView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 8) {
-                ForEach(0..<4, id: \.self) { index in
-                    Capsule()
-                        .fill(index <= step ? Color.accentColor : Color.secondary.opacity(0.2))
-                        .frame(height: 4)
-                }
-            }
-            .padding(.horizontal, 32)
-            .padding(.top, 12)
-
             ViewThatFits(in: .vertical) {
                 stepContent
                     .fixedSize(horizontal: false, vertical: true)
@@ -55,37 +45,70 @@ struct OnboardingView: View {
             }
             .frame(maxWidth: .infinity)
 
-            Divider()
-
-            HStack {
-                if step > 0 {
-                    Button("Back") {
-                        step -= 1
-                    }
-                }
-
-                Spacer()
-
-                if step < 3 {
-                    Button("Continue") {
-                        step += 1
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!canContinue)
-                } else {
-                    Button("Finish") {
-                        store.completeOnboarding()
-                        if assetWorkflowCoordinator.hasConfiguredAssets {
-                            onFinish()
+            ZStack {
+                HStack {
+                    if step > 0 {
+                        Button {
+                            step -= 1
+                        } label: {
+                            Label("Back", systemImage: "chevron.backward")
+                                .labelStyle(.titleAndIcon)
                         }
+                        .buttonStyle(.glass)
+                        .controlSize(.extraLarge)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!assetWorkflowCoordinator.hasConfiguredAssets || assetWorkflowCoordinator.isBusy)
+
+                    Spacer()
+
+                    if step < 3 {
+                        Button("Continue") {
+                            step += 1
+                        }
+                        .buttonStyle(.glassProminent)
+                        .controlSize(.extraLarge)
+                        .tint(.accentColor)
+                        .keyboardShortcut(.defaultAction)
+                        .disabled(!canContinue)
+                    } else {
+                        Button {
+                            store.completeOnboarding()
+                            if assetWorkflowCoordinator.hasConfiguredAssets {
+                                onFinish()
+                            }
+                        } label: {
+                            Label("Finish", systemImage: "checkmark")
+                                .labelStyle(.titleAndIcon)
+                        }
+                        .buttonStyle(.glassProminent)
+                        .controlSize(.extraLarge)
+                        .tint(.accentColor)
+                        .keyboardShortcut(.defaultAction)
+                        .disabled(
+                            !assetWorkflowCoordinator.hasConfiguredAssets
+                                || assetWorkflowCoordinator.isBusy
+                        )
+                    }
                 }
+
+                HStack(spacing: 8) {
+                    ForEach(0..<4, id: \.self) { index in
+                        Image(systemName: "circle.fill")
+                            .font(.system(size: 6))
+                            .foregroundStyle(
+                                index == step
+                                    ? Color.accentColor
+                                    : Color.secondary.opacity(0.35)
+                            )
+                    }
+                }
+                .accessibilityHidden(true)
             }
-            .padding(12)
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+            .padding(.bottom, 16)
         }
         .frame(width: contentWidth)
+        .containerBackground(.thickMaterial, for: .window)
         .onReceive(assetWorkflowCoordinator.$errorMessage.compactMap { $0 }) { message in
             alert = OnboardingAlert(message: message)
         }
