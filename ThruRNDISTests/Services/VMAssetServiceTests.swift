@@ -14,72 +14,47 @@ final class VMAssetServiceTests: XCTestCase {
         try? FileManager.default.removeItem(at: temporaryURL)
     }
 
-    func testReleaseServiceRequiresExactAttachments() async throws {
-        let endpointURL = URL(string: "https://example.com/latest")!
-        let payload = """
-        {
-          "id": 42,
-          "tag_name": "v1.2.3",
-          "draft": false,
-          "prerelease": false,
-          "assets": [
-            {"id": 100, "name": "vm_assets.zip", "browser_download_url": "https://example.com/vm_assets.zip", "size": 7, "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
-            {"id": 101, "name": "SHA256SUMS", "browser_download_url": "https://example.com/SHA256SUMS", "size": 8, "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}
-          ]
-        }
+    func testReleaseServiceRequiresOneArchiveAndChecksumAttachment() async throws {
+        let archive = """
+        {"id": 100, "name": "vm_assets.zip", "browser_download_url": "https://example.com/vm_assets.zip", "size": 7, "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
         """
-        VMAssetStubURLProtocol.handler = { request in
-            XCTAssertEqual(request.url, endpointURL)
-            return (
-                HTTPURLResponse(url: endpointURL, statusCode: 200, httpVersion: nil, headerFields: nil)!,
-                Data(payload.utf8)
-            )
-        }
-        let session = stubSession()
-        let release = try await GitHubVMAssetReleaseService(
-            session: session,
-            endpointURL: endpointURL
-        ).fetchLatestRelease()
+        let checksums = """
+        {"id": 101, "name": "SHA256SUMS", "browser_download_url": "https://example.com/SHA256SUMS", "size": 8, "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}
+        """
 
+        let release = try await fetchRelease(assetsJSON: "\(archive),\(checksums)")
         XCTAssertEqual(release, VMAssetTestSupport.release())
-        session.invalidateAndCancel()
+
+        do {
+            _ = try await fetchRelease(assetsJSON: archive)
+            XCTFail("Expected the missing checksum attachment to be rejected.")
+        } catch VMAssetReleaseServiceError.missingAsset(let name) {
+            XCTAssertEqual(name, "SHA256SUMS")
+        }
+
+        do {
+            _ = try await fetchRelease(assetsJSON: "\(archive),\(archive),\(checksums)")
+            XCTFail("Expected duplicate archive attachments to be rejected.")
+        } catch VMAssetReleaseServiceError.duplicateAsset(let name) {
+            XCTAssertEqual(name, "vm_assets.zip")
+        }
     }
 
     func testReleaseServiceRejectsMalformedAssetDigest() async throws {
-        let endpointURL = URL(string: "https://example.com/latest")!
-        let payload = """
-        {
-          "id": 42,
-          "tag_name": "v1.2.3",
-          "draft": false,
-          "prerelease": false,
-          "assets": [
-            {"id": 100, "name": "vm_assets.zip", "browser_download_url": "https://example.com/vm_assets.zip", "size": 7, "digest": "sha256:not-a-digest"},
-            {"id": 101, "name": "SHA256SUMS", "browser_download_url": "https://example.com/SHA256SUMS", "size": 8}
-          ]
-        }
+        let assets = """
+        {"id": 100, "name": "vm_assets.zip", "browser_download_url": "https://example.com/vm_assets.zip", "size": 7, "digest": "sha256:not-a-digest"},
+        {"id": 101, "name": "SHA256SUMS", "browser_download_url": "https://example.com/SHA256SUMS", "size": 8}
         """
-        VMAssetStubURLProtocol.handler = { request in
-            (
-                HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!,
-                Data(payload.utf8)
-            )
-        }
-        let session = stubSession()
 
         do {
-            _ = try await GitHubVMAssetReleaseService(
-                session: session,
-                endpointURL: endpointURL
-            ).fetchLatestRelease()
+            _ = try await fetchRelease(assetsJSON: assets)
             XCTFail("Expected a malformed GitHub asset digest to be rejected.")
         } catch VMAssetReleaseServiceError.invalidAssetDigest(let name) {
             XCTAssertEqual(name, "vm_assets.zip")
         }
-        session.invalidateAndCancel()
     }
 
-    func testDownloadServiceWritesBothAssetsAndReportsProgress() async throws {
+    func testDownloadServiceWritesBothAssetsAndCompletesProgress() async throws {
         let archiveData = Data("archive".utf8)
         let checksumsData = Data("checksum".utf8)
         VMAssetStubURLProtocol.handler = { request in
@@ -115,6 +90,47 @@ final class VMAssetServiceTests: XCTestCase {
         XCTAssertEqual(progressValues.last, 1)
     }
 
+    func testDownloadServiceRemovesStagingAfterReportedSizeMismatch() async throws {
+        let archiveData = Data("archive".utf8)
+        VMAssetStubURLProtocol.handler = { request in
+            (
+                HTTPURLResponse(
+                    url: request.url!,
+                    statusCode: 200,
+                    httpVersion: nil,
+                    headerFields: nil
+                )!,
+                archiveData
+            )
+        }
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [VMAssetStubURLProtocol.self]
+        let layout = VMAssetStorageLayout(
+            applicationSupportDirectoryURL: temporaryURL,
+            bundleIdentifier: "download-size-mismatch-tests"
+        )
+        let operationID = UUID()
+        let release = VMAssetTestSupport.release(
+            archiveSize: Int64(archiveData.count + 1)
+        )
+
+        do {
+            _ = try await VMAssetDownloadService(
+                configuration: configuration,
+                layout: layout
+            ).download(release: release, operationID: operationID) { _ in }
+            XCTFail("Expected the reported-size mismatch to fail the download.")
+        } catch VMAssetDownloadError.sizeMismatch(let name, let expected, let actual) {
+            XCTAssertEqual(name, "vm_assets.zip")
+            XCTAssertEqual(expected, Int64(archiveData.count + 1))
+            XCTAssertEqual(actual, Int64(archiveData.count))
+        }
+
+        XCTAssertFalse(
+            FileManager.default.fileExists(atPath: layout.stagingURL(for: operationID).path)
+        )
+    }
+
     func testInstallerVerifiesExtractsAndPromotesRelease() async throws {
         let layout = VMAssetStorageLayout(
             applicationSupportDirectoryURL: temporaryURL,
@@ -145,18 +161,20 @@ final class VMAssetServiceTests: XCTestCase {
             checksumsURL: checksumsURL
         )
 
+        let service = VMAssetInstallService(layout: layout)
         var stages: [VMAssetInstallStage] = []
-        let installed = try await VMAssetInstallService(layout: layout).install(package: package) {
+        let installed = try await service.install(package: package) {
             stages.append($0)
         }
 
         XCTAssertTrue(FileManager.default.fileExists(atPath: installed.assetFolderURL.appendingPathComponent("Image-lts").path))
         XCTAssertEqual(installed.metadata.archiveSHA256, hash)
-        XCTAssertEqual(stages.count, 2)
+        XCTAssertEqual(stages, [.verifying, .extracting])
+        XCTAssertEqual(try service.installedRelease(matching: release), installed)
         XCTAssertFalse(FileManager.default.fileExists(atPath: stagingURL.path))
     }
 
-    func testInstallerRequiresArchiveToMatchGitHubDigestAndSHA256SUMS() async throws {
+    func testInstallerRejectsArchiveWhenGitHubDigestDisagreesWithChecksumFile() async throws {
         let layout = VMAssetStorageLayout(
             applicationSupportDirectoryURL: temporaryURL,
             bundleIdentifier: "release-digest-tests"
@@ -177,6 +195,9 @@ final class VMAssetServiceTests: XCTestCase {
             XCTAssertEqual(expected, String(repeating: "0", count: 64))
             XCTAssertEqual(actual, actualHash)
         }
+        XCTAssertFalse(
+            FileManager.default.fileExists(atPath: package.stagingDirectoryURL.path)
+        )
     }
 
     func testInstallerRejectsUnsafeArchivePathBeforeExtraction() async throws {
@@ -598,6 +619,37 @@ final class VMAssetServiceTests: XCTestCase {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [VMAssetStubURLProtocol.self]
         return URLSession(configuration: configuration)
+    }
+
+    private func fetchRelease(assetsJSON: String) async throws -> VMAssetReleaseDescriptor {
+        let endpointURL = URL(string: "https://example.com/latest")!
+        let payload = """
+        {
+          "id": 42,
+          "tag_name": "v1.2.3",
+          "draft": false,
+          "prerelease": false,
+          "assets": [\(assetsJSON)]
+        }
+        """
+        VMAssetStubURLProtocol.handler = { request in
+            XCTAssertEqual(request.url, endpointURL)
+            return (
+                HTTPURLResponse(
+                    url: endpointURL,
+                    statusCode: 200,
+                    httpVersion: nil,
+                    headerFields: nil
+                )!,
+                Data(payload.utf8)
+            )
+        }
+        let session = stubSession()
+        defer { session.invalidateAndCancel() }
+        return try await GitHubVMAssetReleaseService(
+            session: session,
+            endpointURL: endpointURL
+        ).fetchLatestRelease()
     }
 
     private func fileSize(_ url: URL) -> Int64 {

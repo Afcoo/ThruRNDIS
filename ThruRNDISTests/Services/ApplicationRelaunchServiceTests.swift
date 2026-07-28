@@ -6,7 +6,7 @@ import XCTest
 @testable import ThruRNDIS
 
 final class ApplicationRelaunchServiceTests: XCTestCase {
-    func testRelaunchHelperUsesBoundedPIDWaitBeforeOpeningApplication() throws {
+    func testRelaunchHelperUsesBoundedWaitAndSeparateCommandArguments() throws {
         var capturedExecutableURL: URL?
         var capturedArguments: [String] = []
         let service = ApplicationRelaunchService(
@@ -15,7 +15,9 @@ final class ApplicationRelaunchServiceTests: XCTestCase {
                 capturedArguments = arguments
             }
         )
-        let applicationURL = URL(fileURLWithPath: "/Applications/ThruRNDIS Test.app")
+        let applicationURL = URL(
+            fileURLWithPath: "/Applications/ThruRNDIS Test; echo injected.app"
+        )
 
         try service.scheduleRelaunch(
             applicationURL: applicationURL,
@@ -23,17 +25,20 @@ final class ApplicationRelaunchServiceTests: XCTestCase {
         )
 
         XCTAssertEqual(capturedExecutableURL?.path, "/bin/sh")
-        XCTAssertEqual(capturedArguments.count, 6)
-        guard capturedArguments.count == 6 else {
-            return
-        }
-        XCTAssertEqual(capturedArguments[0], "-c")
-        XCTAssertTrue(capturedArguments[1].contains("remainingAttempts=300"))
-        XCTAssertTrue(capturedArguments[1].contains("/bin/kill -0 \"$1\""))
-        XCTAssertTrue(capturedArguments[1].contains("exec \"$@\""))
-        XCTAssertEqual(capturedArguments[2], "ThruRNDISRelauncher")
-        XCTAssertEqual(capturedArguments[3], "12345")
-        XCTAssertEqual(capturedArguments[4], "/usr/bin/open")
-        XCTAssertEqual(capturedArguments[5], applicationURL.path)
+        XCTAssertEqual(capturedArguments.first, "-c")
+        let script = try XCTUnwrap(capturedArguments.dropFirst().first)
+        XCTAssertTrue(script.contains("remainingAttempts=300"))
+        XCTAssertTrue(script.contains("/bin/kill -0 \"$1\""))
+        XCTAssertTrue(script.contains("exec \"$@\""))
+        XCTAssertFalse(script.contains(applicationURL.path))
+        XCTAssertEqual(
+            Array(capturedArguments.dropFirst(2)),
+            [
+                "ThruRNDISRelauncher",
+                "12345",
+                "/usr/bin/open",
+                applicationURL.path,
+            ]
+        )
     }
 }

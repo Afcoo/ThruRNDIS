@@ -8,11 +8,19 @@ import XCTest
 
 @MainActor
 final class MenuBarStatusDotImageFactoryTests: XCTestCase {
-    func testImageUsesMenuIconSizeAndPreservesItsColors() {
-        let image = MenuBarStatusDotImageFactory.makeImage(color: .systemGreen)
+    func testImageRendersRequestedColorAsNonTemplateArtwork() throws {
+        let greenImage = MenuBarStatusDotImageFactory.makeImage(
+            color: .systemGreen
+        )
+        let redImage = MenuBarStatusDotImageFactory.makeImage(
+            color: .systemRed
+        )
 
-        XCTAssertEqual(image.size, NSSize(width: 18, height: 18))
-        XCTAssertFalse(image.isTemplate)
-        XCTAssertNotNil(image.tiffRepresentation)
+        XCTAssertFalse(greenImage.isTemplate)
+        XCTAssertFalse(redImage.isTemplate)
+        XCTAssertNotEqual(
+            try XCTUnwrap(greenImage.tiffRepresentation),
+            try XCTUnwrap(redImage.tiffRepresentation)
+        )
     }
 }

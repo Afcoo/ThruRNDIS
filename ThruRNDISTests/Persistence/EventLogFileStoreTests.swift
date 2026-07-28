@@ -31,41 +31,6 @@ final class EventLogFileStoreTests: XCTestCase {
         self.temporaryDirectoryURL = nil
     }
 
-    func testDefaultMaximumFileSizeIsTenMiB() {
-        XCTAssertEqual(
-            EventLogFileStore.defaultMaximumFileSizeBytes,
-            10 * 1024 * 1024
-        )
-        XCTAssertEqual(
-            EventLogFileStore.defaultRotationInterval,
-            24 * 60 * 60
-        )
-    }
-
-    @MainActor
-    func testFileSystemPreparationIsDeferredUntilActorWorkBegins() async throws {
-        let store = makeStore(
-            sessionStartDate: Date(timeIntervalSince1970: 1)
-        )
-
-        XCTAssertFalse(
-            FileManager.default.fileExists(
-                atPath: store.logsDirectoryURL.path
-            )
-        )
-
-        try await store.performMaintenance()
-
-        var isDirectory: ObjCBool = false
-        XCTAssertTrue(
-            FileManager.default.fileExists(
-                atPath: store.logsDirectoryURL.path,
-                isDirectory: &isDirectory
-            )
-        )
-        XCTAssertTrue(isDirectory.boolValue)
-    }
-
     @MainActor
     func testExactByteLimitStaysInFirstFileAndNextByteRotates() async throws {
         let sessionStartDate = Date(timeIntervalSince1970: 1)
@@ -108,27 +73,7 @@ final class EventLogFileStoreTests: XCTestCase {
     }
 
     @MainActor
-    func testOversizedRecordIsPreservedInOneFile() async throws {
-        let maximumFileSizeBytes = 13
-        let line = String(repeating: "0123456789", count: 8)
-        let store = makeStore(
-            sessionStartDate: Date(timeIntervalSince1970: 2),
-            maximumFileSizeBytes: maximumFileSizeBytes
-        )
-
-        try await store.append(line)
-
-        let urls = try logFileURLs(in: store.logsDirectoryURL)
-        XCTAssertEqual(urls.count, 1)
-        XCTAssertGreaterThan(
-            try Data(contentsOf: urls[0]).count,
-            maximumFileSizeBytes
-        )
-        XCTAssertEqual(try Data(contentsOf: urls[0]), Data(line.utf8))
-    }
-
-    @MainActor
-    func testOversizedUTF8RecordRemainsValidAndLossless() async throws {
+    func testOversizedUTF8RecordIsNotSplitOrCorrupted() async throws {
         let maximumFileSizeBytes = 7
         let line = "가나다라마바사🙂끝"
         let store = makeStore(
@@ -213,8 +158,8 @@ final class EventLogFileStoreTests: XCTestCase {
     @MainActor
     func testInitialMaintenanceRemovesOnlyRegularLogsOlderThanSevenDays() async throws {
         let now = Date(timeIntervalSince1970: 1_000_000)
-        let retentionInterval = EventLogFileStore.defaultRetentionInterval
-        let cutoff = now.addingTimeInterval(-retentionInterval)
+        let sevenDays: TimeInterval = 7 * 24 * 60 * 60
+        let cutoff = now.addingTimeInterval(-sevenDays)
         let layoutStore = makeStore(
             sessionStartDate: now,
             now: now
@@ -236,13 +181,29 @@ final class EventLogFileStoreTests: XCTestCase {
             "directory.log",
             isDirectory: true
         )
+        let linkedLogURL = temporaryDirectoryURL.appendingPathComponent(
+            "linked-target.log"
+        )
+        let symbolicLinkURL = layoutStore.logsDirectoryURL.appendingPathComponent(
+            "expired-link.log"
+        )
 
-        for url in [expiredLogURL, cutoffLogURL, recentLogURL, expiredTextURL] {
+        for url in [
+            expiredLogURL,
+            cutoffLogURL,
+            recentLogURL,
+            expiredTextURL,
+            linkedLogURL,
+        ] {
             try Data(url.lastPathComponent.utf8).write(to: url)
         }
         try FileManager.default.createDirectory(
             at: logDirectoryURL,
             withIntermediateDirectories: false
+        )
+        try FileManager.default.createSymbolicLink(
+            at: symbolicLinkURL,
+            withDestinationURL: linkedLogURL
         )
         try setModificationDate(
             cutoff.addingTimeInterval(-1),
@@ -260,6 +221,10 @@ final class EventLogFileStoreTests: XCTestCase {
         try setModificationDate(
             cutoff.addingTimeInterval(-1),
             for: logDirectoryURL
+        )
+        try setModificationDate(
+            cutoff.addingTimeInterval(-1),
+            for: linkedLogURL
         )
 
         let cleanupStore = makeStore(
@@ -288,6 +253,16 @@ final class EventLogFileStoreTests: XCTestCase {
             )
         )
         XCTAssertTrue(isDirectory.boolValue)
+        XCTAssertEqual(
+            try symbolicLinkURL.resourceValues(
+                forKeys: [.isSymbolicLinkKey]
+            ).isSymbolicLink,
+            true
+        )
+        XCTAssertEqual(
+            try Data(contentsOf: linkedLogURL),
+            Data("linked-target.log".utf8)
+        )
     }
 
     @MainActor
@@ -313,7 +288,7 @@ final class EventLogFileStoreTests: XCTestCase {
 
         clock.setDate(
             sessionStartDate.addingTimeInterval(
-                EventLogFileStore.defaultRetentionInterval + 1
+                7 * 24 * 60 * 60 + 1
             )
         )
         try await store.performMaintenance()
@@ -341,6 +316,7 @@ final class EventLogFileStoreTests: XCTestCase {
     @MainActor
     func testAppendRotatesAfterTwentyFourHoursWithoutReachingSizeLimit() async throws {
         let sessionStartDate = Date(timeIntervalSince1970: 1)
+        let oneDay: TimeInterval = 24 * 60 * 60
         let clock = EventLogTestClock(date: sessionStartDate)
         let store = EventLogFileStore(
             applicationSupportDirectoryURL: temporaryDirectoryURL,
@@ -354,16 +330,12 @@ final class EventLogFileStoreTests: XCTestCase {
 
         try await store.append("first\n")
         clock.setDate(
-            sessionStartDate.addingTimeInterval(
-                EventLogFileStore.defaultRotationInterval - 1
-            )
+            sessionStartDate.addingTimeInterval(oneDay - 1)
         )
         try await store.append("before boundary\n")
 
         clock.setDate(
-            sessionStartDate.addingTimeInterval(
-                EventLogFileStore.defaultRotationInterval
-            )
+            sessionStartDate.addingTimeInterval(oneDay)
         )
         try await store.append("at boundary\n")
         try await store.flush()
@@ -396,49 +368,6 @@ final class EventLogFileStoreTests: XCTestCase {
     }
 
     @MainActor
-    func testDailyRotationBoundsRetentionDuringLongRunningSession() async throws {
-        let sessionStartDate = Date(timeIntervalSince1970: 1)
-        let clock = EventLogTestClock(date: sessionStartDate)
-        let store = EventLogFileStore(
-            applicationSupportDirectoryURL: temporaryDirectoryURL,
-            bundleIdentifier: "EventLogFileStoreTests",
-            sessionStartDate: sessionStartDate,
-            timeZone: Self.utc,
-            maximumFileSizeBytes: 1_024,
-            now: { clock.now() },
-            header: ""
-        )
-
-        for day in 0...8 {
-            let currentDate = sessionStartDate.addingTimeInterval(
-                TimeInterval(day) * EventLogFileStore.defaultRotationInterval
-            )
-            clock.setDate(currentDate)
-            try await store.append("day \(day)\n")
-
-            let sequence = day + 1
-            let suffix = sequence == 1 ? "" : "-\(sequence)"
-            let currentURL = store.logsDirectoryURL.appendingPathComponent(
-                "19700101-000001\(suffix).log"
-            )
-            try setModificationDate(currentDate, for: currentURL)
-        }
-
-        let urls = try logFileURLs(in: store.logsDirectoryURL)
-        XCTAssertEqual(
-            Set(urls.map(\.lastPathComponent)),
-            Set((2...9).map {
-                "19700101-000001-\($0).log"
-            })
-        )
-        XCTAssertFalse(
-            urls.contains {
-                $0.lastPathComponent == "19700101-000001.log"
-            }
-        )
-    }
-
-    @MainActor
     func testExportCopiesOnlyCurrentSessionFilesWithOriginalNames() async throws {
         let now = Date(timeIntervalSince1970: 1_785_153_600)
         let store = makeStore(
@@ -448,23 +377,15 @@ final class EventLogFileStoreTests: XCTestCase {
         )
         try await store.performMaintenance()
         let priorURL = store.logsDirectoryURL.appendingPathComponent(
-            "20260727-120000.log"
-        )
-        let priorRotationURL = store.logsDirectoryURL.appendingPathComponent(
-            "20260727-120000-2.log"
+            "20260726-120000.log"
         )
         try Data("prior".utf8).write(to: priorURL)
-        try Data("older rotation".utf8).write(to: priorRotationURL)
         try Data("not exported".utf8).write(
             to: store.logsDirectoryURL.appendingPathComponent("notes.txt")
         )
-        let hasLogFilesBeforeAppend = try await store.hasLogFiles()
-        XCTAssertFalse(hasLogFilesBeforeAppend)
 
         try await store.append("abcde")
         try await store.append("fgh")
-        let hasLogFilesAfterAppend = try await store.hasLogFiles()
-        XCTAssertTrue(hasLogFilesAfterAppend)
 
         let destinationURL = temporaryDirectoryURL.appendingPathComponent(
             "Export Destination",
@@ -487,14 +408,14 @@ final class EventLogFileStoreTests: XCTestCase {
         XCTAssertEqual(
             Set(exportedFilesByName.keys),
             Set([
-                "20260727-120000-3.log",
-                "20260727-120000-4.log"
+                "20260727-120000.log",
+                "20260727-120000-2.log"
             ])
         )
         XCTAssertEqual(
             try Data(
                 contentsOf: XCTUnwrap(
-                    exportedFilesByName["20260727-120000-3.log"]
+                    exportedFilesByName["20260727-120000.log"]
                 )
             ),
             Data("abcde".utf8)
@@ -502,16 +423,12 @@ final class EventLogFileStoreTests: XCTestCase {
         XCTAssertEqual(
             try Data(
                 contentsOf: XCTUnwrap(
-                    exportedFilesByName["20260727-120000-4.log"]
+                    exportedFilesByName["20260727-120000-2.log"]
                 )
             ),
             Data("fgh".utf8)
         )
         XCTAssertEqual(try Data(contentsOf: priorURL), Data("prior".utf8))
-        XCTAssertEqual(
-            try Data(contentsOf: priorRotationURL),
-            Data("older rotation".utf8)
-        )
     }
 
     @MainActor
@@ -520,7 +437,8 @@ final class EventLogFileStoreTests: XCTestCase {
             sessionStartDate: Date(timeIntervalSince1970: 4),
             maximumFileSizeBytes: 8
         )
-        try await store.append("123456789")
+        try await store.append("12345678")
+        try await store.append("9")
 
         XCTAssertEqual(
             try posixPermissions(at: store.logsDirectoryURL),

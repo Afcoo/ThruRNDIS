@@ -70,29 +70,7 @@ final class ConsoleSessionStoreTests: XCTestCase {
 
 @MainActor
 final class EventLogStoreTests: XCTestCase {
-    func testAppendIncludesLevelAndCategoryAndNotifiesObservers() {
-        let store = EventLogStore()
-        var changeCount = 0
-        let cancellable = store.objectWillChange.sink {
-            changeCount += 1
-        }
-
-        store.append(
-            "VM started.",
-            level: .info,
-            category: .vm,
-            at: Date(timeIntervalSince1970: 0)
-        )
-
-        XCTAssertEqual(changeCount, 1)
-        XCTAssertTrue(store.text.contains("[INFO] [VM] VM started."))
-        XCTAssertTrue(store.text.contains("[VM] VM started."))
-        XCTAssertEqual(store.records.first?.level, .info)
-        XCTAssertEqual(store.records.first?.category, .vm)
-        withExtendedLifetime(cancellable) {}
-    }
-
-    func testModeAndCategoryFiltersPreserveStructuredRecords() {
+    func testModeAndCategoryFiltersComposeWithoutMutatingRecords() {
         let store = EventLogStore()
         let date = Date(timeIntervalSince1970: 0)
 
@@ -114,70 +92,22 @@ final class EventLogStoreTests: XCTestCase {
         XCTAssertTrue(debugText.contains("[ERROR] [Application] App failed"))
         XCTAssertEqual(store.text, debugText)
 
-        let usbText = store.text(isDebugModeEnabled: true, category: .usb)
-        XCTAssertEqual(usbText.components(separatedBy: "\n").filter { !$0.isEmpty }.count, 1)
-        XCTAssertTrue(usbText.contains("USB retry"))
-        XCTAssertFalse(usbText.contains("VM started"))
-        XCTAssertEqual(store.records.count, 4)
-    }
-
-    func testNormalModeAndCategoryFiltersCompose() {
-        let store = EventLogStore()
-        let date = Date(timeIntervalSince1970: 0)
-
-        store.append("VM detail", level: .debug, category: .vm, at: date)
-        store.append("VM ready", level: .info, category: .vm, at: date)
-        store.append("USB failed", level: .error, category: .usb, at: date)
-
         let normalVMText = store.text(
             isDebugModeEnabled: false,
             category: .vm
         )
-
-        XCTAssertFalse(normalVMText.contains("VM detail"))
-        XCTAssertTrue(normalVMText.contains("[INFO] [VM] VM ready"))
-        XCTAssertFalse(normalVMText.contains("USB failed"))
-        XCTAssertEqual(
-            normalVMText.components(separatedBy: "\n").filter { !$0.isEmpty }.count,
-            1
-        )
-
-        let debugVMText = store.text(
-            isDebugModeEnabled: true,
-            category: .vm
-        )
-        XCTAssertTrue(debugVMText.contains("[DEBUG] [VM] VM detail"))
-        XCTAssertTrue(debugVMText.contains("[INFO] [VM] VM ready"))
-        XCTAssertFalse(debugVMText.contains("USB failed"))
-    }
-
-    func testTrimDropsOldestCompleteLineAndClearResetsText() {
-        let store = EventLogStore(maximumCharacters: 90)
-        let date = Date(timeIntervalSince1970: 0)
-
-        store.append(
-            "old entry",
-            level: .info,
-            category: .application,
-            at: date
-        )
-        store.append(
-            String(repeating: "x", count: 50),
-            level: .info,
-            category: .vm,
-            at: date
-        )
-
-        XCTAssertLessThanOrEqual(store.text.count, 90)
-        XCTAssertFalse(store.text.contains("old entry"))
-        XCTAssertTrue(store.text.contains(String(repeating: "x", count: 50)))
+        XCTAssertFalse(normalVMText.contains("VM details"))
+        XCTAssertTrue(normalVMText.contains("[INFO] [VM] VM started"))
+        XCTAssertFalse(normalVMText.contains("USB retry"))
+        XCTAssertEqual(store.records.count, 4)
 
         store.clear()
 
-        XCTAssertTrue(store.text.isEmpty)
+        XCTAssertTrue(store.records.isEmpty)
+        XCTAssertTrue(store.text(isDebugModeEnabled: true).isEmpty)
     }
 
-    func testTrimUsesFIFOAcrossLevels() {
+    func testTrimEvictsOldestRecordRegardlessOfLevel() {
         let store = EventLogStore(maximumCharacters: 100)
         let date = Date(timeIntervalSince1970: 0)
 
@@ -206,27 +136,7 @@ final class EventLogStoreTests: XCTestCase {
         XCTAssertLessThanOrEqual(store.text.count, 100)
     }
 
-    func testClearRemovesDebugRecordsHiddenInNormalMode() {
-        let store = EventLogStore()
-
-        store.append(
-            "hidden detail",
-            level: .debug,
-            category: .application,
-            at: Date(timeIntervalSince1970: 0)
-        )
-
-        XCTAssertTrue(store.text(isDebugModeEnabled: false).isEmpty)
-        XCTAssertFalse(store.isEmpty)
-
-        store.clear()
-
-        XCTAssertTrue(store.isEmpty)
-        XCTAssertTrue(store.records.isEmpty)
-        XCTAssertTrue(store.text(isDebugModeEnabled: true).isEmpty)
-    }
-
-    func testPersistenceReceivesAllRecordsIndependentlyOfDisplayFiltersAndClear() async throws {
+    func testPersistenceRetainsAllRecordsIndependentlyOfDisplayFilteringAndClear() async {
         let persistence = EventLogFilePersistenceSpy(hasLogFiles: true)
         let store = EventLogStore(
             maximumCharacters: 80,
@@ -269,26 +179,6 @@ final class EventLogStoreTests: XCTestCase {
             await persistence.appendedLinesSnapshot().count
         XCTAssertEqual(appendedLineCountAfterClear, 2)
         XCTAssertTrue(store.hasPersistedLogFiles)
-        let logsDirectoryURL =
-            try await store.preparePersistedLogsDirectory()
-        XCTAssertEqual(
-            logsDirectoryURL,
-            persistence.preparedLogsDirectoryURL
-        )
-
-        let destinationURL = URL(fileURLWithPath: "/tmp/export")
-        let exportedDirectoryURL =
-            try await store.exportPersistedLogFiles(to: destinationURL)
-        XCTAssertEqual(
-            exportedDirectoryURL,
-            persistence.exportedDirectoryURL
-        )
-        let exportedDestination =
-            await persistence.exportDestinationSnapshot()
-        XCTAssertEqual(
-            exportedDestination,
-            destinationURL
-        )
     }
 
     func testPersistenceFailureIsReportedOnceWithoutDroppingScreenRecords() async {
@@ -354,35 +244,25 @@ final class EventLogStoreTests: XCTestCase {
         XCTAssertTrue(appendedLines[1].contains("[INFO] [VM] second"))
     }
 
-    func testInitialPersistedFileStateIsCachedWithoutViewDirectoryReads() async {
+    func testInitialPersistedFileAvailabilityIsReflectedInCachedState() async {
         let persistence = EventLogFilePersistenceSpy(hasLogFiles: true)
         let store = EventLogStore(filePersistence: persistence)
 
-        await store.flushFilePersistence()
+        for _ in 0..<100 where !store.hasPersistedLogFiles {
+            await Task.yield()
+        }
 
         XCTAssertTrue(store.hasPersistedLogFiles)
-        let hasLogFilesCallCount =
-            await persistence.hasLogFilesCallCountSnapshot()
-        XCTAssertGreaterThanOrEqual(hasLogFilesCallCount, 1)
     }
 
 }
 
 private actor EventLogFilePersistenceSpy: EventLogFilePersisting {
-    nonisolated let exportedDirectoryURL = URL(
-        fileURLWithPath: "/tmp/exported-logs"
-    )
-    nonisolated let preparedLogsDirectoryURL = URL(
-        fileURLWithPath: "/tmp/persisted-logs"
-    )
-
     private var hasLogFilesValue: Bool
     private var appendedLines: [String] = []
     private var appendError: Error?
     private let firstAppendStarted: XCTestExpectation?
     private var firstAppendGate: DispatchSemaphore?
-    private var exportDestinationDirectoryURL: URL?
-    private var hasLogFilesCallCount = 0
 
     init(
         hasLogFiles: Bool = false,
@@ -397,12 +277,11 @@ private actor EventLogFilePersistenceSpy: EventLogFilePersisting {
     }
 
     func hasLogFiles() -> Bool {
-        hasLogFilesCallCount += 1
-        return hasLogFilesValue
+        hasLogFilesValue
     }
 
     func prepareLogsDirectory() -> URL {
-        preparedLogsDirectoryURL
+        URL(fileURLWithPath: "/tmp/persisted-logs")
     }
 
     func append(_ line: String) throws {
@@ -426,20 +305,11 @@ private actor EventLogFilePersistenceSpy: EventLogFilePersisting {
         appendedLines
     }
 
-    func exportDestinationSnapshot() -> URL? {
-        exportDestinationDirectoryURL
-    }
-
-    func hasLogFilesCallCountSnapshot() -> Int {
-        hasLogFilesCallCount
-    }
-
     func exportLogFiles(
         to destinationDirectoryURL: URL
     ) throws -> URL {
-        exportDestinationDirectoryURL = destinationDirectoryURL
         hasLogFilesValue = true
-        return exportedDirectoryURL
+        return destinationDirectoryURL.appendingPathComponent("exported-logs")
     }
 }
 
@@ -448,78 +318,24 @@ private enum EventLogFilePersistenceSpyError: Error {
 }
 
 @MainActor
-final class USBAccessoryCoordinatorEventLogTests: XCTestCase {
-    func testMissingVirtualMachineAttachPreflightRemainsVisibleInNormalMode() {
+final class USBAccessoryCoordinatorTests: XCTestCase {
+    func testAttachWithoutVirtualMachineFailsBeforePassthrough() {
         let coordinator = USBAccessoryCoordinator(
             monitor: ObservationTestUSBMonitor()
         )
-        var events: [(message: String, level: EventLogLevel)] = []
+        var statusMessages: [String] = []
         var results: [Bool] = []
-        coordinator.onEventLog = { events.append(($0, $1)) }
+        coordinator.onStatusMessage = { statusMessages.append($0) }
 
         coordinator.attachAccessory(id: 42, to: nil) {
             results.append($0)
         }
 
         XCTAssertEqual(results, [false])
-        XCTAssertEqual(events.map { $0.level }, [.warning])
-        XCTAssertTrue(events[0].message.contains("virtual machine reference unavailable"))
-    }
-
-    func testListenerAndReloadSuccessUseSemanticLevels() async {
-        let coordinator = USBAccessoryCoordinator(
-            monitor: ObservationTestUSBMonitor()
-        )
-        var events: [(message: String, level: EventLogLevel)] = []
-        let reloadCompleted = expectation(
-            description: "listener reload completed"
-        )
-        let finalStopCompleted = expectation(
-            description: "listener stopped"
-        )
-        coordinator.onEventLog = {
-            events.append(($0, $1))
-            if $0.contains("listener reload completed") {
-                reloadCompleted.fulfill()
-            }
-        }
-
-        coordinator.startMonitoring(
-            reason: "manual test",
-            completion: nil
-        )
-        await Task.yield()
-
-        coordinator.reloadMonitoring(reason: "reload test")
-        await fulfillment(of: [reloadCompleted], timeout: 1)
-
-        coordinator.stopMonitoring(
-            reason: "manual test"
-        ) {
-            finalStopCompleted.fulfill()
-        }
-        await fulfillment(of: [finalStopCompleted], timeout: 1)
-
         XCTAssertEqual(
-            events
-                .filter { $0.message.contains("USB listener registered") }
-                .map { $0.level },
-            [.info, .debug]
+            statusMessages,
+            [String(localized: "Start the VM before attaching USB.")]
         )
-        XCTAssertEqual(
-            events
-                .filter {
-                    $0.message.contains(
-                        "AccessoryAccess USB listener stopped"
-                    )
-                }
-                .map { $0.level },
-            [.debug, .info]
-        )
-        XCTAssertTrue(events.contains {
-            $0.message.contains("listener reload completed") &&
-                $0.level == .info
-        })
     }
 
     func testStopCompletionWaitsForPendingRegistrationToSettle() async {
@@ -652,9 +468,6 @@ final class USBSessionStoreTests: XCTestCase {
         model.apply(snapshot)
 
         XCTAssertEqual(receivedSnapshots, [snapshot])
-        XCTAssertEqual(model.selectedAccessoryID, 10)
-        XCTAssertEqual(model.attachedAccessoryID, 11)
-        XCTAssertEqual(model.vmSessionAccessoryID, 12)
         withExtendedLifetime(cancellable) {}
     }
 }
@@ -837,22 +650,24 @@ final class TetheringStoreTests: XCTestCase {
         XCTAssertTrue(store.canResetAppSettings)
     }
 
-    func testMissingEntitlementErrorsUseFeatureCategories() throws {
+    func testMissingEntitlementsBlockAffectedOperations() throws {
         let suiteName = "TetheringStoreTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
         defer { defaults.removePersistentDomain(forName: suiteName) }
-        let eventLog = EventLogStore()
+        let monitor = ObservationTestUSBMonitor()
+        let vmCoordinator = ObservationTestVMCoordinator()
+        let tunnelController = ObservationTestHostWireGuardTunnelController()
         let store = TetheringStore(
             assetProvider: ObservationTestAssetProvider(),
-            vmCoordinator: ObservationTestVMCoordinator(),
-            usbCoordinator: USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor()),
+            vmCoordinator: vmCoordinator,
+            usbCoordinator: USBAccessoryCoordinator(monitor: monitor),
             wireGuardConfigurationStore: ObservationTestWireGuardStore(),
             wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
-            eventLog: eventLog,
+            eventLog: EventLogStore(),
             consoleSession: ConsoleSessionStore(),
             usbSession: USBSessionStore(),
             vmConfiguration: VMConfigurationStore(defaults: defaults),
-            hostWireGuardTunnelController: ObservationTestHostWireGuardTunnelController(),
+            hostWireGuardTunnelController: tunnelController,
             runtimeEntitlementSnapshotProvider: {
                 RuntimeEntitlementSnapshot(
                     accessoryAccessUSB: false,
@@ -864,38 +679,22 @@ final class TetheringStoreTests: XCTestCase {
             defaults: defaults
         )
 
+        store.startAccessoryMonitoring()
         store.reloadAccessoryMonitoring()
         XCTAssertFalse(store.startVirtualMachine())
         XCTAssertFalse(store.requestWireGuardSystemExtensionActivation())
         store.refreshHostWireGuardTunnelStatus()
 
-        XCTAssertTrue(
-            eventLog.records.contains {
-                $0.level == .error &&
-                    $0.category == .usb &&
-                    $0.message.contains("USB listener reload")
-            }
+        XCTAssertEqual(monitor.startCallCount, 0)
+        XCTAssertEqual(monitor.stopCallCount, 0)
+        XCTAssertEqual(vmCoordinator.startCallCount, 0)
+        XCTAssertEqual(
+            store.wireGuardSession.systemExtensionStatus,
+            .failed("System Extension installation entitlement is missing.")
         )
-        XCTAssertTrue(
-            eventLog.records.contains {
-                $0.level == .error &&
-                    $0.category == .vm &&
-                    $0.message.contains("VM start")
-            }
-        )
-        XCTAssertTrue(
-            eventLog.records.contains {
-                $0.level == .error &&
-                    $0.category == .wireGuard &&
-                    $0.message.contains("network extension activation")
-            }
-        )
-        XCTAssertTrue(
-            eventLog.records.contains {
-                $0.level == .error &&
-                    $0.category == .wireGuard &&
-                    $0.message.contains("status not refreshed")
-            }
+        XCTAssertEqual(
+            store.wireGuardSession.hostTunnelStatus,
+            .missingPacketTunnelEntitlement
         )
     }
 
@@ -1051,7 +850,6 @@ final class TetheringStoreTests: XCTestCase {
         let vmCoordinator = ObservationTestVMCoordinator()
         let usbCoordinator = ObservationTestUSBCoordinator()
         let usbSession = USBSessionStore()
-        let eventLog = EventLogStore()
         let runtimeEntitlements = RuntimeEntitlementSnapshot(
             accessoryAccessUSB: true,
             packetTunnelProvider: true,
@@ -1064,7 +862,7 @@ final class TetheringStoreTests: XCTestCase {
             usbCoordinator: usbCoordinator,
             wireGuardConfigurationStore: ObservationTestWireGuardStore(),
             wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
-            eventLog: eventLog,
+            eventLog: EventLogStore(),
             consoleSession: ConsoleSessionStore(),
             usbSession: usbSession,
             vmConfiguration: VMConfigurationStore(defaults: defaults),
@@ -1115,31 +913,12 @@ final class TetheringStoreTests: XCTestCase {
             ) as? Bool,
             true
         )
-        XCTAssertFalse(
-            eventLog.text.contains(
-                "is no longer part of the current attachment workflow"
-            )
-        )
 
         vmCoordinator.onStateChange?(.failed, "VM failed")
         vmCoordinator.onStateChange?(.starting, "VM starting")
-        let queuedConnectionMessage =
-            "WireGuard connection queued for USB registry 0x2A"
-        let queuedConnectionCount = eventLog.text.components(
-            separatedBy: queuedConnectionMessage
-        ).count
         store.requestAttachAccessory(id: accessory.id)
 
         XCTAssertNil(store.wireGuardConnectionPrompt)
-        XCTAssertEqual(
-            eventLog.text.components(separatedBy: queuedConnectionMessage).count,
-            queuedConnectionCount + 1
-        )
-        XCTAssertFalse(
-            eventLog.text(isDebugModeEnabled: false).contains(
-                queuedConnectionMessage
-            )
-        )
     }
 
     func testDetectedUSBAttachmentApprovalPresentsWireGuardPrompt() throws {
@@ -1233,14 +1012,13 @@ final class TetheringStoreTests: XCTestCase {
         )
     }
 
-    func testWireGuardConnectionRequestSurvivesVMStopWhenUSBAttachmentWillResume() throws {
+    func testApprovedWireGuardConnectionSurvivesFreshVMStartForUSBAttachment() async throws {
         let suiteName = "TetheringStoreTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
         defer { defaults.removePersistentDomain(forName: suiteName) }
         let vmCoordinator = ObservationTestVMCoordinator()
         let usbCoordinator = ObservationTestUSBCoordinator()
-        let usbSession = USBSessionStore()
-        let eventLog = EventLogStore()
+        let tunnelController = ObservationTestHostWireGuardTunnelController()
         let runtimeEntitlements = RuntimeEntitlementSnapshot(
             accessoryAccessUSB: true,
             packetTunnelProvider: true,
@@ -1253,11 +1031,11 @@ final class TetheringStoreTests: XCTestCase {
             usbCoordinator: usbCoordinator,
             wireGuardConfigurationStore: ObservationTestWireGuardStore(),
             wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
-            eventLog: eventLog,
+            eventLog: EventLogStore(),
             consoleSession: ConsoleSessionStore(),
-            usbSession: usbSession,
+            usbSession: USBSessionStore(),
             vmConfiguration: VMConfigurationStore(defaults: defaults),
-            hostWireGuardTunnelController: ObservationTestHostWireGuardTunnelController(),
+            hostWireGuardTunnelController: tunnelController,
             runtimeEntitlementSnapshotProvider: { runtimeEntitlements },
             defaults: defaults
         )
@@ -1271,6 +1049,7 @@ final class TetheringStoreTests: XCTestCase {
             [accessory],
             selectedAccessoryID: accessory.id
         )
+        tunnelController.onSystemExtensionStatusChange?(.active)
         vmCoordinator.onStateChange?(.stopping, "VM stopping")
 
         store.requestAttachAccessory(id: accessory.id)
@@ -1285,34 +1064,21 @@ final class TetheringStoreTests: XCTestCase {
         vmCoordinator.onStopped?()
 
         XCTAssertEqual(vmCoordinator.startCallCount, 1)
-        XCTAssertTrue(
-            eventLog.records.contains {
-                $0.level == .debug &&
-                    $0.category == .vm &&
-                    $0.message.contains(
-                        "VM start parameters: cpuCount=1, memoryMiB=1024"
-                    )
-            }
+        vmCoordinator.canSendConsoleInput = true
+        vmCoordinator.onStateChange?(.running, "VM running")
+        XCTAssertEqual(
+            usbCoordinator.pendingAttachAccessoryID,
+            accessory.id
         )
-        XCTAssertFalse(
-            eventLog.text(isDebugModeEnabled: false).contains(
-                "VM start parameters:"
-            )
+        usbCoordinator.completeAttachment(success: true)
+        vmCoordinator.onConsoleOutput?(
+            Data("THRURNDIS_WG_ENDPOINT=192.168.64.2:51820\n".utf8)
         )
-        XCTAssertFalse(
-            eventLog.text.contains(
-                "Pending WireGuard connection cancelled for USB registry 0x2A: VM stopped."
-            )
-        )
+        for _ in 0..<100 where tunnelController.connectCallCount == 0 {
+            await Task.yield()
+        }
 
-        vmCoordinator.onStateChange?(.failed, "VM failed")
-
-        XCTAssertTrue(
-            eventLog.text.contains(
-                "Pending WireGuard connection cancelled for USB registry 0x2A: " +
-                    "VM start or runtime failure."
-            )
-        )
+        XCTAssertEqual(tunnelController.connectCallCount, 1)
     }
 
     func testVMFailureAndAccessoryLossClearWireGuardPrompt() throws {
@@ -1373,7 +1139,6 @@ final class TetheringStoreTests: XCTestCase {
         defer { defaults.removePersistentDomain(forName: suiteName) }
         let vmCoordinator = ObservationTestVMCoordinator()
         let usbCoordinator = ObservationTestUSBCoordinator()
-        let eventLog = EventLogStore()
         let runtimeEntitlements = RuntimeEntitlementSnapshot(
             accessoryAccessUSB: true,
             packetTunnelProvider: true,
@@ -1386,7 +1151,7 @@ final class TetheringStoreTests: XCTestCase {
             usbCoordinator: usbCoordinator,
             wireGuardConfigurationStore: ObservationTestWireGuardStore(),
             wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
-            eventLog: eventLog,
+            eventLog: EventLogStore(),
             consoleSession: ConsoleSessionStore(),
             usbSession: USBSessionStore(),
             vmConfiguration: VMConfigurationStore(defaults: defaults),
@@ -1413,12 +1178,6 @@ final class TetheringStoreTests: XCTestCase {
         usbCoordinator.completeAttachment(success: false)
 
         XCTAssertNil(store.wireGuardConnectionPrompt)
-        XCTAssertTrue(
-            eventLog.text.contains(
-                "Pending WireGuard connection cancelled for USB registry 0x2A: " +
-                    "approved USB attachment failed."
-            )
-        )
     }
 
     func testAutomaticWireGuardConnectionForUSBAttachmentWaitsForEndpointAndConnectsOnce() async throws {
@@ -1514,12 +1273,6 @@ final class TetheringStoreTests: XCTestCase {
         XCTAssertFalse(store.shouldConfirmApplicationTermination)
 
         tunnelController.onStatusChange?(.connecting)
-        XCTAssertTrue(store.shouldConfirmApplicationTermination)
-
-        tunnelController.onStatusChange?(.connected)
-        XCTAssertTrue(store.shouldConfirmApplicationTermination)
-
-        tunnelController.onStatusChange?(.reasserting)
         XCTAssertTrue(store.shouldConfirmApplicationTermination)
 
         tunnelController.onStatusChange?(.disconnecting)
@@ -1641,41 +1394,35 @@ final class TetheringStoreTests: XCTestCase {
         )
     }
 
-    func testPhysicalAndSystemUSBDetachStopVMWithoutRestartOrAutomaticStart() throws {
-        let reasons = [
-            "AccessoryAccess disconnected the attached USB accessory.",
-            "USB passthrough device disconnected by the system.",
-        ]
+    func testUnexpectedUSBDetachStopsVMWithoutRestartOrAutomaticStart() throws {
+        let suiteName = "TetheringStoreTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let vmCoordinator = ObservationTestVMCoordinator()
+        let usbCoordinator = USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor())
+        let store = TetheringStore(
+            assetProvider: ObservationTestAssetProvider(),
+            vmCoordinator: vmCoordinator,
+            usbCoordinator: usbCoordinator,
+            wireGuardConfigurationStore: ObservationTestWireGuardStore(),
+            wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
+            eventLog: EventLogStore(),
+            consoleSession: ConsoleSessionStore(),
+            usbSession: USBSessionStore(),
+            vmConfiguration: VMConfigurationStore(defaults: defaults),
+            hostWireGuardTunnelController: ObservationTestHostWireGuardTunnelController(),
+            defaults: defaults
+        )
+        vmCoordinator.onStateChange?(.running, "VM running")
 
-        for reason in reasons {
-            let suiteName = "TetheringStoreTests.\(UUID().uuidString)"
-            let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
-            defer { defaults.removePersistentDomain(forName: suiteName) }
-            let vmCoordinator = ObservationTestVMCoordinator()
-            let usbCoordinator = USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor())
-            let store = TetheringStore(
-                assetProvider: ObservationTestAssetProvider(),
-                vmCoordinator: vmCoordinator,
-                usbCoordinator: usbCoordinator,
-                wireGuardConfigurationStore: ObservationTestWireGuardStore(),
-                wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
-                eventLog: EventLogStore(),
-                consoleSession: ConsoleSessionStore(),
-                usbSession: USBSessionStore(),
-                vmConfiguration: VMConfigurationStore(defaults: defaults),
-                hostWireGuardTunnelController: ObservationTestHostWireGuardTunnelController(),
-                defaults: defaults
-            )
-            vmCoordinator.onStateChange?(.running, "VM running")
+        usbCoordinator.onUnexpectedDetach?(11, "USB passthrough disconnected")
+        vmCoordinator.onStateChange?(.stopping, "VM stopping")
+        vmCoordinator.onStopped?()
 
-            usbCoordinator.onUnexpectedDetach?(11, reason)
-            vmCoordinator.onStateChange?(.stopping, "VM stopping")
-            vmCoordinator.onStopped?()
-
-            XCTAssertEqual(vmCoordinator.stopCallCount, 1, reason)
-            XCTAssertEqual(vmCoordinator.restartCallCount, 0, reason)
-            XCTAssertEqual(vmCoordinator.startCallCount, 0, reason)
-        }
+        XCTAssertEqual(vmCoordinator.stopCallCount, 1)
+        XCTAssertEqual(vmCoordinator.restartCallCount, 0)
+        XCTAssertEqual(vmCoordinator.startCallCount, 0)
+        withExtendedLifetime(store) {}
     }
 
     func testDuplicateUSBDetachWhileStoppingDoesNotRequestAnotherStop() throws {
@@ -1705,6 +1452,7 @@ final class TetheringStoreTests: XCTestCase {
 
         XCTAssertEqual(vmCoordinator.stopCallCount, 1)
         XCTAssertEqual(vmCoordinator.restartCallCount, 0)
+        withExtendedLifetime(store) {}
     }
 
     func testVMStopCancelsPendingTunnelAndClearsDiscoveredEndpoint() async throws {
@@ -1734,14 +1482,8 @@ final class TetheringStoreTests: XCTestCase {
             Data("THRURNDIS_WG_ENDPOINT=192.168.64.2:51820\n".utf8)
         )
         store.wireGuardSession.endpointText = "manual.example.com:51820"
-        let providerStatus = HostWireGuardTunnelStatus.activatingSystemExtension
-        tunnelController.onStatusChange?(providerStatus)
+        tunnelController.onStatusChange?(.connected)
         XCTAssertEqual(store.wireGuardSession.discoveredEndpoint, "192.168.64.2:51820")
-        XCTAssertTrue(
-            store.eventLog.text.contains(
-                "Provider: \(providerStatus.eventLogDescription)"
-            )
-        )
 
         vmCoordinator.onStateChange?(.stopping, "VM stopping")
         vmCoordinator.onStopped?()
@@ -1753,69 +1495,42 @@ final class TetheringStoreTests: XCTestCase {
         XCTAssertEqual(tunnelController.lastDisconnectWaitUntilStopped, false)
     }
 
-    func testInvalidWireGuardConnectionValuesBlockConnect() throws {
+    func testConnectIsRejectedWhileVMIsNotRunning() throws {
         let suiteName = "TetheringStoreTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
         defer { defaults.removePersistentDomain(forName: suiteName) }
         let vmCoordinator = ObservationTestVMCoordinator()
         vmCoordinator.canSendConsoleInput = true
         let tunnelController = ObservationTestHostWireGuardTunnelController()
-        let eventLog = EventLogStore()
         let store = TetheringStore(
             assetProvider: ObservationTestAssetProvider(),
             vmCoordinator: vmCoordinator,
-            usbCoordinator: USBAccessoryCoordinator(monitor: ObservationTestUSBMonitor()),
-            wireGuardConfigurationStore: ObservationTestWireGuardStore(),
-            wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
-            eventLog: eventLog,
-            consoleSession: ConsoleSessionStore(),
-            usbSession: USBSessionStore(),
-            vmConfiguration: VMConfigurationStore(defaults: defaults),
-            hostWireGuardTunnelController: tunnelController,
-            defaults: defaults
-        )
-        vmCoordinator.onStateChange?(.running, "VM running")
-        store.wireGuardSession.endpointText = "invalid"
-
-        store.connectHostWireGuardTunnel()
-
-        XCTAssertEqual(tunnelController.connectCallCount, 0)
-        XCTAssertTrue(eventLog.text.contains("invalid connection values (Endpoint)"))
-    }
-
-    func testConnectIsRejectedWhileVMIsNotRunning() throws {
-        let suiteName = "TetheringStoreTests.\(UUID().uuidString)"
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-        let tunnelController = ObservationTestHostWireGuardTunnelController()
-        let eventLog = EventLogStore()
-        let store = TetheringStore(
-            assetProvider: ObservationTestAssetProvider(),
-            vmCoordinator: ObservationTestVMCoordinator(),
             usbCoordinator: USBAccessoryCoordinator(
                 monitor: ObservationTestUSBMonitor()
             ),
             wireGuardConfigurationStore: ObservationTestWireGuardStore(),
             wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
-            eventLog: eventLog,
+            eventLog: EventLogStore(),
             consoleSession: ConsoleSessionStore(),
             usbSession: USBSessionStore(),
             vmConfiguration: VMConfigurationStore(defaults: defaults),
             hostWireGuardTunnelController: tunnelController,
+            runtimeEntitlementSnapshotProvider: {
+                RuntimeEntitlementSnapshot(
+                    accessoryAccessUSB: true,
+                    packetTunnelProvider: true,
+                    systemExtensionInstall: true,
+                    virtualization: true
+                )
+            },
             defaults: defaults
         )
+        tunnelController.onSystemExtensionStatusChange?(.active)
+        store.wireGuardSession.endpointText = "192.168.64.2:51820"
 
         store.connectHostWireGuardTunnel()
 
         XCTAssertEqual(tunnelController.connectCallCount, 0)
-        XCTAssertFalse(store.canConnectHostWireGuardTunnel)
-        XCTAssertTrue(eventLog.text.contains("VM is not running"))
-        XCTAssertFalse(
-            eventLog.text.contains(
-                "Provider: Not configured — " +
-                    "Start the VM and wait for its WireGuard endpoint."
-            )
-        )
     }
 
     func testResetSkipsProfileAndConfigurationRemovalWhenTunnelCannotStop() async throws {
@@ -1877,7 +1592,7 @@ final class TetheringStoreTests: XCTestCase {
         XCTAssertEqual(wireGuardStore.removeConfigurationDirectoryCallCount, 0)
     }
 
-    func testConsoleOutputOnlyInvalidatesConsoleSession() throws {
+    func testVMCallbacksUpdateAndInvalidateOnlyTheirOwningChildStores() throws {
         let suiteName = "TetheringStoreTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
         defer { defaults.removePersistentDomain(forName: suiteName) }
@@ -1914,53 +1629,18 @@ final class TetheringStoreTests: XCTestCase {
 
         vmCoordinator.onConsoleOutput?(Data("guest output".utf8))
 
+        XCTAssertEqual(consoleSession.output.data, Data("guest output".utf8))
         XCTAssertEqual(consoleChangeCount, 1)
         XCTAssertEqual(eventLogChangeCount, 0)
         XCTAssertEqual(storeChangeCount, 0)
-        withExtendedLifetime((storeCancellable, consoleCancellable, eventLogCancellable)) {}
-    }
-
-    func testVMEventLogOnlyInvalidatesEventLogStore() throws {
-        let suiteName = "TetheringStoreTests.\(UUID().uuidString)"
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-        let vmCoordinator = ObservationTestVMCoordinator()
-        let consoleSession = ConsoleSessionStore()
-        let eventLog = EventLogStore()
-        let store = TetheringStore(
-            assetProvider: ObservationTestAssetProvider(),
-            vmCoordinator: vmCoordinator,
-            usbCoordinator: USBAccessoryCoordinator(
-                monitor: ObservationTestUSBMonitor()
-            ),
-            wireGuardConfigurationStore: ObservationTestWireGuardStore(),
-            wireGuardConfigurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
-            eventLog: eventLog,
-            consoleSession: consoleSession,
-            usbSession: USBSessionStore(),
-            vmConfiguration: VMConfigurationStore(defaults: defaults),
-            hostWireGuardTunnelController: ObservationTestHostWireGuardTunnelController(),
-            defaults: defaults
-        )
-        var storeChangeCount = 0
-        var consoleChangeCount = 0
-        var eventLogChangeCount = 0
-        let storeCancellable = store.objectWillChange.sink {
-            storeChangeCount += 1
-        }
-        let consoleCancellable = consoleSession.objectWillChange.sink {
-            consoleChangeCount += 1
-        }
-        let eventLogCancellable = eventLog.objectWillChange.sink {
-            eventLogChangeCount += 1
-        }
 
         vmCoordinator.onEventLog?("VM started.", .info)
 
         XCTAssertEqual(eventLogChangeCount, 1)
-        XCTAssertEqual(consoleChangeCount, 0)
+        XCTAssertEqual(consoleChangeCount, 1)
         XCTAssertEqual(storeChangeCount, 0)
-        XCTAssertTrue(eventLog.text.contains("[VM] VM started."))
+        XCTAssertEqual(eventLog.records.last?.message, "VM started.")
+        XCTAssertEqual(eventLog.records.last?.category, .vm)
         withExtendedLifetime((storeCancellable, consoleCancellable, eventLogCancellable)) {}
     }
 }

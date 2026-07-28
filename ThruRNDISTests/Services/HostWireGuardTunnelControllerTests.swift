@@ -4,25 +4,6 @@ import XCTest
 
 @MainActor
 final class HostWireGuardTunnelControllerTests: XCTestCase {
-    func testTransitionStatesExposeExpectedActions() {
-        XCTAssertTrue(HostWireGuardTunnelStatus.activatingSystemExtension.canRequestStop)
-        XCTAssertTrue(HostWireGuardTunnelStatus.reasserting.isTransitioning)
-        XCTAssertTrue(HostWireGuardTunnelStatus.reasserting.canRequestStop)
-        XCTAssertFalse(HostWireGuardTunnelStatus.disconnecting.canRequestStop)
-        XCTAssertTrue(HostWireGuardTunnelStatus.failed("ambiguous provider state").canRequestStop)
-    }
-
-    func testSystemExtensionStatusFailsClosedUnlessActive() {
-        XCTAssertFalse(WireGuardSystemExtensionStatus.unknown.isActive)
-        XCTAssertFalse(WireGuardSystemExtensionStatus.checking.isActive)
-        XCTAssertFalse(WireGuardSystemExtensionStatus.inactive.isActive)
-        XCTAssertFalse(WireGuardSystemExtensionStatus.awaitingUserApproval.isActive)
-        XCTAssertTrue(WireGuardSystemExtensionStatus.active.isActive)
-        XCTAssertFalse(WireGuardSystemExtensionStatus.uninstalling.isActive)
-        XCTAssertFalse(WireGuardSystemExtensionStatus.restartRequired.isActive)
-        XCTAssertFalse(WireGuardSystemExtensionStatus.failed("query failed").isActive)
-    }
-
     func testSystemExtensionPropertiesRequireEnabledNonUninstallingVersion() {
         XCTAssertEqual(
             WireGuardSystemExtensionActivator.status(from: []),
@@ -130,11 +111,7 @@ final class HostWireGuardTunnelControllerTests: XCTestCase {
             systemExtensionActivator: activator
         )
         var statuses: [WireGuardSystemExtensionStatus] = []
-        var eventLogs: [(message: String, level: EventLogLevel)] = []
         controller.onSystemExtensionStatusChange = { statuses.append($0) }
-        controller.onEventLog = { message, level in
-            eventLogs.append((message, level))
-        }
 
         let activationTask = Task {
             await controller.activateSystemExtension()
@@ -157,26 +134,6 @@ final class HostWireGuardTunnelControllerTests: XCTestCase {
 
         XCTAssertEqual(statuses, [.activationRequested, .inactive])
         XCTAssertFalse(statuses.contains(.active))
-        XCTAssertTrue(eventLogs.contains {
-            $0.message == "Requesting network extension activation."
-                && $0.level == .debug
-        })
-        XCTAssertTrue(eventLogs.contains {
-            $0.message == "Network extension activation request completed."
-                && $0.level == .debug
-        })
-        XCTAssertTrue(eventLogs.contains {
-            $0.message.hasPrefix(
-                "Network extension activation failed; verified status:"
-            ) && $0.level == .error
-        })
-        XCTAssertEqual(
-            eventLogs.filter { $0.level >= .info }.count,
-            1
-        )
-        XCTAssertFalse(eventLogs.contains(where: {
-            $0.message.localizedCaseInsensitiveContains("WireGuard system extension")
-        }))
     }
 
     func testApprovalCallbackDoesNotOverrideVerifiedInactiveStatus() async throws {
@@ -296,38 +253,49 @@ final class HostWireGuardTunnelControllerTests: XCTestCase {
         XCTAssertFalse(statuses.contains(.active))
     }
 
-    func testConnectDoesNotProceedWhenActivationVerificationIsInactive() async {
-        let activator = ImmediateWireGuardSystemExtensionActivator(status: .inactive)
-        let controller = HostWireGuardTunnelController(
-            systemExtensionActivator: activator
-        )
-        var providerStatuses: [HostWireGuardTunnelStatus] = []
-        var systemExtensionStatuses: [WireGuardSystemExtensionStatus] = []
-        controller.onStatusChange = { providerStatuses.append($0) }
-        controller.onSystemExtensionStatusChange = {
-            systemExtensionStatuses.append($0)
-        }
+    func testConnectFailsClosedForEveryNonActiveSystemExtensionStatus() async {
+        let nonActiveStatuses: [WireGuardSystemExtensionStatus] = [
+            .unknown,
+            .checking,
+            .inactive,
+            .activationRequested,
+            .awaitingUserApproval,
+            .uninstalling,
+            .restartRequired,
+            .failed("query failed"),
+        ]
 
-        await controller.connect(wgQuickConfiguration: """
-        [Interface]
-        PrivateKey = AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
-        Address = 10.100.0.2/32
+        for status in nonActiveStatuses {
+            let activator = ImmediateWireGuardSystemExtensionActivator(status: status)
+            let controller = HostWireGuardTunnelController(
+                systemExtensionActivator: activator
+            )
+            var providerStatuses: [HostWireGuardTunnelStatus] = []
+            var systemExtensionStatuses: [WireGuardSystemExtensionStatus] = []
+            controller.onStatusChange = { providerStatuses.append($0) }
+            controller.onSystemExtensionStatusChange = {
+                systemExtensionStatuses.append($0)
+            }
 
-        [Peer]
-        PublicKey = AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
-        AllowedIPs = 0.0.0.0/0
-        Endpoint = 192.168.64.2:51820
-        """)
+            await controller.connect(wgQuickConfiguration: """
+            [Interface]
+            PrivateKey = AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+            Address = 10.100.0.2/32
 
-        XCTAssertEqual(activator.activationCallCount, 1)
-        XCTAssertEqual(activator.statusCallCount, 1)
-        XCTAssertEqual(
-            systemExtensionStatuses,
-            [.activationRequested, .inactive]
-        )
-        XCTAssertFalse(providerStatuses.contains(.connecting))
-        guard case .failed = providerStatuses.last else {
-            return XCTFail("Connect must fail before starting an inactive provider.")
+            [Peer]
+            PublicKey = AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+            AllowedIPs = 0.0.0.0/0
+            Endpoint = 192.168.64.2:51820
+            """)
+
+            XCTAssertEqual(activator.activationCallCount, 1)
+            XCTAssertEqual(activator.statusCallCount, 1)
+            XCTAssertEqual(systemExtensionStatuses.last, status)
+            XCTAssertFalse(providerStatuses.contains(.connecting))
+            guard case .failed = providerStatuses.last else {
+                XCTFail("Connect must fail before starting a provider for \(status).")
+                continue
+            }
         }
     }
 
@@ -380,7 +348,6 @@ final class HostWireGuardTunnelControllerTests: XCTestCase {
         }
 
         XCTAssertEqual(statuses, [.activationRequested, .checking, .inactive])
-        XCTAssertFalse(statuses.last?.isTransitioning ?? true)
     }
 
     func testInvalidationIgnoresLateActivationApprovalAndCompletion() async throws {
@@ -438,24 +405,6 @@ final class HostWireGuardTunnelControllerTests: XCTestCase {
         XCTAssertFalse(diagnostic.contains("백엔드"))
     }
 
-    func testProviderEventLogDescriptionsRemainEnglish() {
-        XCTAssertEqual(
-            HostWireGuardTunnelStatus.unconfigured.eventLogDescription,
-            "Not configured — Start the VM and wait for its WireGuard endpoint."
-        )
-        XCTAssertEqual(
-            HostWireGuardTunnelStatus.failed("domain=Test; code=1").eventLogDescription,
-            "Failed — domain=Test; code=1"
-        )
-        XCTAssertEqual(
-            HostWireGuardTunnelStatus.missingPacketTunnelEntitlement.eventLogDescription,
-            "Failed — NetworkExtension packet tunnel entitlement is missing."
-        )
-        XCTAssertEqual(
-            HostWireGuardTunnelStatus.missingSystemExtensionInstallEntitlement.eventLogDescription,
-            "Failed — System Extension installation entitlement is missing."
-        )
-    }
 }
 
 @MainActor

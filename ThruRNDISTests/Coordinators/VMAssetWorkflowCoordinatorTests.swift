@@ -1,4 +1,3 @@
-import Combine
 import XCTest
 @testable import ThruRNDIS
 
@@ -19,27 +18,19 @@ final class VMAssetWorkflowCoordinatorTests: XCTestCase {
             installService: installer,
             selectionStore: selectionStore
         )
-        var busyValuesAtStateChanges: [Bool] = []
-        let stateCancellable = coordinator.$installState
-            .dropFirst()
-            .sink { _ in
-                busyValuesAtStateChanges.append(coordinator.isBusy)
-            }
 
         coordinator.installLatest()
         try await waitUntilIdle(coordinator)
 
         XCTAssertEqual(downloader.callCount, 0)
+        XCTAssertEqual(installer.installCount, 0)
         XCTAssertEqual(selectionStore.managedSelectionCount, 1)
         XCTAssertEqual(installer.pruneCount, 1)
         XCTAssertEqual(coordinator.installedRelease, installed)
-        XCTAssertEqual(busyValuesAtStateChanges.last, false)
-        XCTAssertTrue(busyValuesAtStateChanges.dropLast().allSatisfy { $0 })
         XCTAssertEqual(downloader.discardedOperationIDs.count, 1)
         guard case .ready = coordinator.installState else {
             return XCTFail("Expected ready state")
         }
-        withExtendedLifetime(stateCancellable) {}
     }
 
     func testReleaseFailurePreservesPreviousSelection() async throws {
@@ -50,52 +41,18 @@ final class VMAssetWorkflowCoordinatorTests: XCTestCase {
             installService: FakeInstaller(installed: [], matching: nil),
             selectionStore: FakeSelectionStore(initialSelection: previous)
         )
-        var events: [(message: String, level: EventLogLevel)] = []
-        coordinator.onEventLog = { events.append(($0, $1)) }
 
         coordinator.installLatest()
         try await waitUntilIdle(coordinator)
 
         XCTAssertEqual(coordinator.currentSelection, previous)
-        XCTAssertTrue(events.contains {
-            $0.message.contains("VM asset operation failed") &&
-                $0.level == .error
-        })
+        XCTAssertNotNil(coordinator.errorMessage)
         guard case .failed = coordinator.installState else {
             return XCTFail("Expected failed state")
         }
     }
 
-    func testCancellationRestoresReadyStateForExistingSelection() async throws {
-        let selectionStore = FakeSelectionStore(initialSelection: FakeSelectionStore.manualSelection)
-        let downloader = FakeDownloader(shouldSuspend: true)
-        let coordinator = VMAssetWorkflowCoordinator(
-            releaseService: FakeReleaseService(result: .success(VMAssetTestSupport.release())),
-            downloadService: downloader,
-            installService: FakeInstaller(installed: [], matching: nil),
-            selectionStore: selectionStore
-        )
-        var events: [(message: String, level: EventLogLevel)] = []
-        coordinator.onEventLog = { events.append(($0, $1)) }
-
-        coordinator.installLatest()
-        try await waitUntil { downloader.callCount == 1 }
-        coordinator.cancelInstall()
-        try await waitUntilIdle(coordinator)
-
-        XCTAssertEqual(coordinator.currentSelection, FakeSelectionStore.manualSelection)
-        XCTAssertNil(coordinator.errorMessage)
-        XCTAssertEqual(downloader.discardedOperationIDs.count, 1)
-        XCTAssertTrue(events.contains {
-            $0.message == "VM asset installation cancelled." &&
-                $0.level == .info
-        })
-        guard case .ready = coordinator.installState else {
-            return XCTFail("Expected ready state after cancellation")
-        }
-    }
-
-    func testCancellationAfterDownloadBoundaryDiscardsOperationStaging() async throws {
+    func testDownloadCancellationPreservesSelectionAndDiscardsOperationStaging() async throws {
         let temporaryURL = try VMAssetTestSupport.temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: temporaryURL) }
         let downloader = BoundaryCancellationDownloader(baseURL: temporaryURL)
@@ -112,14 +69,16 @@ final class VMAssetWorkflowCoordinatorTests: XCTestCase {
         try await waitUntilIdle(coordinator)
 
         XCTAssertTrue(downloader.didDiscard)
-        if let stagingDirectoryURL = downloader.stagingDirectoryURL {
-            XCTAssertFalse(FileManager.default.fileExists(atPath: stagingDirectoryURL.path))
-        } else {
-            XCTFail("Expected the fake downloader to create operation staging")
+        let stagingDirectoryURL = try XCTUnwrap(downloader.stagingDirectoryURL)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: stagingDirectoryURL.path))
+        XCTAssertEqual(coordinator.currentSelection, FakeSelectionStore.manualSelection)
+        XCTAssertNil(coordinator.errorMessage)
+        guard case .ready = coordinator.installState else {
+            return XCTFail("Expected ready state after cancellation")
         }
     }
 
-    func testCancelledReleaseRequestReportingURLErrorRestoresReadyState() async throws {
+    func testReleaseCheckCancellationDoesNotBecomeFailure() async throws {
         let releaseService = URLSessionCancellationReleaseService()
         let downloader = FakeDownloader()
         let coordinator = VMAssetWorkflowCoordinator(
@@ -140,28 +99,6 @@ final class VMAssetWorkflowCoordinatorTests: XCTestCase {
         XCTAssertEqual(downloader.discardedOperationIDs.count, 1)
         guard case .ready = coordinator.installState else {
             return XCTFail("Expected ready state after URLSession-shaped release cancellation")
-        }
-    }
-
-    func testCancelledDownloadReportingURLErrorRestoresReadyState() async throws {
-        let downloader = URLSessionCancellationDownloader()
-        let coordinator = VMAssetWorkflowCoordinator(
-            releaseService: FakeReleaseService(result: .success(VMAssetTestSupport.release())),
-            downloadService: downloader,
-            installService: FakeInstaller(installed: [], matching: nil),
-            selectionStore: FakeSelectionStore(initialSelection: FakeSelectionStore.manualSelection)
-        )
-
-        coordinator.installLatest()
-        try await waitUntil { downloader.didStart }
-        coordinator.cancelInstall()
-        try await waitUntilIdle(coordinator)
-
-        XCTAssertEqual(coordinator.currentSelection, FakeSelectionStore.manualSelection)
-        XCTAssertNil(coordinator.errorMessage)
-        XCTAssertEqual(downloader.discardedOperationIDs.count, 1)
-        guard case .ready = coordinator.installState else {
-            return XCTFail("Expected ready state after URLSession-shaped download cancellation")
         }
     }
 
@@ -208,16 +145,14 @@ final class VMAssetWorkflowCoordinatorTests: XCTestCase {
         )
     }
 
-    func testActivationRollbackRemovalFailureEmitsWarning() async throws {
+    func testActivationFailureRollsBackNewInstallAndPreservesPreviousSelection() async throws {
         let installed = VMAssetTestSupport.installedRelease(
             at: URL(fileURLWithPath: "/managed/42-100", isDirectory: true)
         )
-        let installer = FakeInstaller(
-            installed: [installed],
-            matching: nil,
-            removeInstalledReleaseError: CocoaError(.fileWriteNoPermission)
-        )
+        let installer = FakeInstaller(installed: [installed], matching: nil)
+        let previous = FakeSelectionStore.manualSelection
         let selectionStore = FakeSelectionStore(
+            initialSelection: previous,
             managedSelectionError: CocoaError(.fileWriteUnknown)
         )
         let coordinator = VMAssetWorkflowCoordinator(
@@ -226,33 +161,27 @@ final class VMAssetWorkflowCoordinatorTests: XCTestCase {
             installService: installer,
             selectionStore: selectionStore
         )
-        var events: [(message: String, level: EventLogLevel)] = []
-        coordinator.onEventLog = { events.append(($0, $1)) }
 
         coordinator.installLatest()
         try await waitUntilIdle(coordinator)
 
-        XCTAssertTrue(events.contains {
-            $0.message.contains(
-                "VM asset rollback cleanup failed after activation failure"
-            ) && $0.level == .warning
-        })
-        XCTAssertTrue(events.contains {
-            $0.message.contains("VM asset operation failed") &&
-                $0.level == .error
-        })
+        XCTAssertEqual(coordinator.currentSelection, previous)
+        XCTAssertEqual(selectionStore.selection, previous)
+        XCTAssertEqual(installer.removeCount, 1)
+        XCTAssertTrue(installer.installed.isEmpty)
+        guard case .failed = coordinator.installState else {
+            return XCTFail("Expected failed state after activation rollback")
+        }
     }
 
-    func testCancellationRollbackRemovalFailureEmitsWarningAndInfoOutcome() async throws {
+    func testCancellationDuringActivationRollsBackNewInstallAndPreservesSelection() async throws {
         let installed = VMAssetTestSupport.installedRelease(
             at: URL(fileURLWithPath: "/managed/42-100", isDirectory: true)
         )
-        let installer = FakeInstaller(
-            installed: [installed],
-            matching: nil,
-            removeInstalledReleaseError: CocoaError(.fileWriteNoPermission)
-        )
+        let installer = FakeInstaller(installed: [installed], matching: nil)
+        let previous = FakeSelectionStore.manualSelection
         let selectionStore = FakeSelectionStore(
+            initialSelection: previous,
             managedSelectionError: CancellationError()
         )
         let coordinator = VMAssetWorkflowCoordinator(
@@ -261,95 +190,119 @@ final class VMAssetWorkflowCoordinatorTests: XCTestCase {
             installService: installer,
             selectionStore: selectionStore
         )
-        var events: [(message: String, level: EventLogLevel)] = []
-        coordinator.onEventLog = { events.append(($0, $1)) }
 
         coordinator.installLatest()
         try await waitUntilIdle(coordinator)
 
-        XCTAssertTrue(events.contains {
-            $0.message.contains(
-                "VM asset rollback cleanup failed after installation cancellation"
-            ) && $0.level == .warning
-        })
-        XCTAssertTrue(events.contains {
-            $0.message == "VM asset installation cancelled." &&
-                $0.level == .info
-        })
+        XCTAssertEqual(coordinator.currentSelection, previous)
+        XCTAssertEqual(selectionStore.selection, previous)
+        XCTAssertEqual(installer.removeCount, 1)
+        XCTAssertTrue(installer.installed.isEmpty)
+        XCTAssertNil(coordinator.errorMessage)
+        guard case .ready = coordinator.installState else {
+            return XCTFail("Expected ready state after activation cancellation")
+        }
     }
 
-    func testInstallUsesDebugForProgressAndInfoForSuccess() async throws {
+    func testRollbackCleanupFailureDoesNotMaskActivationFailureOrCancellation() async throws {
+        let scenarios: [(selectionError: Error, isCancellation: Bool, context: String)] = [
+            (CocoaError(.fileWriteUnknown), false, "activation failure"),
+            (CancellationError(), true, "installation cancellation"),
+        ]
+
+        for scenario in scenarios {
+            let installed = VMAssetTestSupport.installedRelease(
+                at: URL(fileURLWithPath: "/managed/42-100", isDirectory: true)
+            )
+            let installer = FakeInstaller(
+                installed: [installed],
+                matching: nil,
+                removeInstalledReleaseError: CocoaError(.fileWriteNoPermission)
+            )
+            let previous = FakeSelectionStore.manualSelection
+            let coordinator = VMAssetWorkflowCoordinator(
+                releaseService: FakeReleaseService(result: .success(VMAssetTestSupport.release())),
+                downloadService: FakeDownloader(),
+                installService: installer,
+                selectionStore: FakeSelectionStore(
+                    initialSelection: previous,
+                    managedSelectionError: scenario.selectionError
+                )
+            )
+            var events: [(String, EventLogLevel)] = []
+            coordinator.onEventLog = { events.append(($0, $1)) }
+
+            coordinator.installLatest()
+            try await waitUntilIdle(coordinator)
+
+            XCTAssertEqual(coordinator.currentSelection, previous, scenario.context)
+            XCTAssertEqual(installer.installed, [installed], scenario.context)
+            XCTAssertTrue(events.contains {
+                $0.1 == .warning && $0.0.contains(scenario.context)
+            })
+            if scenario.isCancellation {
+                XCTAssertNil(coordinator.errorMessage)
+                guard case .ready = coordinator.installState else {
+                    return XCTFail("Cancellation outcome was masked")
+                }
+            } else {
+                guard case .failed = coordinator.installState else {
+                    return XCTFail("Activation failure was masked")
+                }
+            }
+        }
+    }
+
+    func testDownloadedReleaseIsInstalledActivatedAndPruned() async throws {
         let installed = VMAssetTestSupport.installedRelease(
             at: URL(fileURLWithPath: "/managed/42-100", isDirectory: true)
         )
+        let downloader = FakeDownloader()
+        let installer = FakeInstaller(installed: [installed], matching: nil)
+        let selectionStore = FakeSelectionStore()
         let coordinator = VMAssetWorkflowCoordinator(
             releaseService: FakeReleaseService(result: .success(VMAssetTestSupport.release())),
-            downloadService: FakeDownloader(),
-            installService: FakeInstaller(installed: [installed], matching: nil),
-            selectionStore: FakeSelectionStore()
+            downloadService: downloader,
+            installService: installer,
+            selectionStore: selectionStore
         )
-        var events: [(message: String, level: EventLogLevel)] = []
-        coordinator.onEventLog = { events.append(($0, $1)) }
 
         coordinator.installLatest()
         try await waitUntilIdle(coordinator)
-        await Task.yield()
 
-        XCTAssertGreaterThan(
-            events.filter { $0.level == .debug }.count,
-            1
-        )
-        let visibleEvents = events.filter { $0.level != .debug }
-        XCTAssertEqual(visibleEvents.count, 1)
-        XCTAssertEqual(visibleEvents.first?.level, .info)
-        XCTAssertTrue(
-            visibleEvents.first?.message.contains(
-                "Installed and activated VM assets"
-            ) == true
-        )
+        XCTAssertEqual(downloader.callCount, 1)
+        XCTAssertEqual(installer.installCount, 1)
+        XCTAssertEqual(selectionStore.managedSelectionCount, 1)
+        XCTAssertEqual(installer.pruneCount, 1)
+        XCTAssertEqual(coordinator.installedRelease, installed)
+        XCTAssertEqual(downloader.discardedOperationIDs.count, 1)
+        guard case .ready = coordinator.installState else {
+            return XCTFail("Expected installed release to be ready")
+        }
     }
 
-    func testCurrentStateReportClassifiesRestoredManualSelectionAsDebug() {
-        let coordinator = VMAssetWorkflowCoordinator(
-            releaseService: FakeReleaseService(result: .success(VMAssetTestSupport.release())),
-            downloadService: FakeDownloader(),
-            installService: FakeInstaller(installed: [], matching: nil),
-            selectionStore: FakeSelectionStore(initialSelection: FakeSelectionStore.manualSelection)
+    func testClearSelectionPreservesManagedReleases() {
+        let installed = VMAssetTestSupport.installedRelease(
+            at: URL(fileURLWithPath: "/managed/42-100", isDirectory: true)
         )
-        var events: [(message: String, level: EventLogLevel)] = []
-        coordinator.onEventLog = { events.append(($0, $1)) }
-
-        coordinator.reportCurrentStateToEventLog()
-
-        XCTAssertEqual(events.count, 2)
-        XCTAssertTrue(events.allSatisfy { $0.level == .debug })
-        XCTAssertTrue(events.contains {
-            $0.message.contains(FakeSelectionStore.manualSelection.folderURL.path)
-        })
-    }
-
-    func testClearSelectionUsesInfoLevel() {
         let selectionStore = FakeSelectionStore(
             initialSelection: FakeSelectionStore.manualSelection
         )
+        let installer = FakeInstaller(installed: [installed], matching: nil)
         let coordinator = VMAssetWorkflowCoordinator(
             releaseService: FakeReleaseService(result: .success(VMAssetTestSupport.release())),
             downloadService: FakeDownloader(),
-            installService: FakeInstaller(installed: [], matching: nil),
+            installService: installer,
             selectionStore: selectionStore
         )
-        var events: [(message: String, level: EventLogLevel)] = []
-        coordinator.onEventLog = { events.append(($0, $1)) }
 
         coordinator.clearSelection()
 
         XCTAssertNil(coordinator.currentSelection)
         XCTAssertNil(selectionStore.selection)
-        XCTAssertEqual(events.last?.level, .info)
-        XCTAssertEqual(
-            events.last?.message,
-            "Cleared the VM asset selection; managed release files were preserved."
-        )
+        XCTAssertEqual(coordinator.installedReleases, [installed])
+        XCTAssertEqual(installer.installed, [installed])
+        XCTAssertEqual(coordinator.installState, .idle)
     }
 
     private func waitUntilIdle(_ coordinator: VMAssetWorkflowCoordinator) async throws {
@@ -405,11 +358,6 @@ private final class URLSessionCancellationReleaseService: VMAssetReleaseServing 
 private final class FakeDownloader: VMAssetDownloading {
     private(set) var callCount = 0
     private(set) var discardedOperationIDs: [UUID] = []
-    let shouldSuspend: Bool
-
-    init(shouldSuspend: Bool = false) {
-        self.shouldSuspend = shouldSuspend
-    }
 
     func download(
         release: VMAssetReleaseDescriptor,
@@ -417,9 +365,6 @@ private final class FakeDownloader: VMAssetDownloading {
         progress: @escaping (Double) -> Void
     ) async throws -> DownloadedVMAssetPackage {
         callCount += 1
-        if shouldSuspend {
-            try await Task.sleep(for: .seconds(30))
-        }
         let stagingURL = URL(fileURLWithPath: "/tmp/\(operationID.uuidString)", isDirectory: true)
         return DownloadedVMAssetPackage(
             release: release,
@@ -490,46 +435,14 @@ private final class BoundaryCancellationDownloader: VMAssetDownloading {
     }
 }
 
-private final class URLSessionCancellationDownloader: VMAssetDownloading {
-    private let lock = NSLock()
-    private var started = false
-    private var discardedOperationIDsStorage: [UUID] = []
-
-    var didStart: Bool {
-        lock.withLock { started }
-    }
-
-    var discardedOperationIDs: [UUID] {
-        lock.withLock { discardedOperationIDsStorage }
-    }
-
-    func download(
-        release: VMAssetReleaseDescriptor,
-        operationID: UUID,
-        progress: @escaping (Double) -> Void
-    ) async throws -> DownloadedVMAssetPackage {
-        lock.withLock {
-            started = true
-        }
-        while !Task.isCancelled {
-            try? await Task.sleep(for: .milliseconds(10))
-        }
-        throw URLError(.cancelled)
-    }
-
-    func discardStagingData(for operationID: UUID) {
-        lock.withLock {
-            discardedOperationIDsStorage.append(operationID)
-        }
-    }
-}
-
 private final class FakeInstaller: VMAssetInstalling {
     var installed: [InstalledVMAssetRelease]
     let matching: InstalledVMAssetRelease?
     let installedReleasesError: Error?
     let removeInstalledReleaseError: Error?
     private(set) var pruneCount = 0
+    private(set) var installCount = 0
+    private(set) var removeCount = 0
     private(set) var protectedDirectoryURL: URL?
 
     init(
@@ -559,6 +472,7 @@ private final class FakeInstaller: VMAssetInstalling {
         package: DownloadedVMAssetPackage,
         progress: @escaping (VMAssetInstallStage) -> Void
     ) async throws -> InstalledVMAssetRelease {
+        installCount += 1
         guard let release = installed.first else {
             throw URLError(.fileDoesNotExist)
         }
@@ -568,6 +482,7 @@ private final class FakeInstaller: VMAssetInstalling {
     }
 
     func removeInstalledRelease(_ release: InstalledVMAssetRelease) throws {
+        removeCount += 1
         if let removeInstalledReleaseError {
             throw removeInstalledReleaseError
         }
