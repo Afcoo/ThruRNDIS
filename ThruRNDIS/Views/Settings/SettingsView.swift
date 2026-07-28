@@ -21,7 +21,7 @@ struct SettingsView: View {
                     .tag(section)
             }
             .listStyle(.sidebar)
-            .navigationSplitViewColumnWidth(min: 170, ideal: 190, max: 220)
+            .navigationSplitViewColumnWidth(min: 170, ideal: 170, max: 170)
         } detail: {
             Group {
                 switch selectedSection {
@@ -45,7 +45,7 @@ struct SettingsView: View {
             .scrollEdgeEffectHidden(true, for: .top)
         }
         .formStyle(.grouped)
-        .frame(minWidth: 800, minHeight: 520)
+        .frame(minWidth: 760, minHeight: 480)
         .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
         .onAppear {
             appPreferences.refreshLaunchAtLoginStatus()

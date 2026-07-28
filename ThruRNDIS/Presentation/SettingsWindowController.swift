@@ -53,7 +53,7 @@ final class SettingsWindowController: NSWindowController {
         window.titlebarSeparatorStyle = .none
         window.toolbarStyle = .unified
         window.isMovableByWindowBackground = true
-        window.setContentSize(NSSize(width: 800, height: 520))
+        window.setContentSize(NSSize(width: 760, height: 480))
         window.isReleasedWhenClosed = false
         window.isRestorable = false
         window.center()
