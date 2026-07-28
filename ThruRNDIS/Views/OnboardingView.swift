@@ -12,8 +12,19 @@ struct OnboardingView: View {
     @State private var step = 0
     @State private var alert: OnboardingAlert?
 
+    let contentWidth: CGFloat
     let onFinish: () -> Void
     let onStepChange: (Int) -> Void
+
+    init(
+        contentWidth: CGFloat,
+        onFinish: @escaping () -> Void,
+        onStepChange: @escaping (Int) -> Void
+    ) {
+        self.contentWidth = contentWidth
+        self.onFinish = onFinish
+        self.onStepChange = onStepChange
+    }
 
     private let releasesURL = URL(
         string: "https://github.com/Afcoo/ThruRNDIS_VM_Assets/releases"
@@ -34,24 +45,15 @@ struct OnboardingView: View {
             .padding(.horizontal, 32)
             .padding(.top, 12)
 
-            ScrollView(.vertical) {
-                Group {
-                    switch step {
-                    case 0:
-                        welcomeStep
-                    case 1:
-                        assetInstallStep
-                    case 2:
-                        networkExtensionStep
-                    default:
-                        accessoryAttachStep
-                    }
+            ViewThatFits(in: .vertical) {
+                stepContent
+                    .fixedSize(horizontal: false, vertical: true)
+
+                ScrollView(.vertical, showsIndicators: false) {
+                    stepContent
                 }
-                .frame(maxWidth: .infinity, alignment: .topLeading)
-                .padding(.horizontal, 32)
-                .padding(.vertical, 12)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(maxWidth: .infinity)
 
             Divider()
 
@@ -83,6 +85,7 @@ struct OnboardingView: View {
             }
             .padding(12)
         }
+        .frame(width: contentWidth)
         .onReceive(assetWorkflowCoordinator.$errorMessage.compactMap { $0 }) { message in
             alert = OnboardingAlert(message: message)
         }
@@ -98,6 +101,24 @@ struct OnboardingView: View {
                 }
             )
         }
+    }
+
+    private var stepContent: some View {
+        Group {
+            switch step {
+            case 0:
+                welcomeStep
+            case 1:
+                assetInstallStep
+            case 2:
+                networkExtensionStep
+            default:
+                accessoryAttachStep
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .padding(.horizontal, 32)
+        .padding(.vertical, 12)
     }
 
     private var welcomeStep: some View {

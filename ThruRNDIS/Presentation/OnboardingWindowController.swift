@@ -7,30 +7,55 @@ import SwiftUI
 
 private enum OnboardingWindowLayout {
     static let width: CGFloat = 600
-    static let compactHeight: CGFloat = 360
-    static let expandedHeight: CGFloat = 600
     static let minimumHeight: CGFloat = 240
     static let screenMargin: CGFloat = 32
-    static let resizeAnimationDuration: TimeInterval = 0.25
+
+    static func preferredContentSize<Content: View>(
+        for hostingController: NSHostingController<Content>
+    ) -> NSSize {
+        let fittedSize = hostingController.sizeThatFits(
+            in: NSSize(
+                width: width,
+                height: CGFloat.greatestFiniteMagnitude
+            )
+        )
+        let fittedHeight = fittedSize.height.isFinite
+            ? fittedSize.height.rounded(.up)
+            : minimumHeight
+
+        return NSSize(
+            width: width,
+            height: max(minimumHeight, fittedHeight)
+        )
+    }
 }
 
 @MainActor
 private final class OnboardingWindowResizeBridge {
     weak var window: NSWindow?
+    var preferredContentSizeProvider: (() -> NSSize)?
+    private var updateSequence = 0
 
-    func update(for step: Int) {
+    func scheduleUpdate(for _: Int) {
+        updateSequence += 1
+        let sequence = updateSequence
+
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.updateSequence == sequence else {
+                return
+            }
+            guard let preferredContentSize = self.preferredContentSizeProvider?() else {
+                return
+            }
+            self.update(to: preferredContentSize, animated: true)
+        }
+    }
+
+    func update(to preferredContentSize: NSSize, animated: Bool) {
         guard let window else {
             return
         }
 
-        let preferredHeight = step == 3
-            ? OnboardingWindowLayout.expandedHeight
-            : OnboardingWindowLayout.compactHeight
-        let currentContentSize = window.contentRect(forFrameRect: window.frame).size
-        let preferredContentSize = NSSize(
-            width: OnboardingWindowLayout.width,
-            height: preferredHeight
-        )
         let titleBarHeight = window.frameRect(
             forContentRect: NSRect(origin: .zero, size: preferredContentSize)
         ).height - preferredContentSize.height
@@ -41,11 +66,12 @@ private final class OnboardingWindowResizeBridge {
             dy: OnboardingWindowLayout.screenMargin / 2
         )
         let currentFrame = window.frame
-        let anchoredTop = min(
+        let anchoredTop = currentFrame.maxY
+        let safeAnchoredTop = min(
             max(currentFrame.maxY, safeFrame.minY),
             safeFrame.maxY
         )
-        let availableFrameHeight = max(0, anchoredTop - safeFrame.minY)
+        let availableFrameHeight = max(0, safeAnchoredTop - safeFrame.minY)
         let availableContentHeight = max(0, availableFrameHeight - titleBarHeight)
         let minimumContentHeight = min(
             OnboardingWindowLayout.minimumHeight,
@@ -53,12 +79,15 @@ private final class OnboardingWindowResizeBridge {
         )
         let targetContentHeight = max(
             minimumContentHeight,
-            min(preferredHeight, availableContentHeight)
+            min(preferredContentSize.height, availableContentHeight)
         )
         let targetFrameSize = window.frameRect(
             forContentRect: NSRect(
                 origin: .zero,
-                size: NSSize(width: currentContentSize.width, height: targetContentHeight)
+                size: NSSize(
+                    width: preferredContentSize.width,
+                    height: targetContentHeight
+                )
             )
         ).size
 
@@ -74,10 +103,10 @@ private final class OnboardingWindowResizeBridge {
             height: targetFrameSize.height
         )
 
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = OnboardingWindowLayout.resizeAnimationDuration
-            context.allowsImplicitAnimation = true
-            window.animator().setFrame(targetFrame, display: true)
+        if animated {
+            window.setFrame(targetFrame, display: true, animate: true)
+        } else {
+            window.setFrame(targetFrame, display: false)
         }
     }
 }
@@ -95,41 +124,34 @@ final class OnboardingWindowController: NSWindowController, NSWindowDelegate {
         self.onClose = onClose
         let resizeBridge = OnboardingWindowResizeBridge()
         let rootView = OnboardingView(
+            contentWidth: OnboardingWindowLayout.width,
             onFinish: onFinish,
-            onStepChange: { step in
-                resizeBridge.update(for: step)
-            }
+            onStepChange: resizeBridge.scheduleUpdate
         )
             .environmentObject(store)
             .environmentObject(store.wireGuardSession)
             .environmentObject(assetWorkflowCoordinator)
         let hostingController = NSHostingController(rootView: rootView)
+        let initialContentSize = OnboardingWindowLayout.preferredContentSize(
+            for: hostingController
+        )
         let window = NSWindow(contentViewController: hostingController)
 
         window.title = String(localized: "Welcome to ThruRNDIS")
         window.styleMask = [.titled, .closable, .miniaturizable]
-        let preferredContentSize = NSSize(
-            width: OnboardingWindowLayout.width,
-            height: OnboardingWindowLayout.compactHeight
-        )
-        let titleBarHeight = window.frameRect(
-            forContentRect: NSRect(origin: .zero, size: preferredContentSize)
-        ).height - preferredContentSize.height
-        let visibleHeight = NSScreen.main?.visibleFrame.height ?? 800
-        let availableContentHeight = visibleHeight
-            - titleBarHeight
-            - OnboardingWindowLayout.screenMargin
-
-        window.setContentSize(
-            NSSize(
-                width: preferredContentSize.width,
-                height: min(
-                    preferredContentSize.height,
-                    max(OnboardingWindowLayout.minimumHeight, availableContentHeight)
-                )
-            )
-        )
         resizeBridge.window = window
+        resizeBridge.preferredContentSizeProvider = { [weak hostingController] in
+            guard let hostingController else {
+                return NSSize(
+                    width: OnboardingWindowLayout.width,
+                    height: OnboardingWindowLayout.minimumHeight
+                )
+            }
+            return OnboardingWindowLayout.preferredContentSize(
+                for: hostingController
+            )
+        }
+        resizeBridge.update(to: initialContentSize, animated: false)
         window.isReleasedWhenClosed = false
         window.isRestorable = false
         window.center()
