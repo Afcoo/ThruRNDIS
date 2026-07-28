@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Requirements for ./script/build_and_notarize_app.sh:
+# Requirements for ./script/build_app.sh:
 # - macOS with Xcode beta installed at /Applications/Xcode-beta.app, or set
 #   THRURNDIS_XCODEBUILD to another xcodebuild executable.
 # - Configuration/LocalSigning.xcconfig copied from the example and configured
@@ -9,66 +9,48 @@
 #   WireGuard Network System Extension.
 # - A Developer ID Application certificate, including its private key, for the
 #   configured team in the login Keychain.
-# - Apple notary credentials stored in the Keychain profile `thrurndis-notary`:
-#     xcrun notarytool store-credentials "thrurndis-notary"
-#   Set THRURNDIS_NOTARY_KEYCHAIN_PROFILE to use a different profile.
-# - Internet access for Apple notarization and any explicitly enabled Xcode
-#   provisioning updates. Set THRURNDIS_ALLOW_PROVISIONING_UPDATES=1 only when
-#   Xcode should be allowed to fetch or update signing assets.
+# - Internet access only when Xcode provisioning updates are explicitly
+#   enabled. Set THRURNDIS_ALLOW_PROVISIONING_UPDATES=1 only when Xcode should
+#   be allowed to fetch or update signing assets.
 #
-# The result is a versioned app artifact under dist/app-artifacts/. Its parent
-# directory includes the app version and build number, and existing artifact
-# directories are never replaced. Pass --skip-verification to skip the
-# standalone post-notarization checks while still signing, submitting,
-# stapling, and preserving the artifact.
+# This script only archives, exports, and validates the Developer ID app. It
+# does not contact Apple notarization services or staple a ticket. Pass
+# --output to choose the app path used by package_app.sh or a manual workflow;
+# otherwise it writes ThruRNDIS.app in the current working directory.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-# shellcheck source=script/distribution_common.sh
-source "$SCRIPT_DIR/distribution_common.sh"
+# shellcheck source=script/support/distribution_common.sh
+source "$SCRIPT_DIR/support/distribution_common.sh"
+# shellcheck source=script/support/distribution_io.sh
+source "$SCRIPT_DIR/support/distribution_io.sh"
 
 APP_NAME="ThruRNDIS"
 PROJECT_NAME="ThruRNDIS.xcodeproj"
 SCHEME_NAME="ThruRNDIS Runtime"
 CONFIGURATION="Release"
-DEFAULT_NOTARY_KEYCHAIN_PROFILE="thrurndis-notary"
 
 PROJECT_PATH="$ROOT_DIR/$PROJECT_NAME"
-APP_VERIFICATION_SCRIPT="$SCRIPT_DIR/verify_notarized_app.sh"
 LOCAL_SIGNING_CONFIG="$ROOT_DIR/Configuration/LocalSigning.xcconfig"
 DERIVED_DATA_PATH="${THRURNDIS_DISTRIBUTION_DERIVED_DATA_PATH:-/tmp/ThruRNDIS-DistributionDerivedData}"
-OUTPUT_DIR="${THRURNDIS_DISTRIBUTION_OUTPUT_DIR:-$ROOT_DIR/dist}"
-APP_ARTIFACT_ROOT="${THRURNDIS_APP_ARTIFACT_DIR:-$OUTPUT_DIR/app-artifacts}"
-NOTARY_KEYCHAIN_PROFILE="${THRURNDIS_NOTARY_KEYCHAIN_PROFILE:-$DEFAULT_NOTARY_KEYCHAIN_PROFILE}"
 XCODEBUILD_BIN="${THRURNDIS_XCODEBUILD:-/Applications/Xcode-beta.app/Contents/Developer/usr/bin/xcodebuild}"
 
 WORK_DIR=""
-ARTIFACT_STAGING_DIR=""
-PUBLISH_LOCK_DIR=""
-PUBLISH_LOCK_HELD=0
-RESULT_FILE=""
-SKIP_VERIFICATION=0
+OUTPUT_STAGING_DIR=""
+OUTPUT_PARENT=""
+OUTPUT_APP=""
 
 usage() {
-  echo "usage: $0 [--skip-verification] [--result-file PATH]" >&2
+  echo "usage: $0 [--output APP_PATH]" >&2
 }
 
 cleanup() {
-  if [[ "$PUBLISH_LOCK_HELD" -eq 1 && -n "$PUBLISH_LOCK_DIR" ]]; then
-    case "$PUBLISH_LOCK_DIR" in
-      "$APP_ARTIFACT_ROOT"/.ThruRNDIS-*.publish-lock)
-        /bin/rmdir "$PUBLISH_LOCK_DIR" 2>/dev/null || true
-        ;;
-    esac
-  fi
-
-  if [[ -n "$ARTIFACT_STAGING_DIR" ]]; then
-    case "$ARTIFACT_STAGING_DIR" in
-      "$APP_ARTIFACT_ROOT"/.ThruRNDIS-app-artifact.*)
-        /bin/chmod -R u+w "$ARTIFACT_STAGING_DIR" 2>/dev/null || true
-        /bin/rm -rf "$ARTIFACT_STAGING_DIR"
+  if [[ -n "$OUTPUT_STAGING_DIR" && -n "$OUTPUT_PARENT" ]]; then
+    case "$OUTPUT_STAGING_DIR" in
+      "$OUTPUT_PARENT"/.ThruRNDIS-app-build.*)
+        /bin/rm -rf "$OUTPUT_STAGING_DIR"
         ;;
     esac
   fi
@@ -86,16 +68,12 @@ trap cleanup EXIT
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --skip-verification)
-      SKIP_VERIFICATION=1
-      shift
-      ;;
-    --result-file)
+    --output)
       [[ $# -ge 2 ]] || {
         usage
         exit 2
       }
-      RESULT_FILE="$2"
+      OUTPUT_APP="$2"
       shift 2
       ;;
     -h|--help)
@@ -111,30 +89,11 @@ done
 
 [[ -x "$XCODEBUILD_BIN" ]] || distribution_fail \
   "Xcode beta xcodebuild not found at $XCODEBUILD_BIN"
-if [[ "$SKIP_VERIFICATION" -eq 0 ]]; then
-  [[ -x "$APP_VERIFICATION_SCRIPT" ]] || distribution_fail \
-    "app verification script is missing or not executable: $APP_VERIFICATION_SCRIPT"
-else
-  echo "warning: standalone post-notarization app verification is disabled" >&2
-fi
 [[ -f "$LOCAL_SIGNING_CONFIG" ]] || distribution_fail \
   "missing $LOCAL_SIGNING_CONFIG; copy LocalSigning.xcconfig.example and configure Developer ID signing first"
-[[ "$OUTPUT_DIR" != "/" && "$APP_ARTIFACT_ROOT" != "/" ]] || distribution_fail \
-  "distribution output directories cannot be /"
 [[ "${THRURNDIS_ALLOW_PROVISIONING_UPDATES:-0}" == "0" ||
    "${THRURNDIS_ALLOW_PROVISIONING_UPDATES:-0}" == "1" ]] || distribution_fail \
   "THRURNDIS_ALLOW_PROVISIONING_UPDATES must be 0 or 1"
-
-/bin/mkdir -p "$OUTPUT_DIR" "$APP_ARTIFACT_ROOT"
-OUTPUT_DIR="$(cd "$OUTPUT_DIR" && /bin/pwd -P)"
-APP_ARTIFACT_ROOT="$(cd "$APP_ARTIFACT_ROOT" && /bin/pwd -P)"
-[[ "$OUTPUT_DIR" != "/" && "$APP_ARTIFACT_ROOT" != "/" ]] || distribution_fail \
-  "canonical distribution output directories cannot be /"
-if [[ -n "$RESULT_FILE" ]]; then
-  RESULT_FILE_DIR="$(/usr/bin/dirname "$RESULT_FILE")"
-  [[ -d "$RESULT_FILE_DIR" ]] || distribution_fail \
-    "result-file directory does not exist: $RESULT_FILE_DIR"
-fi
 
 echo "Resolving Release signing settings..."
 APP_BUILD_SETTINGS="$("$XCODEBUILD_BIN" \
@@ -174,15 +133,12 @@ EXTENSION_DEVELOPMENT_TEAM="$(distribution_build_setting_value \
 distribution_require_safe_filename_component "app version" "$APP_VERSION_SETTING"
 distribution_require_safe_filename_component "app build number" "$APP_BUILD_SETTING"
 
-FINAL_ARTIFACT_DIR="$APP_ARTIFACT_ROOT/$APP_NAME-$APP_VERSION_SETTING-$APP_BUILD_SETTING"
-[[ ! -e "$FINAL_ARTIFACT_DIR" ]] || distribution_fail \
-  "immutable app artifact already exists at $FINAL_ARTIFACT_DIR; increment the build number or pass that artifact directly to build_and_notarize_dmg.sh"
-PUBLISH_LOCK_DIR="$APP_ARTIFACT_ROOT/.ThruRNDIS-$APP_VERSION_SETTING-$APP_BUILD_SETTING.publish-lock"
-if ! /bin/mkdir "$PUBLISH_LOCK_DIR" 2>/dev/null; then
-  distribution_fail \
-    "another release is publishing app version/build $APP_VERSION_SETTING/$APP_BUILD_SETTING, or a stale lock exists at $PUBLISH_LOCK_DIR"
+if [[ -z "$OUTPUT_APP" ]]; then
+  OUTPUT_APP="$PWD/$APP_NAME.app"
 fi
-PUBLISH_LOCK_HELD=1
+OUTPUT_APP="$(distribution_resolve_new_output_path \
+  "$OUTPUT_APP" "$APP_NAME.app" "app output")"
+OUTPUT_PARENT="$(/usr/bin/dirname "$OUTPUT_APP")"
 
 SIGNING_SETUP_VALID=1
 if [[ -z "$APP_PROVISIONING_PROFILE" ]]; then
@@ -204,19 +160,13 @@ fi
 [[ "$SIGNING_SETUP_VALID" -eq 1 ]] || distribution_fail \
   "Release signing prerequisites are incomplete"
 
-distribution_validate_notary_credentials "$NOTARY_KEYCHAIN_PROFILE"
-
 WORK_DIR="$(/usr/bin/mktemp -d /tmp/ThruRNDIS-app-distribution.XXXXXX)"
 ARCHIVE_PATH="$WORK_DIR/$APP_NAME.xcarchive"
 EXPORT_PATH="$WORK_DIR/export"
 EXPORT_OPTIONS_PLIST="$WORK_DIR/ExportOptions.plist"
-APP_SUBMISSION_ZIP="$WORK_DIR/$APP_NAME-notary-submission.zip"
 VALIDATION_DIR="$WORK_DIR/validation"
-ARTIFACT_VALIDATION_DIR="$WORK_DIR/artifact-validation"
 
-/bin/mkdir -p \
-  "$VALIDATION_DIR" \
-  "$ARTIFACT_VALIDATION_DIR"
+/bin/mkdir -p "$VALIDATION_DIR"
 /usr/bin/plutil -create xml1 "$EXPORT_OPTIONS_PLIST"
 /usr/bin/plutil -insert destination -string export "$EXPORT_OPTIONS_PLIST"
 /usr/bin/plutil -insert method -string developer-id "$EXPORT_OPTIONS_PLIST"
@@ -276,77 +226,23 @@ distribution_require_safe_filename_component "app build number" "$APP_BUILD"
   "exported app bundle ID $EXPORTED_BUNDLE_IDENTIFIER does not match $APP_BUNDLE_IDENTIFIER"
 
 distribution_validate_app "$EXPORTED_APP" "$VALIDATION_DIR" "$DEVELOPMENT_TEAM"
-distribution_run_notary_submission_preflight "$EXPORTED_APP"
 
-echo "Submitting the app to Apple notary service..."
-/usr/bin/ditto -c -k --sequesterRsrc --keepParent \
-  "$EXPORTED_APP" "$APP_SUBMISSION_ZIP"
-/usr/bin/xcrun notarytool submit "$APP_SUBMISSION_ZIP" \
-  --keychain-profile "$NOTARY_KEYCHAIN_PROFILE" \
-  --wait
+OUTPUT_STAGING_DIR="$(/usr/bin/mktemp -d \
+  "$OUTPUT_PARENT/.ThruRNDIS-app-build.XXXXXX")"
+BUILT_APP="$OUTPUT_STAGING_DIR/$APP_NAME.app"
 
-echo "Stapling the app notarization ticket..."
-/usr/bin/xcrun stapler staple -v "$EXPORTED_APP"
-if [[ "$SKIP_VERIFICATION" -eq 0 ]]; then
-  "$APP_VERIFICATION_SCRIPT" "$EXPORTED_APP"
-fi
-
-ARTIFACT_STAGING_DIR="$(/usr/bin/mktemp -d \
-  "$APP_ARTIFACT_ROOT/.ThruRNDIS-app-artifact.XXXXXX")"
-STAGED_APP="$ARTIFACT_STAGING_DIR/$APP_NAME.app"
-STAGED_INFO="$ARTIFACT_STAGING_DIR/artifact-info.plist"
-STAGED_CONTENT_MANIFEST="$ARTIFACT_STAGING_DIR/app-contents.sha256"
-STAGED_FINGERPRINT="$ARTIFACT_STAGING_DIR/app-fingerprint.mtree"
-
-echo "Creating versioned app artifact $APP_NAME-$APP_VERSION-$APP_BUILD..."
-/usr/bin/ditto "$EXPORTED_APP" "$STAGED_APP"
+echo "Writing signed app build $APP_NAME-$APP_VERSION-$APP_BUILD..."
+/usr/bin/ditto "$EXPORTED_APP" "$BUILT_APP"
 distribution_compare_app_contents \
-  "$EXPORTED_APP" "$STAGED_APP" "$ARTIFACT_VALIDATION_DIR/content-comparison"
-if [[ "$SKIP_VERIFICATION" -eq 0 ]]; then
-  "$APP_VERIFICATION_SCRIPT" "$STAGED_APP"
-fi
-distribution_write_app_content_manifest "$STAGED_APP" "$STAGED_CONTENT_MANIFEST"
-distribution_write_app_fingerprint "$STAGED_APP" "$STAGED_FINGERPRINT"
+  "$EXPORTED_APP" "$BUILT_APP" "$WORK_DIR/build-copy-comparison"
+distribution_validate_app \
+  "$BUILT_APP" "$WORK_DIR/build-copy-validation" "$DEVELOPMENT_TEAM"
 
-ARTIFACT_FINGERPRINT_SHA256="$(distribution_sha256 "$STAGED_FINGERPRINT")"
-ARTIFACT_CONTENT_MANIFEST_SHA256="$(distribution_sha256 "$STAGED_CONTENT_MANIFEST")"
-ARTIFACT_TEAM="$(distribution_team_identifier "$EXPORTED_APP")"
-WIREGUARD_APP_GROUP="$(/usr/libexec/PlistBuddy \
-  -c 'Print :com.apple.security.application-groups:0' \
-  "$VALIDATION_DIR/extension-entitlements.plist")"
-/usr/bin/plutil -create xml1 "$STAGED_INFO"
-/usr/bin/plutil -insert appName -string "$APP_NAME" "$STAGED_INFO"
-/usr/bin/plutil -insert bundleIdentifier -string "$APP_BUNDLE_IDENTIFIER" "$STAGED_INFO"
-/usr/bin/plutil -insert version -string "$APP_VERSION" "$STAGED_INFO"
-/usr/bin/plutil -insert build -string "$APP_BUILD" "$STAGED_INFO"
-/usr/bin/plutil -insert teamIdentifier -string "$ARTIFACT_TEAM" "$STAGED_INFO"
-/usr/bin/plutil -insert wireGuardAppGroup -string "$WIREGUARD_APP_GROUP" "$STAGED_INFO"
-/usr/bin/plutil -insert artifactFile -string "$APP_NAME.app" "$STAGED_INFO"
-/usr/bin/plutil -insert fingerprintSHA256 -string \
-  "$ARTIFACT_FINGERPRINT_SHA256" "$STAGED_INFO"
-/usr/bin/plutil -insert contentManifestSHA256 -string \
-  "$ARTIFACT_CONTENT_MANIFEST_SHA256" "$STAGED_INFO"
+[[ ! -e "$OUTPUT_APP" && ! -L "$OUTPUT_APP" ]] || distribution_fail \
+  "app output appeared while this build was running: $OUTPUT_APP"
+/bin/mv "$BUILT_APP" "$OUTPUT_APP"
+/bin/rmdir "$OUTPUT_STAGING_DIR"
+OUTPUT_STAGING_DIR=""
 
-[[ ! -e "$FINAL_ARTIFACT_DIR" ]] || distribution_fail \
-  "immutable app artifact appeared while this build was running: $FINAL_ARTIFACT_DIR"
-/bin/chmod 0444 \
-  "$STAGED_INFO" \
-  "$STAGED_CONTENT_MANIFEST" \
-  "$STAGED_FINGERPRINT"
-/bin/chmod 0555 "$ARTIFACT_STAGING_DIR"
-/bin/mv "$ARTIFACT_STAGING_DIR" "$FINAL_ARTIFACT_DIR"
-ARTIFACT_STAGING_DIR=""
-/bin/rmdir "$PUBLISH_LOCK_DIR"
-PUBLISH_LOCK_DIR=""
-PUBLISH_LOCK_HELD=0
-
-FINAL_ARTIFACT="$FINAL_ARTIFACT_DIR/$APP_NAME.app"
-if [[ -n "$RESULT_FILE" ]]; then
-  /usr/bin/printf '%s\n' "$FINAL_ARTIFACT" >"$RESULT_FILE"
-fi
-
-echo "Notarized app artifact: $FINAL_ARTIFACT"
-echo "Artifact fingerprint: $FINAL_ARTIFACT_DIR/app-fingerprint.mtree"
-if [[ "$SKIP_VERIFICATION" -eq 1 ]]; then
-  echo "Post-notarization app verification: skipped"
-fi
+echo "Signed app build: $OUTPUT_APP"
+echo "Next: $SCRIPT_DIR/notarize_app.sh \"$OUTPUT_APP\""

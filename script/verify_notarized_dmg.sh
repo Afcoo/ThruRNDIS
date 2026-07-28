@@ -12,8 +12,10 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=script/distribution_common.sh
-source "$SCRIPT_DIR/distribution_common.sh"
+# shellcheck source=script/support/distribution_common.sh
+source "$SCRIPT_DIR/support/distribution_common.sh"
+# shellcheck source=script/support/distribution_io.sh
+source "$SCRIPT_DIR/support/distribution_io.sh"
 
 APP_NAME="ThruRNDIS"
 APP_VERIFICATION_SCRIPT="$SCRIPT_DIR/verify_notarized_app.sh"
@@ -26,22 +28,9 @@ usage() {
   echo "usage: $0 NOTARIZED_DMG" >&2
 }
 
-detach_image() {
-  local device="$1"
-  local attempt
-
-  for attempt in 1 2 3; do
-    if /usr/bin/hdiutil detach "$device" >/dev/null; then
-      return 0
-    fi
-    /bin/sleep 1
-  done
-  return 1
-}
-
 cleanup() {
   if [[ -n "$MOUNT_DEVICE" ]]; then
-    detach_image "$MOUNT_DEVICE" >/dev/null 2>&1 || true
+    distribution_detach_disk_image "$MOUNT_DEVICE" >/dev/null 2>&1 || true
     MOUNT_DEVICE=""
   elif [[ -n "$MOUNT_DIR" ]]; then
     /usr/bin/hdiutil detach "$MOUNT_DIR" >/dev/null 2>&1 || true
@@ -105,18 +94,8 @@ echo "Requesting the Gatekeeper open assessment..."
   "$INPUT_DMG"
 
 echo "Mounting the DMG read-only and validating its contents..."
-ATTACH_OUTPUT="$(/usr/bin/hdiutil attach \
-  -readonly \
-  -nobrowse \
-  -noautoopen \
-  -mountpoint "$MOUNT_DIR" \
-  "$INPUT_DMG")"
-MOUNT_DEVICE="$(/usr/bin/printf '%s\n' "$ATTACH_OUTPUT" | /usr/bin/awk '
-  /^\/dev\// && !device { device = $1 }
-  END { print device }
-')"
-[[ "$MOUNT_DEVICE" == /dev/disk* ]] || distribution_fail \
-  "could not determine the mounted device for $INPUT_DMG"
+distribution_attach_disk_image \
+  -readonly "$INPUT_DMG" "$MOUNT_DIR" MOUNT_DEVICE
 
 shopt -s nullglob
 MOUNTED_APPS=("$MOUNT_DIR"/*.app)
@@ -151,7 +130,7 @@ MOUNTED_APP_TEAM="$(distribution_team_identifier "$MOUNTED_APP")"
 [[ "$MOUNTED_APP_TEAM" == "$DMG_TEAM" ]] || distribution_fail \
   "the DMG and embedded app use different signing teams"
 
-detach_image "$MOUNT_DEVICE" || distribution_fail \
+distribution_detach_disk_image "$MOUNT_DEVICE" || distribution_fail \
   "could not detach mounted DMG device $MOUNT_DEVICE"
 MOUNT_DEVICE=""
 MOUNT_DIR=""

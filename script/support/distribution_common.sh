@@ -10,7 +10,7 @@
 #   the signed RuntimeDebug installer.
 #
 # This file is a sourced library. Run build_and_install.sh, package_app.sh,
-# build_and_notarize_app.sh, build_and_notarize_dmg.sh,
+# build_app.sh, notarize_app.sh, build_dmg.sh, notarize_dmg.sh,
 # verify_notarized_app.sh, or verify_notarized_dmg.sh instead.
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
@@ -464,6 +464,83 @@ distribution_resolve_app_icon() {
   icon_path="$app_path/Contents/Resources/$icon_name"
   [[ -f "$icon_path" ]] || distribution_fail "built app icon not found at $icon_path"
   /usr/bin/printf '%s\n' "$icon_path"
+}
+
+distribution_resolve_dmg_signing_identity() {
+  local app_path="$1"
+  local expected_authority="$2"
+  local expected_team="$3"
+  local certificate_prefix="$4"
+  local leaf_certificate="${certificate_prefix}0"
+  local candidate_identities
+  local certificate_sha1
+  local selected_identity
+  local signing_identities
+
+  certificate_sha1=""
+  if /usr/bin/codesign \
+    -d \
+    --extract-certificates="$certificate_prefix" \
+    "$app_path" >/dev/null 2>&1; then
+    if [[ -f "$leaf_certificate" ]]; then
+      certificate_sha1="$(/usr/bin/shasum -a 1 "$leaf_certificate" | \
+        /usr/bin/awk '{ print toupper($1) }')"
+      [[ "$certificate_sha1" =~ ^[0-9A-F]{40}$ ]] || distribution_fail \
+        "could not calculate the input app signing certificate SHA-1"
+    fi
+  fi
+
+  # find-identity reports code-signing identities only when the certificate is
+  # paired with its private key. Prefer the app's exact leaf certificate, then
+  # allow another valid Developer ID Application identity from the same team so
+  # a preserved app can still be packaged after certificate renewal.
+  if ! signing_identities="$(/usr/bin/security find-identity -v -p codesigning)"; then
+    distribution_fail "could not enumerate available code-signing identities"
+  fi
+  candidate_identities="$(/usr/bin/printf '%s\n' "$signing_identities" | \
+    /usr/bin/awk -v expected_team="$expected_team" '
+      function is_hex_sha1(value) {
+        return length(value) == 40 && value !~ /[^0-9A-Fa-f]/
+      }
+      $1 ~ /^[[:digit:]]+\)$/ && is_hex_sha1($2) {
+        first_quote = index($0, "\"")
+        if (!first_quote) {
+          next
+        }
+        identity_name = substr($0, first_quote + 1)
+        sub(/\"$/, "", identity_name)
+        team_suffix = "(" expected_team ")"
+        if (index(identity_name, "Developer ID Application:") == 1 &&
+            length(identity_name) >= length(team_suffix) &&
+            substr(identity_name, length(identity_name) - length(team_suffix) + 1) == team_suffix) {
+          identity_sha1 = toupper($2)
+          if (!seen[identity_sha1]++) {
+            print identity_sha1
+          }
+        }
+      }
+    ')"
+  [[ -n "$candidate_identities" ]] || distribution_fail \
+    "no Developer ID Application private key is available for team $expected_team"
+
+  selected_identity=""
+  if [[ -n "$certificate_sha1" ]] && /usr/bin/printf '%s\n' "$candidate_identities" | \
+    /usr/bin/grep -qx "$certificate_sha1"; then
+    selected_identity="$certificate_sha1"
+  else
+    selected_identity="$(/usr/bin/printf '%s\n' "$candidate_identities" | \
+      /usr/bin/awk 'NF { print; exit }')"
+    if [[ -n "$certificate_sha1" ]]; then
+      echo "warning: the input app certificate private key is unavailable: $expected_authority ($certificate_sha1)" >&2
+      echo "warning: using another valid Developer ID Application identity for team $expected_team" >&2
+    else
+      echo "warning: could not extract the input app leaf certificate; using a valid identity for team $expected_team" >&2
+    fi
+  fi
+  [[ "$selected_identity" =~ ^[0-9A-F]{40}$ ]] || distribution_fail \
+    "could not select a unique Developer ID Application identity for team $expected_team"
+
+  /usr/bin/printf '%s\n' "$selected_identity"
 }
 
 distribution_validate_dmg_signature() {

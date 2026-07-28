@@ -8,11 +8,11 @@ CONFIGURATION="RuntimeDebug"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-# shellcheck source=script/distribution_common.sh
-source "$SCRIPT_DIR/distribution_common.sh"
+# shellcheck source=script/support/distribution_common.sh
+source "$SCRIPT_DIR/support/distribution_common.sh"
 PROJECT_PATH="$ROOT_DIR/$PROJECT_NAME"
 LOCAL_SIGNING_CONFIG="$ROOT_DIR/Configuration/LocalSigning.xcconfig"
-WIREGUARD_GO_BRIDGE_SCRIPT="$ROOT_DIR/script/build_wireguard_go_bridge.sh"
+WIREGUARD_GO_BRIDGE_SCRIPT="$ROOT_DIR/script/support/build_wireguard_go_bridge.sh"
 DERIVED_DATA_PATH="${THRURNDIS_RUNTIME_DERIVED_DATA_PATH:-/tmp/ThruRNDIS-RuntimeDerivedData}"
 BUILT_APP="$DERIVED_DATA_PATH/Build/Products/$CONFIGURATION/$APP_NAME.app"
 INSTALL_APP="/Applications/$APP_NAME.app"

@@ -87,6 +87,21 @@ public release:
 ./script/package_app.sh
 ```
 
+For a manual or retryable release flow, run the focused stages in order:
+
+```sh
+./script/build_app.sh --output <work>/ThruRNDIS.app
+./script/notarize_app.sh <work>/ThruRNDIS.app
+./script/build_dmg.sh --output <work>/ThruRNDIS-<version>.dmg <work>/ThruRNDIS.app
+./script/notarize_dmg.sh <work>/ThruRNDIS-<version>.dmg
+```
+
+The build scripts do not contact Apple. The notarization scripts submit,
+staple, and verify the supplied artifact in place. `package_app.sh` uses one
+ignored `dist/.package-work/ThruRNDIS-<version>-<build>/` directory for these
+stages, resumes it after a failure, and removes it after publishing the final
+app and DMG together under `dist/ThruRNDIS-<version>-<build>/`.
+
 ## Code organization
 
 Follow the layer ownership and Swift naming conventions in `AGENTS.md`.

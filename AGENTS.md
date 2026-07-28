@@ -317,12 +317,18 @@ target membership, and build phase as applicable.
   for normal Codex and shell iteration. Use `script/build_and_install.sh` only
   for the signed Runtime build and `/Applications` installation required by
   Network System Extension testing. Use `script/package_app.sh` as the full
-  Developer ID Release orchestrator. It delegates the app and DMG stages to
-  `script/build_and_notarize_app.sh` and
-  `script/build_and_notarize_dmg.sh`; shared artifact validation belongs in
-  `script/distribution_common.sh`. These scripts produce ignored artifacts
-  under `dist/` and require Apple notary credentials already stored in
-  Keychain.
+  Developer ID Release orchestrator. It coordinates `script/build_app.sh`,
+  `script/notarize_app.sh`, `script/build_dmg.sh`, and
+  `script/notarize_dmg.sh` in that order; shared artifact validation
+  belongs in `script/support/distribution_common.sh`, while shared artifact-path
+  and disk-image I/O belongs in `script/support/distribution_io.sh`. Internal
+  helpers that are sourced or invoked by Xcode/Finder automation belong under
+  `script/support/`, including `build_wireguard_go_bridge.sh` and
+  `configure_dmg_layout.applescript`. The build scripts do not contact Apple's
+  notary service. The notarization scripts require credentials already stored
+  in Keychain and staple their supplied artifact in place. `package_app.sh`
+  alone owns the resumable `dist/.package-work/` lifecycle and final publication
+  under `dist/`.
 - `ThruRNDISWireGuardNetworkExtension`: the system-extension executable entry,
   `NEPacketTunnelProvider`, Info.plist, and development/distribution
   entitlements. Shared parser/constants files remain under `ThruRNDIS/Support`
@@ -405,38 +411,68 @@ xcrun notarytool store-credentials "thrurndis-notary"
 ./script/package_app.sh
 ```
 
-  `package_app.sh` runs two independent stages in sequence. The app stage
-  archives and exports the `ThruRNDIS Runtime` scheme in `Release`, validates
-  the Developer ID signatures, hardened runtime, distribution entitlements,
-  and embedded Network System Extension, then notarizes and staples the app.
-  It atomically preserves the result without overwriting an existing build at
-  `dist/app-artifacts/ThruRNDIS-<version>-<build>/ThruRNDIS.app`. The DMG stage
-  revalidates that exact app with codesign, Developer ID, entitlement, stapler,
-  and `syspolicy_check distribution` checks before using `hdiutil` to create
-  `dist/ThruRNDIS-<version>.dmg`. It preserves the compact 480x300
-  Finder layout, 96 px icons, and fixed app/Applications positions. The
-  mounted volume uses the built app's `.icns`;
+  `package_app.sh` runs four focused stages in sequence:
+  `build_app.sh`, `notarize_app.sh`, `build_dmg.sh`, and `notarize_dmg.sh`.
+  It uses one ignored, versioned work directory at
+  `dist/.package-work/ThruRNDIS-<version>-<build>/`, with `ThruRNDIS.app` and the
+  DMG stored directly inside it. A rerun resumes completed build or notarization
+  stages from that directory instead of creating a random hidden attempt.
+
+  The app build stage archives and exports the `ThruRNDIS Runtime` scheme in
+  `Release`, validates the Developer ID signatures, hardened runtime,
+  distribution entitlements, and embedded Network System Extension without
+  contacting Apple. The app notarization stage submits the supplied app once,
+  then staples and verifies that same bundle without rebuilding or re-signing
+  it.
+
+  The DMG build stage revalidates the notarized input app, creates the compact
+  480x300 Finder layout with 96 px icons and fixed app/Applications positions,
+  validates the contained app copies, and signs the image without contacting
+  Apple. The DMG notarization stage submits the supplied image once, then
+  staples and verifies that same file. After all four stages succeed,
+  `package_app.sh` publishes the app and DMG without overwriting an existing
+  package at `dist/ThruRNDIS-<version>-<build>/`, containing `ThruRNDIS.app`
+  and `ThruRNDIS-<version>.dmg`. The mounted volume uses the built app's `.icns`;
   the `.dmg` file itself intentionally uses the standard macOS disk-image icon.
   The app is never re-signed during DMG creation. Only the DMG is separately
-  signed, notarized, stapled, and validated. Set
+  signed. Set
   `THRURNDIS_NOTARY_KEYCHAIN_PROFILE` to use a non-default profile. Set
   `THRURNDIS_ALLOW_PROVISIONING_UPDATES=1` only when Xcode should be allowed to
   fetch or update signing assets during archive/export.
 
-  Both release stages invoke `verify_notarized_app.sh` or
-  `verify_notarized_dmg.sh` for their post-notarization trust-policy checks.
+  `notarize_app.sh` and `notarize_dmg.sh` invoke
+  `verify_notarized_app.sh` and `verify_notarized_dmg.sh` respectively for
+  post-notarization trust-policy checks.
   Pass `--skip-verification` to `package_app.sh`,
-  `build_and_notarize_app.sh`, or `build_and_notarize_dmg.sh` to skip only
-  those standalone post-notarization checks. Signing, Apple notary submission,
-  ticket stapling, and the structural/integrity checks required to construct
-  the artifact remain enabled.
+  `notarize_app.sh`, or `notarize_dmg.sh` to skip only those standalone
+  post-notarization checks. Signing, Apple notary submission, ticket stapling,
+  and the structural/integrity checks required to construct the artifact remain
+  enabled.
 
-  If the app stage has succeeded but the DMG stage needs to be retried, reuse
-  the preserved app without submitting the app to notarization again:
+  If a stage fails, rerun `package_app.sh` to resume the versioned package work.
+  The focused notarization scripts may also be run directly:
 
 ```sh
-./script/build_and_notarize_dmg.sh \
-  dist/app-artifacts/ThruRNDIS-<version>-<build>/ThruRNDIS.app
+./script/notarize_app.sh \
+  dist/.package-work/ThruRNDIS-<version>-<build>/ThruRNDIS.app
+./script/notarize_dmg.sh \
+  dist/.package-work/ThruRNDIS-<version>-<build>/ThruRNDIS-<version>.dmg
+```
+
+  Successful publication moves that version's work directory as one unit to
+  `dist/ThruRNDIS-<version>-<build>/`, then removes the empty `.package-work`
+  root. If both final outputs already exist, a rerun validates
+  their stapled tickets and exits without rebuilding or resubmitting either
+  artifact.
+
+  The focused build scripts accept `--output` for an explicit artifact path.
+  Without it, `build_app.sh` writes `ThruRNDIS.app` and `build_dmg.sh` writes
+  `ThruRNDIS-<version>.dmg` in the current working directory. To build only a
+  DMG from an already-published app without resubmitting that app, run:
+
+```sh
+./script/build_dmg.sh --output <new-output>/ThruRNDIS-<version>.dmg \
+  dist/ThruRNDIS-<version>-<build>/ThruRNDIS.app
 ```
 
   Independently revalidate an already-published app or DMG from a normal macOS
@@ -444,19 +480,18 @@ xcrun notarytool store-credentials "thrurndis-notary"
 
 ```sh
 ./script/verify_notarized_app.sh \
-  dist/app-artifacts/ThruRNDIS-<version>-<build>/ThruRNDIS.app
+  dist/ThruRNDIS-<version>-<build>/ThruRNDIS.app
 ./script/verify_notarized_dmg.sh \
-  dist/ThruRNDIS-<version>.dmg
+  dist/ThruRNDIS-<version>-<build>/ThruRNDIS-<version>.dmg
 ```
 
   The app verifier checks the app and embedded Network System Extension
   signatures, hardened runtime, direct-distribution entitlements, stapled
-  ticket, Gatekeeper distribution policy, and preserved artifact metadata when
-  present. The DMG verifier checks the image checksum, Developer ID signature,
-  secure timestamp, stapled ticket, Gatekeeper open policy, and the same app
-  checks after a read-only mount. Run these trust-policy checks outside a
-  restricted sandbox because blocked access to macOS security services can
-  produce false failures.
+  ticket, and Gatekeeper distribution policy. The DMG verifier checks the image
+  checksum, Developer ID signature, secure timestamp, stapled ticket,
+  Gatekeeper open policy, and the same app checks after a read-only mount. Run
+  these trust-policy checks outside a restricted sandbox because blocked access
+  to macOS security services can produce false failures.
 
 ## Signing And Entitlements
 
