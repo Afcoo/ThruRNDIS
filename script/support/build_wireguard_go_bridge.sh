@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Xcode Legacy Target entrypoint for building WireGuardKit's libwg-go.a.
+# Xcode Legacy Target helper for building WireGuardKit's libwg-go.a.
 # BUILD_DIR and DEVELOPER_BIN_DIR are supplied by Xcode. The script derives the
 # SourcePackages checkout from DerivedData because BUILD_DIR has a different
 # layout during archive builds than it does during ordinary builds.
@@ -70,4 +70,10 @@ if [[ ! -f "$BUILT_LIBRARY" ]]; then
 fi
 
 /bin/mkdir -p "$CONFIGURATION_BUILD_DIR"
-/bin/cp -f "$BUILT_LIBRARY" "$CONFIGURATION_BUILD_DIR/libwg-go.a"
+STAGED_LIBRARY="$(/usr/bin/mktemp \
+  "$CONFIGURATION_BUILD_DIR/.libwg-go.a.XXXXXX")"
+trap '/bin/rm -f "$STAGED_LIBRARY"' EXIT
+
+/bin/cp -p "$BUILT_LIBRARY" "$STAGED_LIBRARY"
+/bin/mv -f "$STAGED_LIBRARY" "$CONFIGURATION_BUILD_DIR/libwg-go.a"
+trap - EXIT
