@@ -182,11 +182,9 @@ struct OnboardingView: View {
                         }
 
                         Link("View VM Asset Release", destination: releasesURL)
-                    }
 
-                    Divider()
+                        Spacer()
 
-                    HStack {
                         Button("Choose Downloaded Assets…") {
                             guard let url = FilePicker.chooseDirectory(
                                 title: String(localized: "Choose downloaded VM assets"),
@@ -198,9 +196,8 @@ struct OnboardingView: View {
                                 alert = OnboardingAlert(message: error.localizedDescription)
                             }
                         }
-
+                        .disabled(!store.canEditVMConfiguration || assetWorkflowCoordinator.isBusy)
                     }
-                    .disabled(!store.canEditVMConfiguration || assetWorkflowCoordinator.isBusy)
                 }
                 .padding(.vertical, 2)
             }
