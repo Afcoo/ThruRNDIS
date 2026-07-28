@@ -1,0 +1,50 @@
+name: PR policy
+
+on:
+  pull_request:
+    types:
+      - opened
+      - edited
+      - reopened
+      - synchronize
+      - ready_for_review
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-policy-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  conventional-title:
+    name: Conventional PR title
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Validate pull request title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          pattern='^(feat|fix|docs|refactor|test|build|ci|chore|perf|revert)(\([a-z0-9][a-z0-9-]*\))?!?: [^[:space:]].*$'
+
+          if [[ ! "$PR_TITLE" =~ $pattern ]]; then
+            {
+              echo "Invalid pull request title: $PR_TITLE"
+              echo
+              echo "Use Conventional Commits syntax:"
+              echo "  type(optional-scope): concise description"
+              echo
+              echo "Allowed types:"
+              echo "  feat, fix, docs, refactor, test, build, ci, chore, perf, revert"
+              echo
+              echo "Examples:"
+              echo "  fix(usb): serialize detach handling"
+              echo "  feat!: change a public configuration format"
+              echo "  docs: clarify Runtime signing"
+            } >&2
+            exit 1
+          fi
