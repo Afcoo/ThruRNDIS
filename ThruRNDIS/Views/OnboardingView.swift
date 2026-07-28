@@ -42,9 +42,9 @@ struct OnboardingView: View {
                     case 1:
                         assetInstallStep
                     case 2:
-                        accessoryAttachStep
-                    default:
                         networkExtensionStep
+                    default:
+                        accessoryAttachStep
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -105,16 +105,16 @@ struct OnboardingView: View {
             Label("Welcome to ThruRNDIS", systemImage: "cable.connector.horizontal")
                 .font(.largeTitle.bold())
 
-            Text("Set up ThruRNDIS once, then use the menu bar whenever you want to connect a USB tethering device.")
+            Text("Follow these four steps to use USB tethering.")
                 .font(.title3)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
             VStack(alignment: .leading, spacing: 8) {
-                onboardingPoint("Install the required files in the next step.", image: "arrow.down.circle")
-                onboardingPoint("Turn on USB tethering and connect your device to this Mac.", image: "cable.connector")
-                onboardingPoint("Use Virtual Machine Accessories in the menu bar to connect the device to ThruRNDIS.", image: "menubar.rectangle")
-                onboardingPoint("Enable the Network Extension before connecting.", image: "checkmark.shield")
+                onboardingPoint("Install the VM Assets.", image: "arrow.down.circle")
+                onboardingPoint("Grant the Network Extension permission for the WireGuard connection.", image: "checkmark.shield")
+                onboardingPoint("Connect your tethering device to this Mac.", image: "cable.connector")
+                onboardingPoint("Use Virtual Machine Accessories to attach the device to ThruRNDIS.", image: "menubar.rectangle")
             }
         }
     }
@@ -124,21 +124,10 @@ struct OnboardingView: View {
             Label("Install the Required Files", systemImage: "shippingbox.and.arrow.backward")
                 .font(.largeTitle.bold())
 
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text("Download and install the VM Assets ThruRNDIS needs.")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Spacer()
-
-                Link(destination: vmAssetsDocumentationURL) {
-                    Label("What are VM Assets", systemImage: "questionmark.circle")
-                }
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .fixedSize()
-            }
+            Text("Download and install the VM Assets.")
+                .font(.title3)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
 
             GroupBox {
                 VStack(alignment: .leading, spacing: 10) {
@@ -181,11 +170,11 @@ struct OnboardingView: View {
                             .disabled(!store.canEditVMConfiguration)
                         }
 
-                        Link("View VM Asset Release", destination: releasesURL)
+                        Link("View Releases", destination: releasesURL)
 
                         Spacer()
 
-                        Button("Choose Downloaded Assets…") {
+                        Button("Choose Folder…") {
                             guard let url = FilePicker.chooseDirectory(
                                 title: String(localized: "Choose downloaded VM assets"),
                                 initialURL: assetWorkflowCoordinator.selectedFolderURL
@@ -201,6 +190,17 @@ struct OnboardingView: View {
                 }
                 .padding(.vertical, 2)
             }
+
+            HStack {
+                Spacer()
+
+                Link(destination: vmAssetsDocumentationURL) {
+                    Label("What are VM Assets", systemImage: "questionmark.circle")
+                }
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize()
+            }
         }
     }
 
@@ -209,7 +209,7 @@ struct OnboardingView: View {
             Label("Connect Your Tethering Device", systemImage: "cable.connector.horizontal")
                 .font(.largeTitle.bold())
 
-            Text("Use the macOS menu bar to make your USB tethering device available to ThruRNDIS.")
+            Text("Use the menu bar to pass your tethering device through to ThruRNDIS.")
                 .font(.title3)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -224,12 +224,12 @@ struct OnboardingView: View {
                 )
                 onboardingInstruction(
                     "Open Virtual Machine Accessories",
-                    detail: "Click the USB device icon in the menu bar and choose the tethering device you want to use.",
+                    detail: "Click the USB icon in the menu bar and choose the tethering device.",
                     image: "menubar.rectangle"
                 )
                 onboardingInstruction(
                     "Use it with ThruRNDIS",
-                    detail: "Select \u{201c}Use with ThruRNDIS,\u{201d} then choose \u{201c}Attach\u{201d} when ThruRNDIS asks.",
+                    detail: "Select \u{201c}Use with ThruRNDIS\u{201d}",
                     image: "checkmark.circle"
                 )
             }
@@ -241,7 +241,7 @@ struct OnboardingView: View {
             Label("Enable the Network Extension", systemImage: "checkmark.shield")
                 .font(.largeTitle.bold())
 
-            Text("ThruRNDIS requires its Network Extension to be active before it can connect.")
+            Text("ThruRNDIS requires Network Extension permission.")
                 .font(.title3)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

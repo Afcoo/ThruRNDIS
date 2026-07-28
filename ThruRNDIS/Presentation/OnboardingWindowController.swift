@@ -6,7 +6,7 @@ import AppKit
 import SwiftUI
 
 private enum OnboardingWindowLayout {
-    static let width: CGFloat = 680
+    static let width: CGFloat = 600
     static let compactHeight: CGFloat = 360
     static let expandedHeight: CGFloat = 600
     static let minimumHeight: CGFloat = 240
@@ -23,7 +23,7 @@ private final class OnboardingWindowResizeBridge {
             return
         }
 
-        let preferredHeight = step == 2
+        let preferredHeight = step == 3
             ? OnboardingWindowLayout.expandedHeight
             : OnboardingWindowLayout.compactHeight
         let currentContentSize = window.contentRect(forFrameRect: window.frame).size
