@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation / 문서
+    url: https://thrurndis.afcoo.dev
+    about: Read the installation and troubleshooting documentation. / 설치 및 문제 해결 문서를 확인합니다.
+  - name: Questions and support / 질문 및 지원
+    url: https://github.com/Afcoo/ThruRNDIS/discussions
+    about: Ask usage and troubleshooting questions in GitHub Discussions. / 사용 및 문제 해결 질문은 GitHub Discussions에서 작성합니다.
+  - name: Private security report / 비공개 보안 신고
+    url: https://github.com/Afcoo/ThruRNDIS/security/advisories/new
+    about: Report suspected vulnerabilities privately. Do not open a public issue. / 의심되는 취약점은 공개 Issue가 아닌 비공개 경로로 신고합니다.
+  - name: VM Asset repository / VM Asset 저장소
+    url: https://github.com/Afcoo/ThruRNDIS_VM_Assets/issues
+    about: Report guest image, initramfs, kernel, or published VM Asset problems in the asset repository. / 게스트 이미지, initramfs, 커널 또는 배포된 VM Asset 문제를 신고합니다.

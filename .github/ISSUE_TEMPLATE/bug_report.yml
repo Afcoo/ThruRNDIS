@@ -1,0 +1,140 @@
+name: Bug report / 버그 신고
+description: Report a reproducible problem with ThruRNDIS. / 재현 가능한 문제를 신고합니다.
+title: "[Bug]: "
+labels:
+  - bug
+  - needs-triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping improve ThruRNDIS.
+
+        Do not include WireGuard private keys, complete client configurations,
+        provisioning profiles, signing credentials, or other secrets. Report
+        vulnerabilities through [GitHub's private security advisory form](https://github.com/Afcoo/ThruRNDIS/security/advisories/new),
+        not through a public issue.
+
+        ThruRNDIS 개선에 도움을 주셔서 감사합니다. WireGuard 개인 키, 전체
+        클라이언트 설정, 프로비저닝 프로파일, 서명 자격 증명 등 비밀 정보는
+        첨부하지 마세요. 보안 취약점은 공개 Issue가 아닌 [GitHub 비공개 보안
+        신고 양식](https://github.com/Afcoo/ThruRNDIS/security/advisories/new)을
+        이용해 주세요.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area / 관련 영역
+      options:
+        - VM Asset installation or selection
+        - USB approval, detection, or passthrough
+        - VM boot or lifecycle
+        - WireGuard configuration or connection
+        - Network System Extension
+        - Onboarding, Settings, or menu bar
+        - Installation, signing, or distribution
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: app-version
+    attributes:
+      label: ThruRNDIS version / ThruRNDIS 버전
+      description: Include the app version and build number when available.
+      placeholder: "0.2.1 (9)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: installation-method
+    attributes:
+      label: Installation method / 설치 방식
+      options:
+        - Release DMG
+        - Homebrew
+        - Local unsigned Xcode build
+        - Local signed Runtime build
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: macos-version
+    attributes:
+      label: macOS version / macOS 버전
+      description: Include the macOS version and build number.
+      placeholder: "macOS 27 beta (build ...)"
+    validations:
+      required: true
+
+  - type: input
+    id: mac-hardware
+    attributes:
+      label: Mac hardware / Mac 하드웨어
+      description: Include the Mac model and chip.
+      placeholder: "MacBook Pro, Apple M..."
+    validations:
+      required: true
+
+  - type: input
+    id: tethering-device
+    attributes:
+      label: Tethering device / 테더링 기기
+      description: Include the device model and OS version when the problem involves USB tethering.
+      placeholder: "Android device model, Android version, or Not applicable"
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce / 재현 단계
+      description: Provide the shortest reliable sequence that reproduces the problem.
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior / 기대 동작
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior / 실제 동작
+      description: Include exact error messages when possible.
+    validations:
+      required: true
+
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics / 진단 정보
+      description: |
+        Attach exported app event logs or paste relevant serial-console excerpts.
+        Wrap pasted text in fenced code blocks when practical.
+        Redact private keys, complete WireGuard client configurations, signing
+        credentials, personal paths, and device identifiers.
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context / 추가 정보
+      description: Add screenshots, timing details, or other information that may help.
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmation / 확인
+      options:
+        - label: I searched existing issues for the same problem. / 동일한 기존 Issue를 검색했습니다.
+          required: true
+        - label: I removed private keys, credentials, and other secrets. / 개인 키, 자격 증명 및 기타 비밀 정보를 제거했습니다.
+          required: true
