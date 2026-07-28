@@ -41,7 +41,18 @@ final class SettingsWindowController: NSWindowController {
         let window = NSWindow(contentViewController: hostingController)
 
         window.title = String(localized: "ThruRNDIS Settings")
-        window.styleMask = [.titled, .closable]
+        window.styleMask = [
+            .titled,
+            .closable,
+            .miniaturizable,
+            .resizable,
+            .fullSizeContentView,
+        ]
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.titlebarSeparatorStyle = .none
+        window.toolbarStyle = .unified
+        window.isMovableByWindowBackground = true
         window.setContentSize(NSSize(width: 800, height: 520))
         window.isReleasedWhenClosed = false
         window.isRestorable = false

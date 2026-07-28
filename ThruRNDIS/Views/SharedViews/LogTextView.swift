@@ -8,16 +8,14 @@ struct LogTextView: View {
     let text: String
 
     var body: some View {
-        ScrollView {
-            Text(verbatim: text)
-                .font(.system(.caption, design: .monospaced))
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(8)
+        GroupBox {
+            ScrollView {
+                Text(verbatim: text)
+                    .font(.system(.caption, design: .monospaced))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(8)
+            }
         }
-        .background(
-            .quaternary.opacity(0.35),
-            in: RoundedRectangle(cornerRadius: 6)
-        )
     }
 }

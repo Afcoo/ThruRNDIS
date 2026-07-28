@@ -137,8 +137,16 @@ final class OnboardingWindowController: NSWindowController, NSWindowDelegate {
         )
         let window = NSWindow(contentViewController: hostingController)
 
-        window.title = String(localized: "Welcome to ThruRNDIS")
-        window.styleMask = [.titled, .closable, .miniaturizable]
+        window.title = "ThruRNDIS"
+        window.styleMask = [
+            .titled,
+            .closable,
+            .miniaturizable,
+            .fullSizeContentView,
+        ]
+        window.titlebarAppearsTransparent = true
+        window.titlebarSeparatorStyle = .none
+        window.isMovableByWindowBackground = true
         resizeBridge.window = window
         resizeBridge.preferredContentSizeProvider = { [weak hostingController] in
             guard let hostingController else {

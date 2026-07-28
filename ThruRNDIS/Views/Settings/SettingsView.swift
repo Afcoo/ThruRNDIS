@@ -41,10 +41,12 @@ struct SettingsView: View {
                     InfoView(resetAndRestart: resetAndRestart)
                 }
             }
-            .scenePadding()
+            .navigationTitle(selectedSection.title)
+            .scrollEdgeEffectHidden(true, for: .top)
         }
         .formStyle(.grouped)
-        .frame(width: 800, height: 520)
+        .frame(minWidth: 800, minHeight: 520)
+        .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
         .onAppear {
             appPreferences.refreshLaunchAtLoginStatus()
         }
