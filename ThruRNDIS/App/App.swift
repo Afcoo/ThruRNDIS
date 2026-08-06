@@ -105,7 +105,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return await self.dummyEthernet.startAndWaitUntilActive()
         },
         deactivateDummyEthernetAfterWireGuardConnection: { [weak self] in
-            self?.dummyEthernet.stop()
+            self?.dummyEthernet.stopAfterCurrentOperation()
         }
     )
 

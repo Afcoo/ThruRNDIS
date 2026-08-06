@@ -392,13 +392,7 @@ final class DummyEthernetStore: ObservableObject {
 
     @discardableResult
     func startAndWaitUntilActive() async -> Bool {
-        while isOperationInProgress {
-            do {
-                try await Task.sleep(for: .milliseconds(50))
-            } catch {
-                return false
-            }
-        }
+        guard await waitUntilCurrentOperationFinishes() else { return false }
 
         guard runtimeState != .active else { return true }
         refreshHelperRegistrationState()
@@ -432,6 +426,16 @@ final class DummyEthernetStore: ObservableObject {
                 "Dummy Ethernet start failed: \(error.localizedDescription)"
             )
             return false
+        }
+    }
+
+    func stopAfterCurrentOperation() {
+        Task { @MainActor [weak self] in
+            guard let self,
+                  await self.waitUntilCurrentOperationFinishes() else {
+                return
+            }
+            self.stop()
         }
     }
 
@@ -621,6 +625,17 @@ final class DummyEthernetStore: ObservableObject {
                 )
             }
         }
+    }
+
+    private func waitUntilCurrentOperationFinishes() async -> Bool {
+        while isOperationInProgress {
+            do {
+                try await Task.sleep(for: .milliseconds(50))
+            } catch {
+                return false
+            }
+        }
+        return true
     }
 
     private func appendCompletionEvent(
