@@ -43,8 +43,8 @@ final class TetheringWorkflowCoordinator {
         let workflowStateDidChange: () -> Void
     }
 
-    private let vmCoordinator: any VMCoordinating
-    private let usbCoordinator: any USBAccessoryCoordinating
+    private let vmCoordinator: VMCoordinator
+    private let usbCoordinator: USBAccessoryCoordinator
     private let assetProvider: VMAssetProviding
     private let eventLog: EventLogStore
     private let usbSession: USBSessionStore
@@ -59,8 +59,8 @@ final class TetheringWorkflowCoordinator {
 
     init(
         assetProvider: VMAssetProviding,
-        vmCoordinator: any VMCoordinating,
-        usbCoordinator: any USBAccessoryCoordinating,
+        vmCoordinator: VMCoordinator,
+        usbCoordinator: USBAccessoryCoordinator,
         eventLog: EventLogStore,
         usbSession: USBSessionStore,
         wireGuardSession: WireGuardSessionStore,

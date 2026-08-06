@@ -21,7 +21,7 @@ enum VMAssetDownloadError: LocalizedError {
     }
 }
 
-final class VMAssetDownloadService: VMAssetDownloading {
+final class VMAssetDownloadService {
     private let session: URLSession
     private let fileManager: FileManager
     private let layout: VMAssetStorageLayout

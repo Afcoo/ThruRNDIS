@@ -50,9 +50,9 @@ final class WireGuardSessionStore: ObservableObject {
 
     var onReadinessChange: (() -> Void)?
 
-    private let configurationStore: any WireGuardConfigurationStoring
+    private let configurationStore: WireGuardConfigurationStore
     private let configurationBuilder: WireGuardConfigurationBuilder
-    private let tunnelController: any HostWireGuardTunnelControlling
+    private let tunnelController: HostWireGuardTunnelController
     private let eventLog: EventLogStore
     private let systemExtensionSettingsOpener: @MainActor () -> Bool
     private let defaults: UserDefaults
@@ -62,9 +62,9 @@ final class WireGuardSessionStore: ObservableObject {
     private var isResettingPersistedValues = false
 
     init(
-        configurationStore: any WireGuardConfigurationStoring,
+        configurationStore: WireGuardConfigurationStore,
         configurationBuilder: WireGuardConfigurationBuilder,
-        tunnelController: any HostWireGuardTunnelControlling,
+        tunnelController: HostWireGuardTunnelController,
         eventLog: EventLogStore,
         systemExtensionSettingsOpener: @escaping @MainActor () -> Bool = {
             NetworkExtensionSettingsOpener.open()

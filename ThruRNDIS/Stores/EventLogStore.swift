@@ -19,14 +19,14 @@ final class EventLogStore: ObservableObject {
         60 * 60 * 1_000_000_000
 
     private let maximumCharacters: Int
-    private let filePersistence: (any EventLogFilePersisting)?
+    private let filePersistence: EventLogFileStore?
     private var didReportFilePersistenceFailure = false
     private var filePersistenceTask: Task<Void, Never>?
     private var fileMaintenanceTask: Task<Void, Never>?
 
     init(
         maximumCharacters: Int = 60_000,
-        filePersistence: (any EventLogFilePersisting)? = nil
+        filePersistence: EventLogFileStore? = nil
     ) {
         precondition(maximumCharacters > 0)
         self.maximumCharacters = maximumCharacters
@@ -233,9 +233,7 @@ final class EventLogStore: ObservableObject {
     }
 
     private func enqueueFilePersistenceOperation(
-        _ operation: @escaping (
-            any EventLogFilePersisting
-        ) async throws -> Bool
+        _ operation: @escaping (EventLogFileStore) async throws -> Bool
     ) {
         guard let filePersistence else {
             return

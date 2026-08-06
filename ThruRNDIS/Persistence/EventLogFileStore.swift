@@ -6,18 +6,6 @@ import Darwin
 import Foundation
 import OSLog
 
-protocol EventLogFilePersisting: Actor {
-    func hasLogFiles() throws -> Bool
-    func prepareLogsDirectory() throws -> URL
-    func append(_ line: String) throws
-    /// Synchronizes appends that the caller awaited before this barrier.
-    func flush() throws
-    /// Performs time rotation and retention cleanup even when no events arrive.
-    func performMaintenance() throws
-    /// Flushes prior awaited appends and exports this app session's files.
-    func exportLogFiles(to destinationDirectoryURL: URL) throws -> URL
-}
-
 enum EventLogFileStoreError: LocalizedError {
     case invalidDestinationDirectory(URL)
     case noLogFilesAvailable
@@ -32,7 +20,7 @@ enum EventLogFileStoreError: LocalizedError {
     }
 }
 
-actor EventLogFileStore: EventLogFilePersisting {
+actor EventLogFileStore {
     nonisolated static let defaultMaximumFileSizeBytes = 10 * 1024 * 1024
     nonisolated static let defaultRotationInterval: TimeInterval = 24 * 60 * 60
     nonisolated static let defaultRetentionInterval: TimeInterval = 7 * 24 * 60 * 60

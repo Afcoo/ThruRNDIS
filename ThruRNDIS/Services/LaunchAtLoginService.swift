@@ -10,13 +10,7 @@ struct LaunchAtLoginSnapshot: Equatable {
     let statusText: String
 }
 
-@MainActor
-protocol LaunchAtLoginManaging {
-    func snapshot() -> LaunchAtLoginSnapshot
-    func setEnabled(_ isEnabled: Bool) throws -> LaunchAtLoginSnapshot
-}
-
-struct LaunchAtLoginService: LaunchAtLoginManaging {
+struct LaunchAtLoginService {
     func snapshot() -> LaunchAtLoginSnapshot {
         switch SMAppService.mainApp.status {
         case .enabled:

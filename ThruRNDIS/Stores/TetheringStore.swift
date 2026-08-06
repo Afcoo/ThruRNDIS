@@ -79,8 +79,8 @@ final class TetheringStore: ObservableObject {
     lazy var dummyEthernet = managedDummyEthernet
         ?? DummyEthernetStore(eventLog: eventLog)
 
-    private let vmCoordinator: any VMCoordinating
-    private let usbCoordinator: any USBAccessoryCoordinating
+    private let vmCoordinator: VMCoordinator
+    private let usbCoordinator: USBAccessoryCoordinator
     private let assetProvider: VMAssetProviding
     private let managedDummyEthernet: DummyEthernetStore?
     private let prepareDummyEthernetForWireGuardConnection:
@@ -369,8 +369,8 @@ final class TetheringStore: ObservableObject {
 
     init(
         assetProvider: VMAssetProviding,
-        vmCoordinator: any VMCoordinating,
-        usbCoordinator: any USBAccessoryCoordinating,
+        vmCoordinator: VMCoordinator,
+        usbCoordinator: USBAccessoryCoordinator,
         eventLog: EventLogStore,
         consoleSession: ConsoleSessionStore,
         usbSession: USBSessionStore,
@@ -411,22 +411,22 @@ final class TetheringStore: ObservableObject {
 
     convenience init(
         assetProvider: VMAssetProviding,
-        vmCoordinator: any VMCoordinating,
-        usbCoordinator: any USBAccessoryCoordinating,
-        wireGuardConfigurationStore: any WireGuardConfigurationStoring,
+        vmCoordinator: VMCoordinator,
+        usbCoordinator: USBAccessoryCoordinator,
+        wireGuardConfigurationStore: WireGuardConfigurationStore,
         wireGuardConfigurationBuilder: WireGuardConfigurationBuilder,
         eventLog: EventLogStore,
         consoleSession: ConsoleSessionStore,
         usbSession: USBSessionStore,
         vmConfiguration: VMConfigurationStore,
-        hostWireGuardTunnelController: any HostWireGuardTunnelControlling,
+        hostWireGuardTunnelController: HostWireGuardTunnelController,
         runtimeEntitlementSnapshotProvider: @escaping () -> RuntimeEntitlementSnapshot = {
             .current
         },
         systemExtensionSettingsOpener: @escaping @MainActor () -> Bool = {
             NetworkExtensionSettingsOpener.open()
         },
-        launchAtLoginService: (any LaunchAtLoginManaging)? = nil,
+        launchAtLoginService: LaunchAtLoginService = LaunchAtLoginService(),
         defaults: UserDefaults = .standard
     ) {
         let wireGuardSession = WireGuardSessionStore(
