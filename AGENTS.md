@@ -66,10 +66,16 @@ WireGuard-over-VZNAT architecture as the baseline.
   cross-feature actions. Keep the dependency one-way: `TetheringStore` sees
   only the read-only `VMAssetProviding` boundary, and
   `VMAssetWorkflowCoordinator` must not reference `TetheringStore`.
-- `DummyEthernetStore` is an independent `AppDelegate`-owned Settings store.
-  `AppDelegate` passes it through `SettingsWindowController` to `SettingsView`;
-  do not inject it into `TetheringStore`, onboarding, the menu bar, USB attach,
-  VM start, or WireGuard auto-connect flows.
+- `DummyEthernetStore` is an independent `AppDelegate`-owned presentation store.
+  `AppDelegate` passes it separately to `SettingsWindowController` and
+  `MenuBarController`; do not inject it into `TetheringStore`, onboarding, USB
+  attach, VM start, or WireGuard auto-connect flows. With VM assets configured,
+  the menu bar keeps all status items in one leading section. Debug mode then
+  orders its control sections as VM, USB, WireGuard, and Dummy Ethernet, with a
+  separator between sections; normal mode omits VM and Dummy Ethernet controls.
+  Its status and control order is VM, USB, WireGuard, then Dummy Ethernet. The
+  combined status follows the same evaluation order, including the fixed Helper
+  Problem state when the helper is unavailable.
   `DummyEthernetPrivilegedHelperRegistrationService` owns `SMAppService.daemon`
   registration and status, while `DummyEthernetPrivilegedHelperClient` owns the
   authenticated NSXPC connection to the helper. The unprivileged app must not
@@ -221,11 +227,24 @@ ThruRNDIS WireGuardKit Network System Extension
 
 ## Dummy Ethernet Compatibility Service
 
-- Dummy Ethernet is an optional, Settings-only compatibility feature. It exists
+- Dummy Ethernet is an optional compatibility feature. Settings owns its
+  editable configuration, while Settings and the debug-mode menu bar expose
+  manual Start/Stop/Restart controls. The normal-mode menu bar does not show
+  Dummy Ethernet controls, and neither menu mode exposes helper registration,
+  installation, removal, approval, or reinstallation actions. The menu bar
+  presents Dummy Ethernet as a colored status item in debug mode and folds it
+  into the combined status in normal mode. For any helper registration problem
+  or helper operation, present the fixed Helper Problem guidance as the
+  Dummy Ethernet state; never expose helper registration status variants or a
+  separate colorless helper item in the menu bar. It exists
   to provide a synthetic satisfied wired-Ethernet path for network-path
-  evaluation. It is independent of the tethering data path, does not provide
-  connectivity, forwarding, DNS, or NAT, and must remain a manual Start/Stop/Restart
-  action rather than part of USB or WireGuard auto-connect.
+  evaluation. When macOS has no active network connection, the app-managed
+  WireGuard setup requires Dummy Ethernet to provide that satisfied path.
+  Dummy Ethernet is not required when the user configures WireGuard manually.
+  This conditional requirement is limited to setup and network-path evaluation:
+  Dummy Ethernet remains independent of the tethering data path, does not
+  provide connectivity, forwarding, DNS, or NAT, and must remain a manual
+  Start/Stop/Restart action rather than part of USB or WireGuard auto-connect.
 - `SMAppService` registration is explicit. After a successful register request,
   record the embedded helper file's installation identity rather than only the
   app build number. Replacing an app bundle can leave the previous root helper

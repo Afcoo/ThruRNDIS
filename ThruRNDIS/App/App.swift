@@ -141,6 +141,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         menuBarController = MenuBarController(
             store: store,
+            dummyEthernet: dummyEthernet,
             assetWorkflowCoordinator: assetWorkflowCoordinator,
             openSettings: { [weak self] in self?.showSettingsWindow() }
         )
@@ -263,6 +264,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         appPreferences.refreshLaunchAtLoginStatus()
         store.refreshWireGuardSystemExtensionStatus()
+        dummyEthernet.refresh()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

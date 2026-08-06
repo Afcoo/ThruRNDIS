@@ -2627,18 +2627,18 @@
         }
       }
     },
-    "ThruRNDIS — VM %@, %@, %@" : {
+    "ThruRNDIS — VM %@, %@, %@, %@" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "ThruRNDIS — VM %1$@, %2$@, %3$@"
+            "value" : "ThruRNDIS — VM %1$@, %2$@, %3$@, %4$@"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ThruRNDIS — VM %1$@, %2$@, %3$@"
+            "value" : "ThruRNDIS — VM %1$@, %2$@, %3$@, %4$@"
           }
         }
       }
@@ -3485,6 +3485,32 @@
         }
       }
     },
+    "Dummy Ethernet: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Dummy Ethernet: %@"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "더미 이더넷: %@"
+          }
+        }
+      }
+    },
+    "Helper Problem" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "헬퍼 문제"
+          }
+        }
+      }
+    },
     "Dummy Ethernet is unavailable in this unsigned build." : {
       "localizations" : {
         "ko" : {
@@ -3841,6 +3867,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "헬퍼가 불완전한 응답을 반환했습니다."
+          }
+        }
+      }
+    },
+    "Restart Dummy Ethernet" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "더미 이더넷 재시작"
+          }
+        }
+      }
+    },
+    "Start Dummy Ethernet" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "더미 이더넷 시작"
+          }
+        }
+      }
+    },
+    "Stop Dummy Ethernet" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "더미 이더넷 중지"
           }
         }
       }

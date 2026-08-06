@@ -20,6 +20,10 @@ private enum MenuBarPresentationMode: Equatable {
     var displaysVMControls: Bool {
         self == .debug
     }
+
+    var displaysDummyEthernetControls: Bool {
+        self == .debug
+    }
 }
 
 @MainActor
@@ -38,6 +42,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }()
 
     private let store: TetheringStore
+    private let dummyEthernet: DummyEthernetStore
     private let assetWorkflowCoordinator: VMAssetWorkflowCoordinator
     private let openSettings: () -> Void
     private let statusItem: NSStatusItem
@@ -46,9 +51,13 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var combinedStatusItem: NSMenuItem?
     private var vmStatusItem: NSMenuItem?
     private var usbStatusItem: NSMenuItem?
+    private var dummyEthernetStatusItem: NSMenuItem?
     private var wireGuardStatusItem: NSMenuItem?
     private var vmActionItem: NSMenuItem?
     private var stopItem: NSMenuItem?
+    private var dummyEthernetControlsSeparator: NSMenuItem?
+    private var dummyEthernetPrimaryActionItem: NSMenuItem?
+    private var stopDummyEthernetItem: NSMenuItem?
     private var wireGuardItem: NSMenuItem?
     private var attachSubmenu: NSMenu?
     private var detachItem: NSMenuItem?
@@ -61,10 +70,12 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     init(
         store: TetheringStore,
+        dummyEthernet: DummyEthernetStore,
         assetWorkflowCoordinator: VMAssetWorkflowCoordinator,
         openSettings: @escaping () -> Void
     ) {
         self.store = store
+        self.dummyEthernet = dummyEthernet
         self.assetWorkflowCoordinator = assetWorkflowCoordinator
         self.openSettings = openSettings
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -87,10 +98,19 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             self?.schedulePresentationRefresh()
         }
         .store(in: &cancellables)
+
+        dummyEthernet.objectWillChange
+            .sink { [weak self] in
+                self?.schedulePresentationRefresh()
+            }
+            .store(in: &cancellables)
+
+        dummyEthernet.refresh()
     }
 
     func menuWillOpen(_ menu: NSMenu) {
         isMenuOpen = true
+        dummyEthernet.refresh()
         rebuildMenu()
     }
 
@@ -198,7 +218,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         button.image = Self.statusBarImage
         button.setAccessibilityLabel(String(localized: "ThruRNDIS status"))
         button.toolTip = String(
-            localized: "ThruRNDIS — VM \(store.vmDisplayState.localizedName), \(usbStatusTitle), \(wireGuardStatusTitle)"
+            localized: "ThruRNDIS — VM \(store.vmDisplayState.localizedName), \(usbStatusTitle), \(wireGuardStatusTitle), \(dummyEthernetStatusTitle)"
         )
     }
 
@@ -214,10 +234,35 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             menu.addItem(informationalItem(
                 title: String(localized: "Configure VM Assets in Settings")
             ))
+            if presentationMode.displaysDummyEthernetControls {
+                addDummyEthernetControlsSection()
+            }
             addSettingsAndQuitItems()
+            refreshDummyEthernetPresentation()
             return
         }
 
+        addStatusSection(presentationMode: presentationMode)
+
+        if presentationMode.displaysVMControls {
+            menu.addItem(.separator())
+            addVMControlsSection()
+        }
+
+        menu.addItem(.separator())
+        addUSBControlsSection()
+        menu.addItem(.separator())
+        addWireGuardControlsSection()
+        if presentationMode.displaysDummyEthernetControls {
+            addDummyEthernetControlsSection()
+        }
+
+        addSettingsAndQuitItems()
+        refreshDummyEthernetPresentation()
+        refreshConfiguredMenuPresentation()
+    }
+
+    private func addStatusSection(presentationMode: MenuBarPresentationMode) {
         if presentationMode.displaysIndividualStatusItems {
             let vmStatusItem = statusItemLine(
                 title: String(localized: "VM: \(store.vmDisplayState.localizedName)"),
@@ -239,49 +284,76 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             )
             self.wireGuardStatusItem = wireGuardStatusItem
             menu.addItem(wireGuardStatusItem)
+
+            addDummyEthernetStatusItem()
         } else {
             addCombinedStatusItem()
         }
+    }
 
-        menu.addItem(.separator())
+    private func addVMControlsSection() {
+        let vmActionItem = actionItem(title: "", action: #selector(startOrRestartVM))
+        self.vmActionItem = vmActionItem
+        menu.addItem(vmActionItem)
 
-        if presentationMode.displaysVMControls {
-            let vmActionItem = actionItem(title: "", action: #selector(startOrRestartVM))
-            self.vmActionItem = vmActionItem
-            menu.addItem(vmActionItem)
+        let stopItem = actionItem(
+            title: String(localized: "Stop VM"),
+            action: #selector(stopVM)
+        )
+        self.stopItem = stopItem
+        menu.addItem(stopItem)
+    }
 
-            let stopItem = actionItem(
-                title: String(localized: "Stop VM"),
-                action: #selector(stopVM)
-            )
-            self.stopItem = stopItem
-            menu.addItem(stopItem)
-        }
-
-        let wireGuardItem = actionItem(title: "", action: #selector(connectWireGuard))
-        self.wireGuardItem = wireGuardItem
-        menu.addItem(wireGuardItem)
-
-        menu.addItem(.separator())
+    private func addUSBControlsSection() {
         let attachMenuItem = attachMenuItem()
         attachSubmenu = attachMenuItem.submenu
         menu.addItem(attachMenuItem)
 
-        let detachItem = actionItem(title: String(localized: "Detach USB"), action: #selector(detachUSB))
+        let detachItem = actionItem(
+            title: String(localized: "Detach USB"),
+            action: #selector(detachUSB)
+        )
         self.detachItem = detachItem
         menu.addItem(detachItem)
+    }
 
-        addSettingsAndQuitItems()
-        refreshConfiguredMenuPresentation()
+    private func addWireGuardControlsSection() {
+        let wireGuardItem = actionItem(title: "", action: #selector(connectWireGuard))
+        self.wireGuardItem = wireGuardItem
+        menu.addItem(wireGuardItem)
+    }
+
+    private func addDummyEthernetControlsSection() {
+        let separator = NSMenuItem.separator()
+        dummyEthernetControlsSeparator = separator
+        menu.addItem(separator)
+
+        let primaryActionItem = actionItem(
+            title: "",
+            action: #selector(startDummyEthernet)
+        )
+        dummyEthernetPrimaryActionItem = primaryActionItem
+        menu.addItem(primaryActionItem)
+
+        let stopItem = actionItem(
+            title: String(localized: "Stop Dummy Ethernet"),
+            action: #selector(stopDummyEthernet)
+        )
+        stopDummyEthernetItem = stopItem
+        menu.addItem(stopItem)
     }
 
     private func clearDynamicMenuReferences() {
         combinedStatusItem = nil
         vmStatusItem = nil
         usbStatusItem = nil
+        dummyEthernetStatusItem = nil
         wireGuardStatusItem = nil
         vmActionItem = nil
         stopItem = nil
+        dummyEthernetControlsSeparator = nil
+        dummyEthernetPrimaryActionItem = nil
+        stopDummyEthernetItem = nil
         wireGuardItem = nil
         attachSubmenu = nil
         detachItem = nil
@@ -300,6 +372,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             return
         }
 
+        refreshDummyEthernetPresentation()
         refreshCombinedStatusItem()
 
         guard hasConfiguredAssets else {
@@ -344,6 +417,51 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
         refreshAttachSubmenu()
         detachItem?.isEnabled = store.canDetachAccessory
+    }
+
+    private func addDummyEthernetStatusItem() {
+        let item = statusItemLine(
+            title: dummyEthernetStatusTitle,
+            dotColor: dummyEthernetStatusColor
+        )
+        dummyEthernetStatusItem = item
+        menu.addItem(item)
+    }
+
+    private func refreshDummyEthernetPresentation() {
+        updateStatusItem(
+            dummyEthernetStatusItem,
+            title: dummyEthernetStatusTitle,
+            dotColor: dummyEthernetStatusColor
+        )
+
+        let displaysNetworkControls = canPresentDummyEthernetNetworkStatus
+            && currentPresentationMode.displaysDummyEthernetControls
+        dummyEthernetControlsSeparator?.isHidden = !displaysNetworkControls
+        dummyEthernetPrimaryActionItem?.isHidden = !displaysNetworkControls
+        stopDummyEthernetItem?.isHidden = !displaysNetworkControls
+
+        if displaysNetworkControls {
+            if dummyEthernet.isRestartActionPresented {
+                dummyEthernetPrimaryActionItem?.title = String(
+                    localized: "Restart Dummy Ethernet"
+                )
+                dummyEthernetPrimaryActionItem?.action =
+                    #selector(restartDummyEthernet)
+                dummyEthernetPrimaryActionItem?.isEnabled =
+                    dummyEthernet.canRestart
+            } else {
+                dummyEthernetPrimaryActionItem?.title = String(
+                    localized: "Start Dummy Ethernet"
+                )
+                dummyEthernetPrimaryActionItem?.action =
+                    #selector(startDummyEthernet)
+                dummyEthernetPrimaryActionItem?.isEnabled =
+                    dummyEthernet.canStart
+            }
+
+            stopDummyEthernetItem?.isEnabled = dummyEthernet.canStop
+        }
     }
 
     private func addCombinedStatusItem() {
@@ -465,6 +583,54 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         String(localized: "WireGuard: \(store.wireGuardSession.hostTunnelStatus.title)")
     }
 
+    private var dummyEthernetStatusTitle: String {
+        guard canPresentDummyEthernetNetworkStatus else {
+            return String(
+                localized: "Dummy Ethernet: \(String(localized: "Helper Problem"))"
+            )
+        }
+
+        let title: String
+        if let operation = dummyEthernet.networkStatusOperation {
+            title = operation.title
+        } else {
+            switch dummyEthernet.runtimeState {
+            case nil:
+                title = String(localized: "Not Checked")
+            case .inactive:
+                title = String(localized: "Stopped")
+            case .active:
+                title = String(localized: "Active")
+            case .degraded:
+                title = String(localized: "Needs Attention")
+            }
+        }
+        return String(localized: "Dummy Ethernet: \(title)")
+    }
+
+    private var canPresentDummyEthernetNetworkStatus: Bool {
+        dummyEthernet.helperRegistrationStatus == .enabled
+            && dummyEthernet.helperStatusOperation == nil
+    }
+
+    private var dummyEthernetStateForCombinedStatus:
+        MenuBarCombinedStatus.DummyEthernetState {
+        guard canPresentDummyEthernetNetworkStatus else {
+            return .helperProblem
+        }
+
+        switch dummyEthernet.runtimeState {
+        case nil:
+            return .notChecked
+        case .inactive:
+            return .stopped
+        case .active:
+            return .active
+        case .degraded:
+            return .needsAttention
+        }
+    }
+
     private var currentPresentationMode: MenuBarPresentationMode {
         MenuBarPresentationMode(
             isDebugModeEnabled: store.appPreferences.isDebugModeEnabled
@@ -475,6 +641,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         MenuBarCombinedStatus(
             vmRuntimeState: store.runtimeState,
             isUSBAttached: store.usbSession.attachedAccessoryID != nil,
+            dummyEthernetState: dummyEthernetStateForCombinedStatus,
             wireGuardTunnelStatus: store.wireGuardSession.hostTunnelStatus
         )
     }
@@ -518,6 +685,27 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             return .systemYellow
         case .unconfigured, .disconnected, .failed:
             return .systemRed
+        }
+    }
+
+    private var dummyEthernetStatusColor: NSColor {
+        guard canPresentDummyEthernetNetworkStatus else {
+            return .systemRed
+        }
+
+        if dummyEthernet.networkStatusOperation != nil {
+            return .systemYellow
+        }
+
+        switch dummyEthernet.runtimeState {
+        case nil:
+            return .systemGray
+        case .inactive:
+            return .systemRed
+        case .active:
+            return .systemGreen
+        case .degraded:
+            return .systemOrange
         }
     }
 
@@ -597,6 +785,18 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     @objc private func disconnectWireGuard() {
         store.disconnectHostWireGuardTunnel()
+    }
+
+    @objc private func startDummyEthernet() {
+        dummyEthernet.start()
+    }
+
+    @objc private func restartDummyEthernet() {
+        dummyEthernet.restart()
+    }
+
+    @objc private func stopDummyEthernet() {
+        dummyEthernet.stop()
     }
 
     @objc private func attachUSB(_ sender: NSMenuItem) {
