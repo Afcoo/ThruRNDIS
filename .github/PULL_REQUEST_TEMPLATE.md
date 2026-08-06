@@ -15,7 +15,7 @@
 <!-- Check every applicable item. Explain any item that is intentionally not applicable. -->
 
 - [ ] `./script/build_and_run.sh --verify`
-- [ ] Relevant XCTest coverage
+- [ ] Checks run and unverified runtime paths are documented
 - [ ] Signed Runtime validation with `./script/build_and_install.sh`
 - [ ] Real USB/WireGuard validation
 - [ ] Not applicable; explanation:
@@ -32,7 +32,7 @@
 
 - [ ] The pull request has one focused purpose.
 - [ ] The title follows Conventional Commits, for example `fix(usb): serialize detach handling`.
-- [ ] Behavior changes include appropriate tests or an explanation of why automated testing is not practical.
+- [ ] Behavior changes include appropriate build or runtime validation, with unavailable paths explained.
 - [ ] User-facing behavior and operational changes are documented.
 - [ ] New, moved, renamed, or deleted Swift files are reflected in Xcode groups, target membership, and build phases.
 - [ ] No private keys, complete WireGuard client configurations, credentials, provisioning profiles, personal signing values, or local build artifacts are included.
