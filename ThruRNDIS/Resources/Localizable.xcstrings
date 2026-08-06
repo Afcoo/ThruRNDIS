@@ -3551,6 +3551,16 @@
         }
       }
     },
+    "Dummy Ethernet Helper Update Required" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "더미 이더넷 헬퍼 업데이트 필요"
+          }
+        }
+      }
+    },
     "Dummy Ethernet is unavailable in this unsigned build." : {
       "localizations" : {
         "ko" : {
@@ -3891,6 +3901,16 @@
         }
       }
     },
+    "The Dummy Ethernet helper must be updated to use ThruRNDIS.\nYou can update it manually later in Settings." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ThruRNDIS를 사용하려면 더미 이더넷 헬퍼를 업데이트해야 합니다.\n나중에 설정에서 수동으로 업데이트할 수 있습니다."
+          }
+        }
+      }
+    },
     "The Dummy Ethernet helper XPC interface is unavailable." : {
       "localizations" : {
         "ko" : {
@@ -3967,6 +3987,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "더미 이더넷 중지"
+          }
+        }
+      }
+    },
+    "Update" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "업데이트"
           }
         }
       }

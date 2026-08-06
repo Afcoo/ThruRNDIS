@@ -227,9 +227,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .store(in: &cancellables)
 
         store.startAccessoryMonitoringOnLaunch()
-        if store.shouldPresentOnboardingOnLaunch || !assetWorkflowCoordinator.hasConfiguredAssets {
-            DispatchQueue.main.async { [weak self] in
-                self?.showOnboardingWindow()
+        DispatchQueue.main.async { [weak self] in
+            guard let self else {
+                return
+            }
+
+            self.presentDummyEthernetHelperUpdateIfNeeded()
+            if self.store.shouldPresentOnboardingOnLaunch
+                || !self.assetWorkflowCoordinator.hasConfiguredAssets {
+                self.showOnboardingWindow()
             }
         }
     }
@@ -311,6 +317,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         consoleWindowController?.show()
+    }
+
+    private func presentDummyEthernetHelperUpdateIfNeeded() {
+        let helper = store.dummyEthernet.helper
+        helper.refresh()
+        guard helper.registrationStatus == .updateRequired else {
+            return
+        }
+
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = String(
+            localized: "Dummy Ethernet Helper Update Required"
+        )
+        alert.informativeText = String(
+            localized: "The Dummy Ethernet helper must be updated to use ThruRNDIS.\nYou can update it manually later in Settings."
+        )
+        alert.addButton(withTitle: String(localized: "Update"))
+        alert.addButton(withTitle: String(localized: "Not Now"))
+
+        guard alert.runModal() == .alertFirstButtonReturn else {
+            eventLog.append(
+                "Dummy Ethernet helper update deferred at app launch.",
+                level: .debug,
+                category: .application
+            )
+            return
+        }
+
+        store.dummyEthernet.reinstallHelper()
     }
 
     private func resetAppSettingsAndRestart() {
