@@ -645,24 +645,6 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             && dummyEthernet.helperStatusOperation == nil
     }
 
-    private var dummyEthernetStateForCombinedStatus:
-        MenuBarCombinedStatus.DummyEthernetState {
-        guard canPresentDummyEthernetNetworkStatus else {
-            return .helperProblem
-        }
-
-        switch dummyEthernet.runtimeState {
-        case nil:
-            return .notChecked
-        case .inactive:
-            return .stopped
-        case .active:
-            return .active
-        case .degraded:
-            return .needsAttention
-        }
-    }
-
     private var currentPresentationMode: MenuBarPresentationMode {
         MenuBarPresentationMode(
             isDebugModeEnabled: store.appPreferences.isDebugModeEnabled
@@ -680,7 +662,6 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         MenuBarCombinedStatus(
             vmRuntimeState: store.runtimeState,
             isUSBAttached: store.usbSession.attachedAccessoryID != nil,
-            dummyEthernetState: dummyEthernetStateForCombinedStatus,
             wireGuardTunnelStatus: store.wireGuardSession.hostTunnelStatus
         )
     }
