@@ -589,6 +589,16 @@
         }
       }
     },
+    "Configure Network Extension in Settings" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "설정에서 Network Extension을 구성하세요"
+          }
+        }
+      }
+    },
     "Configure Privileged Helper in Settings" : {
       "localizations" : {
         "ko" : {
