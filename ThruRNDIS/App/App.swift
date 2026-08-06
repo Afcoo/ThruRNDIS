@@ -89,6 +89,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         eventLog: eventLog
     )
     lazy var appPreferences = AppPreferencesStore()
+    lazy var dummyEthernet = DummyEthernetStore(eventLog: eventLog)
     lazy var store = TetheringStore(
         assetProvider: assetWorkflowCoordinator,
         vmCoordinator: VMCoordinator(),
@@ -272,6 +273,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if settingsWindowController == nil {
             settingsWindowController = SettingsWindowController(
                 store: store,
+                dummyEthernetStore: dummyEthernet,
                 assetWorkflowCoordinator: assetWorkflowCoordinator,
                 openConsole: { [weak self] in
                     self?.showConsoleWindow()
@@ -308,6 +310,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 return
             }
             self.assetWorkflowCoordinator.clearSelection()
+            self.dummyEthernet.resetPersistedInput()
 
             do {
                 try self.applicationRelaunchService.scheduleRelaunch(
