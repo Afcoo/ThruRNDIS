@@ -2,12 +2,16 @@
 
 # Shared requirements for the distribution validation helpers:
 # - Run on macOS with Xcode command-line tools available through xcrun.
-# - The input app must contain exactly one Network System Extension and must be
-#   signed with a timestamped Developer ID Application identity.
+# - The input app must contain exactly one Network System Extension plus the
+#   privileged helper and launchd plist at their fixed SMAppService paths. All
+#   executable code must be signed with a timestamped Developer ID Application
+#   identity from one team.
 # - The app and extension must carry the direct-distribution entitlements
-#   declared by this project. These helpers validate artifacts; they never sign
-#   an app or mutate one. The generic entitlement extractor is also reused by
-#   the signed RuntimeDebug installer.
+#   declared by this project. The helper must have a derived signing identifier,
+#   hardened runtime, and launchd metadata consistent with that identifier.
+#   These helpers validate artifacts; they never sign an app or mutate one. The
+#   generic entitlement extractor and helper validator are also reused by the
+#   signed RuntimeDebug installer.
 #
 # This file is a sourced library. Run build_and_install.sh, package_app.sh,
 # build_app.sh, notarize_app.sh, build_dmg.sh, notarize_dmg.sh,
@@ -180,6 +184,141 @@ distribution_validate_developer_id_requirement() {
     "$signed_path"
 }
 
+distribution_code_signing_identifier() {
+  /usr/bin/codesign -dvvv "$1" 2>&1 | /usr/bin/awk '
+    /^Identifier=/ && !found {
+      sub(/^Identifier=/, "")
+      print
+      found = 1
+    }
+  '
+}
+
+distribution_embedded_info_value() {
+  local executable_path="$1"
+  local key="$2"
+
+  /usr/bin/plutil -p "$executable_path" 2>/dev/null | /usr/bin/awk \
+    -v expected_key="\"$key\"" '
+      $1 == expected_key && $2 == "=>" {
+        value = $0
+        sub(/^.*=> "/, "", value)
+        sub(/"$/, "", value)
+        print value
+        exit
+      }
+    '
+}
+
+distribution_validate_privileged_helper() {
+  local app_path="$1"
+  local app_bundle_identifier="$2"
+  local expected_team="$3"
+  local signing_mode="$4"
+  local helper_path="$app_path/Contents/MacOS/ThruRNDISPrivilegedHelper"
+  local launchd_plist="$app_path/Contents/Library/LaunchDaemons/ThruRNDISPrivilegedHelper.plist"
+  local expected_bundle_program="Contents/MacOS/ThruRNDISPrivilegedHelper"
+  local expected_helper_identifier="$app_bundle_identifier.privileged-helper"
+  local escaped_helper_identifier
+  local helper_authority
+  local helper_bundle_identifier
+  local helper_bundle_version
+  local helper_identifier
+  local helper_package_type
+  local helper_short_version
+  local helper_signing_details
+  local helper_team
+  local label
+  local bundle_program
+  local mach_service_value
+  local mach_services_keys
+  local app_bundle_version
+  local app_short_version
+
+  case "$signing_mode" in
+    runtime|developer-id)
+      ;;
+    *)
+      distribution_fail "unknown privileged-helper signing validation mode: $signing_mode"
+      ;;
+  esac
+
+  [[ -f "$helper_path" && -x "$helper_path" && ! -L "$helper_path" ]] || distribution_fail \
+    "privileged-helper executable is missing from its exact bundle path: $helper_path"
+  [[ -f "$launchd_plist" && ! -L "$launchd_plist" ]] || distribution_fail \
+    "privileged-helper launchd plist is missing from its exact bundle path: $launchd_plist"
+  /usr/bin/plutil -lint "$launchd_plist" >/dev/null || distribution_fail \
+    "privileged-helper launchd plist is invalid: $launchd_plist"
+
+  label="$(/usr/bin/plutil \
+    -extract Label raw -expect string -o - "$launchd_plist" \
+    2>/dev/null || true)"
+  [[ "$label" == "$expected_helper_identifier" ]] || distribution_fail \
+    "privileged-helper launchd Label is $label instead of $expected_helper_identifier"
+  bundle_program="$(/usr/bin/plutil \
+    -extract BundleProgram raw -expect string -o - "$launchd_plist" \
+    2>/dev/null || true)"
+  [[ "$bundle_program" == "$expected_bundle_program" ]] || distribution_fail \
+    "privileged-helper BundleProgram is $bundle_program instead of $expected_bundle_program"
+  mach_services_keys="$(/usr/bin/plutil \
+    -extract MachServices raw -expect dictionary -o - "$launchd_plist" 2>/dev/null || true)"
+  [[ "$mach_services_keys" == "$label" ]] || distribution_fail \
+    "privileged-helper MachServices must contain exactly the launchd Label $label"
+  escaped_helper_identifier="${label//./\.}"
+  mach_service_value="$(/usr/bin/plutil \
+    -extract "MachServices.$escaped_helper_identifier" raw -expect bool -o - \
+    "$launchd_plist" 2>/dev/null || true)"
+  [[ "$mach_service_value" == "true" ]] || distribution_fail \
+    "privileged-helper MachServices entry must enable $label"
+
+  helper_bundle_identifier="$(distribution_embedded_info_value \
+    "$helper_path" CFBundleIdentifier)"
+  helper_short_version="$(distribution_embedded_info_value \
+    "$helper_path" CFBundleShortVersionString)"
+  helper_bundle_version="$(distribution_embedded_info_value \
+    "$helper_path" CFBundleVersion)"
+  helper_package_type="$(distribution_embedded_info_value \
+    "$helper_path" CFBundlePackageType)"
+  app_short_version="$(/usr/libexec/PlistBuddy \
+    -c 'Print :CFBundleShortVersionString' "$app_path/Contents/Info.plist")"
+  app_bundle_version="$(/usr/libexec/PlistBuddy \
+    -c 'Print :CFBundleVersion' "$app_path/Contents/Info.plist")"
+  [[ "$helper_bundle_identifier" == "$expected_helper_identifier" ]] || distribution_fail \
+    "privileged-helper embedded bundle ID is $helper_bundle_identifier instead of $expected_helper_identifier"
+  [[ -n "$helper_short_version" && -n "$helper_bundle_version" ]] || distribution_fail \
+    "privileged-helper embedded version metadata is missing"
+  [[ "$helper_short_version" == "$app_short_version" && \
+      "$helper_bundle_version" == "$app_bundle_version" ]] || distribution_fail \
+    "the app and privileged helper have different version/build values"
+  [[ "$helper_package_type" == "BNDL" ]] || distribution_fail \
+    "privileged-helper CFBundlePackageType is $helper_package_type instead of BNDL"
+
+  /usr/bin/codesign --verify --strict --verbose=2 "$helper_path"
+  helper_identifier="$(distribution_code_signing_identifier "$helper_path")"
+  [[ "$helper_identifier" == "$label" ]] || distribution_fail \
+    "privileged-helper signing identifier is $helper_identifier instead of $label"
+  helper_team="$(distribution_team_identifier "$helper_path")"
+  [[ -n "$helper_team" && "$helper_team" != "not set" ]] || distribution_fail \
+    "the privileged helper is unsigned or ad hoc signed"
+  [[ "$helper_team" == "$expected_team" ]] || distribution_fail \
+    "the app and privileged helper use different signing teams"
+
+  helper_signing_details="$(/usr/bin/codesign -dvvv "$helper_path" 2>&1)"
+  /usr/bin/printf '%s\n' "$helper_signing_details" | \
+    /usr/bin/grep -Eq '^CodeDirectory .*\(runtime\)' || distribution_fail \
+    "the privileged helper does not enable the hardened runtime"
+
+  if [[ "$signing_mode" == "developer-id" ]]; then
+    helper_authority="$(distribution_leaf_signing_authority "$helper_path")"
+    [[ "$helper_authority" == "Developer ID Application:"* ]] || distribution_fail \
+      "the privileged helper is not signed with Developer ID Application: $helper_authority"
+    distribution_validate_developer_id_requirement "$helper_path" "$expected_team"
+    /usr/bin/printf '%s\n' "$helper_signing_details" | \
+      /usr/bin/grep -q '^Timestamp=' || distribution_fail \
+      "the privileged-helper signature has no secure timestamp"
+  fi
+}
+
 distribution_validate_app() {
   local app_path="$1"
   local validation_dir="$2"
@@ -261,6 +400,9 @@ distribution_validate_app() {
     "the Network System Extension filename does not match its bundle ID: ${system_extensions[0]}"
   [[ "$extension_version" == "$app_version" && "$extension_build" == "$app_build" ]] || distribution_fail \
     "the app and Network System Extension have different version/build values"
+
+  distribution_validate_privileged_helper \
+    "$app_path" "$app_bundle_identifier" "$app_team" developer-id
 
   app_signing_details="$(/usr/bin/codesign -dvvv "$app_path" 2>&1)"
   extension_signing_details="$(/usr/bin/codesign -dvvv "${system_extensions[0]}" 2>&1)"
