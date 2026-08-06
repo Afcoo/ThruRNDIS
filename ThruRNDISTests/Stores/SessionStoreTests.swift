@@ -1247,6 +1247,75 @@ final class TetheringStoreTests: XCTestCase {
         XCTAssertEqual(tunnelController.connectCallCount, 1)
     }
 
+    func testAutomaticWireGuardRetryIgnoresPreviousFailureAndCleansUpAfterConnected() async throws {
+        let suiteName = "TetheringStoreTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let vmCoordinator = ObservationTestVMCoordinator()
+        vmCoordinator.canSendConsoleInput = true
+        let tunnelController = ObservationTestHostWireGuardTunnelController()
+        let eventLog = EventLogStore()
+        let wireGuardSession = WireGuardSessionStore(
+            configurationStore: ObservationTestWireGuardStore(),
+            configurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
+            tunnelController: tunnelController,
+            eventLog: eventLog,
+            defaults: defaults
+        )
+        var automaticDummyEthernetOperations: [String] = []
+        let runtimeEntitlements = RuntimeEntitlementSnapshot(
+            accessoryAccessUSB: true,
+            packetTunnelProvider: true,
+            systemExtensionInstall: true,
+            virtualization: true
+        )
+        let store = TetheringStore(
+            assetProvider: ObservationTestAssetProvider(),
+            vmCoordinator: vmCoordinator,
+            usbCoordinator: ObservationTestUSBCoordinator(),
+            eventLog: eventLog,
+            consoleSession: ConsoleSessionStore(),
+            usbSession: USBSessionStore(),
+            vmConfiguration: VMConfigurationStore(defaults: defaults),
+            wireGuardSession: wireGuardSession,
+            appPreferences: AppPreferencesStore(defaults: defaults),
+            prepareDummyEthernetForWireGuardConnection: {
+                automaticDummyEthernetOperations.append("prepare")
+                return true
+            },
+            deactivateDummyEthernetAfterWireGuardConnection: {
+                automaticDummyEthernetOperations.append("deactivate")
+            },
+            runtimeEntitlementSnapshotProvider: { runtimeEntitlements }
+        )
+
+        tunnelController.onSystemExtensionStatusChange?(.active)
+        vmCoordinator.onStateChange?(.running, "VM running")
+        vmCoordinator.onConsoleOutput?(
+            Data("THRURNDIS_WG_ENDPOINT=192.168.64.2:51820\n".utf8)
+        )
+        tunnelController.onStatusChange?(.failed("Previous connection failed."))
+
+        store.connectHostWireGuardTunnelWithAutomaticDummyEthernet()
+        for _ in 0..<100 where tunnelController.connectCallCount == 0 {
+            await Task.yield()
+        }
+
+        XCTAssertEqual(tunnelController.connectCallCount, 1)
+        XCTAssertEqual(automaticDummyEthernetOperations, ["prepare"])
+
+        tunnelController.onStatusChange?(.activatingSystemExtension)
+        tunnelController.onStatusChange?(.connected)
+        for _ in 0..<100 where automaticDummyEthernetOperations.count < 2 {
+            await Task.yield()
+        }
+
+        XCTAssertEqual(
+            automaticDummyEthernetOperations,
+            ["prepare", "deactivate"]
+        )
+    }
+
     func testTerminationConfirmationRequiresAttachedUSBAndActiveWireGuard() throws {
         let suiteName = "TetheringStoreTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))

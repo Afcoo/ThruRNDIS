@@ -884,7 +884,8 @@ final class TetheringStore: ObservableObject {
             guard self.canConnectHostWireGuardTunnel else { return }
             guard self.connectHostWireGuardTunnel() else { return }
 
-            for await status in self.wireGuardSession.$hostTunnelStatus.values {
+            for await status in self.wireGuardSession.$hostTunnelStatus
+                .dropFirst().values {
                 guard !Task.isCancelled else { return }
 
                 switch status {
@@ -896,10 +897,10 @@ final class TetheringStore: ObservableObject {
                     )
                     self.deactivateDummyEthernetAfterWireGuardConnection?()
                     return
-                case .failed, .disconnecting:
-                    return
-                default:
+                case .activatingSystemExtension, .connecting, .reasserting:
                     continue
+                case .failed, .disconnecting, .unconfigured, .disconnected:
+                    return
                 }
             }
         }
