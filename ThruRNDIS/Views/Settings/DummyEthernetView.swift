@@ -31,7 +31,7 @@ struct DummyEthernetView: View {
             }
 
             Section("Dummy Ethernet Status") {
-                LabeledContent("Network") {
+                LabeledContent("Status") {
                     SettingsStatusLabel(
                         title: networkStatusPresentation.title,
                         appearance: networkStatusPresentation.appearance

@@ -3691,16 +3691,6 @@
         }
       }
     },
-    "Network" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "네트워크"
-          }
-        }
-      }
-    },
     "Network Configuration" : {
       "localizations" : {
         "ko" : {
