@@ -394,7 +394,6 @@ final class DummyEthernetStore: ObservableObject {
     func startAndWaitUntilActive() async -> Bool {
         guard await waitUntilCurrentOperationFinishes() else { return false }
 
-        guard runtimeState != .active else { return true }
         refreshHelperRegistrationState()
         guard helperIsAvailable else {
             reportError("Dummy Ethernet start failed: helper unavailable.")
