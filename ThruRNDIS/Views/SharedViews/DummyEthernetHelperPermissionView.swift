@@ -63,7 +63,7 @@ struct DummyEthernetHelperPermissionView: View {
         if let operation = helper.operation {
             return (
                 operation.title,
-                "The privileged helper registration is being updated.",
+                "The Dummy Ethernet helper registration is being updated.",
                 .transitioning
             )
         }
@@ -72,31 +72,31 @@ struct DummyEthernetHelperPermissionView: View {
         case .unknown:
             (
                 String(localized: "Unknown"),
-                "Refresh the helper status before managing Dummy Ethernet.",
+                "Refresh the Dummy Ethernet helper status before managing Dummy Ethernet.",
                 .unknown
             )
         case .notRegistered:
             (
                 String(localized: "Not Enabled"),
-                "Install the bundled helper.",
+                "Install the bundled Dummy Ethernet helper.",
                 .inactive
             )
         case .enabled:
             (
                 String(localized: "Enabled"),
-                "The privileged helper is ready.",
+                "The Dummy Ethernet helper is ready.",
                 .active
             )
         case .updateRequired:
             (
                 String(localized: "Update Required"),
-                "Reinstall the bundled helper.",
+                "Reinstall the bundled Dummy Ethernet helper.",
                 .attention
             )
         case .requiresApproval:
             (
                 String(localized: "Approval Required"),
-                "Allow the helper in System Settings > General > Login Items, then return and refresh.",
+                "Allow the Dummy Ethernet helper in System Settings > General > Login Items, then return and refresh.",
                 .attention
             )
         case .notFound:

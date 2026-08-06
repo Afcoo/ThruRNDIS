@@ -23,7 +23,7 @@ enum PeerCodeSigningRequirementError: Error, LocalizedError {
         case .signingInformationUnavailable(let status):
             String(localized: "Could not read code-signing information (\(status)).")
         case .teamIdentifierUnavailable:
-            String(localized: "A signed Runtime build is required to use the privileged helper.")
+            String(localized: "A signed Runtime build is required to use the Dummy Ethernet helper.")
         case .signingIdentifierUnavailable:
             String(localized: "The current code signature has no signing identifier.")
         case .invalidIdentifier(let identifier):

@@ -131,7 +131,7 @@ struct OnboardingView: View {
         Section {
             onboardingPoint("Install the VM Assets.", image: "arrow.down.circle")
             onboardingPoint(
-                "Grant the Network Extension and privileged helper permissions.",
+                "Grant the Network Extension and Dummy Ethernet helper permissions.",
                 image: "checkmark.shield"
             )
             onboardingPoint(
@@ -203,7 +203,7 @@ struct OnboardingView: View {
                 VStack(alignment: .leading, spacing: 24) {
                     onboardingStepHeader(
                         "Enable the permissions",
-                        detail: "ThruRNDIS requires Network Extension and privileged helper permissions.",
+                        detail: "ThruRNDIS requires Network Extension and Dummy Ethernet helper permissions.",
                         image: "checkmark.shield"
                     )
 
@@ -221,9 +221,9 @@ struct OnboardingView: View {
             Section {
                 DummyEthernetHelperPermissionView()
             } header: {
-                Text("Privileged Helper")
+                Text("Dummy Ethernet helper")
             } footer: {
-                Text("The privileged helper is required to configure dummy ethernet network service.")
+                Text("The Dummy Ethernet helper is required to configure the Dummy Ethernet network service.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

@@ -97,9 +97,7 @@ struct MenuBarCombinedStatus: Equatable {
         case .wireGuardDisconnected:
             return String(localized: "WireGuard Disconnected")
         case .dummyEthernetHelperProblem:
-            return String(
-                localized: "Dummy Ethernet: \(String(localized: "Helper Problem"))"
-            )
+            return String(localized: "Dummy Ethernet helper problem")
         case .dummyEthernetNotChecked:
             return String(
                 localized: "Dummy Ethernet: \(String(localized: "Not Checked"))"

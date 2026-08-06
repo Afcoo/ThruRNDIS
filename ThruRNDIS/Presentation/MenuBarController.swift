@@ -602,9 +602,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     private var dummyEthernetStatusTitle: String {
         guard canPresentDummyEthernetNetworkStatus else {
-            return String(
-                localized: "Dummy Ethernet: \(String(localized: "Helper Problem"))"
-            )
+            return String(localized: "Dummy Ethernet helper problem")
         }
 
         let title: String
@@ -643,7 +641,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             store.wireGuardSession.systemExtensionStatus.isActive
                 ? nil : String(localized: "Configure Network Extension in Settings"),
             dummyEthernetHelper.registrationStatus == .enabled
-                ? nil : String(localized: "Configure Privileged Helper in Settings"),
+                ? nil : String(localized: "Configure Dummy Ethernet helper in Settings"),
         ].compactMap { $0 }
     }
 

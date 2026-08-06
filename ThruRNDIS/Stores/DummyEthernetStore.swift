@@ -183,7 +183,7 @@ final class DummyEthernetStore: ObservableObject {
         guard helper.isAvailable else {
             runtimeState = nil
             appendEventLog(
-                "Dummy Ethernet refresh skipped: helper registration is unavailable or outdated.",
+                "Dummy Ethernet refresh skipped: Dummy Ethernet helper registration is unavailable or outdated.",
                 level: .debug
             )
             return
@@ -271,7 +271,7 @@ final class DummyEthernetStore: ObservableObject {
                 return true
             }
             reportError(
-                "Dummy Ethernet could not be stopped for application termination: helper unavailable."
+                "Dummy Ethernet could not be stopped for application termination: the Dummy Ethernet helper is unavailable."
             )
             return false
         }
@@ -289,7 +289,7 @@ final class DummyEthernetStore: ObservableObject {
     ) async -> Bool {
         helper.refresh()
         guard helper.isAvailable else {
-            reportError("Dummy Ethernet stop failed: helper unavailable.")
+            reportError("Dummy Ethernet stop failed: the Dummy Ethernet helper is unavailable.")
             return false
         }
 
@@ -412,7 +412,7 @@ final class DummyEthernetStore: ObservableObject {
         runtimeState = nil
         resetPersistedInput()
         appendEventLog(
-            "Dummy Ethernet configuration and privileged helper were removed for app settings reset.",
+            "Dummy Ethernet configuration and Dummy Ethernet helper were removed for app settings reset.",
             level: .info
         )
     }
@@ -481,7 +481,7 @@ final class DummyEthernetStore: ObservableObject {
         helper.refresh()
         guard helper.isAvailable else {
             reportError(
-                "Dummy Ethernet \(operation.rawValue) failed: helper unavailable."
+                "Dummy Ethernet \(operation.rawValue) failed: the Dummy Ethernet helper is unavailable."
             )
             return nil
         }
@@ -621,11 +621,11 @@ enum DummyEthernetSettingsResetError: LocalizedError {
             )
         case .helperUpdateRequired:
             String(
-                localized: "Reinstall the Dummy Ethernet privileged helper before resetting app settings."
+                localized: "Reinstall the Dummy Ethernet helper before resetting app settings."
             )
         case .helperStatusUnavailable:
             String(
-                localized: "Refresh the helper status before managing Dummy Ethernet."
+                localized: "Refresh the Dummy Ethernet helper status before managing Dummy Ethernet."
             )
         case .stopFailed(let detail):
             String(
@@ -637,11 +637,11 @@ enum DummyEthernetSettingsResetError: LocalizedError {
             )
         case .helperRemovalFailed(let detail):
             String(
-                localized: "Could not remove the Dummy Ethernet privileged helper while resetting app settings: \(detail)"
+                localized: "Could not remove the Dummy Ethernet helper while resetting app settings: \(detail)"
             )
         case .helperRemovalIncomplete:
             String(
-                localized: "The Dummy Ethernet privileged helper remained registered during the settings reset."
+                localized: "The Dummy Ethernet helper remained registered during the settings reset."
             )
         }
     }

@@ -599,12 +599,12 @@
         }
       }
     },
-    "Configure Privileged Helper in Settings" : {
+    "Configure Dummy Ethernet helper in Settings" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "설정에서 헬퍼를 구성하세요"
+            "value" : "설정에서 더미 이더넷 헬퍼를 구성하세요"
           }
         }
       }
@@ -765,7 +765,7 @@
         }
       }
     },
-    "Could not remove the Dummy Ethernet privileged helper while resetting app settings: %@" : {
+    "Could not remove the Dummy Ethernet helper while resetting app settings: %@" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
@@ -1219,12 +1219,12 @@
         }
       }
     },
-    "Grant the Network Extension and privileged helper permissions." : {
+    "Grant the Network Extension and Dummy Ethernet helper permissions." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "네트워크 확장 프로그램과 헬퍼 권한을 부여하세요."
+            "value" : "네트워크 확장 프로그램과 더미 이더넷 헬퍼 권한을 부여하세요."
           }
         }
       }
@@ -2713,12 +2713,12 @@
         }
       }
     },
-    "ThruRNDIS requires Network Extension and privileged helper permissions." : {
+    "ThruRNDIS requires Network Extension and Dummy Ethernet helper permissions." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ThruRNDIS는 네트워크 확장 프로그램과 헬퍼 권한이 필요합니다."
+            "value" : "ThruRNDIS는 네트워크 확장 프로그램과 더미 이더넷 헬퍼 권한이 필요합니다."
           }
         }
       }
@@ -3445,22 +3445,22 @@
         }
       }
     },
-    "A signed Runtime build is required to use the privileged helper." : {
+    "A signed Runtime build is required to use the Dummy Ethernet helper." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "헬퍼를 사용하려면 서명된 런타임 빌드가 필요합니다."
+            "value" : "더미 이더넷 헬퍼를 사용하려면 서명된 런타임 빌드가 필요합니다."
           }
         }
       }
     },
-    "Allow the helper in System Settings > General > Login Items, then return and refresh." : {
+    "Allow the Dummy Ethernet helper in System Settings > General > Login Items, then return and refresh." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "시스템 설정 > 일반 > 로그인 항목 및 확장 프로그램에서 헬퍼를 허용한 다음 앱으로 돌아와 새로고침하세요."
+            "value" : "시스템 설정 > 일반 > 로그인 항목 및 확장 프로그램에서 더미 이더넷 헬퍼를 허용한 다음 앱으로 돌아와 새로고침하세요."
           }
         }
       }
@@ -3541,12 +3541,12 @@
         }
       }
     },
-    "Helper Problem" : {
+    "Dummy Ethernet helper problem" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "헬퍼 문제"
+            "value" : "더미 이더넷 헬퍼 문제"
           }
         }
       }
@@ -3591,17 +3591,17 @@
         }
       }
     },
-    "Reinstall the bundled helper." : {
+    "Reinstall the bundled Dummy Ethernet helper." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "내장 헬퍼를 다시 설치하세요."
+            "value" : "내장 더미 이더넷 헬퍼를 다시 설치하세요."
           }
         }
       }
     },
-    "Reinstall the Dummy Ethernet privileged helper before resetting app settings." : {
+    "Reinstall the Dummy Ethernet helper before resetting app settings." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
@@ -3611,22 +3611,22 @@
         }
       }
     },
-    "Reinstalling Helper…" : {
+    "Reinstalling Dummy Ethernet helper…" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "헬퍼 재설치 중…"
+            "value" : "더미 이더넷 헬퍼 재설치 중…"
           }
         }
       }
     },
-    "Removing Helper…" : {
+    "Removing Dummy Ethernet helper…" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "헬퍼 제거 중…"
+            "value" : "더미 이더넷 헬퍼 제거 중…"
           }
         }
       }
@@ -3641,22 +3641,22 @@
         }
       }
     },
-    "Installing Helper…" : {
+    "Installing Dummy Ethernet helper…" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "헬퍼 설치 중…"
+            "value" : "더미 이더넷 헬퍼 설치 중…"
           }
         }
       }
     },
-    "Install the bundled helper." : {
+    "Install the bundled Dummy Ethernet helper." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "헬퍼를 설치하세요."
+            "value" : "내장 더미 이더넷 헬퍼를 설치하세요."
           }
         }
       }
@@ -3751,22 +3751,22 @@
         }
       }
     },
-    "Privileged Helper" : {
+    "Dummy Ethernet helper" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "헬퍼"
+            "value" : "더미 이더넷 헬퍼"
           }
         }
       }
     },
-    "Refresh the helper status before managing Dummy Ethernet." : {
+    "Refresh the Dummy Ethernet helper status before managing Dummy Ethernet." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "더미 이더넷을 관리하기 전에 헬퍼 상태를 새로고침하세요."
+            "value" : "더미 이더넷을 관리하기 전에 더미 이더넷 헬퍼 상태를 새로고침하세요."
           }
         }
       }
@@ -3841,7 +3841,7 @@
         }
       }
     },
-    "The Dummy Ethernet privileged helper remained registered during the settings reset." : {
+    "The Dummy Ethernet helper remained registered during the settings reset." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
@@ -3881,62 +3881,62 @@
         }
       }
     },
-    "The privileged helper is required to configure dummy ethernet network service." : {
+    "The Dummy Ethernet helper is required to configure the Dummy Ethernet network service." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "더미 이더넷 네트워크 서비스를 구성하려면 헬퍼가 필요합니다."
+            "value" : "더미 이더넷 네트워크 서비스를 구성하려면 더미 이더넷 헬퍼가 필요합니다."
           }
         }
       }
     },
-    "The privileged helper XPC interface is unavailable." : {
+    "The Dummy Ethernet helper XPC interface is unavailable." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "헬퍼 XPC 인터페이스를 사용할 수 없습니다."
+            "value" : "더미 이더넷 헬퍼 XPC 인터페이스를 사용할 수 없습니다."
           }
         }
       }
     },
-    "The privileged helper did not respond before the request timed out." : {
+    "The Dummy Ethernet helper did not respond before the request timed out." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "요청 시간이 초과되기 전에 헬퍼가 응답하지 않았습니다."
+            "value" : "요청 시간이 초과되기 전에 더미 이더넷 헬퍼가 응답하지 않았습니다."
           }
         }
       }
     },
-    "The privileged helper is ready." : {
+    "The Dummy Ethernet helper is ready." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "헬퍼가 준비되었습니다."
+            "value" : "더미 이더넷 헬퍼가 준비되었습니다."
           }
         }
       }
     },
-    "The privileged helper registration is being updated." : {
+    "The Dummy Ethernet helper registration is being updated." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "헬퍼 등록을 업데이트하고 있습니다."
+            "value" : "더미 이더넷 헬퍼 등록을 업데이트하고 있습니다."
           }
         }
       }
     },
-    "The privileged helper returned an incomplete response." : {
+    "The Dummy Ethernet helper returned an incomplete response." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "헬퍼가 불완전한 응답을 반환했습니다."
+            "value" : "더미 이더넷 헬퍼가 불완전한 응답을 반환했습니다."
           }
         }
       }

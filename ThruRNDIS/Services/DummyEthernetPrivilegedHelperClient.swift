@@ -19,7 +19,7 @@ enum DummyEthernetPrivilegedHelperClientError: Error, Equatable, LocalizedError 
             )
         case .remoteObjectUnavailable(let message):
             let summary = String(
-                localized: "The privileged helper XPC interface is unavailable."
+                localized: "The Dummy Ethernet helper XPC interface is unavailable."
             )
             if let message, !message.isEmpty {
                 return "\(summary) \(message)"
@@ -27,11 +27,11 @@ enum DummyEthernetPrivilegedHelperClientError: Error, Equatable, LocalizedError 
             return summary
         case .malformedResponse:
             return String(
-                localized: "The privileged helper returned an incomplete response."
+                localized: "The Dummy Ethernet helper returned an incomplete response."
             )
         case .requestTimedOut:
             return String(
-                localized: "The privileged helper did not respond before the request timed out."
+                localized: "The Dummy Ethernet helper did not respond before the request timed out."
             )
         case .helperFailure(let message):
             return message

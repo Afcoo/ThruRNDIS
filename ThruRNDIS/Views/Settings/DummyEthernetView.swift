@@ -23,9 +23,9 @@ struct DummyEthernetView: View {
             Section {
                 DummyEthernetHelperPermissionView()
             } header: {
-                Text("Privileged Helper")
+                Text("Dummy Ethernet helper")
             } footer: {
-                Text("The privileged helper is required to configure dummy ethernet network service.")
+                Text("The Dummy Ethernet helper is required to configure the Dummy Ethernet network service.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

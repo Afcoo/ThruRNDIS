@@ -13,11 +13,11 @@ enum DummyEthernetHelperOperation: String, Equatable {
     var title: String {
         switch self {
         case .installing:
-            String(localized: "Installing Helper…")
+            String(localized: "Installing Dummy Ethernet helper…")
         case .reinstalling:
-            String(localized: "Reinstalling Helper…")
+            String(localized: "Reinstalling Dummy Ethernet helper…")
         case .removing:
-            String(localized: "Removing Helper…")
+            String(localized: "Removing Dummy Ethernet helper…")
         }
     }
 }
@@ -110,12 +110,12 @@ final class DummyEthernetHelperStore: ObservableObject {
                 switch status {
                 case .enabled:
                     self.appendEventLog(
-                        "Dummy Ethernet privileged helper is enabled for the current app build.",
+                        "Dummy Ethernet helper is enabled for the current app build.",
                         level: .info
                     )
                 case .requiresApproval:
                     self.appendEventLog(
-                        "Dummy Ethernet privileged helper requires user approval.",
+                        "Dummy Ethernet helper requires user approval.",
                         level: .warning
                     )
                 default:
@@ -154,7 +154,7 @@ final class DummyEthernetHelperStore: ObservableObject {
                 switch status {
                 case .notRegistered, .notFound:
                     self.appendEventLog(
-                        "Dummy Ethernet privileged helper is disabled.",
+                        "Dummy Ethernet helper is disabled.",
                         level: .info
                     )
                 default:
@@ -204,12 +204,12 @@ final class DummyEthernetHelperStore: ObservableObject {
                 switch status {
                 case .enabled:
                     self.appendEventLog(
-                        "Dummy Ethernet privileged helper was reinstalled for the current app build.",
+                        "Dummy Ethernet helper was reinstalled for the current app build.",
                         level: .info
                     )
                 case .requiresApproval:
                     self.appendEventLog(
-                        "Dummy Ethernet privileged helper requires user approval after reinstall.",
+                        "Dummy Ethernet helper requires user approval after reinstall.",
                         level: .warning
                     )
                 default:

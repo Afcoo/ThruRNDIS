@@ -50,7 +50,7 @@ private enum AccessoryMonitoringConfigurationBlocker {
         case .networkExtensionInactive:
             "the Network Extension is not active"
         case .privilegedHelperUnavailable:
-            "the Dummy Ethernet privileged helper is not enabled"
+            "the Dummy Ethernet helper is not enabled"
         }
     }
 }
