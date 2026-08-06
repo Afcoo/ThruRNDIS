@@ -9,10 +9,11 @@ import Foundation
 final class WireGuardSessionStore: ObservableObject {
     @Published private(set) var hostTunnelStatus: HostWireGuardTunnelStatus = .unconfigured
     @Published private(set) var systemExtensionStatus: WireGuardSystemExtensionStatus = .unknown
-    @Published private(set) var isSystemExtensionActivationInProgress = false
     @Published private(set) var discoveredEndpoint: String?
     @Published private(set) var invalidConnectionFields: Set<WireGuardConnectionField> = []
     @Published private(set) var keyMaterial: WireGuardKeyMaterial?
+    @Published private(set) var wireGuardConnectionPrompt: WireGuardConnectionPrompt?
+    @Published private var systemExtensionActivationTask: Task<Void, Never>?
 
     @Published var dnsServersText: String {
         didSet {
@@ -57,7 +58,6 @@ final class WireGuardSessionStore: ObservableObject {
     private let defaults: UserDefaults
     private var connectTask: Task<Void, Never>?
     private var connectTaskID: UUID?
-    private var systemExtensionActivationTask: Task<Void, Never>?
     private var isPreparingForApplicationTermination = false
     private var isResettingPersistedValues = false
 
@@ -109,6 +109,10 @@ final class WireGuardSessionStore: ObservableObject {
 
     var hasKeyMaterial: Bool {
         keyMaterial != nil
+    }
+
+    var isSystemExtensionActivationInProgress: Bool {
+        systemExtensionActivationTask != nil
     }
 
     var configurationDirectoryURL: URL {
@@ -236,7 +240,24 @@ final class WireGuardSessionStore: ObservableObject {
         keyMaterial = nil
         discoveredEndpoint = nil
         invalidConnectionFields = []
+        wireGuardConnectionPrompt = nil
         notifyReadinessChange()
+    }
+
+    func presentWireGuardConnectionPrompt(for accessory: USBAccessoryRecord) {
+        wireGuardConnectionPrompt = WireGuardConnectionPrompt(accessory: accessory)
+    }
+
+    func takeWireGuardConnectionPrompt(id promptID: UUID) -> WireGuardConnectionPrompt? {
+        guard wireGuardConnectionPrompt?.id == promptID else {
+            return nil
+        }
+        defer { wireGuardConnectionPrompt = nil }
+        return wireGuardConnectionPrompt
+    }
+
+    func clearWireGuardConnectionPrompt() {
+        wireGuardConnectionPrompt = nil
     }
 
     @discardableResult
@@ -302,25 +323,23 @@ final class WireGuardSessionStore: ObservableObject {
     }
 
     func disconnect() {
-        connectTask?.cancel()
-        connectTask = nil
-        connectTaskID = nil
-        Task { @MainActor [weak self] in
-            await self?.tunnelController.disconnect(waitUntilStopped: false)
+        cancelPendingConnectTask()
+        let controller = tunnelController
+        Task { @MainActor in
+            await controller.disconnect(waitUntilStopped: false)
         }
     }
 
     @discardableResult
     func disconnectAndWait() async -> Bool {
-        connectTask?.cancel()
-        connectTask = nil
-        connectTaskID = nil
+        cancelPendingConnectTask()
         return await tunnelController.disconnect(waitUntilStopped: true)
     }
 
     @discardableResult
     func removeSavedTunnelIfNeeded() async -> Bool {
-        await tunnelController.removeSavedTunnelIfNeeded()
+        cancelPendingConnectTask()
+        return await tunnelController.removeSavedTunnelIfNeeded()
     }
 
     func refreshHostTunnelStatus() {
@@ -358,7 +377,6 @@ final class WireGuardSessionStore: ObservableObject {
         }
 
         let controller = tunnelController
-        isSystemExtensionActivationInProgress = true
         systemExtensionActivationTask = Task { @MainActor [weak self] in
             guard !Task.isCancelled,
                   let self,
@@ -371,7 +389,6 @@ final class WireGuardSessionStore: ObservableObject {
                 return
             }
             self.systemExtensionActivationTask = nil
-            self.isSystemExtensionActivationInProgress = false
         }
         return true
     }
@@ -395,13 +412,11 @@ final class WireGuardSessionStore: ObservableObject {
 
     func prepareForApplicationTermination(disconnectTunnel: Bool) async {
         isPreparingForApplicationTermination = true
-        connectTask?.cancel()
-        connectTask = nil
-        connectTaskID = nil
+        wireGuardConnectionPrompt = nil
+        cancelPendingConnectTask()
         systemExtensionActivationTask?.cancel()
         systemExtensionActivationTask = nil
         tunnelController.invalidateSystemExtensionOperations()
-        isSystemExtensionActivationInProgress = false
         if disconnectTunnel {
             _ = await tunnelController.disconnect(waitUntilStopped: true)
         }
@@ -412,17 +427,16 @@ final class WireGuardSessionStore: ObservableObject {
             return
         }
         let shouldLogStop = hostTunnelStatus.canRequestStop
-        connectTask?.cancel()
-        connectTask = nil
-        connectTaskID = nil
+        cancelPendingConnectTask()
         if shouldLogStop {
             appendEventLog(
                 "Stopping Host WireGuard tunnel because \(reason).",
                 level: .debug
             )
         }
-        Task { @MainActor [weak self] in
-            await self?.tunnelController.disconnect(waitUntilStopped: false)
+        let controller = tunnelController
+        Task { @MainActor in
+            await controller.disconnect(waitUntilStopped: false)
         }
     }
 
@@ -516,6 +530,12 @@ final class WireGuardSessionStore: ObservableObject {
             }
             self.appendEventLog(message, level: level)
         }
+    }
+
+    private func cancelPendingConnectTask() {
+        connectTask?.cancel()
+        connectTask = nil
+        connectTaskID = nil
     }
 
     private func prepareConfiguration() {

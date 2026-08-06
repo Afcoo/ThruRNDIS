@@ -142,6 +142,9 @@ validate_signed_runtime_app() {
   [[ "$extension_team" == "$app_team" ]] || fail \
     "the app and Network System Extension use different signing teams"
 
+  distribution_validate_privileged_helper \
+    "$app_path" "$app_bundle_identifier" "$app_team" runtime
+
   distribution_extract_entitlements "$app_path" "$app_entitlements"
   require_boolean_entitlement "$app_entitlements" "com.apple.developer.accessory-access.usb"
   require_boolean_entitlement "$app_entitlements" "com.apple.developer.system-extension.install"
@@ -190,4 +193,4 @@ fi
 validate_signed_runtime_app "$INSTALL_APP"
 RESTORE_BACKUP=0
 
-echo "Installed signed runtime app at $INSTALL_APP"
+echo "Installed signed runtime app with privileged helper at $INSTALL_APP"

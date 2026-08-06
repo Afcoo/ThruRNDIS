@@ -188,8 +188,9 @@ final class HostWireGuardTunnelController: HostWireGuardTunnelControlling {
         }
         let operationID = beginOperation()
         do {
-            if let manager = try await loadThruRNDISManager() {
-                try ensureOperationIsCurrent(operationID)
+            if let manager = try await loadThruRNDISManager(
+                operationID: operationID
+            ) {
                 let context = trackConnection(
                     manager.connection,
                     operationID: operationID,
@@ -209,6 +210,7 @@ final class HostWireGuardTunnelController: HostWireGuardTunnelControlling {
         } catch HostWireGuardTunnelError.operationSuperseded {
             return
         } catch {
+            guard activeOperationID == operationID else { return }
             fail(action: "status refresh", error: error)
         }
     }
@@ -297,6 +299,7 @@ final class HostWireGuardTunnelController: HostWireGuardTunnelControlling {
                 level: .debug
             )
         } catch {
+            guard activeOperationID == operationID else { return }
             fail(action: "start", error: error)
         }
     }
@@ -305,8 +308,9 @@ final class HostWireGuardTunnelController: HostWireGuardTunnelControlling {
     func disconnect(waitUntilStopped: Bool = false) async -> Bool {
         let operationID = beginOperation()
         do {
-            guard let manager = try await loadThruRNDISManager() else {
-                try ensureOperationIsCurrent(operationID)
+            guard let manager = try await loadThruRNDISManager(
+                operationID: operationID
+            ) else {
                 setStatus(.unconfigured)
                 return true
             }
@@ -359,6 +363,7 @@ final class HostWireGuardTunnelController: HostWireGuardTunnelControlling {
         } catch HostWireGuardTunnelError.operationSuperseded {
             return false
         } catch {
+            guard activeOperationID == operationID else { return false }
             fail(action: "stop", error: error)
             return false
         }
@@ -368,8 +373,9 @@ final class HostWireGuardTunnelController: HostWireGuardTunnelControlling {
     func removeSavedTunnelIfNeeded() async -> Bool {
         let operationID = beginOperation()
         do {
-            guard let manager = try await loadThruRNDISManager() else {
-                try ensureOperationIsCurrent(operationID)
+            guard let manager = try await loadThruRNDISManager(
+                operationID: operationID
+            ) else {
                 setStatus(.unconfigured)
                 return true
             }
@@ -393,6 +399,7 @@ final class HostWireGuardTunnelController: HostWireGuardTunnelControlling {
         } catch HostWireGuardTunnelError.operationSuperseded {
             return false
         } catch {
+            guard activeOperationID == operationID else { return false }
             fail(action: "profile removal", error: error)
             return false
         }
@@ -402,9 +409,11 @@ final class HostWireGuardTunnelController: HostWireGuardTunnelControlling {
         tunnelConfiguration: TunnelConfiguration,
         operationID: UUID
     ) async throws -> NETunnelProviderManager {
-        let manager = try await loadThruRNDISManager() ?? NETunnelProviderManager()
-        cachedManager = manager
+        let manager = try await loadThruRNDISManager(
+            operationID: operationID
+        ) ?? NETunnelProviderManager()
         try ensureOperationIsCurrent(operationID)
+        cachedManager = manager
         guard let protocolConfiguration = NETunnelProviderProtocol(
             thruRNDISConfiguration: tunnelConfiguration
         ) else {
@@ -525,13 +534,17 @@ final class HostWireGuardTunnelController: HostWireGuardTunnelControlling {
         return false
     }
 
-    private func loadThruRNDISManager() async throws -> NETunnelProviderManager? {
+    private func loadThruRNDISManager(
+        operationID: UUID
+    ) async throws -> NETunnelProviderManager? {
+        try ensureOperationIsCurrent(operationID)
         if let cachedManager,
            isThruRNDISManager(cachedManager) {
             return cachedManager
         }
 
         let managers = try await loadAllManagers()
+        try ensureOperationIsCurrent(operationID)
         let manager = managers.first(where: isThruRNDISManager)
         cachedManager = manager
         return manager

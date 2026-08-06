@@ -7,7 +7,7 @@ import Foundation
 
 @MainActor
 final class AppPreferencesStore: ObservableObject {
-    static let currentOnboardingVersion = 3
+    static let currentOnboardingVersion = 4
 
     @Published var isDebugModeEnabled: Bool {
         didSet {

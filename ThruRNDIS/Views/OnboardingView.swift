@@ -2,15 +2,13 @@
 Copyright (C) 2026 Afcoo.
 */
 
-import Combine
 import SwiftUI
 
 struct OnboardingView: View {
     @EnvironmentObject private var store: TetheringStore
-    @EnvironmentObject private var wireGuardSession: WireGuardSessionStore
+    @EnvironmentObject private var dummyEthernet: DummyEthernetStore
     @EnvironmentObject private var assetWorkflowCoordinator: VMAssetWorkflowCoordinator
     @State private var step = 0
-    @State private var alert: OnboardingAlert?
 
     let contentWidth: CGFloat
     let onFinish: () -> Void
@@ -25,13 +23,6 @@ struct OnboardingView: View {
         self.onFinish = onFinish
         self.onStepChange = onStepChange
     }
-
-    private let releasesURL = URL(
-        string: "https://github.com/Afcoo/ThruRNDIS_VM_Assets/releases"
-    )!
-    private let vmAssetsDocumentationURL = URL(
-        string: "https://github.com/Afcoo/ThruRNDIS_VM_Assets"
-    )!
 
     var body: some View {
         VStack(spacing: 0) {
@@ -109,231 +100,138 @@ struct OnboardingView: View {
         }
         .frame(width: contentWidth)
         .containerBackground(.thickMaterial, for: .window)
-        .onReceive(assetWorkflowCoordinator.$errorMessage.compactMap { $0 }) { message in
-            alert = OnboardingAlert(message: message)
-        }
+        .vmAssetErrorAlert()
         .onChange(of: step) { _, newStep in
             onStepChange(newStep)
-        }
-        .alert(item: $alert) { alert in
-            Alert(
-                title: Text("VM Asset Error"),
-                message: Text(verbatim: alert.message),
-                dismissButton: .default(Text("OK")) {
-                    assetWorkflowCoordinator.clearError()
-                }
-            )
         }
     }
 
     private var stepContent: some View {
-        Group {
+        Form {
             switch step {
             case 0:
                 welcomeStep
             case 1:
                 assetInstallStep
             case 2:
-                networkExtensionStep
+                permissionsStep
             default:
                 accessoryAttachStep
             }
         }
+        .formStyle(.grouped)
+        .scrollDisabled(true)
+        .fixedSize(horizontal: false, vertical: true)
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .padding(.horizontal, 32)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 4)
     }
 
     private var welcomeStep: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Label("Welcome to ThruRNDIS", systemImage: "cable.connector.horizontal")
-                .font(.largeTitle.bold())
-
-            Text("Follow these four steps to use USB tethering.")
-                .font(.title3)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            VStack(alignment: .leading, spacing: 8) {
-                onboardingPoint("Install the VM Assets.", image: "arrow.down.circle")
-                onboardingPoint("Grant the Network Extension permission for the WireGuard connection.", image: "checkmark.shield")
-                onboardingPoint("Connect your tethering device to this Mac.", image: "cable.connector")
-                onboardingPoint("Use Virtual Machine Accessories to attach the device to ThruRNDIS.", image: "menubar.rectangle")
-            }
+        Section {
+            onboardingPoint("Install the VM Assets.", image: "arrow.down.circle")
+            onboardingPoint(
+                "Grant the Network Extension and Dummy Ethernet helper permissions.",
+                image: "checkmark.shield"
+            )
+            onboardingPoint(
+                "Connect your tethering device to this Mac.",
+                image: "cable.connector"
+            )
+            onboardingPoint(
+                "Use Virtual Machine Accessories to attach the device to ThruRNDIS.",
+                image: "menubar.rectangle"
+            )
+        } header: {
+            onboardingStepHeader(
+                "Welcome to ThruRNDIS",
+                detail: "Follow these four steps to use USB tethering.",
+                image: "cable.connector.horizontal"
+            )
         }
     }
 
     private var assetInstallStep: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Label("Install the Required Files", systemImage: "shippingbox.and.arrow.backward")
-                .font(.largeTitle.bold())
-
-            Text("Download and install the VM Assets.")
-                .font(.title3)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            GroupBox {
-                VStack(alignment: .leading, spacing: 10) {
-                    Label(assetWorkflowCoordinator.installState.statusText, systemImage: assetStatusImage)
-                        .foregroundStyle(assetStatusColor)
-
-                    if let progress = assetWorkflowCoordinator.installState.progress {
-                        ProgressView(value: progress)
-                    }
-
-                    if assetWorkflowCoordinator.hasConfiguredAssets {
-                        Label("ThruRNDIS is ready to continue.", systemImage: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
-
-                        if let release = assetWorkflowCoordinator.installedRelease {
-                            LabeledContent("Installed version", value: release.displayName)
-                        } else {
-                            Label("Using manually selected files", systemImage: "folder")
-                                .foregroundStyle(.secondary)
-                        }
-                    } else if !assetWorkflowCoordinator.isBusy {
-                        Label("Install or choose valid files to continue.", systemImage: "exclamationmark.triangle")
-                            .foregroundStyle(.orange)
-                    }
-
-                    HStack(spacing: 8) {
-                        if assetWorkflowCoordinator.isBusy {
-                            Button("Cancel") {
-                                assetWorkflowCoordinator.cancelInstall()
-                            }
-                        } else {
-                            Button(
-                                assetWorkflowCoordinator.hasConfiguredAssets
-                                    ? String(localized: "Check & Install Latest")
-                                    : String(localized: "Download & Install Latest")
-                            ) {
-                                assetWorkflowCoordinator.installLatest()
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .disabled(!store.canEditVMConfiguration)
-                        }
-
-                        Link("View Releases", destination: releasesURL)
-
-                        Spacer()
-
-                        Button("Choose Folder…") {
-                            guard let url = FilePicker.chooseDirectory(
-                                title: String(localized: "Choose downloaded VM assets"),
-                                initialURL: assetWorkflowCoordinator.selectedFolderURL
-                            ) else {
-                                return
-                            }
-                            if let error = assetWorkflowCoordinator.selectManualFolder(url) {
-                                alert = OnboardingAlert(message: error.localizedDescription)
-                            }
-                        }
-                        .disabled(!store.canEditVMConfiguration || assetWorkflowCoordinator.isBusy)
-                    }
-                }
-                .padding(.vertical, 2)
-            }
-
-            HStack {
-                Spacer()
-
-                Link(destination: vmAssetsDocumentationURL) {
-                    Label("What are VM Assets", systemImage: "questionmark.circle")
-                }
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .fixedSize()
-            }
+        Section {
+            VMAssetConfigurationView()
+        } header: {
+            onboardingStepHeader(
+                "Install the Required Files",
+                detail: "Download and install the VM Assets.",
+                image: "shippingbox.and.arrow.backward"
+            )
+        } footer: {
+            VMAssetDocumentationLinkView()
         }
     }
 
     private var accessoryAttachStep: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Label("Connect Your Tethering Device", systemImage: "cable.connector.horizontal")
-                .font(.largeTitle.bold())
-
-            Text("Use the menu bar to pass your tethering device through to ThruRNDIS.")
-                .font(.title3)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            connectionVideo
-
-            VStack(alignment: .leading, spacing: 12) {
-                onboardingInstruction(
-                    "Connect your device",
-                    detail: "Turn on USB tethering, then connect the device to this Mac with USB.",
-                    image: "cable.connector"
+        Section {
+            onboardingInstruction(
+                "Connect your device",
+                detail: "Turn on USB tethering, then connect the device to this Mac with USB.",
+                image: "cable.connector"
+            )
+            onboardingInstruction(
+                "Open Virtual Machine Accessories",
+                detail: "Click the USB icon in the menu bar and choose the tethering device.",
+                image: "menubar.rectangle"
+            )
+            onboardingInstruction(
+                "Use it with ThruRNDIS",
+                detail: "Select \u{201c}Use with ThruRNDIS\u{201d}",
+                image: "checkmark.circle"
+            )
+        } header: {
+            VStack(alignment: .leading, spacing: 20) {
+                onboardingStepHeader(
+                    "Connect Your Tethering Device",
+                    detail: "Use the menu bar to pass your tethering device through to ThruRNDIS.",
+                    image: "cable.connector.horizontal"
                 )
-                onboardingInstruction(
-                    "Open Virtual Machine Accessories",
-                    detail: "Click the USB icon in the menu bar and choose the tethering device.",
-                    image: "menubar.rectangle"
-                )
-                onboardingInstruction(
-                    "Use it with ThruRNDIS",
-                    detail: "Select \u{201c}Use with ThruRNDIS\u{201d}",
-                    image: "checkmark.circle"
-                )
+
+                connectionVideo
             }
         }
     }
 
-    private var networkExtensionStep: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Label("Enable the Network Extension", systemImage: "checkmark.shield")
-                .font(.largeTitle.bold())
+    private var permissionsStep: some View {
+        Group {
+            Section {
+                NetworkExtensionPermissionView()
+            } header: {
+                VStack(alignment: .leading, spacing: 24) {
+                    onboardingStepHeader(
+                        "Enable the permissions",
+                        detail: "ThruRNDIS requires Network Extension and Dummy Ethernet helper permissions.",
+                        image: "checkmark.shield"
+                    )
 
-            Text("ThruRNDIS requires Network Extension permission.")
-                .font(.title3)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            GroupBox {
-                VStack(alignment: .leading, spacing: 10) {
-                    LabeledContent("Status") {
-                        Label(
-                            wireGuardSession.systemExtensionStatus.title,
-                            systemImage: systemExtensionStatusImage
-                        )
-                        .foregroundStyle(systemExtensionStatusColor)
-                    }
-
-                    Text(systemExtensionStatusDetail)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    HStack(spacing: 8) {
-                        Button("Request Activation") {
-                            store.requestWireGuardSystemExtensionActivation()
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(!store.canRequestWireGuardSystemExtensionActivation)
-
-                        Button("Open Settings") {
-                            store.openWireGuardSystemExtensionSettings()
-                        }
-                        .buttonStyle(.link)
-
-                        Spacer()
-
-                        Button("Refresh Status") {
-                            store.refreshWireGuardSystemExtensionStatus()
-                        }
-                        .disabled(wireGuardSession.systemExtensionStatus.isTransitioning)
-                    }
+                    Text("Network Extension")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
                 }
-                .padding(.vertical, 2)
+            } footer: {
+                Text("Network Extension permission is required for WireGuard connections.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
-            Text("In System Settings, turn on the ThruRNDIS network extension, then return to ThruRNDIS.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            Section {
+                DummyEthernetHelperPermissionView()
+            } header: {
+                Text("Dummy Ethernet helper")
+            } footer: {
+                Text("The Dummy Ethernet helper is required to configure the Dummy Ethernet network service.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .onAppear {
             store.refreshWireGuardSystemExtensionStatus()
+            dummyEthernet.refresh()
         }
     }
 
@@ -357,6 +255,25 @@ struct OnboardingView: View {
         }
         .frame(maxWidth: .infinity)
         .accessibilityLabel("How to connect a tethering device to ThruRNDIS")
+    }
+
+    private func onboardingStepHeader(
+        _ title: LocalizedStringKey,
+        detail: LocalizedStringKey,
+        image: String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label(title, systemImage: image)
+                .font(.largeTitle.bold())
+                .foregroundStyle(.primary)
+
+            Text(detail)
+                .font(.title3)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .textCase(nil)
     }
 
     private var canContinue: Bool {
@@ -388,92 +305,6 @@ struct OnboardingView: View {
         }
     }
 
-    private var assetStatusImage: String {
-        switch assetWorkflowCoordinator.installState {
-        case .ready:
-            return "checkmark.circle.fill"
-        case .failed:
-            return "exclamationmark.triangle.fill"
-        case .idle:
-            return "circle"
-        default:
-            return "arrow.triangle.2.circlepath"
-        }
-    }
-
-    private var assetStatusColor: Color {
-        switch assetWorkflowCoordinator.installState {
-        case .ready:
-            return .green
-        case .failed:
-            return .red
-        default:
-            return .secondary
-        }
-    }
-
-    private var systemExtensionStatusDetail: LocalizedStringKey {
-        if wireGuardSession.systemExtensionStatus == .uninstalling {
-            return "Restart macOS to finish removing the Network Extension before requesting activation again."
-        }
-        if !store.runtimeEntitlements.systemExtensionInstall {
-            return "This build cannot activate the Network Extension. Run a signed copy of ThruRNDIS from Applications."
-        }
-
-        return switch wireGuardSession.systemExtensionStatus {
-        case .unknown:
-            "The Network Extension status has not been checked yet."
-        case .checking:
-            "Checking whether the Network Extension is active."
-        case .inactive:
-            "Request activation, then allow ThruRNDIS in System Settings before connecting."
-        case .activationRequested, .awaitingUserApproval:
-            "Activation was requested. Approve the Network Extension in System Settings."
-        case .active:
-            "The Network Extension is active and ready to connect."
-        case .uninstalling:
-            "Restart macOS to finish removing the Network Extension before requesting activation again."
-        case .restartRequired:
-            "Restart macOS to finish activating the Network Extension."
-        case .failed:
-            "The Network Extension status could not be determined."
-        }
-    }
-
-    private var systemExtensionStatusImage: String {
-        switch wireGuardSession.systemExtensionStatus {
-        case .active:
-            "checkmark.shield.fill"
-        case .checking, .activationRequested:
-            "arrow.triangle.2.circlepath"
-        case .awaitingUserApproval:
-            "person.badge.clock"
-        case .restartRequired:
-            "restart.circle"
-        case .inactive:
-            "xmark.shield"
-        case .uninstalling:
-            "trash"
-        case .failed:
-            "exclamationmark.triangle.fill"
-        case .unknown:
-            "questionmark.circle"
-        }
-    }
-
-    private var systemExtensionStatusColor: Color {
-        switch wireGuardSession.systemExtensionStatus {
-        case .active:
-            .green
-        case .checking, .activationRequested, .awaitingUserApproval, .restartRequired:
-            .orange
-        case .inactive, .uninstalling, .failed:
-            .red
-        case .unknown:
-            .secondary
-        }
-    }
-
     private func onboardingPoint(_ title: LocalizedStringKey, image: String) -> some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: image)
@@ -486,9 +317,4 @@ struct OnboardingView: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
-}
-
-private struct OnboardingAlert: Identifiable {
-    let id = UUID()
-    let message: String
 }

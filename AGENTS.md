@@ -16,10 +16,18 @@ WireGuard-over-VZNAT architecture as the baseline.
   Extension embedded under `Contents/Library/SystemExtensions`. The app manages
   one host packet-tunnel profile and session, but does not inspect or relay
   packet payloads itself.
-- Linux assets are not bundled with the app. The baseline user flow is the
-  explicit `Download & Install Latest` action in onboarding, or
-  `Check & Install Latest` in Settings. The app downloads the exact
-  `vm_assets.zip` and `SHA256SUMS` attachments from the latest published
+- `ThruRNDISPrivilegedHelper` is a small command-line privileged helper embedded
+  at `Contents/MacOS/ThruRNDISPrivilegedHelper`, with its launchd property list
+  at `Contents/Library/LaunchDaemons/ThruRNDISPrivilegedHelper.plist`. The app
+  registers it with `SMAppService.daemon` only after an explicit request in the
+  onboarding permissions page or Dummy Ethernet Settings tab. The app bundle is
+  the helper executable's only source; never copy it to
+  `/Library/PrivilegedHelperTools` or maintain a versioned system-path copy.
+  This project does not use DriverKit.
+- Linux assets are not bundled with the app. The shared onboarding and Settings
+  flow presents `Download & Install Latest` while assets are unconfigured and
+  `Check & Install Latest` once a valid selection is ready. The app downloads
+  the exact `vm_assets.zip` and `SHA256SUMS` attachments from the latest published
   [Afcoo/ThruRNDIS_VM_Assets Release](https://github.com/Afcoo/ThruRNDIS_VM_Assets/releases),
   verifies and installs them in Application Support, and activates the managed
   release. Manual download, checksum verification, extraction, and folder
@@ -33,32 +41,88 @@ WireGuard-over-VZNAT architecture as the baseline.
 
 ## Architecture
 
-- `TetheringStore` owns cross-feature orchestration: reset ordering, onboarding
-  presentation/listener coordination, and the serialized USB approval, VM
-  start/stop, passthrough, and optional WireGuard auto-connect workflow. State
-  that can be observed independently lives in child stores. `EventLogStore`
+- `TetheringStore` is the app-facing facade for reset ordering, onboarding
+  presentation/listener coordination, and general VM, USB, and WireGuard
+  commands. It adapts VM and USB callbacks into observable presentation state
+  and forwards cross-feature events to `TetheringWorkflowCoordinator`, which
+  owns only the serialized USB approval, VM preparation, passthrough, and
+  optional WireGuard request workflow. `ManagedWireGuardConnectionCoordinator`
+  separately owns the Dummy Ethernet preparation, host-tunnel wait, cleanup,
+  cancellation, and stale-operation protection used by app-managed connections.
+  State that can be observed independently lives in child stores. `EventLogStore`
   owns the bounded in-memory app event log and screen filtering, while
   `EventLogFileStore` serially persists every event under Application Support
   with 10 MiB or 24-hour session-file rotation and seven-day retention.
   `ConsoleSessionStore`
   owns only VM serial-console output and endpoint scanning, `USBSessionStore`
-  owns the atomic USB UI snapshot and pending prompt, `VMConfigurationStore`
+  owns the atomic USB UI snapshot plus USB attachment prompt queue, de-duplication,
+  and VM-asset deferral, `VMConfigurationStore`
   owns persisted VM settings including the optional scratch disk,
   `WireGuardSessionStore` owns host-tunnel/System Extension presentation state,
-  WireGuard inputs, validation, and configuration readiness, and
+  the USB-triggered WireGuard connection prompt, WireGuard inputs, validation,
+  and configuration readiness, and
   `AppPreferencesStore` owns onboarding completion, USB/WireGuard preferences,
   and Launch at Login state. VM lifecycle work belongs in `VMCoordinator`; USB
   AccessoryAccess selection and passthrough policy belong in
   `USBAccessoryCoordinator`.
 - `AppDelegate` is the composition root. It owns one shared
   `VMAssetWorkflowCoordinator`, constructs the VM, USB, and WireGuard adapters
-  and the six child state stores, injects them into one shared `TetheringStore`,
-  starts AccessoryAccess monitoring at app launch, and passes the same objects
-  to onboarding, Settings, and the menu bar. Views observe the narrowest child
+  and the independently injected child state stores, and injects them into one shared `TetheringStore`,
+  requests AccessoryAccess monitoring at app launch, and passes the same objects
+  to onboarding, Settings, and the menu bar. Before each listener start in normal
+  mode, `TetheringStore` requires completed onboarding, valid VM Assets, an active
+  Network Extension, and the current Dummy Ethernet helper. Views observe the narrowest child
   store that owns their state while invoking `TetheringStore` only for
   cross-feature actions. Keep the dependency one-way: `TetheringStore` sees
   only the read-only `VMAssetProviding` boundary, and
   `VMAssetWorkflowCoordinator` must not reference `TetheringStore`.
+- `TetheringStore` owns `DummyEthernetStore`, which owns Dummy Ethernet network
+  configuration, runtime presentation state, and Start/Stop/Restart operations.
+  `DummyEthernetHelperStore` is its separately observable child and owns only
+  privileged-helper registration state and Install/Reinstall/Remove actions.
+  Onboarding, Settings, and the menu bar receive both stores through the shared
+  `TetheringStore` and observe the narrower owner. Every app-managed WireGuard
+  connection requested from the USB prompt or USB auto-connect path is requested
+  by `TetheringWorkflowCoordinator` and executed by
+  `ManagedWireGuardConnectionCoordinator`, which asks the owned
+  `DummyEthernetStore` to prepare and wait until it is active before starting
+  the host tunnel. Preparation starts an inactive configuration and explicitly
+  restarts a known degraded configuration through the shared Restart flow. The
+  coordinator then stops Dummy Ethernet only after the tunnel reports that it
+  is connected. The normal-mode menu bar uses the same prepared connection
+  path, while Settings and the debug-mode menu bar keep the direct WireGuard
+  connection path and require Dummy Ethernet to be managed separately. A failed
+  preparation must prevent the WireGuard start, and an unsuccessful tunnel start
+  must not trigger automatic Dummy Ethernet cleanup. Do not inject Dummy
+  Ethernet into USB attach or VM start flows. The app-wide Reset All
+  Settings workflow is owned by `TetheringStore`; after its VM, USB, and
+  WireGuard cleanup, it asks `DummyEthernetStore` to stop its managed
+  configuration and `DummyEthernetHelperStore` to unregister the privileged
+  helper before `AppDelegate` clears the remaining selection and relaunches.
+  A failed stop must leave the helper registered, and any Dummy Ethernet
+  cleanup failure must prevent relaunch. Normal application termination also
+  waits for any configured Dummy Ethernet operation and its stop request to
+  finish before `AppDelegate` allows the process to exit. The menu bar keeps a
+  leading configuration section that lists Settings guidance for each unavailable
+  VM Assets, Network Extension, and privileged-helper prerequisite. In normal
+  mode, any unavailable prerequisite hides every status and control section;
+  debug mode keeps those sections visible below the configuration guidance.
+  Settings and Quit remain available in both modes. Once all prerequisites are
+  ready, the menu bar keeps all status items in one leading section. Debug mode
+  then orders its control sections as VM, USB, WireGuard, and Dummy Ethernet,
+  with a separator between sections; normal mode omits VM and Dummy Ethernet
+  controls. Debug-mode status
+  and control order
+  is VM, USB, WireGuard, then Dummy Ethernet. The normal-mode combined status
+  evaluates only VM, USB, and WireGuard because Dummy Ethernet is stopped after
+  establishing an automatically managed tunnel. In debug mode, a helper
+  operation that begins while the enabled-helper menu is visible uses the fixed
+  Helper Problem state until the menu is rebuilt for the resulting registration
+  status.
+  `DummyEthernetPrivilegedHelperRegistrationService` owns `SMAppService.daemon`
+  registration and status, while `DummyEthernetPrivilegedHelperClient` owns the
+  authenticated NSXPC connection to the helper. The unprivileged app must not
+  execute `ifconfig`, `networksetup`, `scutil`, or `route` itself.
 - `VMAssetWorkflowCoordinator` is the `@MainActor` workflow owner for the current
   selection, installed releases, install state, progress, errors, cancellation,
   and stale-operation protection. It orchestrates protocol-injected release,
@@ -204,6 +268,96 @@ ThruRNDIS WireGuardKit Network System Extension
   WireGuard endpoint. Do not replace it with vmnet, bridged networking,
   route-command UI, or an app-local packet relay.
 
+## Dummy Ethernet Compatibility Service
+
+- Dummy Ethernet is an optional compatibility feature. Settings owns its
+  editable configuration, while Settings and the debug-mode menu bar expose
+  manual Start/Stop/Restart controls. The normal-mode menu bar does not show
+  Dummy Ethernet controls, and neither menu mode exposes helper registration,
+  installation, removal, approval, or reinstallation actions. The menu bar
+  presents Dummy Ethernet as a colored status item in debug mode and excludes it
+  from the combined status in normal mode. When the helper is not enabled, normal
+  mode omits every status and control section, while debug mode retains the other
+  sections and presents the fixed Helper Problem Dummy Ethernet status. For a
+  helper operation that begins from the enabled state, present that same fixed
+  Helper Problem guidance in the debug-mode status item until the menu is
+  rebuilt; never expose helper registration status variants or a separate
+  colorless helper item in the menu bar. It exists
+  to provide a synthetic satisfied wired-Ethernet path for network-path
+  evaluation. When macOS has no active network connection, the app-managed
+  WireGuard setup requires Dummy Ethernet to provide that satisfied path.
+  WireGuard connections accepted through the USB prompt, requested by USB
+  auto-connect, or started from the normal-mode menu bar ensure Dummy Ethernet
+  is active first and stop it after the host tunnel reaches the connected state.
+  Connections started from Settings or the debug-mode menu bar keep Dummy
+  Ethernet as a separate manual configuration. This requirement is limited to
+  setup and network-path evaluation:
+  Dummy Ethernet remains independent of the tethering data path, does not
+  provide connectivity, forwarding, DNS, or NAT, and retains its manual
+  Start/Stop/Restart controls in addition to the automatic WireGuard prerequisite.
+  Normal application termination waits for any configured Dummy Ethernet to
+  stop before quitting. The explicit Reset All Settings action additionally
+  unregisters the helper and restores the persisted Dummy Ethernet inputs to
+  defaults after stopping the managed configuration.
+- `SMAppService` registration is explicit. After a successful register request,
+  record the helper-specific installation identity embedded in the helper file
+  rather than the app build number or file-system metadata. Keep that identity
+  stable when only the app marketing/build version changes, and increment it
+  whenever the installed helper implementation changes. Replacing an app bundle
+  can leave the previous root helper process alive; an identity mismatch must
+  block network operations until the user explicitly reinstalls the helper or
+  removes the old registration and installs it again.
+  Do not add runtime helper metadata handshakes, connection-probe retry state,
+  or automatic registration repair in response to refresh or a normal
+  network-operation failure.
+- The default host address is `192.168.100.2` with a fixed `/24` mask and the
+  subnet `.1` address as its router (`192.168.100.1` by default). Settings may
+  persist a different RFC 1918 host IPv4 address and separate Bond-member and
+  router-peer names. Validation rejects `.0`, `.1`, and `.255` host octets;
+  interface names must be distinct canonical `feth<number>` BSD names no more
+  than 15 UTF-8 bytes. IPv6 is disabled for the service.
+- The defaults are `feth0` (Bond member) and `feth1` (router peer), while the
+  Bond BSD name comes from `SCBondInterfaceCreate` (`bond0`, `bond1`, and so
+  on). Persist that Bond name, the Network Service ID, and both feth names in
+  one property-list ownership value in the same `SCPreferences` transaction.
+  Resolve and remove only those recorded objects. The branded Hardware Port and
+  Network Service names are display labels, not discovery keys. Missing
+  ownership metadata means there is no managed configuration; malformed
+  metadata fails closed. Never scan for, adopt, migrate, or remove same-named
+  legacy objects. Do not add an external ownership file or Dynamic Store state.
+- The helper creates, configures, enables, and removes the Bond and
+  Network Service only through the public SCNetworkConfiguration APIs. Do not
+  restore `networksetup`, Dynamic Store writes, `configd` restarts, or direct
+  route manipulation. Keep the service last in the current service order.
+- `/sbin/ifconfig` remains only for creating, peering, addressing, bringing up
+  or down, and destroying the validated feth pair, plus the static-Bond runtime sequence
+  `ifconfig <allocated-bond> bondmode static` followed by
+  `ifconfig <allocated-bond> bonddev <configured-member>`. The Bond argument
+  must come only from `SCNetworkInterfaceGetBSDName`; invoke the tool with
+  argument arrays and no shell API.
+- Status contains only whether the branded SystemConfiguration objects exist,
+  the allocated Bond and configured feth names, configured IPv4 address, and whether a bounded
+  `NWPathMonitor(requiredInterfaceType: .wiredEthernet)` observation reports
+  `NWPath.Status.satisfied` with that Bond available. Do not restore
+  `scutil --nwi`, scoped-route parsing, command-output parsers, or detailed
+  topology/recovery state.
+- Start is idempotent only for an already active matching configuration.
+  Otherwise, occupied feth names or a partial/mismatched recorded setup are an
+  explicit conflict that the user must Stop or resolve. A failed Start rolls
+  back only objects created by that invocation. Stop removes only the exact
+  recorded SCNetworkConfiguration setup and the feth pair stored with it; feth
+  names without that marker are treated as unrelated.
+- Restart is available while the runtime state is active or degraded. Its
+  shared flow performs one explicit Stop followed by Start with the current
+  validated configuration. Manual Restart and app-managed WireGuard preparation
+  use that same flow when the known runtime state is degraded. If Stop succeeds
+  but Start fails, retain the stopped runtime state so the user can retry Start.
+- The helper accepts only the narrow Foundation-value NSXPC protocol, authenticates
+  the connecting app's code-signing identifier and team, validates every input
+  again while privileged, and invokes only fixed absolute system-tool paths with
+  argument arrays. The app authenticates the helper with the corresponding
+  derived identifier and team. Do not add an arbitrary command or shell API.
+
 ## Naming Conventions
 
 - Follow Swift API naming conventions: types and protocols use `UpperCamelCase`;
@@ -250,6 +404,31 @@ ThruRNDIS WireGuardKit Network System Extension
   `SessionStoreTests.swift` and `VMAssetServiceTests.swift` do; move a test when
   its subject no longer belongs to that layer.
 
+## SwiftUI Presentation
+
+- Keep SwiftUI screens concise. Default to the control label, current state,
+  and available action; do not add subtitles, descriptive paragraphs, section
+  footers, captions, or repeated guidance merely to explain self-evident UI.
+- Add persistent supporting copy only when it prevents a likely
+  misconfiguration or explains a non-obvious permission, safety, or recovery
+  consequence. Keep it to one short sentence and do not restate a section
+  title, control label, or button action.
+- Preserve useful accessibility labels, values, and hints without duplicating
+  them as visible explanatory text.
+- Any onboarding control that reads or changes configuration also exposed in
+  Settings must reuse the same component from `ThruRNDIS/Views/SharedViews`.
+  Keep page titles, introductory copy, supporting guidance, and step navigation
+  in `OnboardingView`, while the shared component owns the configuration status,
+  actions, validation, and error presentation used by both surfaces. Do not
+  duplicate Settings implementations in onboarding. Both surfaces must host
+  these shared components in a `Form`; the component provides wrapper-free Form
+  rows rather than its own `Form`, `GroupBox`, or layout container. This policy
+  applies to VM Assets, Network Extension permission, privileged-helper
+  permission, and any future Settings-backed onboarding control. Each
+  onboarding step owns one `Form` containing its page header, supporting copy,
+  shared rows, and any other step content; do not nest another `Form` inside a
+  step.
+
 ## Directory Guide
 
 The project uses a layer-oriented source tree. Keep physical directories and
@@ -270,22 +449,32 @@ target membership, and build phase as applicable.
   `ThruRNDIS/Views/SharedViews`.
 - `ThruRNDIS/Coordinators`: long-running workflows. `VMCoordinator` owns
   Virtualization lifecycle, `USBAccessoryCoordinator` owns AccessoryAccess
-  selection and passthrough policy, and `VMAssetWorkflowCoordinator` owns VM
-  Asset installation and selection workflow state. `VMCoordinating` remains a
+  selection and passthrough policy, `TetheringWorkflowCoordinator` serializes
+  USB approval through VM preparation and an optional WireGuard request,
+  `ManagedWireGuardConnectionCoordinator` owns Dummy Ethernet preparation and
+  cleanup around an app-managed WireGuard connection, and
+  `VMAssetWorkflowCoordinator` owns VM Asset installation and selection workflow
+  state. `VMCoordinating` remains a
   protocol boundary because tests provide a replacement implementation;
   `USBAccessoryCoordinator` stays concrete until a narrower tested boundary is
   required.
 - `ThruRNDIS/Stores`: `@MainActor`/observable UI-facing state owners.
-  `TetheringStore` owns cross-feature orchestration, `EventLogStore` owns the
+  `TetheringStore` exposes the app-facing observable facade, `EventLogStore` owns the
   bounded in-memory app event log and view filters, `ConsoleSessionStore` owns VM
   serial-console state,
-  `USBSessionStore` owns the USB UI projection, and `VMConfigurationStore` owns
+  `USBSessionStore` owns the USB UI projection and attachment prompt queue, and
+  `VMConfigurationStore` owns
   editable VM settings and their UserDefaults persistence.
-  `WireGuardSessionStore` owns WireGuard presentation/session state and editable
-  connection inputs, while `AppPreferencesStore` owns persisted app preferences,
-  onboarding completion, and Launch at Login state. View-scoped observable
-  state such as `VideoPlaybackStore` also belongs here when it is substantial
-  enough to live outside its SwiftUI view.
+  `WireGuardSessionStore` owns WireGuard presentation/session state, the
+  USB-triggered connection prompt, and editable connection inputs, while
+  `AppPreferencesStore` owns persisted app preferences,
+  onboarding completion, and Launch at Login state. The `TetheringStore`-owned
+  `DummyEthernetStore` owns persisted configuration input, manual
+  Start/Stop/Restart actions, and presented network runtime state, while its
+  `DummyEthernetHelperStore` child independently owns helper registration state
+  and actions.
+  View-scoped observable state such as `VideoPlaybackStore` also belongs here
+  when it is substantial enough to live outside its SwiftUI view.
 - `ThruRNDIS/Persistence`: non-observable durable-storage adapters and path
   definitions. `EventLogFileStore` owns rotated Application Support log files,
   retention cleanup, and file-based export. `VMAssetSelectionStore` persists
@@ -295,13 +484,15 @@ target membership, and build phase as applicable.
 - `ThruRNDIS/Services`: external/system operations such as GitHub release
   lookup, downloads, archive verification/install, AccessoryAccess monitoring,
   launch-at-login integration, Network System Extension activation, host
-  WireGuard tunnel management, and Virtualization configuration creation.
+  WireGuard tunnel management, Virtualization configuration creation,
+  privileged-helper registration, and the authenticated NSXPC helper client.
 - `ThruRNDIS/Models`: value types and protocol boundaries shared across layers,
-  including VM Asset values, USB records/prompts, VM state, and WireGuard
-  settings.
+  including VM Asset values, USB records/prompts, VM state, WireGuard settings,
+  and the narrow Dummy Ethernet configuration and status values.
 - `ThruRNDIS/Support`: small stateless helpers and narrow platform edges:
   clipboard/file panels, runtime entitlement reads, VM Asset folder validation,
-  and WireGuard configuration rendering.
+  WireGuard configuration rendering, Dummy Ethernet IPv4 validation, shared
+  helper constants, and peer code-signing requirement construction.
 - `ThruRNDIS/Resources`: app-bundle resources such as localization catalogs and
   onboarding media. Keep app and menu-bar icon sources under the existing
   `ThruRNDIS.icon` asset folder and `ThruRNDISMenuBarIcon.svg` location.
@@ -309,7 +500,9 @@ target membership, and build phase as applicable.
   `Coordinators`, `Persistence`, `Services`, `Stores`, and `Support`. Cross-layer
   fixtures and reusable test doubles live in `TestSupport`.
 - `Configuration`: checked-in shared build settings and the local-signing
-  template. `Configuration/LocalSigning.xcconfig` is local and ignored.
+  template. The privileged-helper identifier derives from the app identifier in
+  `BuildSettings.xcconfig`; do not add a helper provisioning-profile setting.
+  `Configuration/LocalSigning.xcconfig` is local and ignored.
 - `images`: README-only images. Do not add this directory to the app's resource
   build phase.
 - `script`: project-local developer automation only. Keep
@@ -323,8 +516,12 @@ target membership, and build phase as applicable.
   belongs in `script/support/distribution_common.sh`, while shared artifact-path
   and disk-image I/O belongs in `script/support/distribution_io.sh`. Internal
   helpers that are sourced or invoked by Xcode/Finder automation belong under
-  `script/support/`, including `build_wireguard_go_bridge.sh` and
-  `configure_dmg_layout.applescript`. The build scripts do not contact Apple's
+  `script/support/`, including `build_wireguard_go_bridge.sh`,
+  `generate_privileged_helper_launchd_plist.sh`, and
+  `configure_dmg_layout.applescript`. The plist generator must safely replace
+  the single designated bundle-identifier placeholder in both `Label` and the
+  sole `MachServices` key, then validate its output before embedding.
+  The build scripts do not contact Apple's
   notary service. The notarization scripts require credentials already stored
   in Keychain and staple their supplied artifact in place. `package_app.sh`
   alone owns the resumable `dist/.package-work/` lifecycle and final publication
@@ -333,6 +530,10 @@ target membership, and build phase as applicable.
   `NEPacketTunnelProvider`, Info.plist, and development/distribution
   entitlements. Shared parser/constants files remain under `ThruRNDIS/Support`
   and are compiled into both targets.
+- `ThruRNDISPrivilegedHelper`: the minimal root helper executable, launchd plist
+  template, fixed `ifconfig` runner, SCNetworkConfiguration adapter,
+  Network.framework path monitor, and minimal feth/static-bond lifecycle. It
+  must not become a general administrative service.
 
 This repository intentionally contains no guest VM scripts or guest-asset build
 pipeline. The `script/` directory is limited to host-app developer automation;
@@ -354,18 +555,20 @@ separate `Afcoo/ThruRNDIS_VM_Assets` repository.
   `.codex/environments/environment.toml` wires the Codex Run action to the same
   no-flag command. Keep that action and the shell workflow on this single
   entrypoint.
-- For signed USB, Virtualization, and Network System Extension testing, first
-  configure `Configuration/LocalSigning.xcconfig`, then build, validate, and
-  install the Runtime app with:
+- For signed USB, Virtualization, Network System Extension, and privileged-helper
+  testing, first configure `Configuration/LocalSigning.xcconfig`, then build,
+  validate, and install the Runtime app with:
 
 ```sh
 ./script/build_and_install.sh
 ```
 
   The install script uses the `ThruRNDIS Runtime` scheme and `RuntimeDebug`
-  configuration, validates the app and embedded Network System Extension
-  signatures, signing-team match, and required entitlements, then safely
-  replaces `/Applications/ThruRNDIS.app`. It does not launch the installed app.
+  configuration, validates the app and embedded Network System Extension plus
+  the exact privileged-helper executable/launchd-plist paths, signing identifiers,
+  signing-team match, hardened runtime, launchd metadata, and required
+  entitlements, then safely replaces `/Applications/ThruRNDIS.app`. It does not
+  launch the installed app.
 - For a build-only check or diagnosing the underlying Xcode invocation, use:
 
 ```sh
@@ -381,7 +584,8 @@ separate `Afcoo/ThruRNDIS_VM_Assets` repository.
 
 - Runtime signing checks are meaningful only after the required entitlements are
   included in the provisioning profiles for both the app and Network System
-  Extension.
+  Extension. The privileged helper shares their signing team but requires no
+  provisioning profile.
 
 ```sh
 /Applications/Xcode-beta.app/Contents/Developer/usr/bin/xcodebuild \
@@ -420,10 +624,10 @@ xcrun notarytool store-credentials "thrurndis-notary"
 
   The app build stage archives and exports the `ThruRNDIS Runtime` scheme in
   `Release`, validates the Developer ID signatures, hardened runtime,
-  distribution entitlements, and embedded Network System Extension without
-  contacting Apple. The app notarization stage submits the supplied app once,
-  then staples and verifies that same bundle without rebuilding or re-signing
-  it.
+  distribution entitlements, embedded Network System Extension, and embedded
+  privileged helper/launchd metadata without contacting Apple. The app
+  notarization stage submits the supplied app once, then staples and verifies
+  that same bundle without rebuilding or re-signing it.
 
   The DMG build stage revalidates the notarized input app, creates the compact
   480x300 Finder layout with 96 px icons and fixed app/Applications positions,
@@ -485,9 +689,10 @@ xcrun notarytool store-credentials "thrurndis-notary"
   dist/ThruRNDIS-<version>-<build>/ThruRNDIS-<version>.dmg
 ```
 
-  The app verifier checks the app and embedded Network System Extension
-  signatures, hardened runtime, direct-distribution entitlements, stapled
-  ticket, and Gatekeeper distribution policy. The DMG verifier checks the image
+  The app verifier checks the app, embedded Network System Extension, and
+  privileged helper signatures, hardened runtime, secure timestamps,
+  direct-distribution entitlements, helper launchd metadata, stapled ticket,
+  and Gatekeeper distribution policy. The DMG verifier checks the image
   checksum, Developer ID signature, secure timestamp, stapled ticket,
   Gatekeeper open policy, and the same app checks after a read-only mount. Run
   these trust-policy checks outside a restricted sandbox because blocked access
@@ -498,10 +703,13 @@ xcrun notarytool store-credentials "thrurndis-notary"
 - The current baseline is WireGuardKit in a Network System Extension over the
   VZNAT guest endpoint. Do not add app-local packet relays, virtio-socket packet
   bridges, vmnet, `VZVmnetNetworkDeviceAttachment`, or
-  `VZBridgedNetworkDeviceAttachment`.
+  `VZBridgedNetworkDeviceAttachment`. The manual Dummy Ethernet workaround uses
+  feth plus a static bond through the privileged helper; do not add a DriverKit
+  target or DEXT.
 - Checked-in signing defaults live in `Configuration/BuildSettings.xcconfig`.
   This file intentionally uses placeholder bundle identifiers and no
-  development team.
+  development team. `THRURNDIS_PRIVILEGED_HELPER_BUNDLE_IDENTIFIER` must remain
+  derived as `$(THRURNDIS_APP_BUNDLE_IDENTIFIER).privileged-helper`.
 - For local runtime signing, copy
   `Configuration/LocalSigning.xcconfig.example` to
   `Configuration/LocalSigning.xcconfig` and set the local `DEVELOPMENT_TEAM` and
@@ -512,9 +720,11 @@ xcrun notarytool store-credentials "thrurndis-notary"
   `THRURNDIS_APP_DISTRIBUTION_PROVISIONING_PROFILE` and
   `THRURNDIS_NETWORK_EXTENSION_DISTRIBUTION_PROVISIONING_PROFILE`. Release
   uses manual signing so the restricted profiles are deterministic; the export
-  options map the same profiles to both bundle identifiers. Notary credentials
-  stay in Keychain and must never be added to xcconfig files, scripts, or the
-  repository.
+  options map those profiles only to the app and Network System Extension bundle
+  identifiers. The privileged helper is nested command-line code signed with
+  the same Developer ID Application team and intentionally has no provisioning
+  profile or ExportOptions profile entry. Notary credentials stay in Keychain
+  and must never be added to xcconfig files, scripts, or the repository.
 - Do not hard-code a personal development team ID, provisioning profile, or local
   bundle identifier into the Xcode project file.
 - `ThruRNDIS.entitlements` is the main app entitlement file used by
@@ -531,6 +741,17 @@ xcrun notarytool store-credentials "thrurndis-notary"
   signing and `Distribution.entitlements` with the same system-extension suffix
   for Developer ID distribution. Direct distribution must embed a
   `.systemextension`, not an App Store `.appex` packet-tunnel provider.
+- The privileged helper must be embedded exactly at
+  `Contents/MacOS/ThruRNDISPrivilegedHelper` and enable the hardened runtime.
+  Its embedded Info.plist bundle identifier and app-shared marketing/build
+  versions must be validated in final app artifacts; they are not a runtime XPC
+  protocol.
+  Its code-signing identifier, launchd `Label`, and only `MachServices` key must
+  equal the derived helper bundle identifier; `BundleProgram` must equal
+  `Contents/MacOS/ThruRNDISPrivilegedHelper`. Its team must match the app and
+  Network System Extension. Developer ID builds additionally require a secure
+  timestamp. Keep its launchd plist template placeholder-based so no personal or
+  release bundle identifier is checked in.
 - If restricted entitlements are missing from the provisioning profile, the
   runtime path fails. Do not use ad hoc signing as a substitute for restricted
   entitlement runtime validation.
@@ -541,12 +762,36 @@ xcrun notarytool store-credentials "thrurndis-notary"
   Connect, Disconnect, and Refresh controls. Keep `.conf` copy/save as a
   diagnostic fallback; do not hand the persistent private-key files to the
   provider or store plaintext configuration in preferences.
-- AccessoryAccess monitoring remains stopped while onboarding is presented. It
-  starts after first-run onboarding closes, and a listener that was active
-  before onboarding was restarted resumes after that window closes. Outside
-  onboarding, monitoring starts with the app even when no Settings window is
-  visible. Settings may stop or sequentially reload the listener for the current
-  session, but a later app launch starts it again.
+- Dummy Ethernet configuration remains Settings-owned with explicit manual
+  Start/Stop/Restart controls. USB-prompt, USB auto-connect, and normal-mode
+  menu-bar WireGuard requests are the only additional start paths and must wait
+  for Dummy Ethernet to become active before starting the tunnel, then stop it
+  only after the tunnel reports that it is connected. Settings and debug-mode
+  menu-bar WireGuard requests use the direct connection path and do not start or
+  stop Dummy Ethernet. Onboarding may show and manage only its privileged-helper
+  permission;
+  showing the current helper registration and network state at launch is allowed.
+  Initial helper registration requires the explicit Install action. Replacing
+  the app bundle requires an explicit Reinstall action, or explicit Remove and
+  Install actions, when the registered helper-specific installation identity
+  changes, but an app marketing/build version change alone must not require an
+  update. Refresh and Start/Stop/Restart must never repair registration
+  automatically.
+  Do not remove network objects without a user's Stop/Restart action, except
+  that application termination stops the managed configuration before exit and
+  a confirmed Reset All Settings action removes it before unregistering the
+  helper. A Login
+  Items approval-required result is a visible recoverable state, not permission
+  to bypass `SMAppService` or elevate through another mechanism.
+- In normal mode, require completed onboarding, valid VM Assets, an active
+  Network Extension, and the current enabled Dummy Ethernet privileged helper
+  immediately before starting or reloading AccessoryAccess monitoring. Do not
+  stop an active listener merely because a prerequisite later becomes
+  unavailable; evaluate the prerequisites again only for a future start or
+  reload. Debug mode bypasses these configuration restrictions, but not the
+  AccessoryAccess entitlement or listener-transition safety checks. Settings may
+  stop or sequentially reload the listener for the current session, but a later
+  app launch requests it again.
 - Keep USB approval prompts AppKit-presented so they remain visible while all
   windows are closed. The store must serialize USB approval, VM
   start/stop/restart, and VZ attach completions. Preserve the VM-generation and
@@ -565,10 +810,12 @@ xcrun notarytool store-credentials "thrurndis-notary"
   disk, and the Application Support WireGuard directory. Reset App Settings may
   be requested while the VM or USB passthrough attachment is active: disconnect
   WireGuard first, stop the VM and wait for its USB attachment lifecycle to end,
-  then delete the WireGuard directory and clear the Asset selection. It preserves
-  managed Asset releases. If the VM does not stop or WireGuard deletion fails,
-  report the error and do not restart the app. A successful reset creates fresh
-  key files and a generated server config on the next launch.
+  delete the WireGuard directory, stop the managed Dummy Ethernet configuration,
+  unregister its privileged helper, and then clear the Asset selection. It
+  preserves managed Asset releases. If the VM or Dummy Ethernet does not stop,
+  WireGuard deletion fails, or helper removal fails, report the error and do not
+  restart the app. A successful reset creates fresh key files and a generated
+  server config on the next launch.
 - Keep WireGuard key material and server configuration read-only. The Connection
   section may edit and persist only the client DNS servers, Endpoint override,
   and Allowed IPs; preview, copy, save/export, and provider connection must all
@@ -604,8 +851,12 @@ xcrun notarytool store-credentials "thrurndis-notary"
 - Real USB/WireGuard runtime validation requires macOS 27 beta, an approved
   app profile for USB/Virtualization/NetworkExtension/System Extension install,
   an approved Network System Extension profile, a valid signing identity, a
-  real RNDIS USB device, and approval in System Settings. Install the signed app
-  in `/Applications` before testing activation.
+  real RNDIS USB device, and approval in System Settings. Dummy Ethernet runtime
+  validation additionally requires the same-team signed helper embedded in the
+  app, installation under `/Applications`, administrator approval for the
+  `SMAppService` daemon, and inspection of the actual interface, service,
+  SCNetworkConfiguration state, and `NWPath.Status.satisfied` result. Install
+  the signed app in `/Applications` before testing either activation path.
 - Signing/provisioning failures should not block compile builds, UI work, or
   documentation work.
 - After code changes, the normal minimum verification is

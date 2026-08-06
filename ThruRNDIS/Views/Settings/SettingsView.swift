@@ -37,6 +37,8 @@ struct SettingsView: View {
                         copyConfiguration: copyWireGuardConfiguration,
                         saveConfiguration: saveWireGuardConfiguration
                     )
+                case .dummyEthernet:
+                    DummyEthernetView()
                 case .info:
                     InfoView(resetAndRestart: resetAndRestart)
                 }
@@ -58,6 +60,7 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
     case virtualMachine
     case usbDevices
     case wireGuard
+    case dummyEthernet
     case info
 
     var id: Self { self }
@@ -72,6 +75,8 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
             "USB Devices"
         case .wireGuard:
             "WireGuard"
+        case .dummyEthernet:
+            "Dummy Ethernet"
         case .info:
             "Info"
         }
@@ -87,6 +92,8 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
             "cable.connector"
         case .wireGuard:
             "lock.shield"
+        case .dummyEthernet:
+            "network"
         case .info:
             "info.circle"
         }

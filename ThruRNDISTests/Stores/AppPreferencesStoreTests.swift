@@ -40,7 +40,7 @@ final class AppPreferencesStoreTests: XCTestCase {
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
         defer { defaults.removePersistentDomain(forName: suiteName) }
         let launchAtLoginService = AppPreferencesTestLaunchAtLoginService()
-        defaults.set(2, forKey: "Onboarding.completedVersion")
+        defaults.set(3, forKey: "Onboarding.completedVersion")
 
         let store = AppPreferencesStore(
             launchAtLoginService: launchAtLoginService,
@@ -56,7 +56,7 @@ final class AppPreferencesStoreTests: XCTestCase {
             AppPreferencesStore.currentOnboardingVersion
         )
 
-        defaults.set(4, forKey: "Onboarding.completedVersion")
+        defaults.set(5, forKey: "Onboarding.completedVersion")
         let restoredStore = AppPreferencesStore(
             launchAtLoginService: launchAtLoginService,
             defaults: defaults

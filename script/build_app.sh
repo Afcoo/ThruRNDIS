@@ -6,7 +6,8 @@
 # - Configuration/LocalSigning.xcconfig copied from the example and configured
 #   with DEVELOPMENT_TEAM, the app bundle identifier, and the exact installed
 #   direct-distribution provisioning-profile names for both the app and the
-#   WireGuard Network System Extension.
+#   WireGuard Network System Extension. The privileged helper uses the derived
+#   app identifier suffix and the same signing team, but no provisioning profile.
 # - A Developer ID Application certificate, including its private key, for the
 #   configured team in the login Keychain.
 # - Internet access only when Xcode provisioning updates are explicitly
@@ -106,6 +107,11 @@ EXTENSION_BUILD_SETTINGS="$("$XCODEBUILD_BIN" \
   -target ThruRNDISWireGuardNetworkExtension \
   -configuration "$CONFIGURATION" \
   -showBuildSettings)"
+HELPER_BUILD_SETTINGS="$("$XCODEBUILD_BIN" \
+  -project "$PROJECT_PATH" \
+  -target ThruRNDISPrivilegedHelper \
+  -configuration "$CONFIGURATION" \
+  -showBuildSettings)"
 
 APP_BUNDLE_IDENTIFIER="$(distribution_build_setting_value \
   "$APP_BUILD_SETTINGS" PRODUCT_BUNDLE_IDENTIFIER)"
@@ -123,13 +129,25 @@ EXTENSION_PROVISIONING_PROFILE="$(distribution_build_setting_value \
   "$EXTENSION_BUILD_SETTINGS" PROVISIONING_PROFILE_SPECIFIER)"
 EXTENSION_DEVELOPMENT_TEAM="$(distribution_build_setting_value \
   "$EXTENSION_BUILD_SETTINGS" DEVELOPMENT_TEAM)"
+HELPER_BUNDLE_IDENTIFIER="$(distribution_build_setting_value \
+  "$HELPER_BUILD_SETTINGS" PRODUCT_BUNDLE_IDENTIFIER)"
+HELPER_PROVISIONING_PROFILE="$(distribution_build_setting_value \
+  "$HELPER_BUILD_SETTINGS" PROVISIONING_PROFILE_SPECIFIER)"
+HELPER_DEVELOPMENT_TEAM="$(distribution_build_setting_value \
+  "$HELPER_BUILD_SETTINGS" DEVELOPMENT_TEAM)"
+EXPECTED_HELPER_BUNDLE_IDENTIFIER="$APP_BUNDLE_IDENTIFIER.privileged-helper"
 
 [[ -n "$DEVELOPMENT_TEAM" ]] || distribution_fail \
   "DEVELOPMENT_TEAM is empty in LocalSigning.xcconfig"
 [[ "$EXTENSION_DEVELOPMENT_TEAM" == "$DEVELOPMENT_TEAM" ]] || distribution_fail \
   "the app and Network System Extension use different development teams"
-[[ -n "$APP_BUNDLE_IDENTIFIER" && -n "$EXTENSION_BUNDLE_IDENTIFIER" ]] || distribution_fail \
+[[ "$HELPER_DEVELOPMENT_TEAM" == "$DEVELOPMENT_TEAM" ]] || distribution_fail \
+  "the app and privileged helper use different development teams"
+[[ -n "$APP_BUNDLE_IDENTIFIER" && -n "$EXTENSION_BUNDLE_IDENTIFIER" &&
+   -n "$HELPER_BUNDLE_IDENTIFIER" ]] || distribution_fail \
   "Release bundle identifiers could not be resolved"
+[[ "$HELPER_BUNDLE_IDENTIFIER" == "$EXPECTED_HELPER_BUNDLE_IDENTIFIER" ]] || distribution_fail \
+  "the privileged-helper bundle ID is $HELPER_BUNDLE_IDENTIFIER instead of $EXPECTED_HELPER_BUNDLE_IDENTIFIER"
 distribution_require_safe_filename_component "app version" "$APP_VERSION_SETTING"
 distribution_require_safe_filename_component "app build number" "$APP_BUILD_SETTING"
 
@@ -147,6 +165,10 @@ if [[ -z "$APP_PROVISIONING_PROFILE" ]]; then
 fi
 if [[ -z "$EXTENSION_PROVISIONING_PROFILE" ]]; then
   echo "error: set THRURNDIS_NETWORK_EXTENSION_DISTRIBUTION_PROVISIONING_PROFILE in LocalSigning.xcconfig" >&2
+  SIGNING_SETUP_VALID=0
+fi
+if [[ -n "$HELPER_PROVISIONING_PROFILE" ]]; then
+  echo "error: the privileged helper must not use a provisioning profile" >&2
   SIGNING_SETUP_VALID=0
 fi
 SIGNING_IDENTITIES="$(/usr/bin/security find-identity -v -p codesigning)"
@@ -181,6 +203,9 @@ VALIDATION_DIR="$WORK_DIR/validation"
 /usr/libexec/PlistBuddy \
   -c "Add :provisioningProfiles:$EXTENSION_BUNDLE_IDENTIFIER string $EXTENSION_PROVISIONING_PROFILE" \
   "$EXPORT_OPTIONS_PLIST"
+# A command-line privileged helper is nested code, not a provisioned app
+# bundle. Intentionally keep it out of the ExportOptions provisioningProfiles
+# dictionary; Xcode signs it with the app's Developer ID team identity.
 
 ARCHIVE_ARGS=(
   -project "$PROJECT_PATH"

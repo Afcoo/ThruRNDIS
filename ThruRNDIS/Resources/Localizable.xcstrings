@@ -439,16 +439,6 @@
         }
       }
     },
-    "Choose downloaded VM assets" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "다운로드한 VM 에셋 선택"
-          }
-        }
-      }
-    },
     "Choose extracted vm_assets folder" : {
       "localizations" : {
         "ko" : {
@@ -505,23 +495,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "선택…"
-          }
-        }
-      }
-    },
-    "Class %@ · Registry %@" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Class %1$@ · Registry %2$@"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "클래스 %1$@ · 레지스트리 %2$@"
           }
         }
       }
@@ -612,6 +585,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "창 닫기"
+          }
+        }
+      }
+    },
+    "Configure Network Extension in Settings" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "설정에서 Network Extension을 구성하세요"
+          }
+        }
+      }
+    },
+    "Configure Dummy Ethernet helper in Settings" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "설정에서 더미 이더넷 헬퍼를 구성하세요"
           }
         }
       }
@@ -772,6 +765,16 @@
         }
       }
     },
+    "Could not remove the Dummy Ethernet helper while resetting app settings: %@" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "앱 설정을 초기화하는 동안 더미 이더넷 헬퍼를 제거할 수 없습니다: %@"
+          }
+        }
+      }
+    },
     "Could not remove the saved WireGuard tunnel profile." : {
       "localizations" : {
         "ko" : {
@@ -804,6 +807,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$@에 WireGuard 파일을 안전하게 만들 수 없습니다: %2$@"
+          }
+        }
+      }
+    },
+    "Could not stop Dummy Ethernet while resetting app settings: %@" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "앱 설정을 초기화하는 동안 더미 이더넷 구성을 중지할 수 없습니다: %@"
           }
         }
       }
@@ -1046,12 +1059,12 @@
         }
       }
     },
-    "Enable the Network Extension" : {
+    "Enable the permissions" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "네트워크 확장 프로그램 활성화"
+            "value" : "권한 활성화"
           }
         }
       }
@@ -1062,17 +1075,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "엔드포인트"
-          }
-        }
-      }
-    },
-    "Entitlement" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "권한"
           }
         }
       }
@@ -1217,12 +1219,12 @@
         }
       }
     },
-    "Grant the Network Extension permission for the WireGuard connection." : {
+    "Grant the Network Extension and Dummy Ethernet helper permissions." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "네트워크 확장 프로그램에 WireGuard 연결 권한을 부여하세요."
+            "value" : "네트워크 확장 프로그램과 더미 이더넷 헬퍼 권한을 부여하세요."
           }
         }
       }
@@ -1267,12 +1269,12 @@
         }
       }
     },
-    "In System Settings, turn on the ThruRNDIS network extension, then return to ThruRNDIS." : {
+    "Network Extension permission is required for WireGuard connections." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "시스템 설정에서 ThruRNDIS 네트워크 확장 프로그램을 켠 다음 ThruRNDIS로 돌아오세요."
+            "value" : "WireGuard 연결에는 네트워크 확장 프로그램 권한이 필요합니다."
           }
         }
       }
@@ -1579,17 +1581,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "NetworkExtension 패킷 터널"
-          }
-        }
-      }
-    },
-    "NetworkExtension packet tunnel entitlement is missing." : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "NetworkExtension 패킷 터널 권한이 없습니다."
           }
         }
       }
@@ -2084,6 +2075,16 @@
         }
       }
     },
+    "Restarting…" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다시 시작 중…"
+          }
+        }
+      }
+    },
     "Restarting VM." : {
       "localizations" : {
         "ko" : {
@@ -2384,17 +2385,6 @@
         }
       }
     },
-    "System Extension installation entitlement is missing." : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "시스템 확장 설치 권한이 없습니다."
-          }
-        }
-      }
-    },
     "The download response for %@ was invalid." : {
       "localizations" : {
         "ko" : {
@@ -2667,18 +2657,18 @@
         }
       }
     },
-    "ThruRNDIS — VM %@, %@, %@" : {
+    "ThruRNDIS — VM %@, %@, %@, %@" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "ThruRNDIS — VM %1$@, %2$@, %3$@"
+            "value" : "ThruRNDIS — VM %1$@, %2$@, %3$@, %4$@"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ThruRNDIS — VM %1$@, %2$@, %3$@"
+            "value" : "ThruRNDIS — VM %1$@, %2$@, %3$@, %4$@"
           }
         }
       }
@@ -2723,12 +2713,12 @@
         }
       }
     },
-    "ThruRNDIS requires Network Extension permission." : {
+    "ThruRNDIS requires Network Extension and Dummy Ethernet helper permissions." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ThruRNDIS는 네트워크 확장 프로그램 권한이 필요합니다."
+            "value" : "ThruRNDIS는 네트워크 확장 프로그램과 더미 이더넷 헬퍼 권한이 필요합니다."
           }
         }
       }
@@ -2849,17 +2839,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "USB 액세서리가 연결되었습니다."
-          }
-        }
-      }
-    },
-    "USB accessory detached from VM." : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "VM에서 USB 액세서리 연결이 해제되었습니다."
           }
         }
       }
@@ -3244,6 +3223,16 @@
         }
       }
     },
+    "Wait for the current Dummy Ethernet operation to finish." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "현재 더미 이더넷 작업이 끝날 때까지 기다리세요."
+          }
+        }
+      }
+    },
     "Wait for the current USB attachment workflow before reloading the listener." : {
       "localizations" : {
         "ko" : {
@@ -3455,6 +3444,594 @@
           }
         }
       }
+    },
+    "A signed Runtime build is required to use the Dummy Ethernet helper." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "더미 이더넷 헬퍼를 사용하려면 서명된 런타임 빌드가 필요합니다."
+          }
+        }
+      }
+    },
+    "Allow the Dummy Ethernet helper in System Settings > General > Login Items, then return and refresh." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "시스템 설정 > 일반 > 로그인 항목 및 확장 프로그램에서 더미 이더넷 헬퍼를 허용한 다음 앱으로 돌아와 새로고침하세요."
+          }
+        }
+      }
+    },
+    "Approval Required" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "승인 필요"
+          }
+        }
+      }
+    },
+    "Bond Member" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bond 멤버"
+          }
+        }
+      }
+    },
+    "Could not inspect the current code signature (%d)." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "현재 코드 서명을 검사할 수 없습니다(%d)."
+          }
+        }
+      }
+    },
+    "Could not read code-signing information (%d)." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "코드 서명 정보를 읽을 수 없습니다(%d)."
+          }
+        }
+      }
+    },
+    "Could not resolve the current signed executable (%d)." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "현재 서명된 실행 파일을 확인할 수 없습니다(%d)."
+          }
+        }
+      }
+    },
+    "Dummy Ethernet" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "더미 이더넷"
+          }
+        }
+      }
+    },
+    "Dummy Ethernet: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Dummy Ethernet: %@"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "더미 이더넷: %@"
+          }
+        }
+      }
+    },
+    "Dummy Ethernet helper problem" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "더미 이더넷 헬퍼 문제"
+          }
+        }
+      }
+    },
+    "Dummy Ethernet Helper Update Required" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "더미 이더넷 헬퍼 업데이트 필요"
+          }
+        }
+      }
+    },
+    "Dummy Ethernet is unavailable in this unsigned build." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "서명되지 않은 빌드에서는 더미 이더넷을 사용할 수 없습니다."
+          }
+        }
+      }
+    },
+    "Dummy Ethernet did not stop while resetting app settings." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "앱 설정을 초기화하는 동안 더미 이더넷 구성이 중지되지 않았습니다."
+          }
+        }
+      }
+    },
+    "Remove" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "제거"
+          }
+        }
+      }
+    },
+    "Reinstall" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "재설치"
+          }
+        }
+      }
+    },
+    "Reinstall the bundled Dummy Ethernet helper." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "내장 더미 이더넷 헬퍼를 다시 설치하세요."
+          }
+        }
+      }
+    },
+    "Reinstall the Dummy Ethernet helper before resetting app settings." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "앱 설정을 초기화하기 전에 더미 이더넷 헬퍼를 다시 설치하세요."
+          }
+        }
+      }
+    },
+    "Reinstalling Dummy Ethernet helper…" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "더미 이더넷 헬퍼 재설치 중…"
+          }
+        }
+      }
+    },
+    "Removing Dummy Ethernet helper…" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "더미 이더넷 헬퍼 제거 중…"
+          }
+        }
+      }
+    },
+    "Install" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "설치"
+          }
+        }
+      }
+    },
+    "Installing Dummy Ethernet helper…" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "더미 이더넷 헬퍼 설치 중…"
+          }
+        }
+      }
+    },
+    "Install the bundled Dummy Ethernet helper." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "내장 더미 이더넷 헬퍼를 설치하세요."
+          }
+        }
+      }
+    },
+    "Enabled" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "활성화됨"
+          }
+        }
+      }
+    },
+    "Enter a valid Dummy Ethernet configuration." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "유효한 더미 이더넷 구성을 입력하세요."
+          }
+        }
+      }
+    },
+    "Enter an IPv4 address." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "IPv4 주소를 입력하세요."
+          }
+        }
+      }
+    },
+    "IPv4 Address" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "IPv4 주소"
+          }
+        }
+      }
+    },
+    "Needs Attention" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "확인 필요"
+          }
+        }
+      }
+    },
+    "Network Configuration" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 구성"
+          }
+        }
+      }
+    },
+    "Not Enabled" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "활성화 안 됨"
+          }
+        }
+      }
+    },
+    "Not Found" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "찾을 수 없음"
+          }
+        }
+      }
+    },
+    "Open Login Items" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "로그인 항목 열기"
+          }
+        }
+      }
+    },
+    "Dummy Ethernet helper" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "더미 이더넷 헬퍼"
+          }
+        }
+      }
+    },
+    "Refresh the Dummy Ethernet helper status before managing Dummy Ethernet." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "더미 이더넷을 관리하기 전에 더미 이더넷 헬퍼 상태를 새로고침하세요."
+          }
+        }
+      }
+    },
+    "Refreshing…" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "새로고침 중…"
+          }
+        }
+      }
+    },
+    "Router Peer" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "라우터 피어"
+          }
+        }
+      }
+    },
+    "Dummy Ethernet Status" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "더미 이더넷 상태"
+          }
+        }
+      }
+    },
+    "Starting…" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "시작 중…"
+          }
+        }
+      }
+    },
+    "Stopping…" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "중지 중…"
+          }
+        }
+      }
+    },
+    "The Bond member and router peer must use different feth interface names." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bond 멤버와 라우터 피어에는 서로 다른 feth 인터페이스 이름을 사용해야 합니다."
+          }
+        }
+      }
+    },
+    "The bundled LaunchDaemon could not be found. Use a signed installed ThruRNDIS app." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "내장 LaunchDaemon을 찾을 수 없습니다. 서명되어 설치된 ThruRNDIS 앱을 사용하세요."
+          }
+        }
+      }
+    },
+    "The Dummy Ethernet helper remained registered during the settings reset." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "설정 초기화 중 더미 이더넷 헬퍼 등록이 제거되지 않았습니다."
+          }
+        }
+      }
+    },
+    "The code-signing identifier is invalid: %@" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "코드 서명 식별자가 올바르지 않습니다: %@"
+          }
+        }
+      }
+    },
+    "The code-signing team identifier is invalid: %@" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "코드 서명 팀 식별자가 올바르지 않습니다: %@"
+          }
+        }
+      }
+    },
+    "The current code signature has no signing identifier." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "현재 코드 서명에 서명 식별자가 없습니다."
+          }
+        }
+      }
+    },
+    "The Dummy Ethernet helper is required to configure the Dummy Ethernet network service." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "더미 이더넷 네트워크 서비스를 구성하려면 더미 이더넷 헬퍼가 필요합니다."
+          }
+        }
+      }
+    },
+    "The Dummy Ethernet helper must be updated to use ThruRNDIS.\nYou can update it manually later in Settings." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ThruRNDIS를 사용하려면 더미 이더넷 헬퍼를 업데이트해야 합니다.\n나중에 설정에서 수동으로 업데이트할 수 있습니다."
+          }
+        }
+      }
+    },
+    "The Dummy Ethernet helper XPC interface is unavailable." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "더미 이더넷 헬퍼 XPC 인터페이스를 사용할 수 없습니다."
+          }
+        }
+      }
+    },
+    "The Dummy Ethernet helper did not respond before the request timed out." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "요청 시간이 초과되기 전에 더미 이더넷 헬퍼가 응답하지 않았습니다."
+          }
+        }
+      }
+    },
+    "The Dummy Ethernet helper is ready." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "더미 이더넷 헬퍼가 준비되었습니다."
+          }
+        }
+      }
+    },
+    "The Dummy Ethernet helper registration is being updated." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "더미 이더넷 헬퍼 등록을 업데이트하고 있습니다."
+          }
+        }
+      }
+    },
+    "The Dummy Ethernet helper returned an incomplete response." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "더미 이더넷 헬퍼가 불완전한 응답을 반환했습니다."
+          }
+        }
+      }
+    },
+    "Restart Dummy Ethernet" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "더미 이더넷 재시작"
+          }
+        }
+      }
+    },
+    "Start Dummy Ethernet" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "더미 이더넷 시작"
+          }
+        }
+      }
+    },
+    "Stop Dummy Ethernet" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "더미 이더넷 중지"
+          }
+        }
+      }
+    },
+    "Update" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "업데이트"
+          }
+        }
+      }
+    },
+    "Update Required" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "업데이트 필요"
+          }
+        }
+      }
+    },
+    "Use a private IPv4 address." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "사설 IPv4 주소를 사용하세요."
+          }
+        }
+      }
+    },
+    "Use fethX interface names." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "fethX 인터페이스 이름을 사용하세요."
+          }
+        }
+      }
+    },
+    "VM" : {
     }
   },
   "version" : "1.0"

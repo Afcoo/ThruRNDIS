@@ -37,6 +37,14 @@ private final class OnboardingWindowResizeBridge {
     private var updateSequence = 0
 
     func scheduleUpdate(for _: Int) {
+        scheduleUpdate(animated: true)
+    }
+
+    func scheduleInitialUpdate() {
+        scheduleUpdate(animated: false)
+    }
+
+    private func scheduleUpdate(animated: Bool) {
         updateSequence += 1
         let sequence = updateSequence
 
@@ -47,7 +55,7 @@ private final class OnboardingWindowResizeBridge {
             guard let preferredContentSize = self.preferredContentSizeProvider?() else {
                 return
             }
-            self.update(to: preferredContentSize, animated: true)
+            self.update(to: preferredContentSize, animated: animated)
         }
     }
 
@@ -114,6 +122,7 @@ private final class OnboardingWindowResizeBridge {
 @MainActor
 final class OnboardingWindowController: NSWindowController, NSWindowDelegate {
     private let onClose: () -> Void
+    private let resizeBridge: OnboardingWindowResizeBridge
 
     init(
         store: TetheringStore,
@@ -123,6 +132,7 @@ final class OnboardingWindowController: NSWindowController, NSWindowDelegate {
     ) {
         self.onClose = onClose
         let resizeBridge = OnboardingWindowResizeBridge()
+        self.resizeBridge = resizeBridge
         let rootView = OnboardingView(
             contentWidth: OnboardingWindowLayout.width,
             onFinish: onFinish,
@@ -130,14 +140,14 @@ final class OnboardingWindowController: NSWindowController, NSWindowDelegate {
         )
             .environmentObject(store)
             .environmentObject(store.wireGuardSession)
+            .environmentObject(store.dummyEthernet)
+            .environmentObject(store.dummyEthernet.helper)
             .environmentObject(assetWorkflowCoordinator)
         let hostingController = NSHostingController(rootView: rootView)
-        let initialContentSize = OnboardingWindowLayout.preferredContentSize(
-            for: hostingController
-        )
         let window = NSWindow(contentViewController: hostingController)
 
         window.title = "ThruRNDIS"
+        window.titleVisibility = .hidden
         window.styleMask = [
             .titled,
             .closable,
@@ -159,6 +169,9 @@ final class OnboardingWindowController: NSWindowController, NSWindowDelegate {
                 for: hostingController
             )
         }
+        let initialContentSize = OnboardingWindowLayout.preferredContentSize(
+            for: hostingController
+        )
         resizeBridge.update(to: initialContentSize, animated: false)
         window.isReleasedWhenClosed = false
         window.isRestorable = false
@@ -177,6 +190,7 @@ final class OnboardingWindowController: NSWindowController, NSWindowDelegate {
         NSApp.activate(ignoringOtherApps: true)
         showWindow(nil)
         window?.makeKeyAndOrderFront(nil)
+        resizeBridge.scheduleInitialUpdate()
     }
 
     func windowWillClose(_ notification: Notification) {

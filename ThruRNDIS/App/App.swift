@@ -89,17 +89,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         eventLog: eventLog
     )
     lazy var appPreferences = AppPreferencesStore()
-    lazy var store = TetheringStore(
-        assetProvider: assetWorkflowCoordinator,
-        vmCoordinator: VMCoordinator(),
-        usbCoordinator: USBAccessoryCoordinator(monitor: USBAccessoryMonitor()),
-        eventLog: eventLog,
-        consoleSession: consoleSession,
-        usbSession: usbSession,
-        vmConfiguration: vmConfiguration,
-        wireGuardSession: wireGuardSession,
-        appPreferences: appPreferences
-    )
+    lazy var store: TetheringStore = {
+        let dummyEthernet = DummyEthernetStore(eventLog: eventLog)
+        return TetheringStore(
+            assetProvider: assetWorkflowCoordinator,
+            vmCoordinator: VMCoordinator(),
+            usbCoordinator: USBAccessoryCoordinator(
+                monitor: USBAccessoryMonitor()
+            ),
+            eventLog: eventLog,
+            consoleSession: consoleSession,
+            usbSession: usbSession,
+            vmConfiguration: vmConfiguration,
+            wireGuardSession: wireGuardSession,
+            appPreferences: appPreferences,
+            dummyEthernet: dummyEthernet
+        )
+    }()
 
     private var menuBarController: MenuBarController?
     private var settingsWindowController: SettingsWindowController?
@@ -108,6 +114,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var onboardingPresentationID: UUID?
     private var cancellables: Set<AnyCancellable> = []
     private var pendingTerminationApplication: NSApplication?
+    private var pendingResetTerminationApplication: NSApplication?
     private var didPrepareForTermination = false
     private var storeTerminationTask: Task<Void, Never>?
     private var eventLogTerminationTask: Task<Void, Never>?
@@ -167,7 +174,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .store(in: &cancellables)
 
-        store.$wireGuardConnectionPrompt
+        store.wireGuardSession.$wireGuardConnectionPrompt
             .sink { [weak self] prompt in
                 DispatchQueue.main.async { [weak self] in
                     guard let self else {
@@ -219,12 +226,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .store(in: &cancellables)
 
-        if store.shouldPresentOnboardingOnLaunch || !assetWorkflowCoordinator.hasConfiguredAssets {
-            DispatchQueue.main.async { [weak self] in
-                self?.showOnboardingWindow()
+        store.startAccessoryMonitoringOnLaunch()
+        DispatchQueue.main.async { [weak self] in
+            guard let self else {
+                return
             }
-        } else {
-            store.startAccessoryMonitoringOnLaunch()
+
+            self.presentDummyEthernetHelperUpdateIfNeeded()
+            if self.store.shouldPresentOnboardingOnLaunch
+                || !self.assetWorkflowCoordinator.hasConfiguredAssets {
+                self.showOnboardingWindow()
+            }
         }
     }
 
@@ -235,6 +247,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         guard !isPreparedForResetRelaunchTermination else {
             return .terminateNow
+        }
+
+        if resetAndRestartTask != nil {
+            guard pendingResetTerminationApplication == nil else {
+                return .terminateLater
+            }
+            pendingResetTerminationApplication = sender
+            eventLog.append(
+                "Application termination will wait for the settings reset workflow.",
+                level: .debug,
+                category: .application
+            )
+            return .terminateLater
         }
 
         guard pendingTerminationApplication == nil else {
@@ -262,6 +287,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         appPreferences.refreshLaunchAtLoginStatus()
         store.refreshWireGuardSystemExtensionStatus()
+        store.dummyEthernet.refresh()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -293,8 +319,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         consoleWindowController?.show()
     }
 
+    private func presentDummyEthernetHelperUpdateIfNeeded() {
+        let helper = store.dummyEthernet.helper
+        helper.refresh()
+        guard helper.registrationStatus == .updateRequired else {
+            return
+        }
+
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = String(
+            localized: "Dummy Ethernet Helper Update Required"
+        )
+        alert.informativeText = String(
+            localized: "The Dummy Ethernet helper must be updated to use ThruRNDIS.\nYou can update it manually later in Settings."
+        )
+        alert.addButton(withTitle: String(localized: "Update"))
+        alert.addButton(withTitle: String(localized: "Not Now"))
+
+        guard alert.runModal() == .alertFirstButtonReturn else {
+            eventLog.append(
+                "Dummy Ethernet helper update deferred at app launch.",
+                level: .debug,
+                category: .application
+            )
+            return
+        }
+
+        store.dummyEthernet.reinstallHelper()
+    }
+
     private func resetAppSettingsAndRestart() {
-        guard resetAndRestartTask == nil else {
+        guard resetAndRestartTask == nil,
+              pendingTerminationApplication == nil,
+              pendingResetTerminationApplication == nil,
+              !didPrepareForTermination else {
             return
         }
 
@@ -304,6 +364,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             guard await self.store.resetAppSettings() else {
                 self.resetAndRestartTask = nil
+                self.cancelPendingTerminationDuringReset()
                 self.presentResetFailure()
                 return
             }
@@ -321,6 +382,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     category: .application
                 )
                 self.resetAndRestartTask = nil
+                self.cancelPendingTerminationDuringReset()
                 self.presentRestartFailure(error)
                 return
             }
@@ -338,15 +400,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self.didPrepareForTermination = true
             self.isPreparedForResetRelaunchTermination = true
             self.resetAndRestartTask = nil
-            NSApp.terminate(nil)
+            if let application = self.pendingResetTerminationApplication {
+                self.pendingResetTerminationApplication = nil
+                application.reply(toApplicationShouldTerminate: true)
+            } else {
+                NSApp.terminate(nil)
+            }
         }
     }
 
-    private func presentResetFailure() {
+    private func cancelPendingTerminationDuringReset() {
+        guard let application = pendingResetTerminationApplication else {
+            return
+        }
+        pendingResetTerminationApplication = nil
+        application.reply(toApplicationShouldTerminate: false)
+    }
+
+    private func presentResetFailure(_ message: String? = nil) {
         let alert = NSAlert()
         alert.alertStyle = .critical
         alert.messageText = String(localized: "ThruRNDIS Could Not Reset Settings")
-        alert.informativeText = store.resetStatusMessage
+        alert.informativeText = message ?? store.resetStatusMessage
         alert.addButton(withTitle: String(localized: "OK"))
 
         if let window = settingsWindowController?.window {

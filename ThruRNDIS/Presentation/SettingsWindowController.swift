@@ -36,6 +36,8 @@ final class SettingsWindowController: NSWindowController {
             .environmentObject(store.vmConfiguration)
             .environmentObject(store.wireGuardSession)
             .environmentObject(store.appPreferences)
+            .environmentObject(store.dummyEthernet)
+            .environmentObject(store.dummyEthernet.helper)
             .environmentObject(assetWorkflowCoordinator)
         let hostingController = NSHostingController(rootView: rootView)
         let window = NSWindow(contentViewController: hostingController)

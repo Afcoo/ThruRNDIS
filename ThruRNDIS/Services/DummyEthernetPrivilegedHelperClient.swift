@@ -1,0 +1,190 @@
+/*
+Copyright (C) 2026 Afcoo.
+*/
+
+import Foundation
+
+enum DummyEthernetPrivilegedHelperClientError: Error, Equatable, LocalizedError {
+    case applicationBundleIdentifierUnavailable
+    case remoteObjectUnavailable(message: String?)
+    case malformedResponse
+    case requestTimedOut
+    case helperFailure(message: String)
+
+    var errorDescription: String? {
+        switch self {
+        case .applicationBundleIdentifierUnavailable:
+            return String(
+                localized: "The ThruRNDIS bundle identifier is unavailable."
+            )
+        case .remoteObjectUnavailable(let message):
+            let summary = String(
+                localized: "The Dummy Ethernet helper XPC interface is unavailable."
+            )
+            if let message, !message.isEmpty {
+                return "\(summary) \(message)"
+            }
+            return summary
+        case .malformedResponse:
+            return String(
+                localized: "The Dummy Ethernet helper returned an incomplete response."
+            )
+        case .requestTimedOut:
+            return String(
+                localized: "The Dummy Ethernet helper did not respond before the request timed out."
+            )
+        case .helperFailure(let message):
+            return message
+        }
+    }
+}
+
+@MainActor
+final class DummyEthernetPrivilegedHelperClient {
+    func status() async throws -> DummyEthernetNetworkSnapshot {
+        try await sendRequest { proxy, reply in
+            proxy.status(withReply: reply)
+        }
+    }
+
+    func start(
+        configuration: DummyEthernetConfiguration
+    ) async throws -> DummyEthernetNetworkSnapshot {
+        try await sendRequest { proxy, reply in
+            proxy.start(
+                hostIPv4Address: configuration.hostIPv4Address,
+                memberInterfaceName: configuration.memberInterfaceName,
+                peerInterfaceName: configuration.peerInterfaceName,
+                withReply: reply
+            )
+        }
+    }
+
+    func stop() async throws -> DummyEthernetNetworkSnapshot {
+        try await sendRequest { proxy, reply in
+            proxy.stop(withReply: reply)
+        }
+    }
+
+    private static func decodeSnapshot(
+        from data: Data
+    ) throws -> DummyEthernetNetworkSnapshot {
+        do {
+            return try JSONDecoder().decode(
+                DummyEthernetNetworkSnapshot.self,
+                from: data
+            )
+        } catch {
+            throw DummyEthernetPrivilegedHelperClientError.malformedResponse
+        }
+    }
+
+    private func sendRequest(
+        _ request: @escaping (
+            DummyEthernetPrivilegedHelperProtocol,
+            @escaping DummyEthernetPrivilegedHelperReply
+        ) -> Void
+    ) async throws -> DummyEthernetNetworkSnapshot {
+        let connection = try makeConnection()
+        let data: Data = try await withCheckedThrowingContinuation {
+            continuation in
+            let reply = DummyEthernetXPCReply(
+                connection: connection,
+                continuation: continuation
+            )
+            connection.activate()
+
+            let remoteObject = connection.remoteObjectProxyWithErrorHandler {
+                error in
+                reply.resume(with: .failure(
+                    DummyEthernetPrivilegedHelperClientError
+                        .remoteObjectUnavailable(
+                            message: error.localizedDescription
+                        )
+                ))
+            }
+            guard let proxy = remoteObject
+                as? DummyEthernetPrivilegedHelperProtocol else {
+                reply.resume(with: .failure(
+                    DummyEthernetPrivilegedHelperClientError
+                        .remoteObjectUnavailable(message: nil)
+                ))
+                return
+            }
+            request(proxy) { data, failureMessage in
+                if let failureMessage {
+                    reply.resume(with: .failure(
+                        DummyEthernetPrivilegedHelperClientError.helperFailure(
+                            message: failureMessage
+                        )
+                    ))
+                } else if let data {
+                    reply.resume(with: .success(data))
+                } else {
+                    reply.resume(with: .failure(
+                        DummyEthernetPrivilegedHelperClientError
+                            .malformedResponse
+                    ))
+                }
+            }
+            DispatchQueue.global().asyncAfter(deadline: .now() + 60) {
+                [weak reply] in
+                reply?.resume(with: .failure(
+                    DummyEthernetPrivilegedHelperClientError.requestTimedOut
+                ))
+            }
+        }
+        return try Self.decodeSnapshot(from: data)
+    }
+
+    private func makeConnection() throws -> NSXPCConnection {
+        guard let applicationBundleIdentifier = Bundle.main.bundleIdentifier,
+              !applicationBundleIdentifier.isEmpty else {
+            throw DummyEthernetPrivilegedHelperClientError
+                .applicationBundleIdentifierUnavailable
+        }
+        let helperIdentifier = ThruRNDISDummyEthernet.helperBundleIdentifier(
+            derivedFrom: applicationBundleIdentifier
+        )
+        let connection = NSXPCConnection(
+            machServiceName: helperIdentifier,
+            options: .privileged
+        )
+        connection.remoteObjectInterface = NSXPCInterface(
+            with: DummyEthernetPrivilegedHelperProtocol.self
+        )
+        connection.setCodeSigningRequirement(
+            try PeerCodeSigningRequirementBuilder.requirement(
+                forPeerIdentifier: helperIdentifier
+            )
+        )
+        return connection
+    }
+}
+
+private final class DummyEthernetXPCReply: @unchecked Sendable {
+    private let lock = NSLock()
+    private var connection: NSXPCConnection?
+    private var continuation: CheckedContinuation<Data, Error>?
+
+    init(
+        connection: NSXPCConnection,
+        continuation: CheckedContinuation<Data, Error>
+    ) {
+        self.connection = connection
+        self.continuation = continuation
+    }
+
+    func resume(with result: Result<Data, Error>) {
+        lock.lock()
+        let continuation = self.continuation
+        let connection = self.connection
+        self.continuation = nil
+        self.connection = nil
+        lock.unlock()
+
+        guard let continuation else { return }
+        connection?.invalidate()
+        continuation.resume(with: result)
+    }
+}

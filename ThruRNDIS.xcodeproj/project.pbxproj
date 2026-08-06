@@ -28,6 +28,8 @@
 		8F0000000000000000000002 /* WireGuardConfigurationBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F0000000000000000000102 /* WireGuardConfigurationBuilder.swift */; };
 		8F0000000000000000000003 /* VMCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F0000000000000000000103 /* VMCoordinator.swift */; };
 		8F0000000000000000000004 /* USBAccessoryCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F0000000000000000000104 /* USBAccessoryCoordinator.swift */; };
+		K10000000000000000000001 /* TetheringWorkflowCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = K10000000000000000000101 /* TetheringWorkflowCoordinator.swift */; };
+		L10000000000000000000001 /* ManagedWireGuardConnectionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = L10000000000000000000101 /* ManagedWireGuardConnectionCoordinator.swift */; };
 		8F0000000000000000000005 /* WireGuardConfigurationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F0000000000000000000105 /* WireGuardConfigurationStore.swift */; };
 		9A0000000000000000000001 /* MenuBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A0000000000000000000101 /* MenuBarController.swift */; };
 		9A0000000000000000000002 /* OnboardingWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A0000000000000000000102 /* OnboardingWindowController.swift */; };
@@ -89,6 +91,9 @@
 		E20000000000000000000004 /* LogTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20000000000000000000104 /* LogTextView.swift */; };
 		E20000000000000000000005 /* EventLogGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20000000000000000000105 /* EventLogGroup.swift */; };
 		E20000000000000000000006 /* SettingsStatusLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20000000000000000000106 /* SettingsStatusLabel.swift */; };
+		E20000000000000000000007 /* NetworkExtensionPermissionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20000000000000000000107 /* NetworkExtensionPermissionView.swift */; };
+		E20000000000000000000008 /* DummyEthernetHelperPermissionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20000000000000000000108 /* DummyEthernetHelperPermissionView.swift */; };
+		E20000000000000000000009 /* VMAssetConfigurationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20000000000000000000109 /* VMAssetConfigurationView.swift */; };
 		E30000000000000000000001 /* USBAccessoryCoordinating.swift in Sources */ = {isa = PBXBuildFile; fileRef = E30000000000000000000101 /* USBAccessoryCoordinating.swift */; };
 		EL3000000000000000000001 /* EventLogFileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = EL3000000000000000000101 /* EventLogFileStore.swift */; };
 		EL3000000000000000000002 /* EventLogFileStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EL3000000000000000000102 /* EventLogFileStoreTests.swift */; };
@@ -101,6 +106,28 @@
 		I10000000000000000000002 /* MenuBarCombinedStatusTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = I10000000000000000000102 /* MenuBarCombinedStatusTests.swift */; };
 		I10000000000000000000003 /* MenuBarStatusDotImageFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = I10000000000000000000103 /* MenuBarStatusDotImageFactory.swift */; };
 		I10000000000000000000004 /* MenuBarStatusDotImageFactoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = I10000000000000000000104 /* MenuBarStatusDotImageFactoryTests.swift */; };
+		F40000000000000000000001 /* DummyEthernetModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000101 /* DummyEthernetModels.swift */; };
+		F40000000000000000000002 /* DummyEthernetPrivilegedHelperProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000102 /* DummyEthernetPrivilegedHelperProtocol.swift */; };
+		F40000000000000000000003 /* DummyEthernetConfigurationValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000103 /* DummyEthernetConfigurationValidator.swift */; };
+		F40000000000000000000004 /* PeerCodeSigningRequirementBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000104 /* PeerCodeSigningRequirementBuilder.swift */; };
+		F40000000000000000000005 /* ThruRNDISDummyEthernet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000105 /* ThruRNDISDummyEthernet.swift */; };
+		F40000000000000000000006 /* DummyEthernetPrivilegedHelperClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000106 /* DummyEthernetPrivilegedHelperClient.swift */; };
+		F40000000000000000000007 /* DummyEthernetPrivilegedHelperRegistrationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000107 /* DummyEthernetPrivilegedHelperRegistrationService.swift */; };
+		F40000000000000000000008 /* DummyEthernetStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000108 /* DummyEthernetStore.swift */; };
+		F40000000000000000000009 /* DummyEthernetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000109 /* DummyEthernetView.swift */; };
+		J10000000000000000000001 /* DummyEthernetHelperStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = J10000000000000000000101 /* DummyEthernetHelperStore.swift */; };
+		F40000000000000000000010 /* DummyEthernetModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000101 /* DummyEthernetModels.swift */; };
+		F40000000000000000000011 /* DummyEthernetPrivilegedHelperProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000102 /* DummyEthernetPrivilegedHelperProtocol.swift */; };
+		F40000000000000000000012 /* DummyEthernetConfigurationValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000103 /* DummyEthernetConfigurationValidator.swift */; };
+		F40000000000000000000013 /* PeerCodeSigningRequirementBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000104 /* PeerCodeSigningRequirementBuilder.swift */; };
+		F40000000000000000000014 /* ThruRNDISDummyEthernet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000105 /* ThruRNDISDummyEthernet.swift */; };
+		F40000000000000000000015 /* IfconfigRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4000000000000000000010A /* IfconfigRunner.swift */; };
+		F40000000000000000000016 /* DummyEthernetSystemConfigurationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4000000000000000000010B /* DummyEthernetSystemConfigurationService.swift */; };
+		F40000000000000000000017 /* DummyEthernetBondManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4000000000000000000010C /* DummyEthernetBondManager.swift */; };
+		F40000000000000000000018 /* DummyEthernetPrivilegedHelperService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4000000000000000000010D /* DummyEthernetPrivilegedHelperService.swift */; };
+		F40000000000000000000019 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4000000000000000000010E /* main.swift */; };
+		F4000000000000000000001D /* ThruRNDISPrivilegedHelper in Copy Privileged Helper */ = {isa = PBXBuildFile; fileRef = F40000000000000000000111 /* ThruRNDISPrivilegedHelper */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		F40000000000000000000023 /* DummyEthernetNetworkPathMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000118 /* DummyEthernetNetworkPathMonitor.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -132,9 +159,47 @@
 			remoteGlobalIDString = DA1000000000000000000602;
 			remoteInfo = WireGuardGoBridgemacOS;
 		};
+		F40000000000000000000501 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 374FD24F24CBADD100890848 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F40000000000000000000401;
+			remoteInfo = ThruRNDISPrivilegedHelper;
+		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		F40000000000000000000304 /* Copy Privileged Helper */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 6;
+			files = (
+				F4000000000000000000001D /* ThruRNDISPrivilegedHelper in Copy Privileged Helper */,
+			);
+			name = "Copy Privileged Helper";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXShellScriptBuildPhase section */
+		F40000000000000000000305 /* Generate Privileged Helper LaunchDaemon Plist */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(PROJECT_DIR)/ThruRNDISPrivilegedHelper/ThruRNDISPrivilegedHelper.plist.template",
+				"$(PROJECT_DIR)/script/support/generate_privileged_helper_launchd_plist.sh",
+			);
+			name = "Generate Privileged Helper LaunchDaemon Plist";
+			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(WRAPPER_NAME)/Contents/Library/LaunchDaemons/ThruRNDISPrivilegedHelper.plist",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -eu\n\noutput_directory=${SCRIPT_OUTPUT_FILE_0%/*}\n/bin/mkdir -p \"$output_directory\"\n\"${SCRIPT_INPUT_FILE_1}\" \"${SCRIPT_INPUT_FILE_0}\" \"${SCRIPT_OUTPUT_FILE_0}\" \"${THRURNDIS_PRIVILEGED_HELPER_BUNDLE_IDENTIFIER}\"\n";
+		};
 		DA1000000000000000000201 /* Embed System Extension */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -181,6 +246,8 @@
 		8F0000000000000000000102 /* WireGuardConfigurationBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardConfigurationBuilder.swift; sourceTree = "<group>"; };
 		8F0000000000000000000103 /* VMCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMCoordinator.swift; sourceTree = "<group>"; };
 		8F0000000000000000000104 /* USBAccessoryCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBAccessoryCoordinator.swift; sourceTree = "<group>"; };
+		K10000000000000000000101 /* TetheringWorkflowCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TetheringWorkflowCoordinator.swift; sourceTree = "<group>"; };
+		L10000000000000000000101 /* ManagedWireGuardConnectionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManagedWireGuardConnectionCoordinator.swift; sourceTree = "<group>"; };
 		8F0000000000000000000105 /* WireGuardConfigurationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardConfigurationStore.swift; sourceTree = "<group>"; };
 		9A0000000000000000000101 /* MenuBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarController.swift; sourceTree = "<group>"; };
 		9A0000000000000000000102 /* OnboardingWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingWindowController.swift; sourceTree = "<group>"; };
@@ -244,6 +311,9 @@
 		E20000000000000000000104 /* LogTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogTextView.swift; sourceTree = "<group>"; };
 		E20000000000000000000105 /* EventLogGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventLogGroup.swift; sourceTree = "<group>"; };
 		E20000000000000000000106 /* SettingsStatusLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStatusLabel.swift; sourceTree = "<group>"; };
+		E20000000000000000000107 /* NetworkExtensionPermissionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkExtensionPermissionView.swift; sourceTree = "<group>"; };
+		E20000000000000000000108 /* DummyEthernetHelperPermissionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DummyEthernetHelperPermissionView.swift; sourceTree = "<group>"; };
+		E20000000000000000000109 /* VMAssetConfigurationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMAssetConfigurationView.swift; sourceTree = "<group>"; };
 		E30000000000000000000101 /* USBAccessoryCoordinating.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBAccessoryCoordinating.swift; sourceTree = "<group>"; };
 		EL3000000000000000000101 /* EventLogFileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventLogFileStore.swift; sourceTree = "<group>"; };
 		EL3000000000000000000102 /* EventLogFileStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventLogFileStoreTests.swift; sourceTree = "<group>"; };
@@ -258,6 +328,25 @@
 		I10000000000000000000102 /* MenuBarCombinedStatusTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarCombinedStatusTests.swift; sourceTree = "<group>"; };
 		I10000000000000000000103 /* MenuBarStatusDotImageFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarStatusDotImageFactory.swift; sourceTree = "<group>"; };
 		I10000000000000000000104 /* MenuBarStatusDotImageFactoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarStatusDotImageFactoryTests.swift; sourceTree = "<group>"; };
+		F40000000000000000000101 /* DummyEthernetModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DummyEthernetModels.swift; sourceTree = "<group>"; };
+		F40000000000000000000102 /* DummyEthernetPrivilegedHelperProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DummyEthernetPrivilegedHelperProtocol.swift; sourceTree = "<group>"; };
+		F40000000000000000000103 /* DummyEthernetConfigurationValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DummyEthernetConfigurationValidator.swift; sourceTree = "<group>"; };
+		F40000000000000000000104 /* PeerCodeSigningRequirementBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeerCodeSigningRequirementBuilder.swift; sourceTree = "<group>"; };
+		F40000000000000000000105 /* ThruRNDISDummyEthernet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThruRNDISDummyEthernet.swift; sourceTree = "<group>"; };
+		F40000000000000000000106 /* DummyEthernetPrivilegedHelperClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DummyEthernetPrivilegedHelperClient.swift; sourceTree = "<group>"; };
+		F40000000000000000000107 /* DummyEthernetPrivilegedHelperRegistrationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DummyEthernetPrivilegedHelperRegistrationService.swift; sourceTree = "<group>"; };
+		F40000000000000000000108 /* DummyEthernetStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DummyEthernetStore.swift; sourceTree = "<group>"; };
+		F40000000000000000000109 /* DummyEthernetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DummyEthernetView.swift; sourceTree = "<group>"; };
+		J10000000000000000000101 /* DummyEthernetHelperStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DummyEthernetHelperStore.swift; sourceTree = "<group>"; };
+		F4000000000000000000010A /* IfconfigRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IfconfigRunner.swift; sourceTree = "<group>"; };
+		F4000000000000000000010B /* DummyEthernetSystemConfigurationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DummyEthernetSystemConfigurationService.swift; sourceTree = "<group>"; };
+		F4000000000000000000010C /* DummyEthernetBondManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DummyEthernetBondManager.swift; sourceTree = "<group>"; };
+		F4000000000000000000010D /* DummyEthernetPrivilegedHelperService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DummyEthernetPrivilegedHelperService.swift; sourceTree = "<group>"; };
+		F4000000000000000000010E /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
+		F4000000000000000000010F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		F40000000000000000000110 /* ThruRNDISPrivilegedHelper.plist.template */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = ThruRNDISPrivilegedHelper.plist.template; sourceTree = "<group>"; };
+		F40000000000000000000111 /* ThruRNDISPrivilegedHelper */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = ThruRNDISPrivilegedHelper; sourceTree = BUILT_PRODUCTS_DIR; };
+		F40000000000000000000118 /* DummyEthernetNetworkPathMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DummyEthernetNetworkPathMonitor.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -286,6 +375,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		F40000000000000000000302 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -294,6 +390,7 @@
 			children = (
 				415EB883448D759F3C023B32 /* README.md */,
 				374FD25924CBADD100890848 /* ThruRNDIS */,
+				F40000000000000000000201 /* ThruRNDISPrivilegedHelper */,
 				DA1000000000000000000901 /* ThruRNDISWireGuardNetworkExtension */,
 				C10000000000000000000201 /* ThruRNDISTests */,
 				8C0000000000000000000202 /* Frameworks */,
@@ -308,6 +405,7 @@
 			children = (
 				374FD25724CBADD100890848 /* ThruRNDIS.app */,
 				DA100000000000000000010F /* ThruRNDISWireGuardNetworkExtension.systemextension */,
+				F40000000000000000000111 /* ThruRNDISPrivilegedHelper */,
 				C10000000000000000000105 /* ThruRNDISTests.xctest */,
 			);
 			name = Products;
@@ -365,6 +463,8 @@
 		8B0000000000000000000202 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				F40000000000000000000101 /* DummyEthernetModels.swift */,
+				F40000000000000000000102 /* DummyEthernetPrivilegedHelperProtocol.swift */,
 				H20000000000000000000101 /* EventLogModels.swift */,
 				I10000000000000000000101 /* MenuBarCombinedStatus.swift */,
 				8B0000000000000000000103 /* USBAccessoryRecord.swift */,
@@ -381,6 +481,8 @@
 			isa = PBXGroup;
 			children = (
 				DD1000000000000000000101 /* ApplicationRelaunchService.swift */,
+				F40000000000000000000106 /* DummyEthernetPrivilegedHelperClient.swift */,
+				F40000000000000000000107 /* DummyEthernetPrivilegedHelperRegistrationService.swift */,
 				8B0000000000000000000105 /* USBAccessoryMonitor.swift */,
 				8B0000000000000000000107 /* VMConfigurationFactory.swift */,
 				9A0000000000000000000104 /* LaunchAtLoginService.swift */,
@@ -397,6 +499,8 @@
 			isa = PBXGroup;
 			children = (
 				8B0000000000000000000108 /* TetheringStore.swift */,
+				F40000000000000000000108 /* DummyEthernetStore.swift */,
+				J10000000000000000000101 /* DummyEthernetHelperStore.swift */,
 				DE1000000000000000000101 /* AppPreferencesStore.swift */,
 				H10000000000000000000101 /* EventLogStore.swift */,
 				D10000000000000000000101 /* ConsoleSessionStore.swift */,
@@ -412,13 +516,16 @@
 			isa = PBXGroup;
 			children = (
 				8B0000000000000000000109 /* Clipboard.swift */,
+				F40000000000000000000103 /* DummyEthernetConfigurationValidator.swift */,
 				DC1000000000000000000101 /* EventLogErrorFormatter.swift */,
 				8B000000000000000000010A /* FilePicker.swift */,
 				I10000000000000000000103 /* MenuBarStatusDotImageFactory.swift */,
 				DE1000000000000000000103 /* NetworkExtensionSettingsOpener.swift */,
+				F40000000000000000000104 /* PeerCodeSigningRequirementBuilder.swift */,
 				8B0000000000000000000112 /* RuntimeEntitlements.swift */,
 				DA1000000000000000000108 /* NETunnelProviderProtocol+ThruRNDIS.swift */,
 				DA1000000000000000000110 /* ThruRNDISTunnel.swift */,
+				F40000000000000000000105 /* ThruRNDISDummyEthernet.swift */,
 				DA1000000000000000000107 /* TunnelConfiguration+WgQuickConfig.swift */,
 				DA1000000000000000000111 /* WireGuardConnectionValidator.swift */,
 				E10000000000000000000101 /* USBDeviceNameResolver.swift */,
@@ -454,6 +561,8 @@
 				E30000000000000000000101 /* USBAccessoryCoordinating.swift */,
 				8F0000000000000000000103 /* VMCoordinator.swift */,
 				8F0000000000000000000104 /* USBAccessoryCoordinator.swift */,
+				K10000000000000000000101 /* TetheringWorkflowCoordinator.swift */,
+				L10000000000000000000101 /* ManagedWireGuardConnectionCoordinator.swift */,
 				B10000000000000000000107 /* VMAssetWorkflowCoordinator.swift */,
 			);
 			path = Coordinators;
@@ -463,6 +572,7 @@
 			isa = PBXGroup;
 			children = (
 				8B000000000000000000010B /* SettingsView.swift */,
+				F40000000000000000000109 /* DummyEthernetView.swift */,
 				9A0000000000000000000105 /* GeneralView.swift */,
 				8B000000000000000000010C /* VirtualMachineView.swift */,
 				8B000000000000000000010D /* USBDevicesView.swift */,
@@ -575,6 +685,21 @@
 			path = ThruRNDISWireGuardNetworkExtension;
 			sourceTree = "<group>";
 		};
+		F40000000000000000000201 /* ThruRNDISPrivilegedHelper */ = {
+			isa = PBXGroup;
+			children = (
+				F4000000000000000000010E /* main.swift */,
+				F4000000000000000000010D /* DummyEthernetPrivilegedHelperService.swift */,
+				F4000000000000000000010C /* DummyEthernetBondManager.swift */,
+				F40000000000000000000118 /* DummyEthernetNetworkPathMonitor.swift */,
+				F4000000000000000000010B /* DummyEthernetSystemConfigurationService.swift */,
+				F4000000000000000000010A /* IfconfigRunner.swift */,
+				F4000000000000000000010F /* Info.plist */,
+				F40000000000000000000110 /* ThruRNDISPrivilegedHelper.plist.template */,
+			);
+			path = ThruRNDISPrivilegedHelper;
+			sourceTree = "<group>";
+		};
 		DB1000000000000000000201 /* Support */ = {
 			isa = PBXGroup;
 			children = (
@@ -594,6 +719,9 @@
 				E20000000000000000000104 /* LogTextView.swift */,
 				E20000000000000000000105 /* EventLogGroup.swift */,
 				E20000000000000000000106 /* SettingsStatusLabel.swift */,
+				E20000000000000000000107 /* NetworkExtensionPermissionView.swift */,
+				E20000000000000000000108 /* DummyEthernetHelperPermissionView.swift */,
+				E20000000000000000000109 /* VMAssetConfigurationView.swift */,
 			);
 			path = SharedViews;
 			sourceTree = "<group>";
@@ -634,6 +762,8 @@
 				374FD25324CBADD100890848 /* Sources */,
 				374FD25424CBADD100890848 /* Frameworks */,
 				8D0000000000000000000301 /* Resources */,
+				F40000000000000000000304 /* Copy Privileged Helper */,
+				F40000000000000000000305 /* Generate Privileged Helper LaunchDaemon Plist */,
 				DA1000000000000000000201 /* Embed System Extension */,
 			);
 			buildRules = (
@@ -641,6 +771,7 @@
 			dependencies = (
 				DA1000000000000000000401 /* PBXTargetDependency */,
 				DA1000000000000000000402 /* PBXTargetDependency */,
+				F40000000000000000000502 /* PBXTargetDependency */,
 			);
 			name = ThruRNDIS;
 			packageProductDependencies = (
@@ -690,6 +821,23 @@
 			productReference = DA100000000000000000010F /* ThruRNDISWireGuardNetworkExtension.systemextension */;
 			productType = "com.apple.product-type.system-extension";
 		};
+		F40000000000000000000401 /* ThruRNDISPrivilegedHelper */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F40000000000000000000701 /* Build configuration list for PBXNativeTarget "ThruRNDISPrivilegedHelper" */;
+			buildPhases = (
+				F40000000000000000000301 /* Sources */,
+				F40000000000000000000302 /* Frameworks */,
+				F40000000000000000000303 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ThruRNDISPrivilegedHelper;
+			productName = ThruRNDISPrivilegedHelper;
+			productReference = F40000000000000000000111 /* ThruRNDISPrivilegedHelper */;
+			productType = "com.apple.product-type.tool";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -711,6 +859,9 @@
 						CreatedOnToolsVersion = 27.0;
 					};
 					DA1000000000000000000602 = {
+						CreatedOnToolsVersion = 27.0;
+					};
+					F40000000000000000000401 = {
 						CreatedOnToolsVersion = 27.0;
 					};
 				};
@@ -735,6 +886,7 @@
 			targets = (
 				374FD25624CBADD100890848 /* ThruRNDIS */,
 				DA1000000000000000000601 /* ThruRNDISWireGuardNetworkExtension */,
+				F40000000000000000000401 /* ThruRNDISPrivilegedHelper */,
 				DA1000000000000000000602 /* WireGuardGoBridgemacOS */,
 				C10000000000000000000401 /* ThruRNDISTests */,
 			);
@@ -767,6 +919,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		F40000000000000000000303 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -775,6 +934,16 @@
 			buildActionMask = 2147483647;
 			files = (
 				8B0000000000000000000001 /* App.swift in Sources */,
+				F40000000000000000000001 /* DummyEthernetModels.swift in Sources */,
+				F40000000000000000000002 /* DummyEthernetPrivilegedHelperProtocol.swift in Sources */,
+				F40000000000000000000003 /* DummyEthernetConfigurationValidator.swift in Sources */,
+				F40000000000000000000004 /* PeerCodeSigningRequirementBuilder.swift in Sources */,
+				F40000000000000000000005 /* ThruRNDISDummyEthernet.swift in Sources */,
+				F40000000000000000000006 /* DummyEthernetPrivilegedHelperClient.swift in Sources */,
+				F40000000000000000000007 /* DummyEthernetPrivilegedHelperRegistrationService.swift in Sources */,
+				F40000000000000000000008 /* DummyEthernetStore.swift in Sources */,
+				J10000000000000000000001 /* DummyEthernetHelperStore.swift in Sources */,
+				F40000000000000000000009 /* DummyEthernetView.swift in Sources */,
 				DE1000000000000000000001 /* AppPreferencesStore.swift in Sources */,
 				8B0000000000000000000003 /* USBAccessoryRecord.swift in Sources */,
 				8B0000000000000000000004 /* VMRuntimeState.swift in Sources */,
@@ -811,6 +980,8 @@
 				DA1000000000000000000008 /* NETunnelProviderProtocol+ThruRNDIS.swift in Sources */,
 				8F0000000000000000000003 /* VMCoordinator.swift in Sources */,
 				8F0000000000000000000004 /* USBAccessoryCoordinator.swift in Sources */,
+				K10000000000000000000001 /* TetheringWorkflowCoordinator.swift in Sources */,
+				L10000000000000000000001 /* ManagedWireGuardConnectionCoordinator.swift in Sources */,
 				9A0000000000000000000001 /* MenuBarController.swift in Sources */,
 				9A0000000000000000000002 /* OnboardingWindowController.swift in Sources */,
 				9A0000000000000000000007 /* SettingsWindowController.swift in Sources */,
@@ -833,6 +1004,9 @@
 				E20000000000000000000004 /* LogTextView.swift in Sources */,
 				E20000000000000000000005 /* EventLogGroup.swift in Sources */,
 				E20000000000000000000006 /* SettingsStatusLabel.swift in Sources */,
+				E20000000000000000000007 /* NetworkExtensionPermissionView.swift in Sources */,
+				E20000000000000000000008 /* DummyEthernetHelperPermissionView.swift in Sources */,
+				E20000000000000000000009 /* VMAssetConfigurationView.swift in Sources */,
 				B10000000000000000000001 /* VMAssetModels.swift in Sources */,
 				B10000000000000000000002 /* VMAssetFolderResolver.swift in Sources */,
 				B10000000000000000000003 /* GitHubVMAssetReleaseService.swift in Sources */,
@@ -877,6 +1051,24 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		F40000000000000000000301 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F40000000000000000000010 /* DummyEthernetModels.swift in Sources */,
+				F40000000000000000000011 /* DummyEthernetPrivilegedHelperProtocol.swift in Sources */,
+				F40000000000000000000012 /* DummyEthernetConfigurationValidator.swift in Sources */,
+				F40000000000000000000013 /* PeerCodeSigningRequirementBuilder.swift in Sources */,
+				F40000000000000000000014 /* ThruRNDISDummyEthernet.swift in Sources */,
+				F40000000000000000000015 /* IfconfigRunner.swift in Sources */,
+				F40000000000000000000016 /* DummyEthernetSystemConfigurationService.swift in Sources */,
+				F40000000000000000000017 /* DummyEthernetBondManager.swift in Sources */,
+				F40000000000000000000023 /* DummyEthernetNetworkPathMonitor.swift in Sources */,
+				F40000000000000000000018 /* DummyEthernetPrivilegedHelperService.swift in Sources */,
+				F40000000000000000000019 /* main.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -899,6 +1091,11 @@
 			isa = PBXTargetDependency;
 			target = DA1000000000000000000602 /* WireGuardGoBridgemacOS */;
 			targetProxy = DA1000000000000000000303 /* PBXContainerItemProxy */;
+		};
+		F40000000000000000000502 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = F40000000000000000000401 /* ThruRNDISPrivilegedHelper */;
+			targetProxy = F40000000000000000000501 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -1028,7 +1225,7 @@
 				CODE_SIGN_ENTITLEMENTS = ThruRNDIS/ThruRNDIS.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 10;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ThruRNDIS/Info.plist;
@@ -1038,7 +1235,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 27.0;
-				MARKETING_VERSION = 0.2.1;
+				MARKETING_VERSION = 0.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "$(THRURNDIS_APP_BUNDLE_IDENTIFIER)";
 				PRODUCT_NAME = ThruRNDIS;
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -1054,7 +1251,7 @@
 				CODE_SIGN_ENTITLEMENTS = ThruRNDIS/Distribution.entitlements;
 				CODE_SIGN_IDENTITY = "Developer ID Application";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 10;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -1065,7 +1262,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 27.0;
-				MARKETING_VERSION = 0.2.1;
+				MARKETING_VERSION = 0.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "$(THRURNDIS_APP_BUNDLE_IDENTIFIER)";
 				PRODUCT_NAME = ThruRNDIS;
 				PROVISIONING_PROFILE_SPECIFIER = "$(THRURNDIS_APP_DISTRIBUTION_PROVISIONING_PROFILE)";
@@ -1143,7 +1340,7 @@
 				CODE_SIGN_ENTITLEMENTS = ThruRNDIS/Runtime.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 10;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ThruRNDIS/Info.plist;
@@ -1153,7 +1350,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 27.0;
-				MARKETING_VERSION = 0.2.1;
+				MARKETING_VERSION = 0.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "$(THRURNDIS_APP_BUNDLE_IDENTIFIER)";
 				PRODUCT_NAME = ThruRNDIS;
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -1222,14 +1419,14 @@
 				CODE_SIGN_ENTITLEMENTS = ThruRNDISWireGuardNetworkExtension/Development.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 10;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ThruRNDISWireGuardNetworkExtension/Info.plist;
 				MACOSX_DEPLOYMENT_TARGET = 27.0;
-				MARKETING_VERSION = 0.2.1;
+				MARKETING_VERSION = 0.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "$(THRURNDIS_WIREGUARD_EXTENSION_BUNDLE_IDENTIFIER)";
 				PRODUCT_NAME = "$(PRODUCT_BUNDLE_IDENTIFIER)";
 				REGISTER_APP_GROUPS = YES;
@@ -1247,14 +1444,14 @@
 				CODE_SIGN_ENTITLEMENTS = ThruRNDISWireGuardNetworkExtension/Distribution.entitlements;
 				CODE_SIGN_IDENTITY = "Developer ID Application";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 10;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ThruRNDISWireGuardNetworkExtension/Info.plist;
 				MACOSX_DEPLOYMENT_TARGET = 27.0;
-				MARKETING_VERSION = 0.2.1;
+				MARKETING_VERSION = 0.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "$(THRURNDIS_WIREGUARD_EXTENSION_BUNDLE_IDENTIFIER)";
 				PRODUCT_NAME = "$(PRODUCT_BUNDLE_IDENTIFIER)";
 				PROVISIONING_PROFILE_SPECIFIER = "$(THRURNDIS_NETWORK_EXTENSION_DISTRIBUTION_PROVISIONING_PROFILE)";
@@ -1273,14 +1470,14 @@
 				CODE_SIGN_ENTITLEMENTS = ThruRNDISWireGuardNetworkExtension/Development.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 10;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ThruRNDISWireGuardNetworkExtension/Info.plist;
 				MACOSX_DEPLOYMENT_TARGET = 27.0;
-				MARKETING_VERSION = 0.2.1;
+				MARKETING_VERSION = 0.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "$(THRURNDIS_WIREGUARD_EXTENSION_BUNDLE_IDENTIFIER)";
 				PRODUCT_NAME = "$(PRODUCT_BUNDLE_IDENTIFIER)";
 				REGISTER_APP_GROUPS = YES;
@@ -1314,6 +1511,78 @@
 				CONFIGURATION_TEMP_DIR = "$(OBJROOT)/ThruRNDISWireGuardGoBridge.build/$(CONFIGURATION)";
 				MACOSX_DEPLOYMENT_TARGET = 12.0;
 				SDKROOT = macosx;
+			};
+			name = RuntimeDebug;
+		};
+		F40000000000000000000601 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = E3865CF719CB3E4197A4D3A9 /* BuildSettings.xcconfig */;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CREATE_INFOPLIST_SECTION_IN_BINARY = YES;
+				CURRENT_PROJECT_VERSION = 10;
+				ENABLE_DEBUG_DYLIB = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ThruRNDISPrivilegedHelper/Info.plist;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 0.3.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(THRURNDIS_PRIVILEGED_HELPER_BUNDLE_IDENTIFIER)";
+				PRODUCT_NAME = ThruRNDISPrivilegedHelper;
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		F40000000000000000000602 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = E3865CF719CB3E4197A4D3A9 /* BuildSettings.xcconfig */;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "Developer ID Application";
+				CODE_SIGN_STYLE = Manual;
+				CREATE_INFOPLIST_SECTION_IN_BINARY = YES;
+				CURRENT_PROJECT_VERSION = 10;
+				ENABLE_DEBUG_DYLIB = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ThruRNDISPrivilegedHelper/Info.plist;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 0.3.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(THRURNDIS_PRIVILEGED_HELPER_BUNDLE_IDENTIFIER)";
+				PRODUCT_NAME = ThruRNDISPrivilegedHelper;
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		F40000000000000000000603 /* RuntimeDebug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = E3865CF719CB3E4197A4D3A9 /* BuildSettings.xcconfig */;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CREATE_INFOPLIST_SECTION_IN_BINARY = YES;
+				CURRENT_PROJECT_VERSION = 10;
+				ENABLE_DEBUG_DYLIB = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ThruRNDISPrivilegedHelper/Info.plist;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 0.3.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(THRURNDIS_PRIVILEGED_HELPER_BUNDLE_IDENTIFIER)";
+				PRODUCT_NAME = ThruRNDISPrivilegedHelper;
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
 			};
 			name = RuntimeDebug;
 		};
@@ -1366,6 +1635,16 @@
 				DA1000000000000000000711 /* Debug */,
 				DA1000000000000000000712 /* Release */,
 				DA1000000000000000000713 /* RuntimeDebug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F40000000000000000000701 /* Build configuration list for PBXNativeTarget "ThruRNDISPrivilegedHelper" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F40000000000000000000601 /* Debug */,
+				F40000000000000000000602 /* Release */,
+				F40000000000000000000603 /* RuntimeDebug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

@@ -10,14 +10,58 @@ struct OnboardingPresentationRequest {
     let restart: Bool
 }
 
+private enum TetheringApplicationState: Equatable {
+    case active
+    case resetting
+    case terminating
+}
+
+private enum TetheringVMRestartState: Equatable {
+    case idle
+    case stopping
+    case starting
+}
+
+private enum AccessoryMonitoringConfigurationBlocker {
+    case onboardingIncomplete
+    case vmAssetsUnavailable
+    case networkExtensionInactive
+    case privilegedHelperUnavailable
+
+    var statusMessage: String {
+        switch self {
+        case .onboardingIncomplete:
+            String(localized: "Complete onboarding before starting the USB listener.")
+        case .vmAssetsUnavailable:
+            String(localized: "Install or select valid VM assets before starting the USB listener.")
+        case .networkExtensionInactive:
+            String(localized: "Enable the Network Extension before starting the USB listener.")
+        case .privilegedHelperUnavailable:
+            String(localized: "Install and enable the Dummy Ethernet helper before starting the USB listener.")
+        }
+    }
+
+    var eventLogDescription: String {
+        switch self {
+        case .onboardingIncomplete:
+            "onboarding is incomplete"
+        case .vmAssetsUnavailable:
+            "no valid VM assets are selected"
+        case .networkExtensionInactive:
+            "the Network Extension is not active"
+        case .privilegedHelperUnavailable:
+            "the Dummy Ethernet helper is not enabled"
+        }
+    }
+}
+
 @MainActor
 final class TetheringStore: ObservableObject {
     @Published private(set) var runtimeState: VMRuntimeState = .idle
-    @Published private(set) var isRestartingVirtualMachine = false
+    @Published private var vmRestartState: TetheringVMRestartState = .idle
     @Published private(set) var statusMessage = String(localized: "Install or select VM assets to begin.")
     @Published private(set) var runtimeEntitlements: RuntimeEntitlementSnapshot
-    @Published private(set) var isResettingAppSettings = false
-    @Published private(set) var wireGuardConnectionPrompt: WireGuardConnectionPrompt?
+    @Published private var applicationState: TetheringApplicationState = .active
     @Published private(set) var isOnboardingPresented = false
     @Published private(set) var onboardingPresentationRequest = OnboardingPresentationRequest(
         sequence: 0,
@@ -32,27 +76,93 @@ final class TetheringStore: ObservableObject {
     let vmConfiguration: VMConfigurationStore
     let wireGuardSession: WireGuardSessionStore
     let appPreferences: AppPreferencesStore
+    lazy var dummyEthernet = managedDummyEthernet
+        ?? DummyEthernetStore(eventLog: eventLog)
 
     private let vmCoordinator: any VMCoordinating
     private let usbCoordinator: any USBAccessoryCoordinating
     private let assetProvider: VMAssetProviding
+    private let managedDummyEthernet: DummyEthernetStore?
+    private let prepareDummyEthernetForWireGuardConnection:
+        (@MainActor () async -> Bool)?
+    private let deactivateDummyEthernetAfterWireGuardConnection:
+        (@MainActor () async -> Void)?
     private let runtimeEntitlementSnapshotProvider: () -> RuntimeEntitlementSnapshot
-    private var pendingWireGuardConnectionAccessoryID: UInt64?
-    private var isPreparingForApplicationTermination = false
     private var didRequestLaunchAccessoryMonitoring = false
-    private var shouldResumeAccessoryMonitoringAfterOnboarding = false
-    private var isStoppingAccessoryMonitoringForOnboarding = false
-    private var pendingAttachmentAccessoryID: UInt64?
-    private var pendingAttachmentToken: UUID?
-    private var pendingAttachmentStartedVM = false
-    private var shouldStartPendingAttachmentAfterStop = false
-    private var restartWillStartVM = false
-    private var queuedUSBAttachmentPrompts: [USBAttachmentPrompt] = []
-    private var promptedAccessoryIDs: Set<UInt64> = []
-    private var accessoriesAwaitingAssetSetup: Set<UInt64> = []
+    private var shouldRunAccessoryMonitoring = false
+    private var accessoryMonitoringStartCancellables: Set<AnyCancellable> = []
 
-    private var attachmentRequiresVMStopRetry: Bool {
-        runtimeState == .failed && vmCoordinator.hasVirtualMachine
+    private lazy var managedWireGuardConnectionCoordinator =
+        ManagedWireGuardConnectionCoordinator(
+            wireGuardSession: wireGuardSession,
+            dummyEthernet: managedDummyEthernet,
+            eventLog: eventLog,
+            prepareDummyEthernet: prepareDummyEthernetForWireGuardConnection,
+            deactivateDummyEthernet:
+                deactivateDummyEthernetAfterWireGuardConnection,
+            actions: ManagedWireGuardConnectionCoordinator.Actions(
+                refreshRuntimeEntitlements: { [weak self] in
+                    self?.refreshRuntimeEntitlements()
+                },
+                canConnectHostWireGuardTunnel: { [weak self] in
+                    self?.canConnectHostWireGuardTunnel == true
+                },
+                connectHostWireGuardTunnel: { [weak self] in
+                    self?.connectHostWireGuardTunnel() == true
+                }
+            )
+        )
+
+    private lazy var workflowCoordinator = TetheringWorkflowCoordinator(
+            assetProvider: assetProvider,
+            vmCoordinator: vmCoordinator,
+            usbCoordinator: usbCoordinator,
+            eventLog: eventLog,
+            usbSession: usbSession,
+            wireGuardSession: wireGuardSession,
+            appPreferences: appPreferences,
+            managedWireGuardConnection: managedWireGuardConnectionCoordinator,
+            actions: TetheringWorkflowCoordinator.Actions(
+                canPresentUSBAttachmentPrompt: { [weak self] in
+                    guard let self else { return false }
+                    return self.acceptsNewWork
+                        && !self.isResettingAppSettings
+                        && !self.isOnboardingPresented
+                        && !self.restartWillStartVM
+                },
+                startVirtualMachine: { [weak self] in
+                    self?.startVirtualMachine() == true
+                },
+                canConnectHostWireGuardTunnel: { [weak self] in
+                    self?.canConnectHostWireGuardTunnel == true
+                },
+                updateStatusMessage: { [weak self] message in
+                    self?.statusMessage = message
+                },
+                workflowStateDidChange: { [weak self] in
+                    self?.objectWillChange.send()
+                }
+            )
+        )
+
+    var isRestartingVirtualMachine: Bool {
+        vmRestartState != .idle
+    }
+
+    var isResettingAppSettings: Bool {
+        applicationState == .resetting
+    }
+
+    private var acceptsNewWork: Bool {
+        applicationState == .active
+    }
+
+    private var isPreparingForApplicationTermination: Bool {
+        applicationState == .terminating
+    }
+
+    private var restartWillStartVM: Bool {
+        vmRestartState == .stopping
     }
 
     var accessories: [USBAccessoryRecord] {
@@ -79,6 +189,10 @@ final class TetheringStore: ObservableObject {
         usbSession.attachmentPrompt
     }
 
+    var wireGuardConnectionPrompt: WireGuardConnectionPrompt? {
+        wireGuardSession.wireGuardConnectionPrompt
+    }
+
     var vmDisplayState: VMDisplayState {
         if isRestartingVirtualMachine {
             return .restarting
@@ -93,26 +207,32 @@ final class TetheringStore: ObservableObject {
     }
 
     var canStartVirtualMachine: Bool {
-        hasConfiguredVMAssets
+        acceptsNewWork
+            && hasConfiguredVMAssets
             && !assetProvider.isBusy
             && wireGuardSession.hasKeyMaterial
             && vmCoordinator.canStart
     }
 
     var canRestartVirtualMachine: Bool {
-        hasConfiguredVMAssets
+        acceptsNewWork
+            && hasConfiguredVMAssets
             && !assetProvider.isBusy
-            && pendingAttachmentAccessoryID == nil
+            && !workflowCoordinator.hasPendingAttachment
             && vmCoordinator.canRestart
     }
 
     var canEditVMConfiguration: Bool {
-        !vmCoordinator.hasVirtualMachine
+        acceptsNewWork
+            && !vmCoordinator.hasVirtualMachine
             && (runtimeState == .idle || runtimeState == .stopped || runtimeState == .failed)
     }
 
     var canResetAppSettings: Bool {
-        !isResettingAppSettings && !assetProvider.isBusy
+        acceptsNewWork
+            && !assetProvider.isBusy
+            && managedDummyEthernet?.isAnyOperationInProgress
+                != true
     }
 
     var hasConfiguredVMAssets: Bool {
@@ -123,40 +243,50 @@ final class TetheringStore: ObservableObject {
         !appPreferences.hasCompletedOnboarding
     }
 
-    var canStartAccessoryMonitoring: Bool {
-        !isOnboardingPresented
+    var isApplicationConfigured: Bool {
+        appPreferences.hasCompletedOnboarding
             && hasConfiguredVMAssets
-            && !assetProvider.isBusy
+            && wireGuardSession.systemExtensionStatus.isActive
+            && isDummyEthernetHelperReady
+    }
+
+    var canStartAccessoryMonitoring: Bool {
+        acceptsNewWork
+            && accessoryMonitoringConfigurationBlocker == nil
             && runtimeEntitlements.accessoryAccessUSB
             && usbCoordinator.canStartMonitoring
     }
 
     var canStopAccessoryMonitoring: Bool {
-        pendingAttachmentAccessoryID == nil && usbCoordinator.canStopMonitoring
+        acceptsNewWork
+            && !workflowCoordinator.hasPendingAttachment
+            && usbCoordinator.canStopMonitoring
     }
 
     var canReloadAccessoryMonitoring: Bool {
-        !isOnboardingPresented
-            && pendingAttachmentAccessoryID == nil
+        acceptsNewWork
+            && accessoryMonitoringConfigurationBlocker == nil
+            && !workflowCoordinator.hasPendingAttachment
             && runtimeEntitlements.accessoryAccessUSB
             && usbCoordinator.canReloadMonitoring
     }
 
     var canStopVirtualMachine: Bool {
-        vmCoordinator.canStop
+        acceptsNewWork && vmCoordinator.canStop
     }
 
     var canSendConsoleInput: Bool {
-        vmCoordinator.canSendConsoleInput
+        acceptsNewWork && vmCoordinator.canSendConsoleInput
     }
 
     var canAttachSelectedAccessory: Bool {
-        guard !isOnboardingPresented,
+        guard acceptsNewWork,
+              !isOnboardingPresented,
               hasConfiguredVMAssets,
               !assetProvider.isBusy,
-              pendingAttachmentAccessoryID == nil,
+              !workflowCoordinator.hasPendingAttachment,
               vmSessionAccessoryID == nil,
-              !attachmentRequiresVMStopRetry,
+              !workflowCoordinator.attachmentRequiresVMStopRetry,
               let selectedAccessoryID else {
             return false
         }
@@ -165,20 +295,23 @@ final class TetheringStore: ObservableObject {
     }
 
     var canDetachAccessory: Bool {
-        usbCoordinator.canDetachAccessory(runtimeState: runtimeState)
+        acceptsNewWork
+            && usbCoordinator.canDetachAccessory(runtimeState: runtimeState)
     }
 
     func canChooseAccessoryForAttachment(_ accessoryID: UInt64) -> Bool {
-        pendingAttachmentAccessoryID == nil
+        acceptsNewWork
+            && !workflowCoordinator.hasPendingAttachment
             && usbAttachmentPrompt == nil
             && vmSessionAccessoryID == nil
-            && !attachmentRequiresVMStopRetry
+            && !workflowCoordinator.attachmentRequiresVMStopRetry
             && !assetProvider.isBusy
             && usbCoordinator.canRequestAttachment(for: accessoryID)
     }
 
     var canConnectHostWireGuardTunnel: Bool {
-        runtimeState == .running
+        acceptsNewWork
+            && runtimeState == .running
             && vmCoordinator.canSendConsoleInput
             && wireGuardSession.canExportConfiguration
             && runtimeEntitlements.packetTunnelProvider
@@ -188,14 +321,50 @@ final class TetheringStore: ObservableObject {
     }
 
     var canRequestWireGuardSystemExtensionActivation: Bool {
-        !isPreparingForApplicationTermination
+        acceptsNewWork
             && runtimeEntitlements.systemExtensionInstall
             && wireGuardSession.canRequestSystemExtensionActivation
+    }
+
+    var canDisconnectHostWireGuardTunnel: Bool {
+        acceptsNewWork && wireGuardSession.canDisconnectTunnel
+    }
+
+    var canRefreshHostWireGuardTunnelStatus: Bool {
+        acceptsNewWork
+            && !wireGuardSession.hostTunnelStatus.isTransitioning
     }
 
     var shouldConfirmApplicationTermination: Bool {
         attachedAccessoryID != nil
             && wireGuardSession.hostTunnelStatus.isConnectingOrConnected
+    }
+
+    private var accessoryMonitoringConfigurationBlocker:
+        AccessoryMonitoringConfigurationBlocker? {
+        guard !appPreferences.isDebugModeEnabled else {
+            return nil
+        }
+        guard appPreferences.hasCompletedOnboarding else {
+            return .onboardingIncomplete
+        }
+        guard hasConfiguredVMAssets else {
+            return .vmAssetsUnavailable
+        }
+        guard wireGuardSession.systemExtensionStatus.isActive else {
+            return .networkExtensionInactive
+        }
+        guard isDummyEthernetHelperReady else {
+            return .privilegedHelperUnavailable
+        }
+        return nil
+    }
+
+    private var isDummyEthernetHelperReady: Bool {
+        guard let helper = managedDummyEthernet?.helper else {
+            return false
+        }
+        return helper.isAvailable && !helper.isOperationInProgress
     }
 
     init(
@@ -208,6 +377,11 @@ final class TetheringStore: ObservableObject {
         vmConfiguration: VMConfigurationStore,
         wireGuardSession: WireGuardSessionStore,
         appPreferences: AppPreferencesStore,
+        dummyEthernet: DummyEthernetStore? = nil,
+        prepareDummyEthernetForWireGuardConnection:
+            (@MainActor () async -> Bool)? = nil,
+        deactivateDummyEthernetAfterWireGuardConnection:
+            (@MainActor () async -> Void)? = nil,
         runtimeEntitlementSnapshotProvider: @escaping () -> RuntimeEntitlementSnapshot = {
             .current
         }
@@ -215,6 +389,11 @@ final class TetheringStore: ObservableObject {
         self.assetProvider = assetProvider
         self.vmCoordinator = vmCoordinator
         self.usbCoordinator = usbCoordinator
+        self.managedDummyEthernet = dummyEthernet
+        self.prepareDummyEthernetForWireGuardConnection =
+            prepareDummyEthernetForWireGuardConnection
+        self.deactivateDummyEthernetAfterWireGuardConnection =
+            deactivateDummyEthernetAfterWireGuardConnection
         self.runtimeEntitlementSnapshotProvider = runtimeEntitlementSnapshotProvider
         self.eventLog = eventLog
         self.consoleSession = consoleSession
@@ -224,10 +403,8 @@ final class TetheringStore: ObservableObject {
         self.appPreferences = appPreferences
         self.runtimeEntitlements = runtimeEntitlementSnapshotProvider()
 
-        wireGuardSession.onReadinessChange = { [weak self] in
-            self?.attemptPendingWireGuardConnectionIfReady()
-        }
         configureCoordinators()
+        configureAccessoryMonitoringStartObservation()
         appendRuntimeEntitlementSummary()
         appendScratchDiskSelectionSummaryIfNeeded()
     }
@@ -279,42 +456,26 @@ final class TetheringStore: ObservableObject {
     }
 
     func startAccessoryMonitoring() {
-        guard !isOnboardingPresented else {
-            appendEventLog(
-                "USB listener start ignored while onboarding is presented.",
-                level: .debug,
-                category: .usb
-            )
+        guard acceptsNewWork else { return }
+        if let blocker = accessoryMonitoringConfigurationBlocker {
+            reportAccessoryMonitoringBlocked(blocker, action: "start")
             return
         }
-
-        guard hasConfiguredVMAssets, !assetProvider.isBusy else {
-            statusMessage = assetProvider.isBusy
-                ? String(localized: "Wait for VM asset installation to finish before starting the USB listener.")
-                : String(localized: "Install or select valid VM assets before starting the USB listener.")
-            appendEventLog(
-                assetProvider.isBusy
-                    ? "USB listener start rejected: a VM asset operation is active."
-                    : "USB listener start rejected: no valid VM assets are selected.",
-                level: .debug,
-                category: .usb
-            )
-            return
-        }
-
+        shouldRunAccessoryMonitoring = true
         startAccessoryMonitoring(reason: "manual request")
     }
 
     func startAccessoryMonitoringOnLaunch() {
+        guard acceptsNewWork else { return }
         guard !didRequestLaunchAccessoryMonitoring else {
             return
         }
 
         didRequestLaunchAccessoryMonitoring = true
-        guard !isOnboardingPresented else {
-            shouldResumeAccessoryMonitoringAfterOnboarding = true
+        shouldRunAccessoryMonitoring = true
+        if let blocker = accessoryMonitoringConfigurationBlocker {
             appendEventLog(
-                "USB listener start deferred until onboarding closes.",
+                "USB listener start deferred because \(blocker.eventLogDescription).",
                 level: .debug,
                 category: .usb
             )
@@ -329,28 +490,6 @@ final class TetheringStore: ObservableObject {
         }
 
         isOnboardingPresented = true
-        if !didRequestLaunchAccessoryMonitoring {
-            shouldResumeAccessoryMonitoringAfterOnboarding = true
-        }
-
-        guard usbCoordinator.isAccessoryMonitoring else {
-            appendEventLog(
-                "AccessoryAccess USB listener remains stopped during onboarding.",
-                level: .debug,
-                category: .usb
-            )
-            return
-        }
-
-        shouldResumeAccessoryMonitoringAfterOnboarding = true
-        isStoppingAccessoryMonitoringForOnboarding = true
-        usbCoordinator.stopMonitoring(reason: "Onboarding presented.") { [weak self] in
-            guard let self else {
-                return
-            }
-            self.isStoppingAccessoryMonitoringForOnboarding = false
-            self.resumeAccessoryMonitoringAfterOnboardingIfNeeded()
-        }
     }
 
     func onboardingPresentationDidEnd() {
@@ -359,12 +498,13 @@ final class TetheringStore: ObservableObject {
         }
 
         isOnboardingPresented = false
-        resumeAccessoryMonitoringAfterOnboardingIfNeeded()
-        presentNextUSBAttachmentPromptIfNeeded()
+        startAccessoryMonitoringIfRequested(reason: "onboarding closed")
+        workflowCoordinator.presentNextUSBAttachmentPromptIfPossible()
     }
 
     func stopAccessoryMonitoring() {
-        guard pendingAttachmentAccessoryID == nil else {
+        guard acceptsNewWork else { return }
+        guard !workflowCoordinator.hasPendingAttachment else {
             statusMessage = String(localized: "Wait for the current USB attachment workflow before stopping the listener.")
             appendEventLog(
                 "USB listener stop rejected: a USB attachment workflow is active.",
@@ -373,6 +513,7 @@ final class TetheringStore: ObservableObject {
             )
             return
         }
+        shouldRunAccessoryMonitoring = false
         usbCoordinator.stopMonitoring(
             reason: "User stopped USB listener.",
             completion: nil
@@ -380,6 +521,7 @@ final class TetheringStore: ObservableObject {
     }
 
     func reloadAccessoryMonitoring() {
+        guard acceptsNewWork else { return }
         refreshRuntimeEntitlements()
 
         guard runtimeEntitlements.accessoryAccessUSB else {
@@ -391,7 +533,12 @@ final class TetheringStore: ObservableObject {
             return
         }
 
-        guard pendingAttachmentAccessoryID == nil else {
+        if let blocker = accessoryMonitoringConfigurationBlocker {
+            reportAccessoryMonitoringBlocked(blocker, action: "reload")
+            return
+        }
+
+        guard !workflowCoordinator.hasPendingAttachment else {
             statusMessage = String(localized: "Wait for the current USB attachment workflow before reloading the listener.")
             appendEventLog(
                 "USB listener reload rejected: a USB attachment workflow is active.",
@@ -406,6 +553,7 @@ final class TetheringStore: ObservableObject {
 
     @discardableResult
     func startVirtualMachine() -> Bool {
+        guard acceptsNewWork else { return false }
         refreshRuntimeEntitlements()
 
         guard !assetProvider.isBusy else {
@@ -529,13 +677,13 @@ final class TetheringStore: ObservableObject {
     }
 
     func stopVirtualMachine() {
+        guard acceptsNewWork else { return }
         stopVirtualMachine(reason: "VM stop requested by user")
     }
 
     private func stopVirtualMachine(reason: String) {
-        isRestartingVirtualMachine = false
-        cancelPendingWireGuardConnection(reason: reason)
-        cancelPendingAttachment(reason: reason)
+        vmRestartState = .idle
+        workflowCoordinator.cancelWorkflow(reason: reason)
         usbCoordinator.prepareForIntentionalVMStop()
         vmCoordinator.stop()
     }
@@ -545,14 +693,36 @@ final class TetheringStore: ObservableObject {
             return
         }
 
-        pendingAttachmentAccessoryID = attachedAccessoryID
-        pendingAttachmentToken = attachedAccessoryID == nil ? nil : UUID()
-        shouldStartPendingAttachmentAfterStop = false
+        workflowCoordinator.prepareForManualVMRestart(
+            attachedAccessoryID: attachedAccessoryID
+        )
         usbCoordinator.prepareForIntentionalVMStop()
-        restartVirtualMachine(reason: "manual request")
+        vmRestartState = .stopping
+        vmCoordinator.restart(reason: "manual request") { [weak self] in
+            guard let self else { return }
+            self.vmRestartState = .starting
+
+            guard self.workflowCoordinator.canStartVMForManualRestart() else {
+                self.vmRestartState = .idle
+                return
+            }
+
+            if self.startVirtualMachine() {
+                if self.workflowCoordinator.hasPendingAttachment,
+                   self.runtimeState == .starting {
+                    self.workflowCoordinator.markVMStartedForPendingAttachment()
+                }
+            } else {
+                self.vmRestartState = .idle
+                self.workflowCoordinator.cancelWorkflow(
+                    reason: "VM preflight failed after restart"
+                )
+            }
+        }
     }
 
     func requestAttachSelectedAccessory() {
+        guard acceptsNewWork else { return }
         guard let selectedAccessoryID else {
             statusMessage = String(localized: "Select a USB accessory.")
             appendEventLog(
@@ -567,10 +737,12 @@ final class TetheringStore: ObservableObject {
     }
 
     func selectAccessory(id: UInt64?) {
+        guard acceptsNewWork else { return }
         usbCoordinator.selectAccessory(id: id)
     }
 
     func requestAttachAccessory(id accessoryID: UInt64) {
+        guard acceptsNewWork else { return }
         refreshRuntimeEntitlements()
 
         guard runtimeEntitlements.accessoryAccessUSB else {
@@ -582,14 +754,11 @@ final class TetheringStore: ObservableObject {
             return
         }
 
-        guard let record = beginAttachmentWorkflow(accessoryID: accessoryID) else {
-            return
-        }
-
-        prepareWireGuardConnectionForUSBAttachment(record)
+        workflowCoordinator.requestAttachAccessory(id: accessoryID)
     }
 
     func detachAccessory() {
+        guard acceptsNewWork else { return }
         guard attachedAccessoryID != nil else {
             appendEventLog(
                 "USB detach request ignored: no accessory is attached.",
@@ -603,29 +772,8 @@ final class TetheringStore: ObservableObject {
     }
 
     func resolveUSBAttachmentPrompt(accepted: Bool) {
-        guard let prompt = usbSession.takeAttachmentPrompt() else {
-            return
-        }
-        promptedAccessoryIDs.remove(prompt.accessory.id)
-
-        if accepted {
-            switch prompt.kind {
-            case .attach:
-                if let record = beginAttachmentWorkflow(accessoryID: prompt.accessory.id) {
-                    prepareWireGuardConnectionForUSBAttachment(record)
-                }
-            case .assetsRequired:
-                accessoriesAwaitingAssetSetup.insert(prompt.accessory.id)
-            }
-        } else {
-            appendEventLog(
-                "USB attach declined for registry \(prompt.accessory.registryIDText).",
-                level: .debug,
-                category: .usb
-            )
-        }
-
-        presentNextUSBAttachmentPromptIfNeeded()
+        guard acceptsNewWork else { return }
+        workflowCoordinator.resolveUSBAttachmentPrompt(accepted: accepted)
     }
 
     func resolveWireGuardConnectionPrompt(
@@ -633,86 +781,36 @@ final class TetheringStore: ObservableObject {
         accepted: Bool,
         shouldAutomaticallyConnectNextTime: Bool
     ) {
-        guard let prompt = wireGuardConnectionPrompt,
-              prompt.id == promptID else {
-            appendEventLog(
-                "Ignoring a stale WireGuard connection prompt response.",
-                level: .debug,
-                category: .wireGuard
-            )
-            return
-        }
-
-        wireGuardConnectionPrompt = nil
-        defer { presentNextUSBAttachmentPromptIfNeeded() }
-
-        guard accepted else {
-            appendEventLog(
-                "Automatic WireGuard connection declined for USB registry " +
-                    "\(prompt.accessory.registryIDText).",
-                level: .debug,
-                category: .wireGuard
-            )
-            return
-        }
-
-        if shouldAutomaticallyConnectNextTime {
-            appPreferences.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches = true
-        }
-
-        guard pendingAttachmentAccessoryID == prompt.accessory.id
-                || attachedAccessoryID == prompt.accessory.id
-                || vmSessionAccessoryID == prompt.accessory.id else {
-            appendEventLog(
-                "WireGuard connection request ignored because USB registry " +
-                    "\(prompt.accessory.registryIDText) is no longer part of the current attachment workflow.",
-                level: .debug,
-                category: .wireGuard
-            )
-            return
-        }
-
-        requestWireGuardConnectionAfterUSBAttachment(
-            accessoryID: prompt.accessory.id
+        guard acceptsNewWork else { return }
+        workflowCoordinator.resolveWireGuardConnectionPrompt(
+            id: promptID,
+            accepted: accepted,
+            shouldAutomaticallyConnectNextTime:
+                shouldAutomaticallyConnectNextTime
         )
-    }
-
-    private func prepareWireGuardConnectionForUSBAttachment(
-        _ accessory: USBAccessoryRecord
-    ) {
-        if appPreferences.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches {
-            requestWireGuardConnectionAfterUSBAttachment(accessoryID: accessory.id)
-        } else {
-            wireGuardConnectionPrompt = WireGuardConnectionPrompt(accessory: accessory)
-        }
-    }
-
-    private func requestWireGuardConnectionAfterUSBAttachment(accessoryID: UInt64) {
-        pendingWireGuardConnectionAccessoryID = accessoryID
-        appendEventLog(
-            "WireGuard connection queued for USB registry " +
-                "\(Self.registryIDText(accessoryID)); waiting for USB and VM readiness.",
-            level: .debug,
-            category: .wireGuard
-        )
-        attemptPendingWireGuardConnectionIfReady()
     }
 
     func prepareForApplicationTermination(
         disconnectWireGuard: Bool = true
     ) async {
-        isPreparingForApplicationTermination = true
-        shouldResumeAccessoryMonitoringAfterOnboarding = false
+        guard applicationState != .terminating else { return }
+        applicationState = .terminating
+        shouldRunAccessoryMonitoring = false
         appendEventLog(
             "Application terminating.",
             level: .debug,
             category: .application
         )
-        pendingWireGuardConnectionAccessoryID = nil
-        wireGuardConnectionPrompt = nil
+        workflowCoordinator.cancelPendingWireGuardConnection(
+            reason: "application termination"
+        )
         await wireGuardSession.prepareForApplicationTermination(
             disconnectTunnel: disconnectWireGuard
         )
+        if let managedDummyEthernet {
+            _ = await managedDummyEthernet
+                .stopForApplicationTerminationIfNeeded()
+        }
         usbCoordinator.prepareForIntentionalVMStop()
         vmCoordinator.invalidate()
         await withCheckedContinuation { continuation in
@@ -723,6 +821,7 @@ final class TetheringStore: ObservableObject {
     }
 
     func refreshHostWireGuardTunnelStatus() {
+        guard canRefreshHostWireGuardTunnelStatus else { return }
         refreshRuntimeEntitlements()
         refreshWireGuardSystemExtensionStatus()
         guard !wireGuardSession.hostTunnelStatus.isTransitioning else {
@@ -746,7 +845,7 @@ final class TetheringStore: ObservableObject {
     }
 
     func refreshWireGuardSystemExtensionStatus() {
-        guard !isPreparingForApplicationTermination else {
+        guard acceptsNewWork else {
             return
         }
         refreshRuntimeEntitlements()
@@ -755,7 +854,7 @@ final class TetheringStore: ObservableObject {
 
     @discardableResult
     func requestWireGuardSystemExtensionActivation() -> Bool {
-        guard !isPreparingForApplicationTermination else {
+        guard acceptsNewWork else {
             return false
         }
         refreshRuntimeEntitlements()
@@ -787,13 +886,15 @@ final class TetheringStore: ObservableObject {
     }
 
     func openWireGuardSystemExtensionSettings() {
-        guard !isPreparingForApplicationTermination else {
+        guard acceptsNewWork else {
             return
         }
         wireGuardSession.openSystemExtensionSettings()
     }
 
-    func connectHostWireGuardTunnel() {
+    @discardableResult
+    func connectHostWireGuardTunnel() -> Bool {
+        guard acceptsNewWork else { return false }
         refreshRuntimeEntitlements()
 
         guard runtimeState == .running, vmCoordinator.canSendConsoleInput else {
@@ -803,10 +904,10 @@ final class TetheringStore: ObservableObject {
                 level: .warning,
                 category: .wireGuard
             )
-            return
+            return false
         }
         guard wireGuardSession.validateConnectionInputs() else {
-            return
+            return false
         }
         guard runtimeEntitlements.packetTunnelProvider else {
             reportMissingEntitlement(
@@ -815,7 +916,7 @@ final class TetheringStore: ObservableObject {
                 category: .wireGuard
             )
             wireGuardSession.updateHostTunnelStatus(.missingPacketTunnelEntitlement)
-            return
+            return false
         }
         guard runtimeEntitlements.systemExtensionInstall else {
             reportMissingEntitlement(
@@ -826,20 +927,28 @@ final class TetheringStore: ObservableObject {
             wireGuardSession.updateHostTunnelStatus(
                 .missingSystemExtensionInstallEntitlement
             )
-            return
+            return false
         }
 
-        _ = wireGuardSession.connect()
+        return wireGuardSession.connect()
+    }
+
+    func connectHostWireGuardTunnelWithAutomaticDummyEthernet() {
+        guard acceptsNewWork, canConnectHostWireGuardTunnel else { return }
+        managedWireGuardConnectionCoordinator.connect()
     }
 
     func disconnectHostWireGuardTunnel() {
-        cancelPendingWireGuardConnection(reason: "manual WireGuard disconnect")
+        guard canDisconnectHostWireGuardTunnel else { return }
+        workflowCoordinator.cancelPendingWireGuardConnection(
+            reason: "manual WireGuard disconnect"
+        )
         wireGuardSession.disconnect()
     }
 
     @discardableResult
     func sendConsoleBytes(_ data: Data) -> Bool {
-        return vmCoordinator.sendConsoleBytes(data)
+        acceptsNewWork && vmCoordinator.sendConsoleBytes(data)
     }
 
     func requestOnboardingPresentation(restart: Bool = true) {
@@ -862,8 +971,8 @@ final class TetheringStore: ObservableObject {
             category: .application
         )
 
-        resumeAttachmentsAwaitingAssetSetup()
-        presentNextUSBAttachmentPromptIfNeeded()
+        workflowCoordinator.assetsDidBecomeAvailable()
+        startAccessoryMonitoringIfRequested(reason: "onboarding completed")
     }
 
     @discardableResult
@@ -873,19 +982,33 @@ final class TetheringStore: ObservableObject {
                 resetStatusMessage = String(
                     localized: "Wait for the current VM asset operation to finish."
                 )
+            } else if managedDummyEthernet?
+                .isAnyOperationInProgress == true {
+                resetStatusMessage = String(
+                    localized: "Wait for the current Dummy Ethernet operation to finish."
+                )
             }
             appendEventLog(
                 "App settings reset rejected: resetInProgress=\(isResettingAppSettings), " +
-                    "vmAssetOperationActive=\(assetProvider.isBusy).",
+                    "vmAssetOperationActive=\(assetProvider.isBusy), " +
+                    "dummyEthernetOperationActive=" +
+                    "\(managedDummyEthernet?.isAnyOperationInProgress == true).",
                 level: .debug,
                 category: .application
             )
             return false
         }
 
-        isResettingAppSettings = true
-        defer { isResettingAppSettings = false }
+        applicationState = .resetting
+        defer {
+            if applicationState == .resetting {
+                applicationState = .active
+            }
+        }
 
+        workflowCoordinator.cancelManagedWireGuardConnection(
+            reason: "app settings reset"
+        )
         guard await wireGuardSession.disconnectAndWait() else {
             resetStatusMessage = String(
                 localized: "Could not stop the WireGuard tunnel before resetting app settings."
@@ -898,15 +1021,7 @@ final class TetheringStore: ObservableObject {
             return false
         }
 
-        isRestartingVirtualMachine = false
-        restartWillStartVM = false
-        cancelPendingAttachment(
-            reason: "app settings reset",
-            presentNextPrompt: false
-        )
-        cancelPendingWireGuardConnection(reason: "app settings reset")
-        usbSession.clearAttachmentPrompt()
-        wireGuardConnectionPrompt = nil
+        workflowCoordinator.cancelPendingWorkForReset()
 
         if vmCoordinator.hasVirtualMachine {
             usbCoordinator.prepareForIntentionalVMStop()
@@ -948,11 +1063,7 @@ final class TetheringStore: ObservableObject {
             return false
         }
 
-        queuedUSBAttachmentPrompts.removeAll()
-        promptedAccessoryIDs.removeAll()
-        accessoriesAwaitingAssetSetup.removeAll()
-        usbSession.clearAttachmentPrompt()
-        wireGuardConnectionPrompt = nil
+        workflowCoordinator.clearDeferredWorkForReset()
 
         vmConfiguration.reset()
         wireGuardSession.resetPersistedValues()
@@ -971,6 +1082,18 @@ final class TetheringStore: ObservableObject {
             )
         }
 
+        if let managedDummyEthernet {
+            do {
+                try await managedDummyEthernet
+                    .resetForAppSettings()
+            } catch {
+                resetStatusMessage = String(
+                    localized: "Could not reset Dummy Ethernet: \(error.localizedDescription)"
+                )
+                return false
+            }
+        }
+
         appendEventLog(
             "App settings and WireGuard configuration were reset; VM asset files were not deleted.",
             level: .info,
@@ -981,49 +1104,30 @@ final class TetheringStore: ObservableObject {
 
     func assetAvailabilityDidChange() {
         objectWillChange.send()
-        resumeAttachmentsAwaitingAssetSetup()
-        presentNextUSBAttachmentPromptIfNeeded()
-    }
-
-    private func resumeAttachmentsAwaitingAssetSetup() {
-        guard hasConfiguredVMAssets, !assetProvider.isBusy else {
-            return
-        }
-
-        let waitingAccessoryIDs = accessoriesAwaitingAssetSetup
-        accessoriesAwaitingAssetSetup.removeAll()
-        for accessoryID in waitingAccessoryIDs {
-            guard let record = accessories.first(where: { $0.id == accessoryID }) else {
-                continue
-            }
-            enqueueUSBAttachmentPrompt(
-                USBAttachmentPrompt(accessory: record, kind: .attach)
-            )
-        }
+        workflowCoordinator.assetsDidBecomeAvailable()
+        startAccessoryMonitoringIfRequested(
+            reason: "VM asset availability changed"
+        )
     }
 
     private func configureCoordinators() {
+        wireGuardSession.onReadinessChange = { [weak self] in
+            guard let self else { return }
+            self.objectWillChange.send()
+            self.workflowCoordinator.wireGuardReadinessDidChange()
+            self.startAccessoryMonitoringIfRequested(
+                reason: "Network Extension status changed"
+            )
+        }
+
         vmCoordinator.onStateChange = { [weak self] state, message in
             guard let self else { return }
             if state == .running || state == .failed {
-                self.isRestartingVirtualMachine = false
+                self.vmRestartState = .idle
             }
             self.runtimeState = state
             self.statusMessage = message
-
-            switch state {
-            case .running:
-                self.continuePendingAttachmentIfPossible()
-                self.attemptPendingWireGuardConnectionIfReady()
-                self.presentNextUSBAttachmentPromptIfNeeded()
-            case .failed:
-                self.restartWillStartVM = false
-                self.cancelPendingWireGuardConnection(reason: "VM start or runtime failure")
-                self.cancelPendingAttachment(reason: "VM start or runtime failure")
-                self.wireGuardSession.clearDiscoveredEndpoint(reason: "VM failed")
-            default:
-                break
-            }
+            self.workflowCoordinator.vmStateDidChange(state)
         }
         vmCoordinator.onEventLog = { [weak self] message, level in
             self?.appendEventLog(message, level: level, category: .vm)
@@ -1036,72 +1140,16 @@ final class TetheringStore: ObservableObject {
         }
         vmCoordinator.onStopped = { [weak self] in
             guard let self else { return }
-            self.appendEventLog(
-                "VM stop workflow snapshot: pendingUSB=" +
-                    "\(self.pendingAttachmentAccessoryID.map(Self.registryIDText) ?? "none"), " +
-                    "startAfterStop=\(self.shouldStartPendingAttachmentAfterStop), " +
-                    "restartWillStart=\(self.restartWillStartVM), pendingWireGuard=" +
-                    "\(self.pendingWireGuardConnectionAccessoryID.map(Self.registryIDText) ?? "none").",
-                level: .debug,
-                category: .application
+            self.workflowCoordinator.vmDidStop(
+                restartWillStartVM: self.restartWillStartVM
             )
-            let continuingAttachmentID = self.pendingAttachmentAccessoryID.flatMap { accessoryID in
-                self.shouldStartPendingAttachmentAfterStop || self.restartWillStartVM
-                    ? accessoryID
-                    : nil
-            }
-            let pendingWireGuardAccessoryID = self.pendingWireGuardConnectionAccessoryID
-            let promptedWireGuardAccessoryID = self.wireGuardConnectionPrompt?.accessory.id
-            let hasWireGuardConnectionRequest = pendingWireGuardAccessoryID != nil
-                || promptedWireGuardAccessoryID != nil
-            let shouldPreserveWireGuardConnectionRequest = continuingAttachmentID != nil
-                && (pendingWireGuardAccessoryID == nil
-                    || pendingWireGuardAccessoryID == continuingAttachmentID)
-                && (promptedWireGuardAccessoryID == nil
-                    || promptedWireGuardAccessoryID == continuingAttachmentID)
-            if hasWireGuardConnectionRequest,
-               !shouldPreserveWireGuardConnectionRequest {
-                self.cancelPendingWireGuardConnection(reason: "VM stopped")
-            }
-            self.wireGuardSession.clearDiscoveredEndpoint(reason: "VM stopped")
-            self.usbCoordinator.clearAttachmentForStoppedVM()
             self.syncUSBState()
-
-            if let pendingAccessoryID = self.pendingAttachmentAccessoryID,
-               !self.shouldStartPendingAttachmentAfterStop,
-               !self.restartWillStartVM {
-                let pendingRecord = self.accessories.first { $0.id == pendingAccessoryID }
-                self.cancelPendingAttachment(
-                    reason: "VM stopped before USB attachment completed",
-                    presentNextPrompt: false
-                )
-                if let pendingRecord {
-                    self.enqueueUSBAttachmentPrompt(
-                        USBAttachmentPrompt(accessory: pendingRecord, kind: .attach)
-                    )
-                }
-                self.presentNextUSBAttachmentPromptIfNeeded()
-                return
-            }
-
-            guard self.shouldStartPendingAttachmentAfterStop,
-                  self.pendingAttachmentAccessoryID != nil,
-                  !self.restartWillStartVM else {
-                self.presentNextUSBAttachmentPromptIfNeeded()
-                return
-            }
-
-            self.shouldStartPendingAttachmentAfterStop = false
-            if !self.startVirtualMachine() {
-                self.cancelPendingAttachment(reason: "VM preflight failed after stop")
-            }
         }
 
         usbCoordinator.onStateChange = { [weak self] in
             guard let self else { return }
             self.syncUSBState()
-            self.attemptPendingWireGuardConnectionIfReady()
-            self.presentNextUSBAttachmentPromptIfNeeded()
+            self.workflowCoordinator.usbStateDidChange()
         }
         usbCoordinator.onStatusMessage = { [weak self] message in
             self?.statusMessage = message
@@ -1110,13 +1158,29 @@ final class TetheringStore: ObservableObject {
             self?.appendEventLog(message, level: level, category: .usb)
         }
         usbCoordinator.onAccessoryAvailable = { [weak self] record in
-            self?.offerAttachmentForAvailableAccessory(record)
+            guard let self else { return }
+            guard !self.isOnboardingPresented else {
+                self.appendEventLog(
+                    "USB attach prompt deferred while onboarding is presented.",
+                    level: .debug,
+                    category: .usb
+                )
+                return
+            }
+            self.workflowCoordinator.accessoryDidBecomeAvailable(record)
         }
         usbCoordinator.onAccessoryUnavailable = { [weak self] accessoryID in
-            self?.handleAccessoryUnavailable(accessoryID)
+            self?.workflowCoordinator.accessoryDidBecomeUnavailable(accessoryID)
         }
         usbCoordinator.onUnexpectedDetach = { [weak self] accessoryID, reason in
-            self?.handleUnexpectedUSBDetach(accessoryID: accessoryID, reason: reason)
+            guard let self,
+                  self.workflowCoordinator.handleUnexpectedUSBDetach(
+                    accessoryID: accessoryID,
+                    reason: reason
+                  ) else {
+                return
+            }
+            self.stopVirtualMachine(reason: "USB passthrough lifecycle ended")
         }
         usbCoordinator.runtimeStateProvider = { [weak self] in
             self?.runtimeState ?? .idle
@@ -1125,386 +1189,44 @@ final class TetheringStore: ObservableObject {
         syncUSBState()
     }
 
-    private func attemptPendingWireGuardConnectionIfReady() {
-        guard let accessoryID = pendingWireGuardConnectionAccessoryID else {
-            return
-        }
-
-        if wireGuardSession.hostTunnelStatus.isConnectingOrConnected {
-            pendingWireGuardConnectionAccessoryID = nil
-            appendEventLog(
-                "Queued WireGuard connection cleared because the provider is already " +
-                    "connecting or connected.",
-                level: .debug,
-                category: .wireGuard
-            )
-            return
-        }
-
-        guard attachedAccessoryID == accessoryID,
-              vmSessionAccessoryID == accessoryID,
-              wireGuardSession.invalidConnectionFields.isEmpty,
-              canConnectHostWireGuardTunnel else {
-            return
-        }
-
-        pendingWireGuardConnectionAccessoryID = nil
-        appendEventLog(
-            "USB and VM are ready; starting the queued WireGuard connection for registry " +
-                "\(Self.registryIDText(accessoryID)).",
-            level: .debug,
-            category: .wireGuard
-        )
-        connectHostWireGuardTunnel()
-    }
-
-    private func cancelPendingWireGuardConnection(reason: String) {
-        guard let accessoryID = pendingWireGuardConnectionAccessoryID
-                ?? wireGuardConnectionPrompt?.accessory.id else {
-            return
-        }
-
-        pendingWireGuardConnectionAccessoryID = nil
-        wireGuardConnectionPrompt = nil
-        appendEventLog(
-            "Pending WireGuard connection cancelled for USB registry " +
-                "\(Self.registryIDText(accessoryID)): \(reason).",
-            level: .debug,
-            category: .wireGuard
-        )
-    }
-
-    private func offerAttachmentForAvailableAccessory(_ record: USBAccessoryRecord) {
-        guard !isOnboardingPresented else {
-            appendEventLog(
-                "USB attach prompt deferred while onboarding is presented.",
-                level: .debug,
-                category: .usb
-            )
-            return
-        }
-
-        guard appPreferences.shouldAskToAttachDetectedUSBDevices else {
-            appendEventLog(
-                "USB attach prompt skipped for registry \(record.registryIDText): " +
-                    "asking on device detection is disabled.",
-                level: .debug,
-                category: .usb
-            )
-            return
-        }
-
-        guard record.hasConfigurationDescriptor,
-              attachedAccessoryID != record.id,
-              pendingAttachmentAccessoryID != record.id,
-              !accessoriesAwaitingAssetSetup.contains(record.id) else {
-            return
-        }
-
-        enqueueUSBAttachmentPrompt(attachmentPrompt(for: record))
-    }
-
-    private func enqueueUSBAttachmentPrompt(_ prompt: USBAttachmentPrompt) {
-        guard promptedAccessoryIDs.insert(prompt.accessory.id).inserted else {
-            return
-        }
-
-        queuedUSBAttachmentPrompts.append(prompt)
-        presentNextUSBAttachmentPromptIfNeeded()
-    }
-
-    private func presentNextUSBAttachmentPromptIfNeeded() {
-        guard !isResettingAppSettings,
-              !isOnboardingPresented,
-              usbAttachmentPrompt == nil,
-              wireGuardConnectionPrompt == nil,
-              pendingAttachmentAccessoryID == nil,
-              vmSessionAccessoryID == nil,
-              !restartWillStartVM,
-              !assetProvider.isBusy else {
-            return
-        }
-
-        guard hasConfiguredVMAssets || accessoriesAwaitingAssetSetup.isEmpty else {
-            return
-        }
-
-        while let firstPrompt = queuedUSBAttachmentPrompts.first {
-            guard let currentRecord = accessories.first(where: { $0.id == firstPrompt.accessory.id }),
-                  currentRecord.id != attachedAccessoryID else {
-                queuedUSBAttachmentPrompts.removeFirst()
-                promptedAccessoryIDs.remove(firstPrompt.accessory.id)
-                continue
-            }
-
-            queuedUSBAttachmentPrompts.removeFirst()
-            usbSession.present(attachmentPrompt(for: currentRecord))
-            return
-        }
-    }
-
-    private func attachmentPrompt(for record: USBAccessoryRecord) -> USBAttachmentPrompt {
-        guard hasConfiguredVMAssets else {
-            return USBAttachmentPrompt(accessory: record, kind: .assetsRequired)
-        }
-
-        return USBAttachmentPrompt(accessory: record, kind: .attach)
-    }
-
-    private func beginAttachmentWorkflow(
-        accessoryID: UInt64
-    ) -> USBAccessoryRecord? {
-        guard pendingAttachmentAccessoryID == nil else {
-            statusMessage = String(localized: "Wait for the current USB attachment workflow to finish.")
-            appendEventLog(
-                "USB attachment workflow not started for registry " +
-                    "\(Self.registryIDText(accessoryID)): another workflow is active.",
-                level: .debug,
-                category: .usb
-            )
-            return nil
-        }
-
-        guard !assetProvider.isBusy else {
-            statusMessage = String(localized: "Wait for VM asset installation to finish before attaching USB.")
-            appendEventLog(
-                "USB attachment workflow not started for registry " +
-                    "\(Self.registryIDText(accessoryID)): a VM asset operation is active.",
-                level: .debug,
-                category: .usb
-            )
-            return nil
-        }
-
-        guard !attachmentRequiresVMStopRetry else {
-            statusMessage = String(localized: "The VM did not stop cleanly. Retry Stop before attaching a USB accessory.")
-            appendEventLog(
-                "USB attachment workflow not started for registry " +
-                    "\(Self.registryIDText(accessoryID)): failed VM cleanup is pending.",
-                level: .debug,
-                category: .usb
-            )
-            presentNextUSBAttachmentPromptIfNeeded()
-            return nil
-        }
-
-        if attachedAccessoryID == accessoryID {
-            statusMessage = String(localized: "The selected USB accessory is already attached.")
-            appendEventLog(
-                "USB attachment workflow ignored for registry " +
-                    "\(Self.registryIDText(accessoryID)): accessory is already attached.",
-                level: .debug,
-                category: .usb
-            )
-            return nil
-        }
-
-        guard vmSessionAccessoryID == nil else {
-            statusMessage = String(localized: "Detach the current USB accessory before attaching another USB accessory.")
-            appendEventLog(
-                "USB attachment workflow not started for registry " +
-                    "\(Self.registryIDText(accessoryID)): this VM session already used a USB accessory.",
-                level: .debug,
-                category: .usb
-            )
-            return nil
-        }
-
-        guard let record = accessories.first(where: { $0.id == accessoryID }) else {
-            statusMessage = String(localized: "The selected USB accessory is no longer available.")
-            appendEventLog(
-                "USB attachment workflow not started for registry " +
-                    "\(Self.registryIDText(accessoryID)): accessory is unavailable.",
-                level: .debug,
-                category: .usb
-            )
-            return nil
-        }
-
-        guard hasConfiguredVMAssets else {
-            enqueueUSBAttachmentPrompt(
-                USBAttachmentPrompt(accessory: record, kind: .assetsRequired)
-            )
-            return nil
-        }
-
-        pendingAttachmentAccessoryID = accessoryID
-        pendingAttachmentToken = UUID()
-        pendingAttachmentStartedVM = false
-        shouldStartPendingAttachmentAfterStop = false
-        usbCoordinator.selectAccessory(id: accessoryID)
-        continuePendingAttachmentIfPossible()
-        guard pendingAttachmentAccessoryID == accessoryID
-                || attachedAccessoryID == accessoryID else {
-            return nil
-        }
-        return record
-    }
-
-    private func continuePendingAttachmentIfPossible() {
-        guard let accessoryID = pendingAttachmentAccessoryID,
-              let attachmentToken = pendingAttachmentToken else {
-            return
-        }
-
-        guard accessories.contains(where: { $0.id == accessoryID }) else {
-            let shouldStopVM = pendingAttachmentStartedVM && vmCoordinator.canStop
-            cancelPendingAttachment(
-                reason: "USB accessory became unavailable",
-                presentNextPrompt: !shouldStopVM
-            )
-            statusMessage = String(localized: "The USB accessory became unavailable before it could be attached.")
-            if shouldStopVM {
-                usbCoordinator.prepareForIntentionalVMStop()
-                vmCoordinator.stop()
-            }
-            return
-        }
-
-        switch runtimeState {
-        case .running:
-            usbCoordinator.attachAccessory(
-                id: accessoryID,
-                to: vmCoordinator.virtualMachine
-            ) { [weak self] success in
-                guard let self,
-                      self.pendingAttachmentToken == attachmentToken else {
-                    return
-                }
-                self.pendingAttachmentAccessoryID = nil
-                self.pendingAttachmentToken = nil
-                self.pendingAttachmentStartedVM = false
-                self.shouldStartPendingAttachmentAfterStop = false
-                self.syncUSBState()
-
-                if success {
-                    self.attemptPendingWireGuardConnectionIfReady()
-                } else {
-                    self.cancelPendingWireGuardConnection(
-                        reason: "approved USB attachment failed"
-                    )
-                    self.appendEventLog(
-                        "Approved USB attach did not complete for registry \(Self.registryIDText(accessoryID)).",
-                        level: .debug,
-                        category: .usb
-                    )
-                }
-                self.presentNextUSBAttachmentPromptIfNeeded()
-            }
-        case .starting:
-            break
-        case .stopping:
-            shouldStartPendingAttachmentAfterStop = true
-        case .idle, .stopped, .failed:
-            if startVirtualMachine() {
-                if pendingAttachmentToken == attachmentToken,
-                   pendingAttachmentAccessoryID == accessoryID,
-                   runtimeState == .starting {
-                    pendingAttachmentStartedVM = true
-                }
-            } else {
-                cancelPendingAttachment(reason: "VM preflight failed")
-            }
-        }
-    }
-
-    private func restartVirtualMachine(reason: String) {
-        guard vmCoordinator.canRestart else {
-            if runtimeState == .stopping {
-                shouldStartPendingAttachmentAfterStop = pendingAttachmentAccessoryID != nil
-            }
-            return
-        }
-
-        isRestartingVirtualMachine = true
-        restartWillStartVM = true
-        vmCoordinator.restart(reason: reason) { [weak self] in
-            guard let self else { return }
-            self.restartWillStartVM = false
-
-            if let accessoryID = self.pendingAttachmentAccessoryID,
-               !self.accessories.contains(where: { $0.id == accessoryID }) {
-                self.isRestartingVirtualMachine = false
-                self.cancelPendingAttachment(reason: "target USB accessory disconnected during VM restart")
-                self.statusMessage = String(
-                    localized: "The USB accessory became unavailable before it could be attached."
+    private func configureAccessoryMonitoringStartObservation() {
+        appPreferences.$isDebugModeEnabled
+            .dropFirst()
+            .sink { [weak self] _ in
+                self?.scheduleAccessoryMonitoringStartIfRequested(
+                    reason: "debug mode changed"
                 )
-                return
             }
+            .store(in: &accessoryMonitoringStartCancellables)
 
-            if self.startVirtualMachine() {
-                if self.pendingAttachmentAccessoryID != nil,
-                   self.runtimeState == .starting {
-                    self.pendingAttachmentStartedVM = true
-                }
-            } else {
-                self.isRestartingVirtualMachine = false
-                self.cancelPendingAttachment(reason: "VM preflight failed after restart")
+        guard let helper = managedDummyEthernet?.helper else {
+            return
+        }
+
+        helper.$registrationStatus
+            .dropFirst()
+            .sink { [weak self] _ in
+                self?.scheduleAccessoryMonitoringStartIfRequested(
+                    reason: "Dummy Ethernet helper status changed"
+                )
             }
-        }
-    }
+            .store(in: &accessoryMonitoringStartCancellables)
 
-    private func handleAccessoryUnavailable(_ accessoryID: UInt64) {
-        accessoriesAwaitingAssetSetup.remove(accessoryID)
-
-        guard pendingAttachmentAccessoryID == accessoryID else {
-            return
-        }
-
-        let shouldStopVM = pendingAttachmentStartedVM && vmCoordinator.canStop
-        cancelPendingAttachment(
-            reason: "target USB accessory disconnected",
-            presentNextPrompt: !shouldStopVM
-        )
-
-        if shouldStopVM {
-            usbCoordinator.prepareForIntentionalVMStop()
-            vmCoordinator.stop()
-        }
-    }
-
-    private func handleUnexpectedUSBDetach(accessoryID: UInt64, reason: String) {
-        guard runtimeState == .running || runtimeState == .starting else {
-            return
-        }
-
-        appendEventLog(
-            "Stopping VM because the USB passthrough lifecycle ended for registry " +
-                "\(Self.registryIDText(accessoryID)): \(reason)",
-            level: .debug,
-            category: .usb
-        )
-        stopVirtualMachine(reason: "USB passthrough lifecycle ended")
-    }
-
-    private func cancelPendingAttachment(
-        reason: String,
-        presentNextPrompt: Bool = true
-    ) {
-        guard pendingAttachmentAccessoryID != nil || shouldStartPendingAttachmentAfterStop else {
-            return
-        }
-
-        cancelPendingWireGuardConnection(reason: "USB attachment workflow cancelled: \(reason)")
-        pendingAttachmentAccessoryID = nil
-        pendingAttachmentToken = nil
-        pendingAttachmentStartedVM = false
-        shouldStartPendingAttachmentAfterStop = false
-        appendEventLog(
-            "Pending USB attachment cancelled: \(reason).",
-            level: .debug,
-            category: .usb
-        )
-        if presentNextPrompt {
-            presentNextUSBAttachmentPromptIfNeeded()
-        }
+        helper.$operation
+            .dropFirst()
+            .sink { [weak self] _ in
+                self?.scheduleAccessoryMonitoringStartIfRequested(
+                    reason: "Dummy Ethernet helper operation changed"
+                )
+            }
+            .store(in: &accessoryMonitoringStartCancellables)
     }
 
     private func startAccessoryMonitoring(reason: String) {
-        guard !isOnboardingPresented else {
-            shouldResumeAccessoryMonitoringAfterOnboarding = true
+        if let blocker = accessoryMonitoringConfigurationBlocker {
             appendEventLog(
-                "USB listener start deferred while onboarding is presented: \(reason).",
+                "USB listener start deferred because " +
+                    "\(blocker.eventLogDescription): \(reason).",
                 level: .debug,
                 category: .usb
             )
@@ -1512,7 +1234,6 @@ final class TetheringStore: ObservableObject {
         }
 
         refreshRuntimeEntitlements()
-
         guard runtimeEntitlements.accessoryAccessUSB else {
             reportMissingEntitlement(
                 .accessoryAccessUSB,
@@ -1521,24 +1242,48 @@ final class TetheringStore: ObservableObject {
             )
             return
         }
-
+        guard usbCoordinator.canStartMonitoring else {
+            return
+        }
         usbCoordinator.startMonitoring(reason: reason, completion: nil)
     }
 
-    private func resumeAccessoryMonitoringAfterOnboardingIfNeeded() {
-        guard shouldResumeAccessoryMonitoringAfterOnboarding,
-              !isOnboardingPresented,
-              !isStoppingAccessoryMonitoringForOnboarding,
-              !isPreparingForApplicationTermination else {
+    private func startAccessoryMonitoringIfRequested(reason: String) {
+        guard acceptsNewWork,
+              !isPreparingForApplicationTermination,
+              shouldRunAccessoryMonitoring,
+              !usbCoordinator.isAccessoryMonitoring else {
+            return
+        }
+        refreshRuntimeEntitlements()
+        guard runtimeEntitlements.accessoryAccessUSB,
+              accessoryMonitoringConfigurationBlocker == nil,
+              usbCoordinator.canStartMonitoring else {
             return
         }
 
-        shouldResumeAccessoryMonitoringAfterOnboarding = false
-        if didRequestLaunchAccessoryMonitoring {
-            startAccessoryMonitoring(reason: "onboarding closed")
-        } else {
-            startAccessoryMonitoringOnLaunch()
+        startAccessoryMonitoring(reason: reason)
+    }
+
+    private func scheduleAccessoryMonitoringStartIfRequested(reason: String) {
+        Task { @MainActor [weak self] in
+            await Task.yield()
+            guard let self else { return }
+            self.objectWillChange.send()
+            self.startAccessoryMonitoringIfRequested(reason: reason)
         }
+    }
+
+    private func reportAccessoryMonitoringBlocked(
+        _ blocker: AccessoryMonitoringConfigurationBlocker,
+        action: String
+    ) {
+        statusMessage = blocker.statusMessage
+        appendEventLog(
+            "USB listener \(action) rejected because \(blocker.eventLogDescription).",
+            level: .debug,
+            category: .usb
+        )
     }
 
     private func syncUSBState() {
@@ -1620,7 +1365,4 @@ final class TetheringStore: ObservableObject {
         eventLog.append(message, level: level, category: category)
     }
 
-    private static func registryIDText(_ registryID: UInt64) -> String {
-        "0x" + String(registryID, radix: 16, uppercase: true)
-    }
 }
