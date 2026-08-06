@@ -68,8 +68,10 @@ WireGuard-over-VZNAT architecture as the baseline.
 - `AppDelegate` is the composition root. It owns one shared
   `VMAssetWorkflowCoordinator`, constructs the VM, USB, and WireGuard adapters
   and the independently injected child state stores, and injects them into one shared `TetheringStore`,
-  starts AccessoryAccess monitoring at app launch, and passes the same objects
-  to onboarding, Settings, and the menu bar. Views observe the narrowest child
+  requests AccessoryAccess monitoring at app launch, and passes the same objects
+  to onboarding, Settings, and the menu bar. Before each listener start in normal
+  mode, `TetheringStore` requires completed onboarding, valid VM Assets, an active
+  Network Extension, and the current Dummy Ethernet helper. Views observe the narrowest child
   store that owns their state while invoking `TetheringStore` only for
   cross-feature actions. Keep the dependency one-way: `TetheringStore` sees
   only the read-only `VMAssetProviding` boundary, and
@@ -773,12 +775,15 @@ xcrun notarytool store-credentials "thrurndis-notary"
   helper. A Login
   Items approval-required result is a visible recoverable state, not permission
   to bypass `SMAppService` or elevate through another mechanism.
-- AccessoryAccess monitoring remains stopped while onboarding is presented. It
-  starts after first-run onboarding closes, and a listener that was active
-  before onboarding was restarted resumes after that window closes. Outside
-  onboarding, monitoring starts with the app even when no Settings window is
-  visible. Settings may stop or sequentially reload the listener for the current
-  session, but a later app launch starts it again.
+- In normal mode, require completed onboarding, valid VM Assets, an active
+  Network Extension, and the current enabled Dummy Ethernet privileged helper
+  immediately before starting or reloading AccessoryAccess monitoring. Do not
+  stop an active listener merely because a prerequisite later becomes
+  unavailable; evaluate the prerequisites again only for a future start or
+  reload. Debug mode bypasses these configuration restrictions, but not the
+  AccessoryAccess entitlement or listener-transition safety checks. Settings may
+  stop or sequentially reload the listener for the current session, but a later
+  app launch requests it again.
 - Keep USB approval prompts AppKit-presented so they remain visible while all
   windows are closed. The store must serialize USB approval, VM
   start/stop/restart, and VZ attach completions. Preserve the VM-generation and

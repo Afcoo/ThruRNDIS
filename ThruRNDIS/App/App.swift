@@ -226,12 +226,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .store(in: &cancellables)
 
+        store.startAccessoryMonitoringOnLaunch()
         if store.shouldPresentOnboardingOnLaunch || !assetWorkflowCoordinator.hasConfiguredAssets {
             DispatchQueue.main.async { [weak self] in
                 self?.showOnboardingWindow()
             }
-        } else {
-            store.startAccessoryMonitoringOnLaunch()
         }
     }
 
