@@ -76,13 +76,16 @@ WireGuard-over-VZNAT architecture as the baseline.
   `DummyEthernetStore` to stop its managed configuration and unregister the
   privileged helper before clearing the remaining selection and relaunching.
   A failed stop must leave the helper registered, and any Dummy Ethernet
-  cleanup failure must prevent relaunch. With VM assets configured,
-  the menu bar keeps all status items in one leading section. Debug mode then
-  orders its control sections as VM, USB, WireGuard, and Dummy Ethernet, with a
-  separator between sections; normal mode omits VM and Dummy Ethernet controls.
-  Its status and control order is VM, USB, WireGuard, then Dummy Ethernet. The
-  combined status follows the same evaluation order, including the fixed Helper
-  Problem state when the helper is unavailable.
+  cleanup failure must prevent relaunch. Until VM assets are configured and the
+  privileged helper is enabled, the menu bar omits all status and control
+  sections and presents only the relevant Settings guidance plus Settings and
+  Quit. Once both prerequisites are ready, the menu bar keeps all status items
+  in one leading section. Debug mode then orders its control sections as VM,
+  USB, WireGuard, and Dummy Ethernet, with a separator between sections; normal
+  mode omits VM and Dummy Ethernet controls. Its status and control order is VM,
+  USB, WireGuard, then Dummy Ethernet. A helper operation that begins while the
+  enabled-helper menu is visible uses the fixed Helper Problem state until the
+  menu is rebuilt for the resulting registration status.
   `DummyEthernetPrivilegedHelperRegistrationService` owns `SMAppService.daemon`
   registration and status, while `DummyEthernetPrivilegedHelperClient` owns the
   authenticated NSXPC connection to the helper. The unprivileged app must not
@@ -240,10 +243,12 @@ ThruRNDIS WireGuardKit Network System Extension
   Dummy Ethernet controls, and neither menu mode exposes helper registration,
   installation, removal, approval, or reinstallation actions. The menu bar
   presents Dummy Ethernet as a colored status item in debug mode and folds it
-  into the combined status in normal mode. For any helper registration problem
-  or helper operation, present the fixed Helper Problem guidance as the
-  Dummy Ethernet state; never expose helper registration status variants or a
-  separate colorless helper item in the menu bar. It exists
+  into the combined status in normal mode only while the privileged helper is
+  enabled. When the helper is not enabled, omit every status and control section
+  instead of presenting a helper-registration variant. For a helper operation
+  that begins from the enabled state, present the fixed Helper Problem guidance
+  until the menu is rebuilt; never expose helper registration status variants
+  or a separate colorless helper item in the menu bar. It exists
   to provide a synthetic satisfied wired-Ethernet path for network-path
   evaluation. When macOS has no active network connection, the app-managed
   WireGuard setup requires Dummy Ethernet to provide that satisfied path.

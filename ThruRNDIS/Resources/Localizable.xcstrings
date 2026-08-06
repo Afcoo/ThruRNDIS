@@ -589,6 +589,16 @@
         }
       }
     },
+    "Configure Privileged Helper in Settings" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "설정에서 헬퍼를 구성하세요"
+          }
+        }
+      }
+    },
     "Configure VM Assets in Settings" : {
       "localizations" : {
         "ko" : {

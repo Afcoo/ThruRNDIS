@@ -26,6 +26,38 @@ private enum MenuBarPresentationMode: Equatable {
     }
 }
 
+private enum MenuBarContentState: Equatable {
+    case vmAssetsRequired
+    case privilegedHelperRequired
+    case ready
+
+    init(
+        hasConfiguredAssets: Bool,
+        helperRegistrationStatus: DummyEthernetHelperRegistrationStatus
+    ) {
+        guard hasConfiguredAssets else {
+            self = .vmAssetsRequired
+            return
+        }
+        guard helperRegistrationStatus == .enabled else {
+            self = .privilegedHelperRequired
+            return
+        }
+        self = .ready
+    }
+
+    var setupPromptTitle: String? {
+        switch self {
+        case .vmAssetsRequired:
+            String(localized: "Configure VM Assets in Settings")
+        case .privilegedHelperRequired:
+            String(localized: "Configure Privileged Helper in Settings")
+        case .ready:
+            nil
+        }
+    }
+}
+
 @MainActor
 final class MenuBarController: NSObject, NSMenuDelegate {
     private static let statusBarImage: NSImage? = {
@@ -61,7 +93,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var wireGuardItem: NSMenuItem?
     private var attachSubmenu: NSMenu?
     private var detachItem: NSMenuItem?
-    private var menuHasConfiguredAssets: Bool?
+    private var menuContentState: MenuBarContentState?
     private var menuPresentationMode: MenuBarPresentationMode?
     private var isMenuOpen = false
     private var isPresentationRefreshScheduled = false
@@ -217,28 +249,28 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
         button.image = Self.statusBarImage
         button.setAccessibilityLabel(String(localized: "ThruRNDIS status"))
-        button.toolTip = String(
-            localized: "ThruRNDIS — VM \(store.vmDisplayState.localizedName), \(usbStatusTitle), \(wireGuardStatusTitle), \(dummyEthernetStatusTitle)"
-        )
+        if let setupPromptTitle = currentContentState.setupPromptTitle {
+            button.toolTip = setupPromptTitle
+        } else {
+            button.toolTip = String(
+                localized: "ThruRNDIS — VM \(store.vmDisplayState.localizedName), \(usbStatusTitle), \(wireGuardStatusTitle), \(dummyEthernetStatusTitle)"
+            )
+        }
     }
 
     private func rebuildMenu() {
         clearDynamicMenuReferences()
         menu.removeAllItems()
-        let hasConfiguredAssets = assetWorkflowCoordinator.hasConfiguredAssets
+        let contentState = currentContentState
         let presentationMode = currentPresentationMode
-        menuHasConfiguredAssets = hasConfiguredAssets
+        menuContentState = contentState
         menuPresentationMode = presentationMode
 
-        guard hasConfiguredAssets else {
-            menu.addItem(informationalItem(
-                title: String(localized: "Configure VM Assets in Settings")
-            ))
-            if presentationMode.displaysDummyEthernetControls {
-                addDummyEthernetControlsSection()
+        guard contentState == .ready else {
+            if let setupPromptTitle = contentState.setupPromptTitle {
+                menu.addItem(informationalItem(title: setupPromptTitle))
             }
             addSettingsAndQuitItems()
-            refreshDummyEthernetPresentation()
             return
         }
 
@@ -362,9 +394,9 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private func refreshMenuPresentation() {
         updateStatusButton()
 
-        let hasConfiguredAssets = assetWorkflowCoordinator.hasConfiguredAssets
+        let contentState = currentContentState
         let presentationMode = currentPresentationMode
-        guard menuHasConfiguredAssets == hasConfiguredAssets,
+        guard menuContentState == contentState,
               menuPresentationMode == presentationMode else {
             if !isMenuOpen {
                 rebuildMenu()
@@ -375,7 +407,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         refreshDummyEthernetPresentation()
         refreshCombinedStatusItem()
 
-        guard hasConfiguredAssets else {
+        guard contentState == .ready else {
             return
         }
 
@@ -634,6 +666,13 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var currentPresentationMode: MenuBarPresentationMode {
         MenuBarPresentationMode(
             isDebugModeEnabled: store.appPreferences.isDebugModeEnabled
+        )
+    }
+
+    private var currentContentState: MenuBarContentState {
+        MenuBarContentState(
+            hasConfiguredAssets: assetWorkflowCoordinator.hasConfiguredAssets,
+            helperRegistrationStatus: dummyEthernet.helperRegistrationStatus
         )
     }
 
