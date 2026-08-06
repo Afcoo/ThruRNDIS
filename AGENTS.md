@@ -300,11 +300,13 @@ ThruRNDIS WireGuardKit Network System Extension
   unregisters the helper and restores the persisted Dummy Ethernet inputs to
   defaults after stopping the managed configuration.
 - `SMAppService` registration is explicit. After a successful register request,
-  record the embedded helper file's installation identity rather than only the
-  app build number. Replacing an app bundle can leave the previous root helper
-  process alive even when both development builds share `CFBundleVersion`; an
-  identity mismatch must block network operations until the user explicitly
-  reinstalls the helper or removes the old registration and installs it again.
+  record the helper-specific installation identity embedded in the helper file
+  rather than the app build number or file-system metadata. Keep that identity
+  stable when only the app marketing/build version changes, and increment it
+  whenever the installed helper implementation changes. Replacing an app bundle
+  can leave the previous root helper process alive; an identity mismatch must
+  block network operations until the user explicitly reinstalls the helper or
+  removes the old registration and installs it again.
   Do not add runtime helper metadata handshakes, connection-probe retry state,
   or automatic registration repair in response to refresh or a normal
   network-operation failure.
@@ -769,10 +771,12 @@ xcrun notarytool store-credentials "thrurndis-notary"
   stop Dummy Ethernet. Onboarding may show and manage only its privileged-helper
   permission;
   showing the current helper registration and network state at launch is allowed.
-  Initial helper registration requires the explicit Install action, and replacing
+  Initial helper registration requires the explicit Install action. Replacing
   the app bundle requires an explicit Reinstall action, or explicit Remove and
-  Install actions, when the registered helper identity changes. Refresh and
-  Start/Stop/Restart must never repair registration automatically.
+  Install actions, when the registered helper-specific installation identity
+  changes, but an app marketing/build version change alone must not require an
+  update. Refresh and Start/Stop/Restart must never repair registration
+  automatically.
   Do not remove network objects without a user's Stop/Restart action, except
   that application termination stops the managed configuration before exit and
   a confirmed Reset All Settings action removes it before unregistering the

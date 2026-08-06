@@ -20,5 +20,7 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
+	<key>ThruRNDISHelperInstallationIdentity</key>
+	<string>$(THRURNDIS_PRIVILEGED_HELPER_INSTALLATION_IDENTITY)</string>
 </dict>
 </plist>

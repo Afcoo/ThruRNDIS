@@ -2,6 +2,7 @@
 Copyright (C) 2026 Afcoo.
 */
 
+import CoreFoundation
 import Foundation
 import ServiceManagement
 
@@ -84,20 +85,17 @@ struct DummyEthernetPrivilegedHelperRegistrationService {
             .appendingPathComponent(
                 ThruRNDISDummyEthernet.helperExecutableName
             )
-        guard let attributes = try? FileManager.default.attributesOfItem(
-            atPath: helperURL.path
-        ), let systemNumber = attributes[.systemNumber] as? NSNumber,
-              let fileNumber = attributes[.systemFileNumber] as? NSNumber,
-              let size = attributes[.size] as? NSNumber,
-              let modified = attributes[.modificationDate] as? Date else {
+        guard let infoDictionary = CFBundleCopyInfoDictionaryForURL(
+            helperURL as CFURL
+        ) as? [String: Any],
+            let identity = infoDictionary[
+                ThruRNDISDummyEthernet
+                    .helperInstallationIdentityInfoDictionaryKey
+            ] as? String,
+            !identity.isEmpty else {
             return nil
         }
-        return [
-            systemNumber.stringValue,
-            fileNumber.stringValue,
-            size.stringValue,
-            String(modified.timeIntervalSinceReferenceDate),
-        ].joined(separator: ":")
+        return identity
     }
 
     private static func registrationStatus(

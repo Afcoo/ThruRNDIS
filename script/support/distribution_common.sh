@@ -224,6 +224,7 @@ distribution_validate_privileged_helper() {
   local helper_bundle_identifier
   local helper_bundle_version
   local helper_identifier
+  local helper_installation_identity
   local helper_package_type
   local helper_short_version
   local helper_signing_details
@@ -277,6 +278,8 @@ distribution_validate_privileged_helper() {
     "$helper_path" CFBundleShortVersionString)"
   helper_bundle_version="$(distribution_embedded_info_value \
     "$helper_path" CFBundleVersion)"
+  helper_installation_identity="$(distribution_embedded_info_value \
+    "$helper_path" ThruRNDISHelperInstallationIdentity)"
   helper_package_type="$(distribution_embedded_info_value \
     "$helper_path" CFBundlePackageType)"
   app_short_version="$(/usr/libexec/PlistBuddy \
@@ -287,6 +290,8 @@ distribution_validate_privileged_helper() {
     "privileged-helper embedded bundle ID is $helper_bundle_identifier instead of $expected_helper_identifier"
   [[ -n "$helper_short_version" && -n "$helper_bundle_version" ]] || distribution_fail \
     "privileged-helper embedded version metadata is missing"
+  [[ -n "$helper_installation_identity" ]] || distribution_fail \
+    "privileged-helper embedded installation identity is missing"
   [[ "$helper_short_version" == "$app_short_version" && \
       "$helper_bundle_version" == "$app_bundle_version" ]] || distribution_fail \
     "the app and privileged helper have different version/build values"
