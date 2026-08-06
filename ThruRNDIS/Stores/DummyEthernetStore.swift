@@ -209,16 +209,18 @@ final class DummyEthernetStore: ObservableObject {
             return false
         }
 
-        helper.refresh()
-        guard helper.isAvailable else {
-            reportError("Dummy Ethernet start failed: helper unavailable.")
+        let shouldRestart = runtimeState == .degraded
+        let nextOperation: DummyEthernetOperation = shouldRestart
+            ? .restarting
+            : .starting
+        guard let configuration = configuration(for: nextOperation) else {
             return false
         }
-        guard let configuration = validatedConfiguration else {
-            let message = configurationErrorMessage
-                ?? String(localized: "Enter a valid Dummy Ethernet configuration.")
-            reportError("Dummy Ethernet start failed: \(message)")
-            return false
+
+        if shouldRestart {
+            return await restartAndWaitUntilActive(
+                configuration: configuration
+            )
         }
 
         operation = .starting
@@ -324,44 +326,17 @@ final class DummyEthernetStore: ObservableObject {
 
     func restart() {
         guard canRestart else { return }
-        helper.refresh()
-        guard helper.isAvailable else {
-            reportError("Dummy Ethernet restart failed: helper unavailable.")
+        guard let configuration = configuration(for: .restarting) else {
             return
         }
-        guard let configuration = validatedConfiguration else {
-            let message = configurationErrorMessage
-                ?? String(localized: "Enter a valid Dummy Ethernet configuration.")
-            reportError("Dummy Ethernet restart failed: \(message)")
-            return
-        }
-
-        operation = .restarting
-        appendEventLog(
-            "Dummy Ethernet restart requested.",
-            level: .debug
-        )
+        beginRestartOperation()
 
         Task { @MainActor [weak self] in
             guard let self else { return }
             defer { self.operation = nil }
-            do {
-                let stoppedSnapshot = try await self.networkManager.stop()
-                self.applySnapshot(stoppedSnapshot)
-
-                let restartedSnapshot = try await self.networkManager.start(
-                    configuration: configuration
-                )
-                self.applySnapshot(restartedSnapshot)
-                self.appendCompletionEvent(
-                    for: .restarting,
-                    snapshot: restartedSnapshot
-                )
-            } catch {
-                self.reportError(
-                    "Dummy Ethernet restart failed: \(error.localizedDescription)"
-                )
-            }
+            _ = await self.performRestartAndWaitUntilActive(
+                configuration: configuration
+            )
         }
     }
 
@@ -498,6 +473,76 @@ final class DummyEthernetStore: ObservableObject {
             }
         }
         return true
+    }
+
+    private func configuration(
+        for operation: DummyEthernetOperation
+    ) -> DummyEthernetConfiguration? {
+        helper.refresh()
+        guard helper.isAvailable else {
+            reportError(
+                "Dummy Ethernet \(operation.rawValue) failed: helper unavailable."
+            )
+            return nil
+        }
+        guard let configuration = validatedConfiguration else {
+            let message = configurationErrorMessage
+                ?? String(localized: "Enter a valid Dummy Ethernet configuration.")
+            reportError(
+                "Dummy Ethernet \(operation.rawValue) failed: \(message)"
+            )
+            return nil
+        }
+        return configuration
+    }
+
+    private func restartAndWaitUntilActive(
+        configuration: DummyEthernetConfiguration
+    ) async -> Bool {
+        beginRestartOperation()
+        defer { operation = nil }
+        return await performRestartAndWaitUntilActive(
+            configuration: configuration
+        )
+    }
+
+    private func beginRestartOperation() {
+        operation = .restarting
+        appendEventLog(
+            "Dummy Ethernet restart requested.",
+            level: .debug
+        )
+    }
+
+    private func performRestartAndWaitUntilActive(
+        configuration: DummyEthernetConfiguration
+    ) async -> Bool {
+        do {
+            let stoppedSnapshot = try await networkManager.stop()
+            applySnapshot(stoppedSnapshot)
+            guard !Task.isCancelled else { return false }
+            guard stoppedSnapshot.state == .inactive else {
+                reportError(
+                    "Dummy Ethernet restart failed: the managed configuration remained active or degraded after stopping."
+                )
+                return false
+            }
+
+            let restartedSnapshot = try await networkManager.start(
+                configuration: configuration
+            )
+            applySnapshot(restartedSnapshot)
+            appendCompletionEvent(
+                for: .restarting,
+                snapshot: restartedSnapshot
+            )
+            return !Task.isCancelled && restartedSnapshot.state == .active
+        } catch {
+            reportError(
+                "Dummy Ethernet restart failed: \(error.localizedDescription)"
+            )
+            return false
+        }
     }
 
     private func appendCompletionEvent(

@@ -83,9 +83,11 @@ WireGuard-over-VZNAT architecture as the baseline.
   connection requested from the USB prompt or USB auto-connect path is requested
   by `TetheringWorkflowCoordinator` and executed by
   `ManagedWireGuardConnectionCoordinator`, which asks the owned
-  `DummyEthernetStore` to start and wait until it is active before starting the
-  host tunnel, then stops Dummy Ethernet only after the tunnel reports that
-  it is connected. The normal-mode menu bar uses the same prepared connection
+  `DummyEthernetStore` to prepare and wait until it is active before starting
+  the host tunnel. Preparation starts an inactive configuration and explicitly
+  restarts a known degraded configuration through the shared Restart flow. The
+  coordinator then stops Dummy Ethernet only after the tunnel reports that it
+  is connected. The normal-mode menu bar uses the same prepared connection
   path, while Settings and the debug-mode menu bar keep the direct WireGuard
   connection path and require Dummy Ethernet to be managed separately. A failed
   preparation must prevent the WireGuard start, and an unsuccessful tunnel start
@@ -337,10 +339,11 @@ ThruRNDIS WireGuardKit Network System Extension
   back only objects created by that invocation. Stop removes only the exact
   recorded SCNetworkConfiguration setup and the feth pair stored with it; feth
   names without that marker are treated as unrelated.
-- Restart is available while the runtime state is active or degraded. It
-  performs one explicit Stop followed by Start with the current validated
-  configuration. If Stop succeeds but Start fails, retain the stopped runtime
-  state so the user can retry Start.
+- Restart is available while the runtime state is active or degraded. Its
+  shared flow performs one explicit Stop followed by Start with the current
+  validated configuration. Manual Restart and app-managed WireGuard preparation
+  use that same flow when the known runtime state is degraded. If Stop succeeds
+  but Start fails, retain the stopped runtime state so the user can retry Start.
 - The helper accepts only the narrow Foundation-value NSXPC protocol, authenticates
   the connecting app's code-signing identifier and team, validates every input
   again while privileged, and invokes only fixed absolute system-tool paths with
