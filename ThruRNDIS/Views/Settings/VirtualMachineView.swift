@@ -2,7 +2,6 @@
 Copyright (C) 2026 Afcoo.
 */
 
-import Combine
 import SwiftUI
 
 struct VirtualMachineView: View {
@@ -10,7 +9,6 @@ struct VirtualMachineView: View {
     @EnvironmentObject private var vmConfiguration: VMConfigurationStore
     @EnvironmentObject private var wireGuardSession: WireGuardSessionStore
     @EnvironmentObject private var assetWorkflowCoordinator: VMAssetWorkflowCoordinator
-    @State private var assetAlert: VMAssetAlert?
 
     let openConsole: () -> Void
 
@@ -120,61 +118,12 @@ struct VirtualMachineView: View {
             }
             .disabled(!store.canEditVMConfiguration)
 
-            Section("VM Assets") {
-                LabeledContent("Status") {
-                    Text(assetWorkflowCoordinator.installState.statusText)
-                        .foregroundStyle(assetStatusColor)
-                }
-
-                if let progress = assetWorkflowCoordinator.installState.progress {
-                    ProgressView(value: progress)
-                }
-
-                LabeledContent("Asset folder") {
-                    Group {
-                        if let selectedFolderURL = assetWorkflowCoordinator.selectedFolderURL {
-                            Text(verbatim: selectedFolderURL.path)
-                        } else {
-                            Text("Not selected")
-                        }
-                    }
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                        .textSelection(.enabled)
-                }
-
-                HStack(spacing: 12) {
-                    if assetWorkflowCoordinator.isBusy {
-                        Button("Cancel") {
-                            assetWorkflowCoordinator.cancelInstall()
-                        }
-                    } else {
-                        Button("Check & Install Latest") {
-                            assetWorkflowCoordinator.installLatest()
-                        }
-                        .buttonStyle(.borderedProminent)
-                    }
-
-                    Button("Choose Folder…") {
-                        if let url = FilePicker.chooseDirectory(
-                            title: String(localized: "Choose extracted vm_assets folder"),
-                            initialURL: assetWorkflowCoordinator.selectedFolderURL
-                        ), let error = assetWorkflowCoordinator.selectManualFolder(url) {
-                            assetAlert = VMAssetAlert(message: error.localizedDescription)
-                        }
-                    }
-                    .disabled(assetWorkflowCoordinator.isBusy)
-
-                    Spacer()
-
-                    Button("Clear") {
-                        assetWorkflowCoordinator.clearSelection()
-                    }
-                    .disabled(assetWorkflowCoordinator.currentSelection == nil || assetWorkflowCoordinator.isBusy)
-                    .help("Clear the selected VM asset paths without deleting managed release files.")
-                }
-                .disabled(!store.canEditVMConfiguration)
+            Section {
+                VMAssetConfigurationView()
+            } header: {
+                Text("VM Assets")
+            } footer: {
+                VMAssetDocumentationLinkView()
             }
 
             Section("Asset Overrides") {
@@ -186,14 +135,12 @@ struct VirtualMachineView: View {
                         if let url = FilePicker.chooseFile(
                             title: String(localized: "Choose Linux kernel override"),
                             initialURL: assetWorkflowCoordinator.kernelURL
-                        ), let error = assetWorkflowCoordinator.setKernelOverride(url) {
-                            assetAlert = VMAssetAlert(message: error.localizedDescription)
+                        ) {
+                            assetWorkflowCoordinator.setKernelOverride(url)
                         }
                     },
                     clear: assetWorkflowCoordinator.kernelOverrideURL == nil ? nil : {
-                        if let error = assetWorkflowCoordinator.setKernelOverride(nil) {
-                            assetAlert = VMAssetAlert(message: error.localizedDescription)
-                        }
+                        assetWorkflowCoordinator.setKernelOverride(nil)
                     }
                 )
 
@@ -205,14 +152,12 @@ struct VirtualMachineView: View {
                         if let url = FilePicker.chooseFile(
                             title: String(localized: "Choose initial ramdisk override"),
                             initialURL: assetWorkflowCoordinator.initialRamdiskURL
-                        ), let error = assetWorkflowCoordinator.setInitialRamdiskOverride(url) {
-                            assetAlert = VMAssetAlert(message: error.localizedDescription)
+                        ) {
+                            assetWorkflowCoordinator.setInitialRamdiskOverride(url)
                         }
                     },
                     clear: assetWorkflowCoordinator.initialRamdiskOverrideURL == nil ? nil : {
-                        if let error = assetWorkflowCoordinator.setInitialRamdiskOverride(nil) {
-                            assetAlert = VMAssetAlert(message: error.localizedDescription)
-                        }
+                        assetWorkflowCoordinator.setInitialRamdiskOverride(nil)
                     }
                 )
             }
@@ -238,18 +183,7 @@ struct VirtualMachineView: View {
             }
             .disabled(!store.canEditVMConfiguration)
         }
-        .onReceive(assetWorkflowCoordinator.$errorMessage.compactMap { $0 }) { message in
-            assetAlert = VMAssetAlert(message: message)
-        }
-        .alert(item: $assetAlert) { alert in
-            Alert(
-                title: Text("VM Asset Error"),
-                message: Text(verbatim: alert.message),
-                dismissButton: .default(Text("OK")) {
-                    assetWorkflowCoordinator.clearError()
-                }
-            )
-        }
+        .vmAssetErrorAlert()
     }
 
     private var cpuCountBinding: Binding<Int> {
@@ -271,17 +205,6 @@ struct VirtualMachineView: View {
                 )
             }
         )
-    }
-
-    private var assetStatusColor: Color {
-        switch assetWorkflowCoordinator.installState {
-        case .ready:
-            return .green
-        case .failed:
-            return .red
-        default:
-            return .secondary
-        }
     }
 
     private var vmStatusTitle: String {
@@ -327,11 +250,6 @@ struct VirtualMachineView: View {
             return .failed
         }
     }
-}
-
-private struct VMAssetAlert: Identifiable {
-    let id = UUID()
-    let message: String
 }
 
 private struct SettingsAssetRow: View {

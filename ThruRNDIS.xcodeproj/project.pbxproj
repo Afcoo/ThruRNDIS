@@ -89,6 +89,9 @@
 		E20000000000000000000004 /* LogTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20000000000000000000104 /* LogTextView.swift */; };
 		E20000000000000000000005 /* EventLogGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20000000000000000000105 /* EventLogGroup.swift */; };
 		E20000000000000000000006 /* SettingsStatusLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20000000000000000000106 /* SettingsStatusLabel.swift */; };
+		E20000000000000000000007 /* NetworkExtensionPermissionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20000000000000000000107 /* NetworkExtensionPermissionView.swift */; };
+		E20000000000000000000008 /* DummyEthernetHelperPermissionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20000000000000000000108 /* DummyEthernetHelperPermissionView.swift */; };
+		E20000000000000000000009 /* VMAssetConfigurationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20000000000000000000109 /* VMAssetConfigurationView.swift */; };
 		E30000000000000000000001 /* USBAccessoryCoordinating.swift in Sources */ = {isa = PBXBuildFile; fileRef = E30000000000000000000101 /* USBAccessoryCoordinating.swift */; };
 		EL3000000000000000000001 /* EventLogFileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = EL3000000000000000000101 /* EventLogFileStore.swift */; };
 		EL3000000000000000000002 /* EventLogFileStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EL3000000000000000000102 /* EventLogFileStoreTests.swift */; };
@@ -303,6 +306,9 @@
 		E20000000000000000000104 /* LogTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogTextView.swift; sourceTree = "<group>"; };
 		E20000000000000000000105 /* EventLogGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventLogGroup.swift; sourceTree = "<group>"; };
 		E20000000000000000000106 /* SettingsStatusLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStatusLabel.swift; sourceTree = "<group>"; };
+		E20000000000000000000107 /* NetworkExtensionPermissionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkExtensionPermissionView.swift; sourceTree = "<group>"; };
+		E20000000000000000000108 /* DummyEthernetHelperPermissionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DummyEthernetHelperPermissionView.swift; sourceTree = "<group>"; };
+		E20000000000000000000109 /* VMAssetConfigurationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMAssetConfigurationView.swift; sourceTree = "<group>"; };
 		E30000000000000000000101 /* USBAccessoryCoordinating.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBAccessoryCoordinating.swift; sourceTree = "<group>"; };
 		EL3000000000000000000101 /* EventLogFileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventLogFileStore.swift; sourceTree = "<group>"; };
 		EL3000000000000000000102 /* EventLogFileStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventLogFileStoreTests.swift; sourceTree = "<group>"; };
@@ -704,6 +710,9 @@
 				E20000000000000000000104 /* LogTextView.swift */,
 				E20000000000000000000105 /* EventLogGroup.swift */,
 				E20000000000000000000106 /* SettingsStatusLabel.swift */,
+				E20000000000000000000107 /* NetworkExtensionPermissionView.swift */,
+				E20000000000000000000108 /* DummyEthernetHelperPermissionView.swift */,
+				E20000000000000000000109 /* VMAssetConfigurationView.swift */,
 			);
 			path = SharedViews;
 			sourceTree = "<group>";
@@ -983,6 +992,9 @@
 				E20000000000000000000004 /* LogTextView.swift in Sources */,
 				E20000000000000000000005 /* EventLogGroup.swift in Sources */,
 				E20000000000000000000006 /* SettingsStatusLabel.swift in Sources */,
+				E20000000000000000000007 /* NetworkExtensionPermissionView.swift in Sources */,
+				E20000000000000000000008 /* DummyEthernetHelperPermissionView.swift in Sources */,
+				E20000000000000000000009 /* VMAssetConfigurationView.swift in Sources */,
 				B10000000000000000000001 /* VMAssetModels.swift in Sources */,
 				B10000000000000000000002 /* VMAssetFolderResolver.swift in Sources */,
 				B10000000000000000000003 /* GitHubVMAssetReleaseService.swift in Sources */,

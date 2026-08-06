@@ -20,13 +20,14 @@ WireGuard-over-VZNAT architecture as the baseline.
   at `Contents/MacOS/ThruRNDISPrivilegedHelper`, with its launchd property list
   at `Contents/Library/LaunchDaemons/ThruRNDISPrivilegedHelper.plist`. The app
   registers it with `SMAppService.daemon` only after an explicit request in the
-  Dummy Ethernet Settings tab. The app bundle is the helper executable's only
-  source; never copy it to `/Library/PrivilegedHelperTools` or maintain a
-  versioned system-path copy. This project does not use DriverKit.
-- Linux assets are not bundled with the app. The baseline user flow is the
-  explicit `Download & Install Latest` action in onboarding, or
-  `Check & Install Latest` in Settings. The app downloads the exact
-  `vm_assets.zip` and `SHA256SUMS` attachments from the latest published
+  onboarding permissions page or Dummy Ethernet Settings tab. The app bundle is
+  the helper executable's only source; never copy it to
+  `/Library/PrivilegedHelperTools` or maintain a versioned system-path copy.
+  This project does not use DriverKit.
+- Linux assets are not bundled with the app. The shared onboarding and Settings
+  flow presents `Download & Install Latest` while assets are unconfigured and
+  `Check & Install Latest` once a valid selection is ready. The app downloads
+  the exact `vm_assets.zip` and `SHA256SUMS` attachments from the latest published
   [Afcoo/ThruRNDIS_VM_Assets Release](https://github.com/Afcoo/ThruRNDIS_VM_Assets/releases),
   verifies and installs them in Application Support, and activates the managed
   release. Manual download, checksum verification, extraction, and folder
@@ -67,9 +68,10 @@ WireGuard-over-VZNAT architecture as the baseline.
   only the read-only `VMAssetProviding` boundary, and
   `VMAssetWorkflowCoordinator` must not reference `TetheringStore`.
 - `DummyEthernetStore` is an independent `AppDelegate`-owned presentation store.
-  `AppDelegate` passes it separately to `SettingsWindowController` and
-  `MenuBarController`; do not inject it into `TetheringStore`, onboarding, USB
-  attach, VM start, or WireGuard auto-connect flows. The app-wide Reset All
+  `AppDelegate` passes it separately to `OnboardingWindowController` for helper
+  permission management, and to `SettingsWindowController` and
+  `MenuBarController`; do not inject it into `TetheringStore`, USB attach, VM
+  start, or WireGuard auto-connect flows. The app-wide Reset All
   Settings workflow first completes the `TetheringStore` reset, then asks
   `DummyEthernetStore` to stop its managed configuration and unregister the
   privileged helper before clearing the remaining selection and relaunching.
@@ -366,6 +368,19 @@ ThruRNDIS WireGuardKit Network System Extension
   title, control label, or button action.
 - Preserve useful accessibility labels, values, and hints without duplicating
   them as visible explanatory text.
+- Any onboarding control that reads or changes configuration also exposed in
+  Settings must reuse the same component from `ThruRNDIS/Views/SharedViews`.
+  Keep page titles, introductory copy, supporting guidance, and step navigation
+  in `OnboardingView`, while the shared component owns the configuration status,
+  actions, validation, and error presentation used by both surfaces. Do not
+  duplicate Settings implementations in onboarding. Both surfaces must host
+  these shared components in a `Form`; the component provides wrapper-free Form
+  rows rather than its own `Form`, `GroupBox`, or layout container. This policy
+  applies to VM Assets, Network Extension permission, privileged-helper
+  permission, and any future Settings-backed onboarding control. Each
+  onboarding step owns one `Form` containing its page header, supporting copy,
+  shared rows, and any other step content; do not nest another `Form` inside a
+  step.
 
 ## Directory Guide
 
@@ -692,9 +707,10 @@ xcrun notarytool store-credentials "thrurndis-notary"
   Connect, Disconnect, and Refresh controls. Keep `.conf` copy/save as a
   diagnostic fallback; do not hand the persistent private-key files to the
   provider or store plaintext configuration in preferences.
-- Dummy Ethernet must remain an explicit manual Settings workflow. Showing its
-  current helper registration and network state at launch is allowed. Initial
-  helper registration requires the explicit Install action, and replacing
+- Dummy Ethernet network configuration must remain an explicit manual Settings
+  workflow. Onboarding may show and manage only its privileged-helper permission;
+  showing the current helper registration and network state at launch is allowed.
+  Initial helper registration requires the explicit Install action, and replacing
   the app bundle requires an explicit Reinstall action, or explicit Remove and
   Install actions, when the registered helper identity changes. Refresh and
   Start/Stop/Restart must never repair registration automatically.

@@ -19,49 +19,15 @@ struct DummyEthernetView: View {
                 }
             }
 
-            Section("Privileged Helper") {
-                LabeledContent("Status") {
-                    SettingsStatusLabel(
-                        title: helperStatusPresentation.title,
-                        appearance: helperStatusPresentation.appearance
-                    )
-                }
-
-                Text(helperStatusPresentation.detail)
+            Section {
+                DummyEthernetHelperPermissionView()
+            } header: {
+                Text("Privileged Helper")
+            } footer: {
+                Text("The privileged helper is required to configure dummy ethernet network service.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-
-                HStack {
-                    if dummyEthernet.isReinstallActionPresented {
-                        Button("Reinstall") {
-                            dummyEthernet.reinstallHelper()
-                        }
-                        .disabled(!dummyEthernet.canReinstallHelper)
-                    } else {
-                        Button("Install") {
-                            dummyEthernet.enableHelper()
-                        }
-                        .disabled(!dummyEthernet.canEnableHelper)
-                    }
-
-                    Button("Remove") {
-                        dummyEthernet.disableHelper()
-                    }
-                    .disabled(!dummyEthernet.canDisableHelper)
-
-                    Button("Open Settings") {
-                        dummyEthernet.openLoginItemsSettings()
-                    }
-                    .buttonStyle(.link)
-
-                    Spacer()
-
-                    Button("Refresh") {
-                        dummyEthernet.refresh()
-                    }
-                    .disabled(dummyEthernet.isOperationInProgress)
-                }
             }
 
             Section("Dummy Ethernet Status") {
@@ -153,59 +119,6 @@ struct DummyEthernetView: View {
         }
         .onAppear {
             dummyEthernet.refresh()
-        }
-    }
-
-    private var helperStatusPresentation: (
-        title: String,
-        detail: LocalizedStringKey,
-        appearance: SettingsStatusAppearance
-    ) {
-        if let operation = dummyEthernet.helperStatusOperation {
-            return (
-                operation.title,
-                "The privileged helper registration is being updated.",
-                .transitioning
-            )
-        }
-
-        return switch dummyEthernet.helperRegistrationStatus {
-        case .unknown:
-            (
-                String(localized: "Unknown"),
-                "Refresh the helper status before managing Dummy Ethernet.",
-                .unknown
-            )
-        case .notRegistered:
-            (
-                String(localized: "Not Enabled"),
-                "Install the bundled helper.",
-                .inactive
-            )
-        case .enabled:
-            (
-                String(localized: "Enabled"),
-                "The privileged helper is ready.",
-                .active
-            )
-        case .updateRequired:
-            (
-                String(localized: "Update Required"),
-                "Reinstall the bundled helper.",
-                .attention
-            )
-        case .requiresApproval:
-            (
-                String(localized: "Approval Required"),
-                "Allow the helper in System Settings > General > Login Items, then return and refresh.",
-                .attention
-            )
-        case .notFound:
-            (
-                String(localized: "Not Found"),
-                "The bundled LaunchDaemon could not be found. Use a signed installed ThruRNDIS app.",
-                .failed
-            )
         }
     }
 

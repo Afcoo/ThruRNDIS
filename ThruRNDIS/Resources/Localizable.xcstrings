@@ -439,16 +439,6 @@
         }
       }
     },
-    "Choose downloaded VM assets" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "다운로드한 VM 에셋 선택"
-          }
-        }
-      }
-    },
     "Choose extracted vm_assets folder" : {
       "localizations" : {
         "ko" : {
@@ -1049,12 +1039,12 @@
         }
       }
     },
-    "Enable the Network Extension" : {
+    "Enable the permissions" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "네트워크 확장 프로그램 활성화"
+            "value" : "권한 활성화"
           }
         }
       }
@@ -1209,12 +1199,12 @@
         }
       }
     },
-    "Grant the Network Extension permission for the WireGuard connection." : {
+    "Grant the Network Extension and privileged helper permissions." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "네트워크 확장 프로그램에 WireGuard 연결 권한을 부여하세요."
+            "value" : "네트워크 확장 프로그램과 헬퍼 권한을 부여하세요."
           }
         }
       }
@@ -1259,12 +1249,12 @@
         }
       }
     },
-    "In System Settings, turn on the ThruRNDIS network extension, then return to ThruRNDIS." : {
+    "Network Extension permission is required for WireGuard connections." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "시스템 설정에서 ThruRNDIS 네트워크 확장 프로그램을 켠 다음 ThruRNDIS로 돌아오세요."
+            "value" : "WireGuard 연결에는 네트워크 확장 프로그램 권한이 필요합니다."
           }
         }
       }
@@ -2703,12 +2693,12 @@
         }
       }
     },
-    "ThruRNDIS requires Network Extension permission." : {
+    "ThruRNDIS requires Network Extension and privileged helper permissions." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ThruRNDIS는 네트워크 확장 프로그램 권한이 필요합니다."
+            "value" : "ThruRNDIS는 네트워크 확장 프로그램과 헬퍼 권한이 필요합니다."
           }
         }
       }
@@ -3877,6 +3867,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "현재 코드 서명에 서명 식별자가 없습니다."
+          }
+        }
+      }
+    },
+    "The privileged helper is required to configure dummy ethernet network service." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "더미 이더넷 네트워크 서비스를 구성하려면 헬퍼가 필요합니다."
           }
         }
       }

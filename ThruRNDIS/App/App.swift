@@ -389,6 +389,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             onboardingWindowController?.close()
             onboardingWindowController = OnboardingWindowController(
                 store: store,
+                dummyEthernetStore: dummyEthernet,
                 assetWorkflowCoordinator: assetWorkflowCoordinator,
                 onFinish: { [weak self] in
                     self?.closeOnboardingWindow(presentationID: presentationID)
