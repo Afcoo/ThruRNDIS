@@ -755,6 +755,16 @@
         }
       }
     },
+    "Could not remove the Dummy Ethernet privileged helper while resetting app settings: %@" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "앱 설정을 초기화하는 동안 더미 이더넷 헬퍼를 제거할 수 없습니다: %@"
+          }
+        }
+      }
+    },
     "Could not remove the saved WireGuard tunnel profile." : {
       "localizations" : {
         "ko" : {
@@ -787,6 +797,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$@에 WireGuard 파일을 안전하게 만들 수 없습니다: %2$@"
+          }
+        }
+      }
+    },
+    "Could not stop Dummy Ethernet while resetting app settings: %@" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "앱 설정을 초기화하는 동안 더미 이더넷 구성을 중지할 수 없습니다: %@"
           }
         }
       }
@@ -3193,6 +3213,16 @@
         }
       }
     },
+    "Wait for the current Dummy Ethernet operation to finish." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "현재 더미 이더넷 작업이 끝날 때까지 기다리세요."
+          }
+        }
+      }
+    },
     "Wait for the current USB attachment workflow before reloading the listener." : {
       "localizations" : {
         "ko" : {
@@ -3521,6 +3551,16 @@
         }
       }
     },
+    "Dummy Ethernet did not stop while resetting app settings." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "앱 설정을 초기화하는 동안 더미 이더넷 구성이 중지되지 않았습니다."
+          }
+        }
+      }
+    },
     "Remove" : {
       "localizations" : {
         "ko" : {
@@ -3547,6 +3587,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "내장 헬퍼를 다시 설치하세요."
+          }
+        }
+      }
+    },
+    "Reinstall the Dummy Ethernet privileged helper before resetting app settings." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "앱 설정을 초기화하기 전에 더미 이더넷 헬퍼를 다시 설치하세요."
           }
         }
       }
@@ -3787,6 +3837,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "내장 LaunchDaemon을 찾을 수 없습니다. 서명되어 설치된 ThruRNDIS 앱을 사용하세요."
+          }
+        }
+      }
+    },
+    "The Dummy Ethernet privileged helper remained registered during the settings reset." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "설정 초기화 중 더미 이더넷 헬퍼 등록이 제거되지 않았습니다."
           }
         }
       }

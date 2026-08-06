@@ -311,8 +311,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.presentResetFailure()
                 return
             }
+            do {
+                try await self.dummyEthernet.resetForAppSettings()
+            } catch {
+                self.resetAndRestartTask = nil
+                self.presentResetFailure(error.localizedDescription)
+                return
+            }
             self.assetWorkflowCoordinator.clearSelection()
-            self.dummyEthernet.resetPersistedInput()
 
             do {
                 try self.applicationRelaunchService.scheduleRelaunch(
@@ -347,11 +353,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func presentResetFailure() {
+    private func presentResetFailure(_ message: String? = nil) {
         let alert = NSAlert()
         alert.alertStyle = .critical
         alert.messageText = String(localized: "ThruRNDIS Could Not Reset Settings")
-        alert.informativeText = store.resetStatusMessage
+        alert.informativeText = message ?? store.resetStatusMessage
         alert.addButton(withTitle: String(localized: "OK"))
 
         if let window = settingsWindowController?.window {

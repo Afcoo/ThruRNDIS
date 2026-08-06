@@ -69,7 +69,12 @@ WireGuard-over-VZNAT architecture as the baseline.
 - `DummyEthernetStore` is an independent `AppDelegate`-owned presentation store.
   `AppDelegate` passes it separately to `SettingsWindowController` and
   `MenuBarController`; do not inject it into `TetheringStore`, onboarding, USB
-  attach, VM start, or WireGuard auto-connect flows. With VM assets configured,
+  attach, VM start, or WireGuard auto-connect flows. The app-wide Reset All
+  Settings workflow first completes the `TetheringStore` reset, then asks
+  `DummyEthernetStore` to stop its managed configuration and unregister the
+  privileged helper before clearing the remaining selection and relaunching.
+  A failed stop must leave the helper registered, and any Dummy Ethernet
+  cleanup failure must prevent relaunch. With VM assets configured,
   the menu bar keeps all status items in one leading section. Debug mode then
   orders its control sections as VM, USB, WireGuard, and Dummy Ethernet, with a
   separator between sections; normal mode omits VM and Dummy Ethernet controls.
@@ -245,6 +250,9 @@ ThruRNDIS WireGuardKit Network System Extension
   Dummy Ethernet remains independent of the tethering data path, does not
   provide connectivity, forwarding, DNS, or NAT, and must remain a manual
   Start/Stop/Restart action rather than part of USB or WireGuard auto-connect.
+  The explicit Reset All Settings action is the sole additional cleanup path:
+  it stops the managed configuration, unregisters the helper, and restores the
+  persisted Dummy Ethernet inputs to defaults.
 - `SMAppService` registration is explicit. After a successful register request,
   record the embedded helper file's installation identity rather than only the
   app build number. Replacing an app bundle can leave the previous root helper
@@ -690,7 +698,9 @@ xcrun notarytool store-credentials "thrurndis-notary"
   the app bundle requires an explicit Reinstall action, or explicit Remove and
   Install actions, when the registered helper identity changes. Refresh and
   Start/Stop/Restart must never repair registration automatically.
-  Do not create or remove network objects without a user's Start/Stop/Restart action. A Login
+  Do not create or remove network objects without a user's Start/Stop/Restart
+  action, except that a confirmed Reset All Settings action removes the managed
+  configuration before unregistering the helper. A Login
   Items approval-required result is a visible recoverable state, not permission
   to bypass `SMAppService` or elevate through another mechanism.
 - AccessoryAccess monitoring remains stopped while onboarding is presented. It
@@ -717,10 +727,12 @@ xcrun notarytool store-credentials "thrurndis-notary"
   disk, and the Application Support WireGuard directory. Reset App Settings may
   be requested while the VM or USB passthrough attachment is active: disconnect
   WireGuard first, stop the VM and wait for its USB attachment lifecycle to end,
-  then delete the WireGuard directory and clear the Asset selection. It preserves
-  managed Asset releases. If the VM does not stop or WireGuard deletion fails,
-  report the error and do not restart the app. A successful reset creates fresh
-  key files and a generated server config on the next launch.
+  delete the WireGuard directory, stop the managed Dummy Ethernet configuration,
+  unregister its privileged helper, and then clear the Asset selection. It
+  preserves managed Asset releases. If the VM or Dummy Ethernet does not stop,
+  WireGuard deletion fails, or helper removal fails, report the error and do not
+  restart the app. A successful reset creates fresh key files and a generated
+  server config on the next launch.
 - Keep WireGuard key material and server configuration read-only. The Connection
   section may edit and persist only the client DNS servers, Endpoint override,
   and Allowed IPs; preview, copy, save/export, and provider connection must all

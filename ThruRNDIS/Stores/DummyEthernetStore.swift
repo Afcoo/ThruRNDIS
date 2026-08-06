@@ -458,7 +458,92 @@ final class DummyEthernetStore: ObservableObject {
         }
     }
 
-    func resetPersistedInput() {
+    func resetForAppSettings() async throws {
+        guard !isOperationInProgress else {
+            throw DummyEthernetSettingsResetError.operationInProgress
+        }
+
+        refreshHelperRegistrationState()
+        defer { operation = nil }
+
+        switch helperRegistrationStatus {
+        case .enabled:
+            operation = .stopping
+            appendEventLog(
+                "Dummy Ethernet stop requested for app settings reset.",
+                level: .debug
+            )
+
+            let snapshot: DummyEthernetNetworkSnapshot
+            do {
+                snapshot = try await networkManager.stop()
+            } catch {
+                let resetError = DummyEthernetSettingsResetError
+                    .stopFailed(error.localizedDescription)
+                reportError(resetError.localizedDescription)
+                throw resetError
+            }
+            applySnapshot(snapshot)
+            guard snapshot.state == .inactive else {
+                let resetError = DummyEthernetSettingsResetError
+                    .stopIncomplete
+                reportError(resetError.localizedDescription)
+                throw resetError
+            }
+            appendCompletionEvent(for: .stopping, snapshot: snapshot)
+
+        case .updateRequired:
+            let resetError = DummyEthernetSettingsResetError
+                .helperUpdateRequired
+            reportError(resetError.localizedDescription)
+            throw resetError
+
+        case .unknown:
+            let resetError = DummyEthernetSettingsResetError
+                .helperStatusUnavailable
+            reportError(resetError.localizedDescription)
+            throw resetError
+
+        case .notRegistered, .notFound:
+            runtimeState = nil
+
+        case .requiresApproval:
+            break
+        }
+
+        operation = .removingHelper
+        appendEventLog(
+            "Dummy Ethernet helper removal requested for app settings reset.",
+            level: .debug
+        )
+
+        let removalStatus: DummyEthernetHelperRegistrationStatus
+        do {
+            removalStatus = try await helperRegistration.disable()
+        } catch {
+            refreshHelperRegistrationState()
+            let resetError = DummyEthernetSettingsResetError
+                .helperRemovalFailed(error.localizedDescription)
+            reportError(resetError.localizedDescription)
+            throw resetError
+        }
+        helperRegistrationStatus = removalStatus
+        guard removalStatus == .notRegistered || removalStatus == .notFound else {
+            let resetError = DummyEthernetSettingsResetError
+                .helperRemovalIncomplete
+            reportError(resetError.localizedDescription)
+            throw resetError
+        }
+
+        runtimeState = nil
+        resetPersistedInput()
+        appendEventLog(
+            "Dummy Ethernet configuration and privileged helper were removed for app settings reset.",
+            level: .info
+        )
+    }
+
+    private func resetPersistedInput() {
         configurationInput = DummyEthernetConfiguration(
             hostIPv4Address: ThruRNDISDummyEthernet.defaultHostIPv4Address,
             memberInterfaceName:
@@ -470,7 +555,7 @@ final class DummyEthernetStore: ObservableObject {
         defaults.removeObject(forKey: DefaultsKey.memberInterfaceName)
         defaults.removeObject(forKey: DefaultsKey.peerInterfaceName)
         appendEventLog(
-            "Reset the Dummy Ethernet inputs without changing network state.",
+            "Reset the Dummy Ethernet inputs to defaults.",
             level: .debug
         )
     }
@@ -569,5 +654,48 @@ final class DummyEthernetStore: ObservableObject {
         static let hostIPv4Address = "DummyEthernet.hostIPv4Address"
         static let memberInterfaceName = "DummyEthernet.memberInterfaceName"
         static let peerInterfaceName = "DummyEthernet.peerInterfaceName"
+    }
+}
+
+private enum DummyEthernetSettingsResetError: LocalizedError {
+    case operationInProgress
+    case helperUpdateRequired
+    case helperStatusUnavailable
+    case stopFailed(String)
+    case stopIncomplete
+    case helperRemovalFailed(String)
+    case helperRemovalIncomplete
+
+    var errorDescription: String? {
+        switch self {
+        case .operationInProgress:
+            String(
+                localized: "Wait for the current Dummy Ethernet operation to finish."
+            )
+        case .helperUpdateRequired:
+            String(
+                localized: "Reinstall the Dummy Ethernet privileged helper before resetting app settings."
+            )
+        case .helperStatusUnavailable:
+            String(
+                localized: "Refresh the helper status before managing Dummy Ethernet."
+            )
+        case .stopFailed(let detail):
+            String(
+                localized: "Could not stop Dummy Ethernet while resetting app settings: \(detail)"
+            )
+        case .stopIncomplete:
+            String(
+                localized: "Dummy Ethernet did not stop while resetting app settings."
+            )
+        case .helperRemovalFailed(let detail):
+            String(
+                localized: "Could not remove the Dummy Ethernet privileged helper while resetting app settings: \(detail)"
+            )
+        case .helperRemovalIncomplete:
+            String(
+                localized: "The Dummy Ethernet privileged helper remained registered during the settings reset."
+            )
+        }
     }
 }
