@@ -70,8 +70,17 @@ WireGuard-over-VZNAT architecture as the baseline.
 - `DummyEthernetStore` is an independent `AppDelegate`-owned presentation store.
   `AppDelegate` passes it separately to `OnboardingWindowController` for helper
   permission management, and to `SettingsWindowController` and
-  `MenuBarController`; do not inject it into `TetheringStore`, USB attach, VM
-  start, or WireGuard auto-connect flows. The app-wide Reset All
+  `MenuBarController`. It also gives `TetheringStore` a narrow async preparation
+  closure rather than injecting the store itself. Every app-managed WireGuard
+  connection requested from the USB prompt or USB auto-connect path uses that
+  closure to start Dummy Ethernet and wait until it is active before starting
+  the host tunnel, then stops Dummy Ethernet only after the tunnel reports that
+  it is connected. The normal-mode menu bar uses the same prepared connection
+  path, while Settings and the debug-mode menu bar keep the direct WireGuard
+  connection path and require Dummy Ethernet to be managed separately. A failed
+  preparation must prevent the WireGuard start, and an unsuccessful tunnel start
+  must not trigger automatic Dummy Ethernet cleanup. Do not inject Dummy
+  Ethernet into USB attach or VM start flows. The app-wide Reset All
   Settings workflow first completes the `TetheringStore` reset, then asks
   `DummyEthernetStore` to stop its managed configuration and unregister the
   privileged helper before clearing the remaining selection and relaunching.
@@ -252,11 +261,15 @@ ThruRNDIS WireGuardKit Network System Extension
   to provide a synthetic satisfied wired-Ethernet path for network-path
   evaluation. When macOS has no active network connection, the app-managed
   WireGuard setup requires Dummy Ethernet to provide that satisfied path.
-  Dummy Ethernet is not required when the user configures WireGuard manually.
-  This conditional requirement is limited to setup and network-path evaluation:
+  WireGuard connections accepted through the USB prompt, requested by USB
+  auto-connect, or started from the normal-mode menu bar ensure Dummy Ethernet
+  is active first and stop it after the host tunnel reaches the connected state.
+  Connections started from Settings or the debug-mode menu bar keep Dummy
+  Ethernet as a separate manual configuration. This requirement is limited to
+  setup and network-path evaluation:
   Dummy Ethernet remains independent of the tethering data path, does not
-  provide connectivity, forwarding, DNS, or NAT, and must remain a manual
-  Start/Stop/Restart action rather than part of USB or WireGuard auto-connect.
+  provide connectivity, forwarding, DNS, or NAT, and retains its manual
+  Start/Stop/Restart controls in addition to the automatic WireGuard prerequisite.
   The explicit Reset All Settings action is the sole additional cleanup path:
   it stops the managed configuration, unregisters the helper, and restores the
   persisted Dummy Ethernet inputs to defaults.
@@ -712,16 +725,22 @@ xcrun notarytool store-credentials "thrurndis-notary"
   Connect, Disconnect, and Refresh controls. Keep `.conf` copy/save as a
   diagnostic fallback; do not hand the persistent private-key files to the
   provider or store plaintext configuration in preferences.
-- Dummy Ethernet network configuration must remain an explicit manual Settings
-  workflow. Onboarding may show and manage only its privileged-helper permission;
+- Dummy Ethernet configuration remains Settings-owned with explicit manual
+  Start/Stop/Restart controls. USB-prompt, USB auto-connect, and normal-mode
+  menu-bar WireGuard requests are the only additional start paths and must wait
+  for Dummy Ethernet to become active before starting the tunnel, then stop it
+  only after the tunnel reports that it is connected. Settings and debug-mode
+  menu-bar WireGuard requests use the direct connection path and do not start or
+  stop Dummy Ethernet. Onboarding may show and manage only its privileged-helper
+  permission;
   showing the current helper registration and network state at launch is allowed.
   Initial helper registration requires the explicit Install action, and replacing
   the app bundle requires an explicit Reinstall action, or explicit Remove and
   Install actions, when the registered helper identity changes. Refresh and
   Start/Stop/Restart must never repair registration automatically.
-  Do not create or remove network objects without a user's Start/Stop/Restart
-  action, except that a confirmed Reset All Settings action removes the managed
-  configuration before unregistering the helper. A Login
+  Do not remove network objects without a user's Stop/Restart action, except
+  that a confirmed Reset All Settings action removes the managed configuration
+  before unregistering the helper. A Login
   Items approval-required result is a visible recoverable state, not permission
   to bypass `SMAppService` or elevate through another mechanism.
 - AccessoryAccess monitoring remains stopped while onboarding is presented. It

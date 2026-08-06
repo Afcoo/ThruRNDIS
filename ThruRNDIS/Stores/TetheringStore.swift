@@ -36,8 +36,13 @@ final class TetheringStore: ObservableObject {
     private let vmCoordinator: any VMCoordinating
     private let usbCoordinator: any USBAccessoryCoordinating
     private let assetProvider: VMAssetProviding
+    private let prepareDummyEthernetForWireGuardConnection:
+        (@MainActor () async -> Bool)?
+    private let deactivateDummyEthernetAfterWireGuardConnection:
+        (@MainActor () -> Void)?
     private let runtimeEntitlementSnapshotProvider: () -> RuntimeEntitlementSnapshot
     private var pendingWireGuardConnectionAccessoryID: UInt64?
+    private var automaticWireGuardConnectionTask: Task<Void, Never>?
     private var isPreparingForApplicationTermination = false
     private var didRequestLaunchAccessoryMonitoring = false
     private var shouldResumeAccessoryMonitoringAfterOnboarding = false
@@ -208,6 +213,10 @@ final class TetheringStore: ObservableObject {
         vmConfiguration: VMConfigurationStore,
         wireGuardSession: WireGuardSessionStore,
         appPreferences: AppPreferencesStore,
+        prepareDummyEthernetForWireGuardConnection:
+            (@MainActor () async -> Bool)? = nil,
+        deactivateDummyEthernetAfterWireGuardConnection:
+            (@MainActor () -> Void)? = nil,
         runtimeEntitlementSnapshotProvider: @escaping () -> RuntimeEntitlementSnapshot = {
             .current
         }
@@ -215,6 +224,10 @@ final class TetheringStore: ObservableObject {
         self.assetProvider = assetProvider
         self.vmCoordinator = vmCoordinator
         self.usbCoordinator = usbCoordinator
+        self.prepareDummyEthernetForWireGuardConnection =
+            prepareDummyEthernetForWireGuardConnection
+        self.deactivateDummyEthernetAfterWireGuardConnection =
+            deactivateDummyEthernetAfterWireGuardConnection
         self.runtimeEntitlementSnapshotProvider = runtimeEntitlementSnapshotProvider
         self.eventLog = eventLog
         self.consoleSession = consoleSession
@@ -708,6 +721,7 @@ final class TetheringStore: ObservableObject {
             level: .debug,
             category: .application
         )
+        cancelAutomaticWireGuardConnection(reason: "application termination")
         pendingWireGuardConnectionAccessoryID = nil
         wireGuardConnectionPrompt = nil
         await wireGuardSession.prepareForApplicationTermination(
@@ -793,7 +807,8 @@ final class TetheringStore: ObservableObject {
         wireGuardSession.openSystemExtensionSettings()
     }
 
-    func connectHostWireGuardTunnel() {
+    @discardableResult
+    func connectHostWireGuardTunnel() -> Bool {
         refreshRuntimeEntitlements()
 
         guard runtimeState == .running, vmCoordinator.canSendConsoleInput else {
@@ -803,10 +818,10 @@ final class TetheringStore: ObservableObject {
                 level: .warning,
                 category: .wireGuard
             )
-            return
+            return false
         }
         guard wireGuardSession.validateConnectionInputs() else {
-            return
+            return false
         }
         guard runtimeEntitlements.packetTunnelProvider else {
             reportMissingEntitlement(
@@ -815,7 +830,7 @@ final class TetheringStore: ObservableObject {
                 category: .wireGuard
             )
             wireGuardSession.updateHostTunnelStatus(.missingPacketTunnelEntitlement)
-            return
+            return false
         }
         guard runtimeEntitlements.systemExtensionInstall else {
             reportMissingEntitlement(
@@ -826,10 +841,68 @@ final class TetheringStore: ObservableObject {
             wireGuardSession.updateHostTunnelStatus(
                 .missingSystemExtensionInstallEntitlement
             )
+            return false
+        }
+
+        return wireGuardSession.connect()
+    }
+
+    func connectHostWireGuardTunnelWithAutomaticDummyEthernet() {
+        guard canConnectHostWireGuardTunnel else {
+            return
+        }
+        guard let prepareDummyEthernetForWireGuardConnection else {
+            connectHostWireGuardTunnel()
+            return
+        }
+        guard automaticWireGuardConnectionTask == nil else {
             return
         }
 
-        _ = wireGuardSession.connect()
+        appendEventLog(
+            "Preparing Dummy Ethernet before starting the Host WireGuard tunnel.",
+            level: .debug,
+            category: .wireGuard
+        )
+        automaticWireGuardConnectionTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer { self.automaticWireGuardConnectionTask = nil }
+            let isDummyEthernetActive =
+                await prepareDummyEthernetForWireGuardConnection()
+
+            guard !Task.isCancelled else { return }
+            guard isDummyEthernetActive else {
+                self.appendEventLog(
+                    "Host WireGuard tunnel not started: Dummy Ethernet did not become active.",
+                    level: .error,
+                    category: .wireGuard
+                )
+                return
+            }
+
+            self.refreshRuntimeEntitlements()
+            guard self.canConnectHostWireGuardTunnel else { return }
+            guard self.connectHostWireGuardTunnel() else { return }
+
+            for await status in self.wireGuardSession.$hostTunnelStatus.values {
+                guard !Task.isCancelled else { return }
+
+                switch status {
+                case .connected:
+                    self.appendEventLog(
+                        "Host WireGuard tunnel connected; stopping automatically prepared Dummy Ethernet.",
+                        level: .debug,
+                        category: .wireGuard
+                    )
+                    self.deactivateDummyEthernetAfterWireGuardConnection?()
+                    return
+                case .failed, .disconnecting:
+                    return
+                default:
+                    continue
+                }
+            }
+        }
     }
 
     func disconnectHostWireGuardTunnel() {
@@ -886,6 +959,7 @@ final class TetheringStore: ObservableObject {
         isResettingAppSettings = true
         defer { isResettingAppSettings = false }
 
+        cancelAutomaticWireGuardConnection(reason: "app settings reset")
         guard await wireGuardSession.disconnectAndWait() else {
             resetStatusMessage = String(
                 localized: "Could not stop the WireGuard tunnel before resetting app settings."
@@ -1155,10 +1229,11 @@ final class TetheringStore: ObservableObject {
             level: .debug,
             category: .wireGuard
         )
-        connectHostWireGuardTunnel()
+        connectHostWireGuardTunnelWithAutomaticDummyEthernet()
     }
 
     private func cancelPendingWireGuardConnection(reason: String) {
+        cancelAutomaticWireGuardConnection(reason: reason)
         guard let accessoryID = pendingWireGuardConnectionAccessoryID
                 ?? wireGuardConnectionPrompt?.accessory.id else {
             return
@@ -1169,6 +1244,19 @@ final class TetheringStore: ObservableObject {
         appendEventLog(
             "Pending WireGuard connection cancelled for USB registry " +
                 "\(Self.registryIDText(accessoryID)): \(reason).",
+            level: .debug,
+            category: .wireGuard
+        )
+    }
+
+    private func cancelAutomaticWireGuardConnection(reason: String) {
+        guard let task = automaticWireGuardConnectionTask else {
+            return
+        }
+
+        task.cancel()
+        appendEventLog(
+            "Pending automatic Host WireGuard connection cancelled: \(reason).",
             level: .debug,
             category: .wireGuard
         )

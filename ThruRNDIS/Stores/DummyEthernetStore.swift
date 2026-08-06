@@ -385,20 +385,53 @@ final class DummyEthernetStore: ObservableObject {
 
     func start() {
         guard !isOperationInProgress else { return }
+        Task { @MainActor [weak self] in
+            _ = await self?.startAndWaitUntilActive()
+        }
+    }
+
+    @discardableResult
+    func startAndWaitUntilActive() async -> Bool {
+        while isOperationInProgress {
+            do {
+                try await Task.sleep(for: .milliseconds(50))
+            } catch {
+                return false
+            }
+        }
+
+        guard runtimeState != .active else { return true }
         refreshHelperRegistrationState()
         guard helperIsAvailable else {
             reportError("Dummy Ethernet start failed: helper unavailable.")
-            return
+            return false
         }
         guard let configuration = validatedConfiguration else {
             let message = configurationErrorMessage
                 ?? String(localized: "Enter a valid Dummy Ethernet configuration.")
             reportError("Dummy Ethernet start failed: \(message)")
-            return
+            return false
         }
 
-        performNetworkOperation(.starting) { manager in
-            try await manager.start(configuration: configuration)
+        operation = .starting
+        appendEventLog(
+            "Dummy Ethernet start requested.",
+            level: .debug
+        )
+        defer { operation = nil }
+
+        do {
+            let snapshot = try await networkManager.start(
+                configuration: configuration
+            )
+            applySnapshot(snapshot)
+            appendCompletionEvent(for: .starting, snapshot: snapshot)
+            return snapshot.state == .active
+        } catch {
+            reportError(
+                "Dummy Ethernet start failed: \(error.localizedDescription)"
+            )
+            return false
         }
     }
 

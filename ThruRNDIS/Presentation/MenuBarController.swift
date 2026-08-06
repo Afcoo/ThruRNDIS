@@ -819,7 +819,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     @objc private func connectWireGuard() {
-        store.connectHostWireGuardTunnel()
+        if currentPresentationMode == .normal {
+            store.connectHostWireGuardTunnelWithAutomaticDummyEthernet()
+        } else {
+            store.connectHostWireGuardTunnel()
+        }
     }
 
     @objc private func disconnectWireGuard() {

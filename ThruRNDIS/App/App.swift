@@ -99,7 +99,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         usbSession: usbSession,
         vmConfiguration: vmConfiguration,
         wireGuardSession: wireGuardSession,
-        appPreferences: appPreferences
+        appPreferences: appPreferences,
+        prepareDummyEthernetForWireGuardConnection: { [weak self] in
+            guard let self else { return false }
+            return await self.dummyEthernet.startAndWaitUntilActive()
+        },
+        deactivateDummyEthernetAfterWireGuardConnection: { [weak self] in
+            self?.dummyEthernet.stop()
+        }
     )
 
     private var menuBarController: MenuBarController?
