@@ -128,43 +128,6 @@ enum VMAssetInstallStage {
     case extracting
 }
 
-protocol VMAssetReleaseServing {
-    func fetchLatestRelease() async throws -> VMAssetReleaseDescriptor
-}
-
-protocol VMAssetDownloading {
-    func download(
-        release: VMAssetReleaseDescriptor,
-        operationID: UUID,
-        progress: @escaping (Double) -> Void
-    ) async throws -> DownloadedVMAssetPackage
-    func discardStagingData(for operationID: UUID)
-}
-
-protocol VMAssetInstalling {
-    func installedRelease(matching release: VMAssetReleaseDescriptor) throws -> InstalledVMAssetRelease?
-    func installedReleases() throws -> [InstalledVMAssetRelease]
-    func install(
-        package: DownloadedVMAssetPackage,
-        progress: @escaping (VMAssetInstallStage) -> Void
-    ) async throws -> InstalledVMAssetRelease
-    func removeInstalledRelease(_ release: InstalledVMAssetRelease) throws
-    func pruneInstalledReleases(
-        keeping release: InstalledVMAssetRelease,
-        preserving protectedDirectoryURL: URL?
-    ) throws
-}
-
-protocol VMAssetSelectionStoring {
-    func restoreSelection() throws -> VMAssetSelection?
-    func selectManualFolder(_ directoryURL: URL) throws -> VMAssetSelection
-    func selectManagedRelease(_ release: InstalledVMAssetRelease) throws -> VMAssetSelection
-    func setKernelOverride(_ url: URL?, for selection: VMAssetSelection) throws -> VMAssetSelection
-    func setInitialRamdiskOverride(_ url: URL?, for selection: VMAssetSelection) throws -> VMAssetSelection
-    func validate(_ selection: VMAssetSelection) throws -> VMAssetBootAssets
-    func clearSelection()
-}
-
 @MainActor
 protocol VMAssetProviding: AnyObject {
     var hasConfiguredAssets: Bool { get }

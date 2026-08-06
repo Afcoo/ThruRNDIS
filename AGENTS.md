@@ -125,7 +125,7 @@ WireGuard-over-VZNAT architecture as the baseline.
   execute `ifconfig`, `networksetup`, `scutil`, or `route` itself.
 - `VMAssetWorkflowCoordinator` is the `@MainActor` workflow owner for the current
   selection, installed releases, install state, progress, errors, cancellation,
-  and stale-operation protection. It orchestrates protocol-injected release,
+  and stale-operation protection. It orchestrates the concrete release,
   download, install, and selection services; do not put `URLSession`,
   `FileManager`, `Process`, or hashing work directly in the coordinator.
 - `GitHubVMAssetReleaseService` resolves the latest published release and
@@ -387,22 +387,29 @@ ThruRNDIS WireGuardKit Network System Extension
   values and stateless namespaces; use `final class` for identity, mutable
   lifecycle, delegate, or observable state owners. UI-facing observable owners
   belong on `@MainActor`.
-- Name protocol boundaries for the capability they provide, normally with an
-  `-ing` form such as `VMCoordinating`, `USBAccessoryMonitoring`,
-  `VMAssetDownloading`, or `VMAssetSelectionStoring`. Add a protocol boundary
-  only when a layer or test needs substitution; do not create one solely to
-  mirror every concrete type.
+- Name protocol boundaries for the production capability they provide, normally
+  with an `-ing` form such as `VMAssetProviding`. Add a protocol boundary only
+  when the runtime architecture requires abstraction; do not create one solely
+  to mirror a concrete type or prepare for possible testing.
 - Name a Swift source file after its primary type and normally keep one primary
   responsibility per file. Private helper types may remain beside that owner.
   Closely related domain values and shared boundaries may use an umbrella file
   such as `VMAssetModels.swift` or `RuntimeEntitlements.swift`. Name focused
   extensions `ExtendedType+Concern.swift`, for example
   `NETunnelProviderProtocol+ThruRNDIS.swift`.
-- Name XCTest case types and focused files with the `Tests` suffix, and test
-  methods with a behavior-oriented `test...` name. A file may group several
-  tightly related test cases under one layer-oriented subject, as
-  `SessionStoreTests.swift` and `VMAssetServiceTests.swift` do; move a test when
-  its subject no longer belongs to that layer.
+
+## Test Creation Policy
+
+- This repository intentionally has no automated test target, test source tree,
+  test fixtures, test doubles, or production protocols created only for tests.
+- Do not create or restore any test target, test source, fixture, mock, stub,
+  fake, test-support utility, or test-only protocol unless the user gives
+  separate, explicit instructions for the test configuration to build.
+- A request to add, change, refactor, debug, or fix production behavior does not
+  implicitly authorize test creation. Validate those changes with the relevant
+  compile or build command and report that no automated test suite is configured.
+- When the user explicitly defines a new test approach, follow that direction
+  and update this section and the project structure to match it.
 
 ## SwiftUI Presentation
 
@@ -454,10 +461,9 @@ target membership, and build phase as applicable.
   `ManagedWireGuardConnectionCoordinator` owns Dummy Ethernet preparation and
   cleanup around an app-managed WireGuard connection, and
   `VMAssetWorkflowCoordinator` owns VM Asset installation and selection workflow
-  state. `VMCoordinating` remains a
-  protocol boundary because tests provide a replacement implementation;
-  `USBAccessoryCoordinator` stays concrete until a narrower tested boundary is
-  required.
+  state. `VMCoordinator` and `USBAccessoryCoordinator` are concrete production
+  dependencies; do not add protocol mirrors for them without a production
+  architecture requirement.
 - `ThruRNDIS/Stores`: `@MainActor`/observable UI-facing state owners.
   `TetheringStore` exposes the app-facing observable facade, `EventLogStore` owns the
   bounded in-memory app event log and view filters, `ConsoleSessionStore` owns VM
@@ -496,9 +502,6 @@ target membership, and build phase as applicable.
 - `ThruRNDIS/Resources`: app-bundle resources such as localization catalogs and
   onboarding media. Keep app and menu-bar icon sources under the existing
   `ThruRNDIS.icon` asset folder and `ThruRNDISMenuBarIcon.svg` location.
-- `ThruRNDISTests`: mirrors production ownership where tests exist, including
-  `Coordinators`, `Persistence`, `Services`, `Stores`, and `Support`. Cross-layer
-  fixtures and reusable test doubles live in `TestSupport`.
 - `Configuration`: checked-in shared build settings and the local-signing
   template. The privileged-helper identifier derives from the app identifier in
   `BuildSettings.xcconfig`; do not add a helper provisioning-profile setting.

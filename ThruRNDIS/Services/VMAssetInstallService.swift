@@ -49,18 +49,18 @@ enum VMAssetInstallError: LocalizedError {
     }
 }
 
-final class VMAssetInstallService: VMAssetInstalling {
+final class VMAssetInstallService {
     private let fileManager: FileManager
     private let layout: VMAssetStorageLayout
     private let resolver: VMAssetFolderResolver
-    private let processRunner: VMAssetProcessRunning
+    private let processRunner: VMAssetProcessRunner
     private let now: () -> Date
 
     init(
         fileManager: FileManager = .default,
         layout: VMAssetStorageLayout = VMAssetStorageLayout(),
         resolver: VMAssetFolderResolver = VMAssetFolderResolver(),
-        processRunner: VMAssetProcessRunning = VMAssetProcessRunner(),
+        processRunner: VMAssetProcessRunner = VMAssetProcessRunner(),
         now: @escaping () -> Date = Date.init
     ) {
         self.fileManager = fileManager
@@ -522,11 +522,7 @@ struct VMAssetProcessResult {
     }
 }
 
-protocol VMAssetProcessRunning {
-    func run(executableURL: URL, arguments: [String]) async throws -> VMAssetProcessResult
-}
-
-final class VMAssetProcessRunner: VMAssetProcessRunning {
+final class VMAssetProcessRunner {
     func run(executableURL: URL, arguments: [String]) async throws -> VMAssetProcessResult {
         let execution = VMAssetProcessExecution()
         return try await withTaskCancellationHandler {

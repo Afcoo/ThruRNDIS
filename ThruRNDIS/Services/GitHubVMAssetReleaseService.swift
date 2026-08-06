@@ -35,7 +35,7 @@ enum VMAssetReleaseServiceError: LocalizedError {
     }
 }
 
-final class GitHubVMAssetReleaseService: VMAssetReleaseServing {
+final class GitHubVMAssetReleaseService {
     static let latestReleaseURL = URL(
         string: "https://api.github.com/repos/Afcoo/ThruRNDIS_VM_Assets/releases/latest"
     )!

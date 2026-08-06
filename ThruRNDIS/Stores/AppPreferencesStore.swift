@@ -49,15 +49,14 @@ final class AppPreferencesStore: ObservableObject {
     @Published private(set) var launchAtLoginSnapshot: LaunchAtLoginSnapshot
     @Published private(set) var launchAtLoginStatusMessage = ""
 
-    private let launchAtLoginService: any LaunchAtLoginManaging
+    private let launchAtLoginService: LaunchAtLoginService
     private let defaults: UserDefaults
     private var isResettingPersistedValues = false
 
     init(
-        launchAtLoginService: (any LaunchAtLoginManaging)? = nil,
+        launchAtLoginService: LaunchAtLoginService = LaunchAtLoginService(),
         defaults: UserDefaults = .standard
     ) {
-        let launchAtLoginService = launchAtLoginService ?? LaunchAtLoginService()
         self.launchAtLoginService = launchAtLoginService
         self.defaults = defaults
         self.isDebugModeEnabled = defaults.bool(

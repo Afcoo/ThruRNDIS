@@ -12,27 +12,12 @@ private struct ConnectionObservationContext: Equatable {
 }
 
 @MainActor
-protocol HostWireGuardTunnelControlling: AnyObject {
-    var onStatusChange: ((HostWireGuardTunnelStatus) -> Void)? { get set }
-    var onSystemExtensionStatusChange: ((WireGuardSystemExtensionStatus) -> Void)? { get set }
-    var onEventLog: EventLogHandler? { get set }
-
-    func refreshStatus() async
-    func refreshSystemExtensionStatus() async
-    func activateSystemExtension() async
-    func invalidateSystemExtensionOperations()
-    func connect(wgQuickConfiguration: String) async
-    @discardableResult func disconnect(waitUntilStopped: Bool) async -> Bool
-    @discardableResult func removeSavedTunnelIfNeeded() async -> Bool
-}
-
-@MainActor
-final class HostWireGuardTunnelController: HostWireGuardTunnelControlling {
+final class HostWireGuardTunnelController {
     var onStatusChange: ((HostWireGuardTunnelStatus) -> Void)?
     var onSystemExtensionStatusChange: ((WireGuardSystemExtensionStatus) -> Void)?
     var onEventLog: EventLogHandler?
 
-    private let systemExtensionActivator: any WireGuardSystemExtensionActivating
+    private let systemExtensionActivator: WireGuardSystemExtensionActivator
     private var vpnStatusObserverToken: NSObjectProtocol?
     private var activeOperationID = UUID()
     private var currentStatus: HostWireGuardTunnelStatus = .unconfigured
@@ -46,7 +31,7 @@ final class HostWireGuardTunnelController: HostWireGuardTunnelControlling {
     ] = [:]
 
     init(
-        systemExtensionActivator: any WireGuardSystemExtensionActivating
+        systemExtensionActivator: WireGuardSystemExtensionActivator
     ) {
         self.systemExtensionActivator = systemExtensionActivator
         vpnStatusObserverToken = NotificationCenter.default.addObserver(

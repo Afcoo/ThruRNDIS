@@ -13,10 +13,10 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
 
     var onEventLog: EventLogHandler?
 
-    private let releaseService: VMAssetReleaseServing
-    private let downloadService: VMAssetDownloading
-    private let installService: VMAssetInstalling
-    private let selectionStore: VMAssetSelectionStoring
+    private let releaseService: GitHubVMAssetReleaseService
+    private let downloadService: VMAssetDownloadService
+    private let installService: VMAssetInstallService
+    private let selectionStore: VMAssetSelectionStore
     private var eventLogErrorDescription: String?
     private var operationTask: Task<Void, Never>?
     private var operationID: UUID?
@@ -41,10 +41,10 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
     }
 
     init(
-        releaseService: VMAssetReleaseServing,
-        downloadService: VMAssetDownloading,
-        installService: VMAssetInstalling,
-        selectionStore: VMAssetSelectionStoring
+        releaseService: GitHubVMAssetReleaseService,
+        downloadService: VMAssetDownloadService,
+        installService: VMAssetInstallService,
+        selectionStore: VMAssetSelectionStore
     ) {
         self.releaseService = releaseService
         self.downloadService = downloadService

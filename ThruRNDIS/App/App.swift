@@ -5,16 +5,6 @@ Copyright (C) 2026 Afcoo.
 import AppKit
 import Combine
 
-private enum AppExecutionEnvironment {
-    static var isRunningUnderXCTest: Bool {
-        let environment = ProcessInfo.processInfo.environment
-        return environment["XCTestConfigurationFilePath"] != nil
-            || environment["XCTestBundlePath"] != nil
-            || environment["XCTestSessionIdentifier"] != nil
-            || NSClassFromString("XCTestCase") != nil
-    }
-}
-
 @main
 enum App {
     @MainActor
@@ -121,18 +111,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var resetAndRestartTask: Task<Void, Never>?
     private let applicationRelaunchService = ApplicationRelaunchService()
     private var isPreparedForResetRelaunchTermination = false
-    private let isRunningUnderXCTest: Bool
-
-    override init() {
-        self.isRunningUnderXCTest = AppExecutionEnvironment.isRunningUnderXCTest
-        super.init()
-    }
-
     func applicationDidFinishLaunching(_ notification: Notification) {
-        guard !isRunningUnderXCTest else {
-            return
-        }
-
         NSApp.setActivationPolicy(.accessory)
 
         assetWorkflowCoordinator.onEventLog = { [weak self] message, level in
@@ -241,10 +220,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard !isRunningUnderXCTest else {
-            return .terminateNow
-        }
-
         guard !isPreparedForResetRelaunchTermination else {
             return .terminateNow
         }
@@ -282,9 +257,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {
-        guard !isRunningUnderXCTest else {
-            return
-        }
         appPreferences.refreshLaunchAtLoginStatus()
         store.refreshWireGuardSystemExtensionStatus()
         store.dummyEthernet.refresh()

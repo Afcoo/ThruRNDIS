@@ -5,16 +5,6 @@ Copyright (C) 2026 Afcoo.
 import Foundation
 @preconcurrency import SystemExtensions
 
-@MainActor
-protocol WireGuardSystemExtensionActivating: AnyObject {
-    var onEventLog: EventLogHandler? { get set }
-    var onActivationNeedsUserApproval: (() -> Void)? { get set }
-
-    func status(bundleIdentifier: String) async throws -> WireGuardSystemExtensionStatus
-    func activate(bundleIdentifier: String) async throws
-    func cancelPendingRequests()
-}
-
 struct WireGuardSystemExtensionPropertySnapshot: Equatable {
     let isEnabled: Bool
     let isAwaitingUserApproval: Bool
@@ -22,7 +12,7 @@ struct WireGuardSystemExtensionPropertySnapshot: Equatable {
 }
 
 @MainActor
-final class WireGuardSystemExtensionActivator: NSObject, WireGuardSystemExtensionActivating {
+final class WireGuardSystemExtensionActivator: NSObject {
     var onEventLog: EventLogHandler?
     var onActivationNeedsUserApproval: (() -> Void)?
 

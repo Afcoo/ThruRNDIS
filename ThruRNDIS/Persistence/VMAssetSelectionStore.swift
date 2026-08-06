@@ -4,7 +4,7 @@ Copyright (C) 2026 Afcoo.
 
 import Foundation
 
-struct VMAssetSelectionStore: VMAssetSelectionStoring {
+struct VMAssetSelectionStore {
     private let defaults: UserDefaults
     private let resolver: VMAssetFolderResolver
 

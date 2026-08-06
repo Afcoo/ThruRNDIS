@@ -67,18 +67,19 @@ The normal minimum verification after a code change is:
 ./script/build_and_run.sh --verify
 ```
 
-Run relevant XCTest coverage for the code you change. Real USB passthrough,
-Virtualization, Network System Extension activation, and WireGuard runtime
-validation require the signed Runtime build, approved entitlements, and
-appropriate hardware:
+The repository currently has no automated test target. Do not add test code or
+test-only production abstractions without a separately defined test plan. Real
+USB passthrough, Virtualization, Network System Extension activation, and
+WireGuard runtime validation require the signed Runtime build, approved
+entitlements, and appropriate hardware:
 
 ```sh
 ./script/build_and_install.sh
 ```
 
-Do not treat unavailable signing as a blocker for compile, UI, documentation,
-or unit-test work. Clearly state which checks were run and which runtime paths
-were not verified.
+Do not treat unavailable signing as a blocker for compile, UI, or documentation
+work. Clearly state which checks were run and which runtime paths were not
+verified.
 
 The full Developer ID, notarization, and DMG workflow is required only for a
 public release:
