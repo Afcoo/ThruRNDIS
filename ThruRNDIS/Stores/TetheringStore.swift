@@ -775,6 +775,10 @@ final class TetheringStore: ObservableObject {
         await wireGuardSession.prepareForApplicationTermination(
             disconnectTunnel: disconnectWireGuard
         )
+        if let managedDummyEthernet {
+            _ = await managedDummyEthernet
+                .stopForApplicationTerminationIfNeeded()
+        }
         usbCoordinator.prepareForIntentionalVMStop()
         vmCoordinator.invalidate()
         await withCheckedContinuation { continuation in

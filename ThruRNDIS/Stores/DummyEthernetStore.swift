@@ -250,6 +250,41 @@ final class DummyEthernetStore: ObservableObject {
             return false
         }
 
+        return await stopManagedConfiguration(
+            requestMessage: "Dummy Ethernet stop requested."
+        )
+    }
+
+    @discardableResult
+    func stopForApplicationTerminationIfNeeded() async -> Bool {
+        guard await waitUntilCurrentOperationFinishes(),
+              !Task.isCancelled else {
+            return false
+        }
+
+        let hadManagedConfiguration = hasManagedConfiguration
+        helper.refresh()
+        guard helper.isAvailable else {
+            guard hadManagedConfiguration else {
+                return true
+            }
+            reportError(
+                "Dummy Ethernet could not be stopped for application termination: helper unavailable."
+            )
+            return false
+        }
+        guard runtimeState != .inactive else {
+            return true
+        }
+
+        return await stopManagedConfiguration(
+            requestMessage: "Dummy Ethernet stop requested for application termination."
+        )
+    }
+
+    private func stopManagedConfiguration(
+        requestMessage: String
+    ) async -> Bool {
         helper.refresh()
         guard helper.isAvailable else {
             reportError("Dummy Ethernet stop failed: helper unavailable.")
@@ -257,10 +292,7 @@ final class DummyEthernetStore: ObservableObject {
         }
 
         operation = .stopping
-        appendEventLog(
-            "Dummy Ethernet stop requested.",
-            level: .debug
-        )
+        appendEventLog(requestMessage, level: .debug)
         defer { operation = nil }
 
         do {

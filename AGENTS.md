@@ -96,13 +96,16 @@ WireGuard-over-VZNAT architecture as the baseline.
   configuration and `DummyEthernetHelperStore` to unregister the privileged
   helper before `AppDelegate` clears the remaining selection and relaunches.
   A failed stop must leave the helper registered, and any Dummy Ethernet
-  cleanup failure must prevent relaunch. Until VM assets are configured and the
-  privileged helper is enabled, the menu bar omits all status and control
-  sections and presents only the relevant Settings guidance plus Settings and
-  Quit. Once both prerequisites are ready, the menu bar keeps all status items
-  in one leading section. Debug mode then orders its control sections as VM,
-  USB, WireGuard, and Dummy Ethernet, with a separator between sections; normal
-  mode omits VM and Dummy Ethernet controls. Debug-mode status and control order
+  cleanup failure must prevent relaunch. Normal application termination also
+  waits for any configured Dummy Ethernet operation and its stop request to
+  finish before `AppDelegate` allows the process to exit. Until VM assets are
+  configured and the privileged helper is enabled, the menu bar omits all status
+  and control sections and presents only the relevant Settings guidance plus
+  Settings and Quit. Once both prerequisites are ready, the menu bar keeps all
+  status items in one leading section. Debug mode then orders its control
+  sections as VM, USB, WireGuard, and Dummy Ethernet, with a separator between
+  sections; normal mode omits VM and Dummy Ethernet controls. Debug-mode status
+  and control order
   is VM, USB, WireGuard, then Dummy Ethernet. The normal-mode combined status
   evaluates only VM, USB, and WireGuard because Dummy Ethernet is stopped after
   establishing an automatically managed tunnel. In debug mode, a helper
@@ -284,9 +287,10 @@ ThruRNDIS WireGuardKit Network System Extension
   Dummy Ethernet remains independent of the tethering data path, does not
   provide connectivity, forwarding, DNS, or NAT, and retains its manual
   Start/Stop/Restart controls in addition to the automatic WireGuard prerequisite.
-  The explicit Reset All Settings action is the sole additional cleanup path:
-  it stops the managed configuration, unregisters the helper, and restores the
-  persisted Dummy Ethernet inputs to defaults.
+  Normal application termination waits for any configured Dummy Ethernet to
+  stop before quitting. The explicit Reset All Settings action additionally
+  unregisters the helper and restores the persisted Dummy Ethernet inputs to
+  defaults after stopping the managed configuration.
 - `SMAppService` registration is explicit. After a successful register request,
   record the embedded helper file's installation identity rather than only the
   app build number. Replacing an app bundle can leave the previous root helper
@@ -761,8 +765,9 @@ xcrun notarytool store-credentials "thrurndis-notary"
   Install actions, when the registered helper identity changes. Refresh and
   Start/Stop/Restart must never repair registration automatically.
   Do not remove network objects without a user's Stop/Restart action, except
-  that a confirmed Reset All Settings action removes the managed configuration
-  before unregistering the helper. A Login
+  that application termination stops the managed configuration before exit and
+  a confirmed Reset All Settings action removes it before unregistering the
+  helper. A Login
   Items approval-required result is a visible recoverable state, not permission
   to bypass `SMAppService` or elevate through another mechanism.
 - AccessoryAccess monitoring remains stopped while onboarding is presented. It
