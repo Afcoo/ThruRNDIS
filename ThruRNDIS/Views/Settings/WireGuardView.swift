@@ -104,12 +104,12 @@ struct WireGuardView: View {
                     Button("Disconnect") {
                         store.disconnectHostWireGuardTunnel()
                     }
-                    .disabled(!wireGuardSession.canDisconnectTunnel)
+                    .disabled(!store.canDisconnectHostWireGuardTunnel)
 
                     Button("Refresh") {
                         store.refreshHostWireGuardTunnelStatus()
                     }
-                    .disabled(wireGuardSession.hostTunnelStatus.isTransitioning)
+                    .disabled(!store.canRefreshHostWireGuardTunnelStatus)
 
                     Spacer()
 

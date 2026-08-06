@@ -89,25 +89,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         eventLog: eventLog
     )
     lazy var appPreferences = AppPreferencesStore()
-    lazy var dummyEthernet = DummyEthernetStore(eventLog: eventLog)
-    lazy var store = TetheringStore(
-        assetProvider: assetWorkflowCoordinator,
-        vmCoordinator: VMCoordinator(),
-        usbCoordinator: USBAccessoryCoordinator(monitor: USBAccessoryMonitor()),
-        eventLog: eventLog,
-        consoleSession: consoleSession,
-        usbSession: usbSession,
-        vmConfiguration: vmConfiguration,
-        wireGuardSession: wireGuardSession,
-        appPreferences: appPreferences,
-        prepareDummyEthernetForWireGuardConnection: { [weak self] in
-            guard let self else { return false }
-            return await self.dummyEthernet.startAndWaitUntilActive()
-        },
-        deactivateDummyEthernetAfterWireGuardConnection: { [weak self] in
-            self?.dummyEthernet.stopAfterCurrentOperation()
-        }
-    )
+    lazy var store: TetheringStore = {
+        let dummyEthernet = DummyEthernetStore(eventLog: eventLog)
+        return TetheringStore(
+            assetProvider: assetWorkflowCoordinator,
+            vmCoordinator: VMCoordinator(),
+            usbCoordinator: USBAccessoryCoordinator(
+                monitor: USBAccessoryMonitor()
+            ),
+            eventLog: eventLog,
+            consoleSession: consoleSession,
+            usbSession: usbSession,
+            vmConfiguration: vmConfiguration,
+            wireGuardSession: wireGuardSession,
+            appPreferences: appPreferences,
+            dummyEthernet: dummyEthernet
+        )
+    }()
 
     private var menuBarController: MenuBarController?
     private var settingsWindowController: SettingsWindowController?
@@ -116,6 +114,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var onboardingPresentationID: UUID?
     private var cancellables: Set<AnyCancellable> = []
     private var pendingTerminationApplication: NSApplication?
+    private var pendingResetTerminationApplication: NSApplication?
     private var didPrepareForTermination = false
     private var storeTerminationTask: Task<Void, Never>?
     private var eventLogTerminationTask: Task<Void, Never>?
@@ -148,7 +147,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         menuBarController = MenuBarController(
             store: store,
-            dummyEthernet: dummyEthernet,
             assetWorkflowCoordinator: assetWorkflowCoordinator,
             openSettings: { [weak self] in self?.showSettingsWindow() }
         )
@@ -176,7 +174,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .store(in: &cancellables)
 
-        store.$wireGuardConnectionPrompt
+        store.wireGuardSession.$wireGuardConnectionPrompt
             .sink { [weak self] prompt in
                 DispatchQueue.main.async { [weak self] in
                     guard let self else {
@@ -246,6 +244,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return .terminateNow
         }
 
+        if resetAndRestartTask != nil {
+            guard pendingResetTerminationApplication == nil else {
+                return .terminateLater
+            }
+            pendingResetTerminationApplication = sender
+            eventLog.append(
+                "Application termination will wait for the settings reset workflow.",
+                level: .debug,
+                category: .application
+            )
+            return .terminateLater
+        }
+
         guard pendingTerminationApplication == nil else {
             return .terminateLater
         }
@@ -271,7 +282,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         appPreferences.refreshLaunchAtLoginStatus()
         store.refreshWireGuardSystemExtensionStatus()
-        dummyEthernet.refresh()
+        store.dummyEthernet.refresh()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -282,7 +293,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if settingsWindowController == nil {
             settingsWindowController = SettingsWindowController(
                 store: store,
-                dummyEthernetStore: dummyEthernet,
                 assetWorkflowCoordinator: assetWorkflowCoordinator,
                 openConsole: { [weak self] in
                     self?.showConsoleWindow()
@@ -305,7 +315,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func resetAppSettingsAndRestart() {
-        guard resetAndRestartTask == nil else {
+        guard resetAndRestartTask == nil,
+              pendingTerminationApplication == nil,
+              pendingResetTerminationApplication == nil,
+              !didPrepareForTermination else {
             return
         }
 
@@ -315,14 +328,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             guard await self.store.resetAppSettings() else {
                 self.resetAndRestartTask = nil
+                self.cancelPendingTerminationDuringReset()
                 self.presentResetFailure()
-                return
-            }
-            do {
-                try await self.dummyEthernet.resetForAppSettings()
-            } catch {
-                self.resetAndRestartTask = nil
-                self.presentResetFailure(error.localizedDescription)
                 return
             }
             self.assetWorkflowCoordinator.clearSelection()
@@ -339,6 +346,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     category: .application
                 )
                 self.resetAndRestartTask = nil
+                self.cancelPendingTerminationDuringReset()
                 self.presentRestartFailure(error)
                 return
             }
@@ -356,8 +364,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self.didPrepareForTermination = true
             self.isPreparedForResetRelaunchTermination = true
             self.resetAndRestartTask = nil
-            NSApp.terminate(nil)
+            if let application = self.pendingResetTerminationApplication {
+                self.pendingResetTerminationApplication = nil
+                application.reply(toApplicationShouldTerminate: true)
+            } else {
+                NSApp.terminate(nil)
+            }
         }
+    }
+
+    private func cancelPendingTerminationDuringReset() {
+        guard let application = pendingResetTerminationApplication else {
+            return
+        }
+        pendingResetTerminationApplication = nil
+        application.reply(toApplicationShouldTerminate: false)
     }
 
     private func presentResetFailure(_ message: String? = nil) {
@@ -396,7 +417,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             onboardingWindowController?.close()
             onboardingWindowController = OnboardingWindowController(
                 store: store,
-                dummyEthernetStore: dummyEthernet,
                 assetWorkflowCoordinator: assetWorkflowCoordinator,
                 onFinish: { [weak self] in
                     self?.closeOnboardingWindow(presentationID: presentationID)

@@ -7,6 +7,7 @@ import SwiftUI
 struct InfoView: View {
     @EnvironmentObject private var store: TetheringStore
     @EnvironmentObject private var dummyEthernet: DummyEthernetStore
+    @EnvironmentObject private var dummyEthernetHelper: DummyEthernetHelperStore
     @EnvironmentObject private var assetWorkflowCoordinator: VMAssetWorkflowCoordinator
     @State private var resetConfirmation: ResetConfirmation?
     @State private var isOpenSourceAcknowledgementsPresented = false
@@ -38,6 +39,7 @@ struct InfoView: View {
                     .disabled(
                         !store.canResetAppSettings
                             || dummyEthernet.isOperationInProgress
+                            || dummyEthernetHelper.isOperationInProgress
                             || assetWorkflowCoordinator.isBusy
                     )
                 }

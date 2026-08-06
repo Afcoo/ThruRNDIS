@@ -6,10 +6,11 @@ import SwiftUI
 
 struct DummyEthernetView: View {
     @EnvironmentObject private var dummyEthernet: DummyEthernetStore
+    @EnvironmentObject private var helper: DummyEthernetHelperStore
 
     var body: some View {
         Form {
-            if !dummyEthernet.isSignedBuild {
+            if !helper.isSignedBuild {
                 Section {
                     Label(
                         "Dummy Ethernet is unavailable in this unsigned build.",
@@ -126,7 +127,7 @@ struct DummyEthernetView: View {
         title: String,
         appearance: SettingsStatusAppearance
     ) {
-        if let operation = dummyEthernet.networkStatusOperation {
+        if let operation = dummyEthernet.operation {
             return (operation.title, .transitioning)
         }
         guard let runtimeState = dummyEthernet.runtimeState else {

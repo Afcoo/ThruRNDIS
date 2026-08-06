@@ -6,6 +6,7 @@ import SwiftUI
 
 struct DummyEthernetHelperPermissionView: View {
     @EnvironmentObject private var dummyEthernet: DummyEthernetStore
+    @EnvironmentObject private var helper: DummyEthernetHelperStore
 
     var body: some View {
         Group {
@@ -22,14 +23,14 @@ struct DummyEthernetHelperPermissionView: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             HStack {
-                if dummyEthernet.isReinstallActionPresented {
+                if helper.isReinstallActionPresented {
                     Button("Reinstall") {
                         dummyEthernet.reinstallHelper()
                     }
                     .disabled(!dummyEthernet.canReinstallHelper)
                 } else {
                     Button("Install") {
-                        dummyEthernet.enableHelper()
+                        helper.enable()
                     }
                     .disabled(!dummyEthernet.canEnableHelper)
                 }
@@ -40,16 +41,16 @@ struct DummyEthernetHelperPermissionView: View {
                 .disabled(!dummyEthernet.canDisableHelper)
 
                 Button("Open Settings") {
-                    dummyEthernet.openLoginItemsSettings()
+                    helper.openSystemSettings()
                 }
                 .buttonStyle(.link)
 
                 Spacer()
 
                 Button("Refresh") {
-                    dummyEthernet.refresh()
+                    helper.refresh()
                 }
-                .disabled(dummyEthernet.isOperationInProgress)
+                .disabled(helper.isOperationInProgress)
             }
         }
     }
@@ -59,7 +60,7 @@ struct DummyEthernetHelperPermissionView: View {
         detail: LocalizedStringKey,
         appearance: SettingsStatusAppearance
     ) {
-        if let operation = dummyEthernet.helperStatusOperation {
+        if let operation = helper.operation {
             return (
                 operation.title,
                 "The privileged helper registration is being updated.",
@@ -67,7 +68,7 @@ struct DummyEthernetHelperPermissionView: View {
             )
         }
 
-        return switch dummyEthernet.helperRegistrationStatus {
+        return switch helper.registrationStatus {
         case .unknown:
             (
                 String(localized: "Unknown"),

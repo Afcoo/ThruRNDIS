@@ -11,7 +11,6 @@ final class SettingsWindowController: NSWindowController {
 
     init(
         store: TetheringStore,
-        dummyEthernetStore: DummyEthernetStore,
         assetWorkflowCoordinator: VMAssetWorkflowCoordinator,
         openConsole: @escaping () -> Void,
         resetAndRestart: @escaping () -> Void
@@ -37,7 +36,8 @@ final class SettingsWindowController: NSWindowController {
             .environmentObject(store.vmConfiguration)
             .environmentObject(store.wireGuardSession)
             .environmentObject(store.appPreferences)
-            .environmentObject(dummyEthernetStore)
+            .environmentObject(store.dummyEthernet)
+            .environmentObject(store.dummyEthernet.helper)
             .environmentObject(assetWorkflowCoordinator)
         let hostingController = NSHostingController(rootView: rootView)
         let window = NSWindow(contentViewController: hostingController)

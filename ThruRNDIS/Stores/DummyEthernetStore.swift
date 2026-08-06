@@ -6,14 +6,6 @@ import Combine
 import Foundation
 
 enum DummyEthernetOperation: String, Equatable {
-    enum StatusSection: Equatable {
-        case privilegedHelper
-        case dummyEthernet
-    }
-
-    case installingHelper = "helper install"
-    case reinstallingHelper = "helper reinstall"
-    case removingHelper = "helper removal"
     case refreshing = "refresh"
     case starting = "start"
     case restarting = "restart"
@@ -21,12 +13,6 @@ enum DummyEthernetOperation: String, Equatable {
 
     var title: String {
         switch self {
-        case .installingHelper:
-            String(localized: "Installing Helper…")
-        case .reinstallingHelper:
-            String(localized: "Reinstalling Helper…")
-        case .removingHelper:
-            String(localized: "Removing Helper…")
         case .refreshing:
             String(localized: "Refreshing…")
         case .starting:
@@ -37,25 +23,12 @@ enum DummyEthernetOperation: String, Equatable {
             String(localized: "Stopping…")
         }
     }
-
-    var statusSection: StatusSection {
-        switch self {
-        case .installingHelper, .reinstallingHelper, .removingHelper:
-            .privilegedHelper
-        case .refreshing, .starting, .restarting, .stopping:
-            .dummyEthernet
-        }
-    }
 }
 
 @MainActor
 final class DummyEthernetStore: ObservableObject {
-    private static let helperReregistrationDelay = Duration.seconds(2)
+    let helper: DummyEthernetHelperStore
 
-    let isSignedBuild: Bool
-
-    @Published private(set) var helperRegistrationStatus:
-        DummyEthernetHelperRegistrationStatus
     @Published private(set) var runtimeState: DummyEthernetNetworkState?
     @Published private(set) var operation: DummyEthernetOperation?
 
@@ -79,14 +52,17 @@ final class DummyEthernetStore: ObservableObject {
         }
     }
 
-    private let helperRegistration: DummyEthernetPrivilegedHelperRegistrationService
     private let networkManager: DummyEthernetPrivilegedHelperClient
     private let eventLog: EventLogStore
     private let defaults: UserDefaults
     private var configurationValidationResult:
         Result<DummyEthernetConfiguration, Error>
+    private var helperStatusCancellable: AnyCancellable?
 
-    init(eventLog: EventLogStore) {
+    init(
+        eventLog: EventLogStore,
+        helper: DummyEthernetHelperStore? = nil
+    ) {
         let defaults = UserDefaults.standard
         let configurationInput = DummyEthernetConfiguration(
             hostIPv4Address: defaults.string(
@@ -100,33 +76,38 @@ final class DummyEthernetStore: ObservableObject {
             ) ?? ThruRNDISDummyEthernet.defaultPeerInterfaceName
         )
 
-        helperRegistration = DummyEthernetPrivilegedHelperRegistrationService()
+        let helper = helper ?? DummyEthernetHelperStore(eventLog: eventLog)
+        self.helper = helper
         networkManager = DummyEthernetPrivilegedHelperClient()
         self.eventLog = eventLog
         self.defaults = defaults
-        isSignedBuild = PeerCodeSigningRequirementBuilder
-            .currentProcessHasTeamIdentifier
-        helperRegistrationStatus = helperRegistration.status()
         runtimeState = nil
         operation = nil
         self.configurationInput = configurationInput
         configurationValidationResult = Self.validationResult(
             for: configurationInput
         )
+
+        helperStatusCancellable = helper.$registrationStatus
+            .dropFirst()
+            .sink { [weak self] status in
+                guard status == .enabled else {
+                    self?.runtimeState = nil
+                    return
+                }
+                Task { @MainActor [weak self] in
+                    await Task.yield()
+                    self?.refresh()
+                }
+            }
     }
 
     var isOperationInProgress: Bool {
         operation != nil
     }
 
-    var helperStatusOperation: DummyEthernetOperation? {
-        guard operation?.statusSection == .privilegedHelper else { return nil }
-        return operation
-    }
-
-    var networkStatusOperation: DummyEthernetOperation? {
-        guard operation?.statusSection == .dummyEthernet else { return nil }
-        return operation
+    var isAnyOperationInProgress: Bool {
+        isOperationInProgress || helper.isOperationInProgress
     }
 
     var validatedConfiguration: DummyEthernetConfiguration? {
@@ -141,58 +122,31 @@ final class DummyEthernetStore: ObservableObject {
     }
 
     var canEnableHelper: Bool {
-        guard !isOperationInProgress else { return false }
-        switch helperRegistrationStatus {
-        case .unknown, .notRegistered, .notFound:
-            return true
-        case .enabled, .updateRequired, .requiresApproval:
-            return false
-        }
+        !isOperationInProgress && helper.canEnable
     }
 
     var canReinstallHelper: Bool {
-        guard !isOperationInProgress else { return false }
-        switch helperRegistrationStatus {
-        case .enabled:
-            return runtimeState == nil || runtimeState == .inactive
-        case .updateRequired:
-            return true
-        case .unknown, .notRegistered, .requiresApproval, .notFound:
-            return false
-        }
-    }
-
-    var isReinstallActionPresented: Bool {
-        switch helperRegistrationStatus {
-        case .enabled, .updateRequired:
-            return true
-        case .unknown, .notRegistered, .requiresApproval, .notFound:
-            return operation == .reinstallingHelper
-        }
+        !isOperationInProgress
+            && helper.canReinstall
+            && (runtimeState == nil || runtimeState == .inactive)
     }
 
     var canDisableHelper: Bool {
-        guard !isOperationInProgress else { return false }
-        switch helperRegistrationStatus {
-        case .enabled:
-            return runtimeState == nil || runtimeState == .inactive
-        case .updateRequired, .requiresApproval:
-            return true
-        case .unknown, .notRegistered, .notFound:
-            return false
-        }
+        !isOperationInProgress
+            && helper.canDisable
+            && (runtimeState == nil || runtimeState == .inactive)
     }
 
     var canStart: Bool {
-        helperIsAvailable
-            && !isOperationInProgress
+        helper.isAvailable
+            && !isAnyOperationInProgress
             && validatedConfiguration != nil
             && (runtimeState == nil || runtimeState == .inactive)
     }
 
     var canRestart: Bool {
-        helperIsAvailable
-            && !isOperationInProgress
+        helper.isAvailable
+            && !isAnyOperationInProgress
             && validatedConfiguration != nil
             && hasManagedConfiguration
     }
@@ -202,174 +156,31 @@ final class DummyEthernetStore: ObservableObject {
     }
 
     var canStop: Bool {
-        helperIsAvailable
-            && !isOperationInProgress
+        helper.isAvailable
+            && !isAnyOperationInProgress
             && runtimeState != nil
             && runtimeState != .inactive
     }
 
     var canEditConfiguration: Bool {
-        !isOperationInProgress
+        !isAnyOperationInProgress
             && (runtimeState == nil || runtimeState == .inactive)
-    }
-
-    func enableHelper() {
-        guard !isOperationInProgress else { return }
-        operation = .installingHelper
-        appendEventLog(
-            "Dummy Ethernet helper enable requested.",
-            level: .debug
-        )
-
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            do {
-                self.helperRegistrationStatus = try self
-                    .helperRegistration.enable()
-                self.operation = nil
-
-                switch self.helperRegistrationStatus {
-                case .enabled:
-                    self.appendEventLog(
-                        "Dummy Ethernet privileged helper is enabled for the current app build.",
-                        level: .info
-                    )
-                    self.refresh()
-                case .requiresApproval:
-                    self.appendEventLog(
-                        "Dummy Ethernet privileged helper requires user approval.",
-                        level: .warning
-                    )
-                default:
-                    self.reportError(
-                        "Dummy Ethernet helper registration did not become enabled."
-                    )
-                }
-            } catch {
-                self.operation = nil
-                self.refreshHelperRegistrationState()
-                if self.helperRegistrationStatus == .requiresApproval {
-                    return
-                }
-                self.reportError(
-                    "Could not enable the Dummy Ethernet helper: \(error.localizedDescription)"
-                )
-            }
-        }
     }
 
     func disableHelper() {
         guard canDisableHelper else { return }
-        operation = .removingHelper
-        appendEventLog(
-            "Dummy Ethernet helper disable requested.",
-            level: .debug
-        )
-
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            do {
-                self.helperRegistrationStatus = try await self
-                    .helperRegistration.disable()
-                self.operation = nil
-
-                switch self.helperRegistrationStatus {
-                case .notRegistered, .notFound:
-                    self.runtimeState = nil
-                    self.appendEventLog(
-                        "Dummy Ethernet privileged helper is disabled.",
-                        level: .info
-                    )
-                default:
-                    self.reportError(
-                        "Dummy Ethernet helper registration did not become disabled."
-                    )
-                }
-            } catch {
-                self.operation = nil
-                self.refreshHelperRegistrationState()
-                self.reportError(
-                    "Could not disable the Dummy Ethernet helper: \(error.localizedDescription)"
-                )
-            }
-        }
+        helper.disable()
     }
 
     func reinstallHelper() {
         guard canReinstallHelper else { return }
-        operation = .reinstallingHelper
-        appendEventLog(
-            "Dummy Ethernet helper reinstall requested.",
-            level: .debug
-        )
-
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            do {
-                let removalStatus = try await self.helperRegistration.disable()
-                self.helperRegistrationStatus = removalStatus
-                self.runtimeState = nil
-
-                guard removalStatus == .notRegistered
-                    || removalStatus == .notFound else {
-                    self.operation = nil
-                    self.reportError(
-                        "Dummy Ethernet helper registration did not become disabled for reinstall."
-                    )
-                    return
-                }
-
-                // ServiceManagement can reject an immediate registration even
-                // after its asynchronous unregister completion has returned.
-                try await Task.sleep(
-                    for: Self.helperReregistrationDelay
-                )
-                self.helperRegistrationStatus = try self
-                    .helperRegistration.enable()
-                self.operation = nil
-
-                switch self.helperRegistrationStatus {
-                case .enabled:
-                    self.appendEventLog(
-                        "Dummy Ethernet privileged helper was reinstalled for the current app build.",
-                        level: .info
-                    )
-                    self.refresh()
-                case .requiresApproval:
-                    self.appendEventLog(
-                        "Dummy Ethernet privileged helper requires user approval after reinstall.",
-                        level: .warning
-                    )
-                default:
-                    self.reportError(
-                        "Dummy Ethernet helper registration did not become enabled after reinstall."
-                    )
-                }
-            } catch {
-                self.operation = nil
-                self.refreshHelperRegistrationState()
-                if self.helperRegistrationStatus == .requiresApproval {
-                    return
-                }
-                self.reportError(
-                    "Could not reinstall the Dummy Ethernet helper: \(error.localizedDescription)"
-                )
-            }
-        }
-    }
-
-    func openLoginItemsSettings() {
-        helperRegistration.openSystemSettings()
-        appendEventLog(
-            "Opened Login Items settings for Dummy Ethernet helper approval.",
-            level: .debug
-        )
+        helper.reinstall()
     }
 
     func refresh() {
-        guard !isOperationInProgress else { return }
-        refreshHelperRegistrationState()
-        guard helperIsAvailable else {
+        guard !isAnyOperationInProgress else { return }
+        helper.refresh()
+        guard helper.isAvailable else {
             runtimeState = nil
             appendEventLog(
                 "Dummy Ethernet refresh skipped: helper registration is unavailable or outdated.",
@@ -384,7 +195,7 @@ final class DummyEthernetStore: ObservableObject {
     }
 
     func start() {
-        guard !isOperationInProgress else { return }
+        guard canStart else { return }
         Task { @MainActor [weak self] in
             _ = await self?.startAndWaitUntilActive()
         }
@@ -392,10 +203,14 @@ final class DummyEthernetStore: ObservableObject {
 
     @discardableResult
     func startAndWaitUntilActive() async -> Bool {
-        guard await waitUntilCurrentOperationFinishes() else { return false }
+        guard !Task.isCancelled,
+              await waitUntilCurrentOperationFinishes(),
+              !Task.isCancelled else {
+            return false
+        }
 
-        refreshHelperRegistrationState()
-        guard helperIsAvailable else {
+        helper.refresh()
+        guard helper.isAvailable else {
             reportError("Dummy Ethernet start failed: helper unavailable.")
             return false
         }
@@ -419,7 +234,7 @@ final class DummyEthernetStore: ObservableObject {
             )
             applySnapshot(snapshot)
             appendCompletionEvent(for: .starting, snapshot: snapshot)
-            return snapshot.state == .active
+            return !Task.isCancelled && snapshot.state == .active
         } catch {
             reportError(
                 "Dummy Ethernet start failed: \(error.localizedDescription)"
@@ -428,23 +243,47 @@ final class DummyEthernetStore: ObservableObject {
         }
     }
 
-    func stopAfterCurrentOperation() {
-        Task { @MainActor [weak self] in
-            guard let self,
-                  await self.waitUntilCurrentOperationFinishes() else {
-                return
+    @discardableResult
+    func stopAfterCurrentOperation() async -> Bool {
+        guard await waitUntilCurrentOperationFinishes(),
+              !Task.isCancelled else {
+            return false
+        }
+
+        helper.refresh()
+        guard helper.isAvailable else {
+            reportError("Dummy Ethernet stop failed: helper unavailable.")
+            return false
+        }
+
+        operation = .stopping
+        appendEventLog(
+            "Dummy Ethernet stop requested.",
+            level: .debug
+        )
+        defer { operation = nil }
+
+        do {
+            let snapshot = try await networkManager.stop()
+            applySnapshot(snapshot)
+            appendCompletionEvent(for: .stopping, snapshot: snapshot)
+            guard snapshot.state == .inactive else {
+                reportError(
+                    "Dummy Ethernet stop failed: the managed configuration remained active or degraded."
+                )
+                return false
             }
-            self.stop()
+            return true
+        } catch {
+            reportError(
+                "Dummy Ethernet stop failed: \(error.localizedDescription)"
+            )
+            return false
         }
     }
 
     func stop() {
-        guard !isOperationInProgress else { return }
-        refreshHelperRegistrationState()
-        guard helperIsAvailable else {
-            reportError("Dummy Ethernet stop failed: helper unavailable.")
-            return
-        }
+        guard canStop else { return }
 
         performNetworkOperation(.stopping) { manager in
             try await manager.stop()
@@ -453,8 +292,8 @@ final class DummyEthernetStore: ObservableObject {
 
     func restart() {
         guard canRestart else { return }
-        refreshHelperRegistrationState()
-        guard helperIsAvailable else {
+        helper.refresh()
+        guard helper.isAvailable else {
             reportError("Dummy Ethernet restart failed: helper unavailable.")
             return
         }
@@ -495,14 +334,14 @@ final class DummyEthernetStore: ObservableObject {
     }
 
     func resetForAppSettings() async throws {
-        guard !isOperationInProgress else {
+        guard !isAnyOperationInProgress else {
             throw DummyEthernetSettingsResetError.operationInProgress
         }
 
-        refreshHelperRegistrationState()
+        helper.refresh()
         defer { operation = nil }
 
-        switch helperRegistrationStatus {
+        switch helper.registrationStatus {
         case .enabled:
             operation = .stopping
             appendEventLog(
@@ -547,23 +386,15 @@ final class DummyEthernetStore: ObservableObject {
             break
         }
 
-        operation = .removingHelper
-        appendEventLog(
-            "Dummy Ethernet helper removal requested for app settings reset.",
-            level: .debug
-        )
-
         let removalStatus: DummyEthernetHelperRegistrationStatus
         do {
-            removalStatus = try await helperRegistration.disable()
+            removalStatus = try await helper.removeForAppSettings()
         } catch {
-            refreshHelperRegistrationState()
             let resetError = DummyEthernetSettingsResetError
                 .helperRemovalFailed(error.localizedDescription)
             reportError(resetError.localizedDescription)
             throw resetError
         }
-        helperRegistrationStatus = removalStatus
         guard removalStatus == .notRegistered || removalStatus == .notFound else {
             let resetError = DummyEthernetSettingsResetError
                 .helperRemovalIncomplete
@@ -627,7 +458,7 @@ final class DummyEthernetStore: ObservableObject {
     }
 
     private func waitUntilCurrentOperationFinishes() async -> Bool {
-        while isOperationInProgress {
+        while isAnyOperationInProgress {
             do {
                 try await Task.sleep(for: .milliseconds(50))
             } catch {
@@ -666,14 +497,6 @@ final class DummyEthernetStore: ObservableObject {
         }
     }
 
-    private func refreshHelperRegistrationState() {
-        helperRegistrationStatus = helperRegistration.status()
-    }
-
-    private var helperIsAvailable: Bool {
-        helperRegistrationStatus == .enabled
-    }
-
     private var hasManagedConfiguration: Bool {
         runtimeState != nil && runtimeState != .inactive
     }
@@ -704,7 +527,7 @@ final class DummyEthernetStore: ObservableObject {
     }
 }
 
-private enum DummyEthernetSettingsResetError: LocalizedError {
+enum DummyEthernetSettingsResetError: LocalizedError {
     case operationInProgress
     case helperUpdateRequired
     case helperStatusUnavailable

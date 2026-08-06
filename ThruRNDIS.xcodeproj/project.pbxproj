@@ -28,6 +28,8 @@
 		8F0000000000000000000002 /* WireGuardConfigurationBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F0000000000000000000102 /* WireGuardConfigurationBuilder.swift */; };
 		8F0000000000000000000003 /* VMCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F0000000000000000000103 /* VMCoordinator.swift */; };
 		8F0000000000000000000004 /* USBAccessoryCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F0000000000000000000104 /* USBAccessoryCoordinator.swift */; };
+		K10000000000000000000001 /* TetheringWorkflowCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = K10000000000000000000101 /* TetheringWorkflowCoordinator.swift */; };
+		L10000000000000000000001 /* ManagedWireGuardConnectionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = L10000000000000000000101 /* ManagedWireGuardConnectionCoordinator.swift */; };
 		8F0000000000000000000005 /* WireGuardConfigurationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F0000000000000000000105 /* WireGuardConfigurationStore.swift */; };
 		9A0000000000000000000001 /* MenuBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A0000000000000000000101 /* MenuBarController.swift */; };
 		9A0000000000000000000002 /* OnboardingWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A0000000000000000000102 /* OnboardingWindowController.swift */; };
@@ -113,6 +115,7 @@
 		F40000000000000000000007 /* DummyEthernetPrivilegedHelperRegistrationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000107 /* DummyEthernetPrivilegedHelperRegistrationService.swift */; };
 		F40000000000000000000008 /* DummyEthernetStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000108 /* DummyEthernetStore.swift */; };
 		F40000000000000000000009 /* DummyEthernetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000109 /* DummyEthernetView.swift */; };
+		J10000000000000000000001 /* DummyEthernetHelperStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = J10000000000000000000101 /* DummyEthernetHelperStore.swift */; };
 		F40000000000000000000010 /* DummyEthernetModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000101 /* DummyEthernetModels.swift */; };
 		F40000000000000000000011 /* DummyEthernetPrivilegedHelperProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000102 /* DummyEthernetPrivilegedHelperProtocol.swift */; };
 		F40000000000000000000012 /* DummyEthernetConfigurationValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000103 /* DummyEthernetConfigurationValidator.swift */; };
@@ -243,6 +246,8 @@
 		8F0000000000000000000102 /* WireGuardConfigurationBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardConfigurationBuilder.swift; sourceTree = "<group>"; };
 		8F0000000000000000000103 /* VMCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMCoordinator.swift; sourceTree = "<group>"; };
 		8F0000000000000000000104 /* USBAccessoryCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBAccessoryCoordinator.swift; sourceTree = "<group>"; };
+		K10000000000000000000101 /* TetheringWorkflowCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TetheringWorkflowCoordinator.swift; sourceTree = "<group>"; };
+		L10000000000000000000101 /* ManagedWireGuardConnectionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManagedWireGuardConnectionCoordinator.swift; sourceTree = "<group>"; };
 		8F0000000000000000000105 /* WireGuardConfigurationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardConfigurationStore.swift; sourceTree = "<group>"; };
 		9A0000000000000000000101 /* MenuBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarController.swift; sourceTree = "<group>"; };
 		9A0000000000000000000102 /* OnboardingWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingWindowController.swift; sourceTree = "<group>"; };
@@ -332,6 +337,7 @@
 		F40000000000000000000107 /* DummyEthernetPrivilegedHelperRegistrationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DummyEthernetPrivilegedHelperRegistrationService.swift; sourceTree = "<group>"; };
 		F40000000000000000000108 /* DummyEthernetStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DummyEthernetStore.swift; sourceTree = "<group>"; };
 		F40000000000000000000109 /* DummyEthernetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DummyEthernetView.swift; sourceTree = "<group>"; };
+		J10000000000000000000101 /* DummyEthernetHelperStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DummyEthernetHelperStore.swift; sourceTree = "<group>"; };
 		F4000000000000000000010A /* IfconfigRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IfconfigRunner.swift; sourceTree = "<group>"; };
 		F4000000000000000000010B /* DummyEthernetSystemConfigurationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DummyEthernetSystemConfigurationService.swift; sourceTree = "<group>"; };
 		F4000000000000000000010C /* DummyEthernetBondManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DummyEthernetBondManager.swift; sourceTree = "<group>"; };
@@ -494,6 +500,7 @@
 			children = (
 				8B0000000000000000000108 /* TetheringStore.swift */,
 				F40000000000000000000108 /* DummyEthernetStore.swift */,
+				J10000000000000000000101 /* DummyEthernetHelperStore.swift */,
 				DE1000000000000000000101 /* AppPreferencesStore.swift */,
 				H10000000000000000000101 /* EventLogStore.swift */,
 				D10000000000000000000101 /* ConsoleSessionStore.swift */,
@@ -554,6 +561,8 @@
 				E30000000000000000000101 /* USBAccessoryCoordinating.swift */,
 				8F0000000000000000000103 /* VMCoordinator.swift */,
 				8F0000000000000000000104 /* USBAccessoryCoordinator.swift */,
+				K10000000000000000000101 /* TetheringWorkflowCoordinator.swift */,
+				L10000000000000000000101 /* ManagedWireGuardConnectionCoordinator.swift */,
 				B10000000000000000000107 /* VMAssetWorkflowCoordinator.swift */,
 			);
 			path = Coordinators;
@@ -933,6 +942,7 @@
 				F40000000000000000000006 /* DummyEthernetPrivilegedHelperClient.swift in Sources */,
 				F40000000000000000000007 /* DummyEthernetPrivilegedHelperRegistrationService.swift in Sources */,
 				F40000000000000000000008 /* DummyEthernetStore.swift in Sources */,
+				J10000000000000000000001 /* DummyEthernetHelperStore.swift in Sources */,
 				F40000000000000000000009 /* DummyEthernetView.swift in Sources */,
 				DE1000000000000000000001 /* AppPreferencesStore.swift in Sources */,
 				8B0000000000000000000003 /* USBAccessoryRecord.swift in Sources */,
@@ -970,6 +980,8 @@
 				DA1000000000000000000008 /* NETunnelProviderProtocol+ThruRNDIS.swift in Sources */,
 				8F0000000000000000000003 /* VMCoordinator.swift in Sources */,
 				8F0000000000000000000004 /* USBAccessoryCoordinator.swift in Sources */,
+				K10000000000000000000001 /* TetheringWorkflowCoordinator.swift in Sources */,
+				L10000000000000000000001 /* ManagedWireGuardConnectionCoordinator.swift in Sources */,
 				9A0000000000000000000001 /* MenuBarController.swift in Sources */,
 				9A0000000000000000000002 /* OnboardingWindowController.swift in Sources */,
 				9A0000000000000000000007 /* SettingsWindowController.swift in Sources */,

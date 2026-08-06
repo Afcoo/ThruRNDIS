@@ -41,49 +41,60 @@ WireGuard-over-VZNAT architecture as the baseline.
 
 ## Architecture
 
-- `TetheringStore` owns cross-feature orchestration: reset ordering, onboarding
-  presentation/listener coordination, and the serialized USB approval, VM
-  start/stop, passthrough, and optional WireGuard auto-connect workflow. State
-  that can be observed independently lives in child stores. `EventLogStore`
+- `TetheringStore` is the app-facing facade for reset ordering, onboarding
+  presentation/listener coordination, and general VM, USB, and WireGuard
+  commands. It adapts VM and USB callbacks into observable presentation state
+  and forwards cross-feature events to `TetheringWorkflowCoordinator`, which
+  owns only the serialized USB approval, VM preparation, passthrough, and
+  optional WireGuard request workflow. `ManagedWireGuardConnectionCoordinator`
+  separately owns the Dummy Ethernet preparation, host-tunnel wait, cleanup,
+  cancellation, and stale-operation protection used by app-managed connections.
+  State that can be observed independently lives in child stores. `EventLogStore`
   owns the bounded in-memory app event log and screen filtering, while
   `EventLogFileStore` serially persists every event under Application Support
   with 10 MiB or 24-hour session-file rotation and seven-day retention.
   `ConsoleSessionStore`
   owns only VM serial-console output and endpoint scanning, `USBSessionStore`
-  owns the atomic USB UI snapshot and pending prompt, `VMConfigurationStore`
+  owns the atomic USB UI snapshot plus USB attachment prompt queue, de-duplication,
+  and VM-asset deferral, `VMConfigurationStore`
   owns persisted VM settings including the optional scratch disk,
   `WireGuardSessionStore` owns host-tunnel/System Extension presentation state,
-  WireGuard inputs, validation, and configuration readiness, and
+  the USB-triggered WireGuard connection prompt, WireGuard inputs, validation,
+  and configuration readiness, and
   `AppPreferencesStore` owns onboarding completion, USB/WireGuard preferences,
   and Launch at Login state. VM lifecycle work belongs in `VMCoordinator`; USB
   AccessoryAccess selection and passthrough policy belong in
   `USBAccessoryCoordinator`.
 - `AppDelegate` is the composition root. It owns one shared
   `VMAssetWorkflowCoordinator`, constructs the VM, USB, and WireGuard adapters
-  and the six child state stores, injects them into one shared `TetheringStore`,
+  and the independently injected child state stores, and injects them into one shared `TetheringStore`,
   starts AccessoryAccess monitoring at app launch, and passes the same objects
   to onboarding, Settings, and the menu bar. Views observe the narrowest child
   store that owns their state while invoking `TetheringStore` only for
   cross-feature actions. Keep the dependency one-way: `TetheringStore` sees
   only the read-only `VMAssetProviding` boundary, and
   `VMAssetWorkflowCoordinator` must not reference `TetheringStore`.
-- `DummyEthernetStore` is an independent `AppDelegate`-owned presentation store.
-  `AppDelegate` passes it separately to `OnboardingWindowController` for helper
-  permission management, and to `SettingsWindowController` and
-  `MenuBarController`. It also gives `TetheringStore` a narrow async preparation
-  closure rather than injecting the store itself. Every app-managed WireGuard
-  connection requested from the USB prompt or USB auto-connect path uses that
-  closure to start Dummy Ethernet and wait until it is active before starting
-  the host tunnel, then stops Dummy Ethernet only after the tunnel reports that
+- `TetheringStore` owns `DummyEthernetStore`, which owns Dummy Ethernet network
+  configuration, runtime presentation state, and Start/Stop/Restart operations.
+  `DummyEthernetHelperStore` is its separately observable child and owns only
+  privileged-helper registration state and Install/Reinstall/Remove actions.
+  Onboarding, Settings, and the menu bar receive both stores through the shared
+  `TetheringStore` and observe the narrower owner. Every app-managed WireGuard
+  connection requested from the USB prompt or USB auto-connect path is requested
+  by `TetheringWorkflowCoordinator` and executed by
+  `ManagedWireGuardConnectionCoordinator`, which asks the owned
+  `DummyEthernetStore` to start and wait until it is active before starting the
+  host tunnel, then stops Dummy Ethernet only after the tunnel reports that
   it is connected. The normal-mode menu bar uses the same prepared connection
   path, while Settings and the debug-mode menu bar keep the direct WireGuard
   connection path and require Dummy Ethernet to be managed separately. A failed
   preparation must prevent the WireGuard start, and an unsuccessful tunnel start
   must not trigger automatic Dummy Ethernet cleanup. Do not inject Dummy
   Ethernet into USB attach or VM start flows. The app-wide Reset All
-  Settings workflow first completes the `TetheringStore` reset, then asks
-  `DummyEthernetStore` to stop its managed configuration and unregister the
-  privileged helper before clearing the remaining selection and relaunching.
+  Settings workflow is owned by `TetheringStore`; after its VM, USB, and
+  WireGuard cleanup, it asks `DummyEthernetStore` to stop its managed
+  configuration and `DummyEthernetHelperStore` to unregister the privileged
+  helper before `AppDelegate` clears the remaining selection and relaunches.
   A failed stop must leave the helper registered, and any Dummy Ethernet
   cleanup failure must prevent relaunch. Until VM assets are configured and the
   privileged helper is enabled, the menu bar omits all status and control
@@ -423,22 +434,30 @@ target membership, and build phase as applicable.
   `ThruRNDIS/Views/SharedViews`.
 - `ThruRNDIS/Coordinators`: long-running workflows. `VMCoordinator` owns
   Virtualization lifecycle, `USBAccessoryCoordinator` owns AccessoryAccess
-  selection and passthrough policy, and `VMAssetWorkflowCoordinator` owns VM
-  Asset installation and selection workflow state. `VMCoordinating` remains a
+  selection and passthrough policy, `TetheringWorkflowCoordinator` serializes
+  USB approval through VM preparation and an optional WireGuard request,
+  `ManagedWireGuardConnectionCoordinator` owns Dummy Ethernet preparation and
+  cleanup around an app-managed WireGuard connection, and
+  `VMAssetWorkflowCoordinator` owns VM Asset installation and selection workflow
+  state. `VMCoordinating` remains a
   protocol boundary because tests provide a replacement implementation;
   `USBAccessoryCoordinator` stays concrete until a narrower tested boundary is
   required.
 - `ThruRNDIS/Stores`: `@MainActor`/observable UI-facing state owners.
-  `TetheringStore` owns cross-feature orchestration, `EventLogStore` owns the
+  `TetheringStore` exposes the app-facing observable facade, `EventLogStore` owns the
   bounded in-memory app event log and view filters, `ConsoleSessionStore` owns VM
   serial-console state,
-  `USBSessionStore` owns the USB UI projection, and `VMConfigurationStore` owns
+  `USBSessionStore` owns the USB UI projection and attachment prompt queue, and
+  `VMConfigurationStore` owns
   editable VM settings and their UserDefaults persistence.
-  `WireGuardSessionStore` owns WireGuard presentation/session state and editable
-  connection inputs, while `AppPreferencesStore` owns persisted app preferences,
-  onboarding completion, and Launch at Login state. The independent
-  `DummyEthernetStore` owns only helper registration, persisted configuration
-  input, manual Start/Stop/Restart actions, and the presented runtime state.
+  `WireGuardSessionStore` owns WireGuard presentation/session state, the
+  USB-triggered connection prompt, and editable connection inputs, while
+  `AppPreferencesStore` owns persisted app preferences,
+  onboarding completion, and Launch at Login state. The `TetheringStore`-owned
+  `DummyEthernetStore` owns persisted configuration input, manual
+  Start/Stop/Restart actions, and presented network runtime state, while its
+  `DummyEthernetHelperStore` child independently owns helper registration state
+  and actions.
   View-scoped observable state such as `VideoPlaybackStore` also belongs here
   when it is substantial enough to live outside its SwiftUI view.
 - `ThruRNDIS/Persistence`: non-observable durable-storage adapters and path

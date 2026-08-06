@@ -75,6 +75,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     private let store: TetheringStore
     private let dummyEthernet: DummyEthernetStore
+    private let dummyEthernetHelper: DummyEthernetHelperStore
     private let assetWorkflowCoordinator: VMAssetWorkflowCoordinator
     private let openSettings: () -> Void
     private let statusItem: NSStatusItem
@@ -102,12 +103,12 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     init(
         store: TetheringStore,
-        dummyEthernet: DummyEthernetStore,
         assetWorkflowCoordinator: VMAssetWorkflowCoordinator,
         openSettings: @escaping () -> Void
     ) {
         self.store = store
-        self.dummyEthernet = dummyEthernet
+        self.dummyEthernet = store.dummyEthernet
+        self.dummyEthernetHelper = store.dummyEthernet.helper
         self.assetWorkflowCoordinator = assetWorkflowCoordinator
         self.openSettings = openSettings
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -132,6 +133,12 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         .store(in: &cancellables)
 
         dummyEthernet.objectWillChange
+            .sink { [weak self] in
+                self?.schedulePresentationRefresh()
+            }
+            .store(in: &cancellables)
+
+        dummyEthernetHelper.objectWillChange
             .sink { [weak self] in
                 self?.schedulePresentationRefresh()
             }
@@ -440,7 +447,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         if store.wireGuardSession.canDisconnectTunnel {
             wireGuardItem?.title = String(localized: "Disconnect WireGuard")
             wireGuardItem?.action = #selector(disconnectWireGuard)
-            wireGuardItem?.isEnabled = true
+            wireGuardItem?.isEnabled = store.canDisconnectHostWireGuardTunnel
         } else {
             wireGuardItem?.title = String(localized: "Connect WireGuard")
             wireGuardItem?.action = #selector(connectWireGuard)
@@ -623,7 +630,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         }
 
         let title: String
-        if let operation = dummyEthernet.networkStatusOperation {
+        if let operation = dummyEthernet.operation {
             title = operation.title
         } else {
             switch dummyEthernet.runtimeState {
@@ -641,8 +648,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     private var canPresentDummyEthernetNetworkStatus: Bool {
-        dummyEthernet.helperRegistrationStatus == .enabled
-            && dummyEthernet.helperStatusOperation == nil
+        dummyEthernetHelper.registrationStatus == .enabled
+            && dummyEthernetHelper.operation == nil
     }
 
     private var currentPresentationMode: MenuBarPresentationMode {
@@ -654,7 +661,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var currentContentState: MenuBarContentState {
         MenuBarContentState(
             hasConfiguredAssets: assetWorkflowCoordinator.hasConfiguredAssets,
-            helperRegistrationStatus: dummyEthernet.helperRegistrationStatus
+            helperRegistrationStatus: dummyEthernetHelper.registrationStatus
         )
     }
 
@@ -713,7 +720,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             return .systemRed
         }
 
-        if dummyEthernet.networkStatusOperation != nil {
+        if dummyEthernet.operation != nil {
             return .systemYellow
         }
 

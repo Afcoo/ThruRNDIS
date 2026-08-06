@@ -126,7 +126,6 @@ final class OnboardingWindowController: NSWindowController, NSWindowDelegate {
 
     init(
         store: TetheringStore,
-        dummyEthernetStore: DummyEthernetStore,
         assetWorkflowCoordinator: VMAssetWorkflowCoordinator,
         onFinish: @escaping () -> Void,
         onClose: @escaping () -> Void
@@ -141,7 +140,8 @@ final class OnboardingWindowController: NSWindowController, NSWindowDelegate {
         )
             .environmentObject(store)
             .environmentObject(store.wireGuardSession)
-            .environmentObject(dummyEthernetStore)
+            .environmentObject(store.dummyEthernet)
+            .environmentObject(store.dummyEthernet.helper)
             .environmentObject(assetWorkflowCoordinator)
         let hostingController = NSHostingController(rootView: rootView)
         let window = NSWindow(contentViewController: hostingController)
