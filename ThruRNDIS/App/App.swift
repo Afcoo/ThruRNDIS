@@ -298,7 +298,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        NSApp.activate(ignoringOtherApps: true)
         let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = String(
@@ -310,6 +309,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.addButton(withTitle: String(localized: "Update"))
         alert.addButton(withTitle: String(localized: "Not Now"))
 
+        RunLoop.main.perform(inModes: [.modalPanel]) {
+            NSApp.activate(ignoringOtherApps: true)
+        }
         guard alert.runModal() == .alertFirstButtonReturn else {
             eventLog.append(
                 "Dummy Ethernet helper update deferred at app launch.",
