@@ -22,7 +22,7 @@ final class WireGuardTunnelController {
     private var activeOperationID = UUID()
     private var currentStatus: WireGuardTunnelStatus = .unconfigured
     private var activeSystemExtensionOperationID = UUID()
-    private var currentSystemExtensionStatus: WireGuardSystemExtensionStatus = .unknown
+    private var currentSystemExtensionStatus: WireGuardSystemExtensionStatus = .notChecked
     private var isSystemExtensionActivationInProgress = false
     private var areSystemExtensionOperationsInvalidated = false
     private var cachedManager: NETunnelProviderManager?
@@ -82,7 +82,6 @@ final class WireGuardTunnelController {
         }
 
         let operationID = beginSystemExtensionOperation()
-        setSystemExtensionStatus(.checking)
         do {
             let bundleIdentifier = try systemExtensionBundleIdentifier()
             systemExtensionActivator.onEventLog = onEventLog
@@ -121,7 +120,6 @@ final class WireGuardTunnelController {
         defer { isSystemExtensionActivationInProgress = false }
 
         let operationID = beginSystemExtensionOperation()
-        setSystemExtensionStatus(.activationRequested)
         do {
             let bundleIdentifier = try systemExtensionBundleIdentifier()
             let verifiedStatus = try await activateAndVerifySystemExtensionStatus(
@@ -144,7 +142,7 @@ final class WireGuardTunnelController {
             guard activeSystemExtensionOperationID == operationID else {
                 return
             }
-            setSystemExtensionStatus(.restartRequired)
+            setSystemExtensionStatus(.inactive(.restartRequired(.activation)))
             reportEventLog(
                 "Network extension activation requires a macOS restart.",
                 level: .warning
@@ -222,7 +220,6 @@ final class WireGuardTunnelController {
                 defer { isSystemExtensionActivationInProgress = false }
 
                 let systemExtensionOperationID = beginSystemExtensionOperation()
-                setSystemExtensionStatus(.activationRequested)
                 do {
                     let verifiedStatus = try await activateAndVerifySystemExtensionStatus(
                         bundleIdentifier: extensionBundleIdentifier,
@@ -242,7 +239,7 @@ final class WireGuardTunnelController {
                           activeSystemExtensionOperationID == systemExtensionOperationID else {
                         throw WireGuardTunnelError.operationSuperseded
                     }
-                    setSystemExtensionStatus(.restartRequired)
+                    setSystemExtensionStatus(.inactive(.restartRequired(.activation)))
                     throw WireGuardSystemExtensionActivationError.restartRequired
                 } catch WireGuardSystemExtensionActivationError.extensionRemainsDisabled {
                     throw WireGuardSystemExtensionActivationError.extensionRemainsDisabled
@@ -253,7 +250,9 @@ final class WireGuardTunnelController {
                           activeSystemExtensionOperationID == systemExtensionOperationID else {
                         throw WireGuardTunnelError.operationSuperseded
                     }
-                    setSystemExtensionStatus(.failed(Self.diagnosticDescription(for: error)))
+                    setSystemExtensionStatus(
+                        .unknown(Self.diagnosticDescription(for: error))
+                    )
                     throw error
                 }
             }
@@ -643,7 +642,7 @@ final class WireGuardTunnelController {
                   self.activeSystemExtensionOperationID == operationID else {
                 return
             }
-            self.setSystemExtensionStatus(.awaitingUserApproval)
+            self.setSystemExtensionStatus(.inactive(.awaitingUserApproval))
         }
 
         try await systemExtensionActivator.activate(
@@ -776,7 +775,7 @@ final class WireGuardTunnelController {
 
     private func failSystemExtension(action: String, error: Error) {
         let diagnostic = Self.diagnosticDescription(for: error)
-        setSystemExtensionStatus(.failed(diagnostic))
+        setSystemExtensionStatus(.unknown(diagnostic))
         reportEventLog(
             "Network extension \(action) failed: \(diagnostic)",
             level: .error

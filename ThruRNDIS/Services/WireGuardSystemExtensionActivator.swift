@@ -122,12 +122,12 @@ final class WireGuardSystemExtensionActivator: NSObject {
             return .active
         }
         if properties.contains(where: \.isAwaitingUserApproval) {
-            return .awaitingUserApproval
+            return .inactive(.awaitingUserApproval)
         }
         if properties.contains(where: \.isUninstalling) {
-            return .uninstalling
+            return .inactive(.restartRequired(.removal))
         }
-        return .inactive
+        return .inactive(.activationAvailable)
     }
 
     private func reportEventLog(

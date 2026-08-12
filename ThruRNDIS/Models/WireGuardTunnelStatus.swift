@@ -80,60 +80,54 @@ struct WireGuardTunnelFailure: Equatable {
     )
 }
 
-enum WireGuardSystemExtensionStatus: Equatable {
-    case unknown
-    case checking
-    case inactive
-    case activationRequested
+enum WireGuardSystemExtensionInactiveReason: Equatable {
+    case activationAvailable
     case awaitingUserApproval
+    case restartRequired(WireGuardSystemExtensionRestartReason)
+}
+
+enum WireGuardSystemExtensionRestartReason: Equatable {
+    case activation
+    case removal
+}
+
+enum WireGuardSystemExtensionStatus: Equatable {
+    case unknown(String?)
+    case inactive(WireGuardSystemExtensionInactiveReason)
     case active
-    case uninstalling
-    case restartRequired
-    case failed(String)
+
+    static let notChecked = Self.unknown(nil)
 
     var title: String {
         switch self {
-        case .unknown:
+        case .unknown(nil):
             return String(localized: "Not Checked")
-        case .checking:
-            return String(localized: "Checking…")
+        case .unknown:
+            return String(localized: "Unavailable")
         case .inactive:
             return String(localized: "Inactive")
-        case .activationRequested:
-            return String(localized: "Activation Requested")
-        case .awaitingUserApproval:
-            return String(localized: "Awaiting User Approval")
         case .active:
             return String(localized: "Active")
-        case .uninstalling:
-            return String(localized: "Uninstalling")
-        case .restartRequired:
-            return String(localized: "Restart Required")
-        case .failed:
-            return String(localized: "Unavailable")
         }
     }
 
     var eventLogDescription: String {
         switch self {
-        case .unknown:
+        case .unknown(nil):
             return "Not Checked — The network extension status is unknown."
-        case .checking:
-            return "Checking — Reading the network extension properties."
-        case .inactive:
+        case .unknown(let message):
+            let detail = message ?? "Unknown error."
+            return "Unavailable — \(detail)"
+        case .inactive(.activationAvailable):
             return "Inactive — Activation and user approval are required."
-        case .activationRequested:
-            return "Activation Requested — Waiting for macOS to process the request."
-        case .awaitingUserApproval:
+        case .inactive(.awaitingUserApproval):
             return "Awaiting User Approval — Allow the extension in System Settings."
+        case .inactive(.restartRequired(.activation)):
+            return "Restart Required — Restart macOS to finish activation."
+        case .inactive(.restartRequired(.removal)):
+            return "Restart Required — Restart macOS to finish removal."
         case .active:
             return "Active — The network extension is enabled."
-        case .uninstalling:
-            return "Uninstalling — The network extension cannot be used."
-        case .restartRequired:
-            return "Restart Required — Restart macOS to finish activation."
-        case .failed(let message):
-            return "Unavailable — \(message)"
         }
     }
 
@@ -141,22 +135,11 @@ enum WireGuardSystemExtensionStatus: Equatable {
         self == .active
     }
 
-    var isTransitioning: Bool {
-        switch self {
-        case .checking, .activationRequested:
-            return true
-        case .unknown, .inactive, .awaitingUserApproval, .active,
-             .uninstalling, .restartRequired, .failed:
-            return false
-        }
-    }
-
     var canRequestActivation: Bool {
         switch self {
-        case .unknown, .inactive, .failed:
+        case .unknown, .inactive(.activationAvailable):
             return true
-        case .checking, .activationRequested, .awaitingUserApproval, .active,
-             .uninstalling, .restartRequired:
+        case .inactive(.awaitingUserApproval), .inactive(.restartRequired), .active:
             return false
         }
     }

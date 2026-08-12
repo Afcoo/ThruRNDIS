@@ -9,7 +9,7 @@ import Foundation
 final class WireGuardSessionStore: ObservableObject {
     @Published private(set) var tunnelStatus: WireGuardTunnelStatus = .unconfigured
     @Published private(set) var tunnelFailure: WireGuardTunnelFailure?
-    @Published private(set) var systemExtensionStatus: WireGuardSystemExtensionStatus = .unknown
+    @Published private(set) var systemExtensionStatus: WireGuardSystemExtensionStatus = .notChecked
     @Published private(set) var discoveredEndpoint: String?
     @Published private(set) var invalidConnectionFields: Set<WireGuardConnectionField> = []
     @Published private(set) var keyMaterial: WireGuardKeyMaterial?
@@ -95,14 +95,7 @@ final class WireGuardSessionStore: ObservableObject {
         configureTunnelController()
         prepareConfiguration()
 
-        Task { @MainActor [weak self] in
-            guard let self,
-                  !self.isPreparingForApplicationTermination,
-                  !Task.isCancelled else {
-                return
-            }
-            await self.tunnelController.refreshSystemExtensionStatus()
-        }
+        refreshSystemExtensionStatus()
         Task { @MainActor [weak self] in
             await self?.tunnelController.refreshStatus()
         }
@@ -632,13 +625,13 @@ final class WireGuardSessionStore: ObservableObject {
         for status: WireGuardSystemExtensionStatus
     ) -> EventLogLevel {
         switch status {
-        case .unknown, .checking, .activationRequested:
+        case .unknown(nil):
             .debug
         case .active:
             .info
-        case .inactive, .awaitingUserApproval, .uninstalling, .restartRequired:
+        case .inactive:
             .warning
-        case .failed:
+        case .unknown:
             .error
         }
     }

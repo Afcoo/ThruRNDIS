@@ -859,7 +859,7 @@ final class TetheringStore: ObservableObject {
                 category: .wireGuard
             )
             wireGuardSession.updateSystemExtensionStatus(
-                .failed("System Extension installation entitlement is missing.")
+                .unknown("System Extension installation entitlement is missing.")
             )
             return false
         }
