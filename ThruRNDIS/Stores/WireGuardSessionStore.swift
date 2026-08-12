@@ -8,6 +8,7 @@ import Foundation
 @MainActor
 final class WireGuardSessionStore: ObservableObject {
     @Published private(set) var tunnelStatus: WireGuardTunnelStatus = .unconfigured
+    @Published private(set) var tunnelFailure: WireGuardTunnelFailure?
     @Published private(set) var systemExtensionStatus: WireGuardSystemExtensionStatus = .unknown
     @Published private(set) var discoveredEndpoint: String?
     @Published private(set) var invalidConnectionFields: Set<WireGuardConnectionField> = []
@@ -235,6 +236,7 @@ final class WireGuardSessionStore: ObservableObject {
         discoveredEndpoint = nil
         refreshConnectionConfiguration()
         wireGuardConnectionPrompt = nil
+        updateTunnelFailure(nil)
         notifyReadinessChange()
     }
 
@@ -294,6 +296,7 @@ final class WireGuardSessionStore: ObservableObject {
             )
             return false
         }
+        updateTunnelFailure(nil)
         connectTask?.cancel()
         let taskID = UUID()
         connectTaskID = taskID
@@ -332,16 +335,12 @@ final class WireGuardSessionStore: ObservableObject {
     }
 
     func refreshTunnelStatus() {
-        guard !tunnelStatus.isTransitioning else {
-            appendEventLog(
-                "WireGuard status refresh skipped during a tunnel transition.",
-                level: .debug
-            )
-            return
-        }
-
+        let allowsTransitionRefresh = tunnelStatus.isTransitioning
+            && tunnelFailure != nil
         Task { @MainActor [weak self] in
-            await self?.tunnelController.refreshStatus()
+            await self?.tunnelController.refreshStatus(
+                allowDuringTransition: allowsTransitionRefresh
+            )
         }
     }
 
@@ -488,6 +487,13 @@ final class WireGuardSessionStore: ObservableObject {
         notifyReadinessChange()
     }
 
+    func updateTunnelFailure(_ failure: WireGuardTunnelFailure?) {
+        guard tunnelFailure != failure else {
+            return
+        }
+        tunnelFailure = failure
+    }
+
     func updateSystemExtensionStatus(_ status: WireGuardSystemExtensionStatus) {
         guard !isPreparingForApplicationTermination,
               systemExtensionStatus != status else {
@@ -545,6 +551,9 @@ final class WireGuardSessionStore: ObservableObject {
     private func configureTunnelController() {
         tunnelController.onStatusChange = { [weak self] status in
             self?.updateTunnelStatus(status)
+        }
+        tunnelController.onFailureChange = { [weak self] failure in
+            self?.updateTunnelFailure(failure)
         }
         tunnelController.onSystemExtensionStatusChange = { [weak self] status in
             self?.updateSystemExtensionStatus(status)
@@ -610,14 +619,12 @@ final class WireGuardSessionStore: ObservableObject {
         for status: WireGuardTunnelStatus
     ) -> EventLogLevel {
         switch status {
-        case .activatingSystemExtension, .connecting, .disconnecting, .reasserting:
+        case .connecting, .disconnecting:
             .debug
         case .disconnected, .connected:
             .info
         case .unconfigured:
             .warning
-        case .failed:
-            .error
         }
     }
 

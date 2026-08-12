@@ -13,6 +13,7 @@ private struct ConnectionObservationContext: Equatable {
 @MainActor
 final class WireGuardTunnelController {
     var onStatusChange: ((WireGuardTunnelStatus) -> Void)?
+    var onFailureChange: ((WireGuardTunnelFailure?) -> Void)?
     var onSystemExtensionStatusChange: ((WireGuardSystemExtensionStatus) -> Void)?
     var onEventLog: EventLogHandler?
 
@@ -162,8 +163,8 @@ final class WireGuardTunnelController {
         systemExtensionActivator.cancelPendingRequests()
     }
 
-    func refreshStatus() async {
-        guard !currentStatus.isTransitioning else {
+    func refreshStatus(allowDuringTransition: Bool = false) async {
+        guard allowDuringTransition || !currentStatus.isTransitioning else {
             reportEventLog(
                 "Ignored WireGuard status refresh during a tunnel transition.",
                 level: .debug
@@ -200,6 +201,7 @@ final class WireGuardTunnelController {
     }
 
     func connect(configuration: WireGuardConnectionConfiguration) async {
+        let statusBeforeOperation = currentStatus
         let operationID = beginOperation()
         do {
             try Task.checkCancellation()
@@ -210,7 +212,7 @@ final class WireGuardTunnelController {
             guard !areSystemExtensionOperationsInvalidated else {
                 throw CancellationError()
             }
-            setStatus(.activatingSystemExtension)
+            setStatus(.connecting)
             do {
                 guard !isSystemExtensionActivationInProgress else {
                     throw WireGuardSystemExtensionActivationError.activationAlreadyInProgress
@@ -257,7 +259,6 @@ final class WireGuardTunnelController {
             }
             try ensureOperationIsCurrent(operationID)
 
-            setStatus(.connecting)
             let manager = try await configureAndSaveTunnelManager(
                 connectionConfiguration: configuration,
                 operationID: operationID
@@ -283,12 +284,16 @@ final class WireGuardTunnelController {
             )
         } catch {
             guard activeOperationID == operationID else { return }
-            fail(action: "start", error: error)
+            fail(
+                action: "start", error: error,
+                restoring: lifecycleStatusAfterFailure(fallback: statusBeforeOperation)
+            )
         }
     }
 
     @discardableResult
     func disconnect(waitUntilStopped: Bool = false) async -> Bool {
+        let statusBeforeOperation = currentStatus
         let operationID = beginOperation()
         do {
             guard let manager = try await loadThruRNDISManager(
@@ -307,7 +312,7 @@ final class WireGuardTunnelController {
             let connectionStatus = manager.connection.status
             guard connectionStatus != .disconnected,
                   connectionStatus != .invalid else {
-                setStatus(Self.status(from: connectionStatus))
+                setStatus(connectionStatus == .disconnected ? .disconnected : .unconfigured)
                 return true
             }
 
@@ -347,7 +352,10 @@ final class WireGuardTunnelController {
             return false
         } catch {
             guard activeOperationID == operationID else { return false }
-            fail(action: "stop", error: error)
+            fail(
+                action: "stop", error: error,
+                restoring: lifecycleStatusAfterFailure(fallback: statusBeforeOperation)
+            )
             return false
         }
     }
@@ -450,7 +458,7 @@ final class WireGuardTunnelController {
         configurationData: Data,
         operationID: UUID
     ) async throws {
-        var retryCount: UInt = 0
+        var didRetryStaleConfiguration = false
 
         while true {
             try ensureOperationIsCurrent(operationID)
@@ -472,21 +480,15 @@ final class WireGuardTunnelController {
                 setStatus(.connecting)
                 return
             } catch let error as NEVPNError
-                where retryCount < 8 &&
-                (error.code == .configurationInvalid || error.code == .configurationStale) {
-                let retryAttempt = retryCount + 1
-                let errorKind = error.code == .configurationStale
-                    ? "configuration-stale"
-                    : "configuration-invalid"
+                where !didRetryStaleConfiguration && error.code == .configurationStale {
                 reportEventLog(
-                    "Retrying WireGuard tunnel start after NEVPN \(errorKind) " +
-                        "error (attempt \(retryAttempt)/8): " +
+                    "Retrying WireGuard tunnel start once after reloading a stale configuration: " +
                         Self.diagnosticDescription(for: error),
                     level: .debug
                 )
                 try await loadFromPreferences(manager)
                 try ensureOperationIsCurrent(operationID)
-                retryCount += 1
+                didRetryStaleConfiguration = true
             }
         }
     }
@@ -706,7 +708,14 @@ final class WireGuardTunnelController {
             return
         }
         guard status == .disconnected else {
-            setStatus(Self.status(from: status))
+            do {
+                setStatus(
+                    try Self.status(from: status),
+                    clearingFailure: status != .disconnecting
+                )
+            } catch {
+                fail(action: "status update", error: error)
+            }
             return
         }
 
@@ -723,7 +732,7 @@ final class WireGuardTunnelController {
         }
 
         if let disconnectError {
-            fail(action: "provider disconnect", error: disconnectError)
+            fail(action: "provider disconnect", error: disconnectError, restoring: .disconnected)
         } else {
             setStatus(.disconnected)
         }
@@ -737,12 +746,22 @@ final class WireGuardTunnelController {
         }
     }
 
-    private func setStatus(_ status: WireGuardTunnelStatus) {
+    private func setStatus(_ status: WireGuardTunnelStatus, clearingFailure: Bool = true) {
+        if clearingFailure {
+            onFailureChange?(nil)
+        }
         guard status != currentStatus else {
             return
         }
         currentStatus = status
         onStatusChange?(status)
+    }
+
+    private func lifecycleStatusAfterFailure(
+        fallback: WireGuardTunnelStatus
+    ) -> WireGuardTunnelStatus {
+        guard let cachedManager else { return fallback }
+        return (try? Self.status(from: cachedManager.connection.status)) ?? fallback
     }
 
     private func setSystemExtensionStatus(
@@ -764,9 +783,14 @@ final class WireGuardTunnelController {
         )
     }
 
-    private func fail(action: String, error: Error) {
+    private func fail(
+        action: String, error: Error, restoring status: WireGuardTunnelStatus? = nil
+    ) {
         let diagnostic = Self.diagnosticDescription(for: error)
-        setStatus(.failed(diagnostic))
+        onFailureChange?(WireGuardTunnelFailure(message: diagnostic))
+        if let status {
+            setStatus(status, clearingFailure: false)
+        }
         reportEventLog(
             "WireGuard tunnel \(action) failed: \(diagnostic)",
             level: .error
@@ -786,7 +810,7 @@ final class WireGuardTunnelController {
 
     private nonisolated static func status(
         from status: NEVPNStatus
-    ) -> WireGuardTunnelStatus {
+    ) throws -> WireGuardTunnelStatus {
         switch status {
         case .invalid:
             return .unconfigured
@@ -797,11 +821,11 @@ final class WireGuardTunnelController {
         case .connected:
             return .connected
         case .reasserting:
-            return .reasserting
+            return .connecting
         case .disconnecting:
             return .disconnecting
         @unknown default:
-            return .failed("Unknown NetworkExtension status.")
+            throw WireGuardTunnelError.unknownNetworkExtensionStatus
         }
     }
 }
@@ -812,6 +836,7 @@ private enum WireGuardTunnelError: LocalizedError {
     case operationSuperseded
     case sessionUnavailable
     case stopTimedOut
+    case unknownNetworkExtensionStatus
 
     var errorDescription: String? {
         switch self {
@@ -825,6 +850,8 @@ private enum WireGuardTunnelError: LocalizedError {
             return String(localized: "The saved WireGuard tunnel is not a packet tunnel session.")
         case .stopTimedOut:
             return String(localized: "The WireGuard tunnel did not stop within five seconds.")
+        case .unknownNetworkExtensionStatus:
+            return "Unknown NetworkExtension status."
         }
     }
 }

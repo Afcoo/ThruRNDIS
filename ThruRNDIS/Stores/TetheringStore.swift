@@ -332,7 +332,8 @@ final class TetheringStore: ObservableObject {
 
     var canRefreshWireGuardTunnelStatus: Bool {
         acceptsNewWork
-            && !wireGuardSession.tunnelStatus.isTransitioning
+            && (!wireGuardSession.tunnelStatus.isTransitioning
+                || wireGuardSession.tunnelFailure != nil)
     }
 
     var shouldConfirmApplicationTermination: Bool {
@@ -824,16 +825,8 @@ final class TetheringStore: ObservableObject {
         guard canRefreshWireGuardTunnelStatus else { return }
         refreshRuntimeEntitlements()
         refreshWireGuardSystemExtensionStatus()
-        guard !wireGuardSession.tunnelStatus.isTransitioning else {
-            appendEventLog(
-                "WireGuard status refresh skipped during a tunnel transition.",
-                level: .debug,
-                category: .wireGuard
-            )
-            return
-        }
         guard runtimeEntitlements.packetTunnelProvider else {
-            wireGuardSession.updateTunnelStatus(.missingPacketTunnelEntitlement)
+            wireGuardSession.updateTunnelFailure(.missingPacketTunnelEntitlement)
             appendEventLog(
                 "WireGuard status not refreshed: missing NetworkExtension entitlement.",
                 level: .error,
@@ -912,7 +905,7 @@ final class TetheringStore: ObservableObject {
                 action: "WireGuard tunnel start",
                 category: .wireGuard
             )
-            wireGuardSession.updateTunnelStatus(.missingPacketTunnelEntitlement)
+            wireGuardSession.updateTunnelFailure(.missingPacketTunnelEntitlement)
             return false
         }
         guard runtimeEntitlements.systemExtensionInstall else {
@@ -921,7 +914,7 @@ final class TetheringStore: ObservableObject {
                 action: "WireGuard tunnel start",
                 category: .wireGuard
             )
-            wireGuardSession.updateTunnelStatus(
+            wireGuardSession.updateTunnelFailure(
                 .missingSystemExtensionInstallEntitlement
             )
             return false

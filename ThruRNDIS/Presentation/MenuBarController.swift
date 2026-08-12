@@ -597,7 +597,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     private var wireGuardStatusTitle: String {
-        String(localized: "WireGuard: \(store.wireGuardSession.tunnelStatus.title)")
+        let title = store.wireGuardSession.tunnelFailure == nil
+            ? store.wireGuardSession.tunnelStatus.title
+            : String(localized: "Failed")
+        return String(localized: "WireGuard: \(title)")
     }
 
     private var dummyEthernetStatusTitle: String {
@@ -649,7 +652,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         MenuBarCombinedStatus(
             vmRuntimeState: store.runtimeState,
             isUSBAttached: store.usbSession.attachedAccessoryID != nil,
-            wireGuardTunnelStatus: store.wireGuardSession.tunnelStatus
+            wireGuardTunnelStatus: store.wireGuardSession.tunnelStatus,
+            hasWireGuardFailure: store.wireGuardSession.tunnelFailure != nil
         )
     }
 
@@ -685,12 +689,15 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     private var wireGuardStatusColor: NSColor {
+        if store.wireGuardSession.tunnelFailure != nil {
+            return .systemRed
+        }
         switch store.wireGuardSession.tunnelStatus {
         case .connected:
             return .systemGreen
-        case .activatingSystemExtension, .connecting, .disconnecting, .reasserting:
+        case .connecting, .disconnecting:
             return .systemYellow
-        case .unconfigured, .disconnected, .failed:
+        case .unconfigured, .disconnected:
             return .systemRed
         }
     }

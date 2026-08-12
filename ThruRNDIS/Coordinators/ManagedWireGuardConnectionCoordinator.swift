@@ -113,10 +113,16 @@ final class ManagedWireGuardConnectionCoordinator {
             guard self.actions.connectWireGuardTunnel() else { return }
             self.state = .waitingForTunnel(operationID: operationID)
 
-            for await status in self.wireGuardSession.$tunnelStatus
-                .dropFirst().values {
+            let tunnelUpdates = Publishers.CombineLatest(
+                self.wireGuardSession.$tunnelStatus,
+                self.wireGuardSession.$tunnelFailure
+            )
+            for await (status, failure) in tunnelUpdates.dropFirst().values {
                 guard !Task.isCancelled,
                       self.state.operationID == operationID else {
+                    return
+                }
+                guard failure == nil else {
                     return
                 }
 
@@ -133,9 +139,9 @@ final class ManagedWireGuardConnectionCoordinator {
                         _ = await dummyEthernet.stopAfterCurrentOperation()
                     }
                     return
-                case .activatingSystemExtension, .connecting, .reasserting:
+                case .connecting:
                     continue
-                case .failed, .disconnecting, .unconfigured, .disconnected:
+                case .disconnecting, .unconfigured, .disconnected:
                     return
                 }
             }
