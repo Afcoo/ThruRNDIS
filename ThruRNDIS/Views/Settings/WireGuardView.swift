@@ -91,25 +91,25 @@ struct WireGuardView: View {
 
                 HStack {
                     Button {
-                        store.connectHostWireGuardTunnel()
+                        store.connectWireGuardTunnel()
                     } label: {
                         Text(
-                            wireGuardSession.hostTunnelStatus.isConnectingOrConnected
+                            wireGuardSession.tunnelStatus.isConnectingOrConnected
                                 ? String(localized: "Reconnect")
                                 : String(localized: "Connect")
                         )
                     }
-                    .disabled(!store.canConnectHostWireGuardTunnel)
+                    .disabled(!store.canConnectWireGuardTunnel)
 
                     Button("Disconnect") {
-                        store.disconnectHostWireGuardTunnel()
+                        store.disconnectWireGuardTunnel()
                     }
-                    .disabled(!store.canDisconnectHostWireGuardTunnel)
+                    .disabled(!store.canDisconnectWireGuardTunnel)
 
                     Button("Refresh") {
-                        store.refreshHostWireGuardTunnelStatus()
+                        store.refreshWireGuardTunnelStatus()
                     }
-                    .disabled(!store.canRefreshHostWireGuardTunnelStatus)
+                    .disabled(!store.canRefreshWireGuardTunnelStatus)
 
                     Spacer()
 
@@ -124,7 +124,7 @@ struct WireGuardView: View {
             Section("Host Configuration (Debug / Export)") {
                 GroupBox {
                     ScrollView([.horizontal, .vertical]) {
-                        Text(verbatim: wireGuardSession.clientConfiguration)
+                        Text(verbatim: wireGuardSession.renderedClientConfiguration)
                             .font(.system(.body, design: .monospaced))
                             .textSelection(.enabled)
                             .fixedSize(horizontal: true, vertical: false)

@@ -22,6 +22,7 @@ struct MenuBarCombinedStatus: Equatable {
     enum Stage: Equatable {
         case inactive
         case usbNotAttached
+        case wireGuardNeedsAttention
         case wireGuardDisconnected
         case dummyEthernetHelperProblem
         case dummyEthernetNotChecked
@@ -37,14 +38,16 @@ struct MenuBarCombinedStatus: Equatable {
         vmRuntimeState: VMRuntimeState,
         isUSBAttached: Bool,
         dummyEthernetState: DummyEthernetState? = nil,
-        wireGuardTunnelStatus: HostWireGuardTunnelStatus
+        wireGuardTunnelStatus: WireGuardTunnelStatus,
+        hasWireGuardFailure: Bool = false
     ) {
         let isVMRunning = vmRuntimeState == .running
         let isWireGuardConnected = wireGuardTunnelStatus == .connected
+        let isWireGuardActive = isWireGuardConnected && !hasWireGuardFailure
         var activeComponents = [
             isVMRunning,
             isUSBAttached,
-            isWireGuardConnected,
+            isWireGuardActive,
         ]
         if let dummyEthernetState {
             activeComponents.append(dummyEthernetState == .active)
@@ -64,6 +67,8 @@ struct MenuBarCombinedStatus: Equatable {
             stage = .inactive
         } else if !isUSBAttached {
             stage = .usbNotAttached
+        } else if hasWireGuardFailure {
+            stage = .wireGuardNeedsAttention
         } else if !isWireGuardConnected {
             stage = .wireGuardDisconnected
         } else if let dummyEthernetState,
@@ -94,6 +99,10 @@ struct MenuBarCombinedStatus: Equatable {
             )
         case .usbNotAttached:
             return String(localized: "USB Not Attached")
+        case .wireGuardNeedsAttention:
+            return String(
+                localized: "WireGuard: \(String(localized: "Needs Attention"))"
+            )
         case .wireGuardDisconnected:
             return String(localized: "WireGuard Disconnected")
         case .dummyEthernetHelperProblem:

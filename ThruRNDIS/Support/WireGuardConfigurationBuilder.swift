@@ -2,31 +2,27 @@
 Copyright (C) 2026 Afcoo.
 */
 
-import Foundation
-
 struct WireGuardConfigurationElements: Equatable {
     var serverAddress: String
     var clientAddress: String
-    var serverPeerAllowedIPs: String
-    var clientAllowedIPs: String
-    var listenPort: Int
-    var serverMTU: Int
-    var clientMTU: Int
+    var serverPeerAllowedIPs: [String]
+    var clientAllowedIPs: [String]
+    var listenPort: UInt16
+    var serverMTU: UInt16
+    var clientMTU: UInt16
     var dnsServers: [String]
-    var persistentKeepalive: Int
-    var endpointPlaceholder: String
+    var persistentKeepalive: UInt16
 
     static let defaults = WireGuardConfigurationElements(
         serverAddress: "10.100.0.1/24",
         clientAddress: "10.100.0.2/24",
-        serverPeerAllowedIPs: "10.100.0.2/32",
-        clientAllowedIPs: "0.0.0.0/0",
+        serverPeerAllowedIPs: ["10.100.0.2/32"],
+        clientAllowedIPs: ["0.0.0.0/0"],
         listenPort: 51820,
         serverMTU: 1420,
         clientMTU: 1420,
         dnsServers: ["1.1.1.1", "1.0.0.1", "8.8.8.8", "8.8.4.4"],
-        persistentKeepalive: 25,
-        endpointPlaceholder: "<THRURNDIS_WG_ENDPOINT>"
+        persistentKeepalive: 25
     )
 }
 
@@ -37,98 +33,21 @@ struct WireGuardConfigurationBuilder {
         self.elements = elements
     }
 
-    func validate() throws {
-        try requireValue(elements.serverAddress, field: "server Address")
-        try requireValue(elements.clientAddress, field: "client Address")
-        try requireValue(elements.serverPeerAllowedIPs, field: "server peer AllowedIPs")
-        try requireValue(elements.clientAllowedIPs, field: "client peer AllowedIPs")
-        try requireValue(elements.endpointPlaceholder, field: "client Endpoint placeholder")
-
-        guard (1...65_535).contains(elements.listenPort) else {
-            throw WireGuardConfigurationBuilderError.invalidInteger(
-                field: "ListenPort",
-                value: elements.listenPort
-            )
-        }
-        guard elements.serverMTU > 0 else {
-            throw WireGuardConfigurationBuilderError.invalidInteger(
-                field: "server MTU",
-                value: elements.serverMTU
-            )
-        }
-        guard elements.clientMTU > 0 else {
-            throw WireGuardConfigurationBuilderError.invalidInteger(
-                field: "client MTU",
-                value: elements.clientMTU
-            )
-        }
-        guard (0...65_535).contains(elements.persistentKeepalive) else {
-            throw WireGuardConfigurationBuilderError.invalidInteger(
-                field: "PersistentKeepalive",
-                value: elements.persistentKeepalive
-            )
-        }
-    }
-
-    func serverConfiguration(keyMaterial: WireGuardKeyMaterial) -> String {
-        """
-        [Interface]
-        PrivateKey = \(keyMaterial.serverPrivateKey)
-        Address = \(elements.serverAddress)
-        ListenPort = \(elements.listenPort)
-        MTU = \(elements.serverMTU)
-
-        [Peer]
-        PublicKey = \(keyMaterial.clientPublicKey)
-        AllowedIPs = \(elements.serverPeerAllowedIPs)
-        PersistentKeepalive = \(elements.persistentKeepalive)
-
-        """
-    }
-
-    func clientConfiguration(
+    func connectionConfiguration(
         keyMaterial: WireGuardKeyMaterial,
-        endpoint: String?,
-        dnsServers: [String]? = nil,
-        allowedIPs: String? = nil
-    ) -> String {
-        let resolvedDNSServers = dnsServers.flatMap { $0.isEmpty ? nil : $0 }
-            ?? elements.dnsServers
-        let dnsLine = "DNS = \(resolvedDNSServers.joined(separator: ", "))\n"
-        let resolvedEndpoint = endpoint ?? elements.endpointPlaceholder
-        let resolvedAllowedIPs = allowedIPs ?? elements.clientAllowedIPs
-
-        return """
-        [Interface]
-        PrivateKey = \(keyMaterial.clientPrivateKey)
-        Address = \(elements.clientAddress)
-        MTU = \(elements.clientMTU)
-        \(dnsLine)
-        [Peer]
-        PublicKey = \(keyMaterial.serverPublicKey)
-        AllowedIPs = \(resolvedAllowedIPs)
-        Endpoint = \(resolvedEndpoint)
-        PersistentKeepalive = \(elements.persistentKeepalive)
-        """
-    }
-
-    private func requireValue(_ value: String, field: String) throws {
-        guard !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw WireGuardConfigurationBuilderError.missingValue(field)
-        }
-    }
-}
-
-enum WireGuardConfigurationBuilderError: LocalizedError {
-    case missingValue(String)
-    case invalidInteger(field: String, value: Int)
-
-    var errorDescription: String? {
-        switch self {
-        case .missingValue(let field):
-            return String(localized: "Missing WireGuard configuration value: \(field).")
-        case .invalidInteger(let field, let value):
-            return String(localized: "Invalid WireGuard configuration integer for \(field): \(value).")
-        }
+        endpoint: String,
+        dnsServers: [String],
+        allowedIPs: [String]
+    ) -> WireGuardConnectionConfiguration {
+        WireGuardConnectionConfiguration(
+            privateKey: keyMaterial.clientPrivateKey,
+            interfaceAddress: elements.clientAddress,
+            mtu: elements.clientMTU,
+            dnsServers: dnsServers,
+            peerPublicKey: keyMaterial.serverPublicKey,
+            allowedIPs: allowedIPs,
+            endpoint: endpoint,
+            persistentKeepalive: elements.persistentKeepalive
+        )
     }
 }

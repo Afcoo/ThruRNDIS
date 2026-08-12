@@ -111,10 +111,12 @@ struct WireGuardConfigurationStore {
     private func prepareExistingConfiguration(
         builder: WireGuardConfigurationBuilder
     ) throws -> PreparedWireGuardConfiguration {
-        try builder.validate()
         let keyMaterial = try loadKeyMaterial()
-        let serverConfiguration = builder.serverConfiguration(keyMaterial: keyMaterial)
-        try writeServerConfiguration(serverConfiguration)
+        let renderedServerConfiguration = WgQuickConfigurationRenderer().renderServer(
+            keyMaterial: keyMaterial,
+            elements: builder.elements
+        )
+        try writeServerConfiguration(renderedServerConfiguration)
 
         return PreparedWireGuardConfiguration(
             files: files,
@@ -187,10 +189,10 @@ struct WireGuardConfigurationStore {
         )
 
         return WireGuardKeyMaterial(
-            serverPrivateKey: serverPrivateKey.rawRepresentation.base64EncodedString(),
-            serverPublicKey: serverPrivateKey.publicKey.rawRepresentation.base64EncodedString(),
-            clientPrivateKey: clientPrivateKey.rawRepresentation.base64EncodedString(),
-            clientPublicKey: clientPrivateKey.publicKey.rawRepresentation.base64EncodedString()
+            serverPrivateKey: serverPrivateKey.rawRepresentation,
+            serverPublicKey: serverPrivateKey.publicKey.rawRepresentation,
+            clientPrivateKey: clientPrivateKey.rawRepresentation,
+            clientPublicKey: clientPrivateKey.publicKey.rawRepresentation
         )
     }
 

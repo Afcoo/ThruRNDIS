@@ -38,7 +38,7 @@ final class TetheringWorkflowCoordinator {
     struct Actions {
         let canPresentUSBAttachmentPrompt: () -> Bool
         let startVirtualMachine: () -> Bool
-        let canConnectHostWireGuardTunnel: () -> Bool
+        let canConnectWireGuardTunnel: () -> Bool
         let updateStatusMessage: (String) -> Void
         let workflowStateDidChange: () -> Void
     }
@@ -621,7 +621,7 @@ final class TetheringWorkflowCoordinator {
             return
         }
 
-        if wireGuardSession.hostTunnelStatus.isConnectingOrConnected {
+        if wireGuardSession.tunnelStatus.isConnectingOrConnected {
             pendingWireGuardConnectionAccessoryID = nil
             appendEventLog(
                 "Queued WireGuard connection cleared because the provider is already " +
@@ -635,7 +635,7 @@ final class TetheringWorkflowCoordinator {
         guard usbSession.attachedAccessoryID == accessoryID,
               usbSession.vmSessionAccessoryID == accessoryID,
               wireGuardSession.invalidConnectionFields.isEmpty,
-              actions.canConnectHostWireGuardTunnel() else {
+              actions.canConnectWireGuardTunnel() else {
             return
         }
 

@@ -35,39 +35,34 @@ struct NetworkExtensionPermissionView: View {
 
                 Spacer()
 
-                Button("Refresh Status") {
+                Button("Refresh") {
                     store.refreshWireGuardSystemExtensionStatus()
                 }
-                .disabled(wireGuardSession.systemExtensionStatus.isTransitioning)
+                .disabled(wireGuardSession.isSystemExtensionActivationInProgress)
             }
         }
     }
 
     private var systemExtensionStatusDetail: LocalizedStringKey {
-        if wireGuardSession.systemExtensionStatus == .uninstalling {
-            return "Restart macOS to finish removing the Network Extension before requesting activation again."
-        }
         if !store.runtimeEntitlements.systemExtensionInstall {
             return "This build cannot activate the Network Extension. Run a signed copy of ThruRNDIS from Applications."
         }
 
         return switch wireGuardSession.systemExtensionStatus {
-        case .unknown:
+        case .unknown(nil):
             "The Network Extension status has not been checked yet."
-        case .checking:
-            "Checking whether the Network Extension is active."
-        case .inactive:
+        case .unknown:
+            "The Network Extension status could not be determined."
+        case .inactive(.activationAvailable):
             "Request activation, then allow ThruRNDIS in System Settings before connecting."
-        case .activationRequested, .awaitingUserApproval:
+        case .inactive(.awaitingUserApproval):
             "Activation was requested. Approve the Network Extension in System Settings."
+        case .inactive(.restartRequired(.activation)):
+            "Restart macOS to finish activating the Network Extension."
+        case .inactive(.restartRequired(.removal)):
+            "Restart macOS to finish removing the Network Extension before requesting activation again."
         case .active:
             "The Network Extension is active and ready to connect."
-        case .uninstalling:
-            "Restart macOS to finish removing the Network Extension before requesting activation again."
-        case .restartRequired:
-            "Restart macOS to finish activating the Network Extension."
-        case .failed:
-            "The Network Extension status could not be determined."
         }
     }
 
@@ -75,15 +70,13 @@ struct NetworkExtensionPermissionView: View {
         switch wireGuardSession.systemExtensionStatus {
         case .active:
             .active
-        case .checking, .activationRequested:
-            .transitioning
-        case .inactive:
+        case .inactive(.activationAvailable):
             .inactive
-        case .awaitingUserApproval, .uninstalling, .restartRequired:
+        case .inactive(.awaitingUserApproval), .inactive(.restartRequired):
             .attention
-        case .failed:
+        case .unknown(.some):
             .failed
-        case .unknown:
+        case .unknown(nil):
             .unknown
         }
     }

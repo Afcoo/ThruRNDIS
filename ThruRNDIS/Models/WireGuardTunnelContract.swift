@@ -4,13 +4,20 @@ Copyright (C) 2026 Afcoo.
 
 import Foundation
 
-enum ThruRNDISTunnel {
+struct WireGuardConnectionConfiguration: Codable, Equatable, Sendable {
+    let privateKey: Data
+    let interfaceAddress: String
+    let mtu: UInt16
+    let dnsServers: [String]
+    let peerPublicKey: Data
+    let allowedIPs: [String]
+    let endpoint: String
+    let persistentKeepalive: UInt16
+}
+
+enum WireGuardTunnelContract {
     static let displayName = "ThruRNDIS"
-    static let wireGuardConfigurationOptionKey = "ThruRNDISWireGuardConfiguration"
-    static let systemExtensionsSettingsURL = URL(
-        string: "x-apple.systempreferences:com.apple.ExtensionsPreferences" +
-            "?extensionPointIdentifier=com.apple.system_extension.network_extension.extension-point"
-    )!
+    static let tunnelConfigurationOptionKey = "ThruRNDISWireGuardConnectionConfiguration"
 
     private static let providerBundleIdentifierSuffix = ".network-extension"
 
