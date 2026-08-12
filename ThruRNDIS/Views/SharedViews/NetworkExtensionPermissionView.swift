@@ -35,7 +35,7 @@ struct NetworkExtensionPermissionView: View {
 
                 Spacer()
 
-                Button("Refresh Status") {
+                Button("Refresh") {
                     store.refreshWireGuardSystemExtensionStatus()
                 }
                 .disabled(wireGuardSession.isSystemExtensionActivationInProgress)
