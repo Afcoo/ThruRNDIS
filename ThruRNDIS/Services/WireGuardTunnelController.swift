@@ -4,7 +4,6 @@ Copyright (C) 2026 Afcoo.
 
 import Foundation
 @preconcurrency import NetworkExtension
-import WireGuardKit
 
 private struct ConnectionObservationContext: Equatable {
     let operationID: UUID
@@ -12,15 +11,15 @@ private struct ConnectionObservationContext: Equatable {
 }
 
 @MainActor
-final class HostWireGuardTunnelController {
-    var onStatusChange: ((HostWireGuardTunnelStatus) -> Void)?
+final class WireGuardTunnelController {
+    var onStatusChange: ((WireGuardTunnelStatus) -> Void)?
     var onSystemExtensionStatusChange: ((WireGuardSystemExtensionStatus) -> Void)?
     var onEventLog: EventLogHandler?
 
     private let systemExtensionActivator: WireGuardSystemExtensionActivator
     private var vpnStatusObserverToken: NSObjectProtocol?
     private var activeOperationID = UUID()
-    private var currentStatus: HostWireGuardTunnelStatus = .unconfigured
+    private var currentStatus: WireGuardTunnelStatus = .unconfigured
     private var activeSystemExtensionOperationID = UUID()
     private var currentSystemExtensionStatus: WireGuardSystemExtensionStatus = .unknown
     private var isSystemExtensionActivationInProgress = false
@@ -138,7 +137,7 @@ final class HostWireGuardTunnelController {
             }
         } catch is CancellationError {
             return
-        } catch HostWireGuardTunnelError.operationSuperseded {
+        } catch WireGuardTunnelError.operationSuperseded {
             return
         } catch WireGuardSystemExtensionActivationError.restartRequired {
             guard activeSystemExtensionOperationID == operationID else {
@@ -166,7 +165,7 @@ final class HostWireGuardTunnelController {
     func refreshStatus() async {
         guard !currentStatus.isTransitioning else {
             reportEventLog(
-                "Ignored Host WireGuard status refresh during a tunnel transition.",
+                "Ignored WireGuard status refresh during a tunnel transition.",
                 level: .debug
             )
             return
@@ -192,7 +191,7 @@ final class HostWireGuardTunnelController {
             }
         } catch is CancellationError {
             return
-        } catch HostWireGuardTunnelError.operationSuperseded {
+        } catch WireGuardTunnelError.operationSuperseded {
             return
         } catch {
             guard activeOperationID == operationID else { return }
@@ -200,14 +199,13 @@ final class HostWireGuardTunnelController {
         }
     }
 
-    func connect(wgQuickConfiguration: String) async {
+    func connect(configuration: WireGuardConnectionConfiguration) async {
         let operationID = beginOperation()
         do {
             try Task.checkCancellation()
-            let tunnelConfiguration = try TunnelConfiguration(
-                fromWgQuickConfig: wgQuickConfiguration,
-                called: ThruRNDISTunnel.displayName
-            )
+            let configurationEncoder = PropertyListEncoder()
+            configurationEncoder.outputFormat = .binary
+            let configurationData = try configurationEncoder.encode(configuration)
             let extensionBundleIdentifier = try systemExtensionBundleIdentifier()
             guard !areSystemExtensionOperationsInvalidated else {
                 throw CancellationError()
@@ -240,18 +238,18 @@ final class HostWireGuardTunnelController {
                 } catch WireGuardSystemExtensionActivationError.restartRequired {
                     guard !areSystemExtensionOperationsInvalidated,
                           activeSystemExtensionOperationID == systemExtensionOperationID else {
-                        throw HostWireGuardTunnelError.operationSuperseded
+                        throw WireGuardTunnelError.operationSuperseded
                     }
                     setSystemExtensionStatus(.restartRequired)
                     throw WireGuardSystemExtensionActivationError.restartRequired
                 } catch WireGuardSystemExtensionActivationError.extensionRemainsDisabled {
                     throw WireGuardSystemExtensionActivationError.extensionRemainsDisabled
-                } catch HostWireGuardTunnelError.operationSuperseded {
-                    throw HostWireGuardTunnelError.operationSuperseded
+                } catch WireGuardTunnelError.operationSuperseded {
+                    throw WireGuardTunnelError.operationSuperseded
                 } catch {
                     guard !areSystemExtensionOperationsInvalidated,
                           activeSystemExtensionOperationID == systemExtensionOperationID else {
-                        throw HostWireGuardTunnelError.operationSuperseded
+                        throw WireGuardTunnelError.operationSuperseded
                     }
                     setSystemExtensionStatus(.failed(Self.diagnosticDescription(for: error)))
                     throw error
@@ -261,26 +259,26 @@ final class HostWireGuardTunnelController {
 
             setStatus(.connecting)
             let manager = try await configureAndSaveTunnelManager(
-                tunnelConfiguration: tunnelConfiguration,
+                connectionConfiguration: configuration,
                 operationID: operationID
             )
             try await startTunnel(
                 manager: manager,
-                wgQuickConfiguration: wgQuickConfiguration,
+                configurationData: configurationData,
                 operationID: operationID
             )
             reportEventLog(
-                "Host WireGuard tunnel start requested with the current connection settings.",
+                "WireGuard tunnel start requested with the current connection settings.",
                 level: .debug
             )
         } catch is CancellationError {
             reportEventLog(
-                "Cancelled a pending Host WireGuard tunnel start.",
+                "Cancelled a pending WireGuard tunnel start.",
                 level: .debug
             )
-        } catch HostWireGuardTunnelError.operationSuperseded {
+        } catch WireGuardTunnelError.operationSuperseded {
             reportEventLog(
-                "Superseded a pending Host WireGuard tunnel operation.",
+                "Superseded a pending WireGuard tunnel operation.",
                 level: .debug
             )
         } catch {
@@ -314,14 +312,14 @@ final class HostWireGuardTunnelController {
             }
 
             guard let session = manager.connection as? NETunnelProviderSession else {
-                throw HostWireGuardTunnelError.sessionUnavailable
+                throw WireGuardTunnelError.sessionUnavailable
             }
 
             setStatus(.disconnecting)
             if connectionStatus != .disconnecting {
                 session.stopTunnel()
                 reportEventLog(
-                    "Host WireGuard tunnel stop requested.",
+                    "WireGuard tunnel stop requested.",
                     level: .debug
                 )
             }
@@ -334,18 +332,18 @@ final class HostWireGuardTunnelController {
                 manager: manager,
                 operationID: operationID
             ) else {
-                throw HostWireGuardTunnelError.stopTimedOut
+                throw WireGuardTunnelError.stopTimedOut
             }
 
             setStatus(.disconnected)
             reportEventLog(
-                "Host WireGuard tunnel stopped.",
+                "WireGuard tunnel stopped.",
                 level: .debug
             )
             return true
         } catch is CancellationError {
             return false
-        } catch HostWireGuardTunnelError.operationSuperseded {
+        } catch WireGuardTunnelError.operationSuperseded {
             return false
         } catch {
             guard activeOperationID == operationID else { return false }
@@ -381,7 +379,7 @@ final class HostWireGuardTunnelController {
             return true
         } catch is CancellationError {
             return false
-        } catch HostWireGuardTunnelError.operationSuperseded {
+        } catch WireGuardTunnelError.operationSuperseded {
             return false
         } catch {
             guard activeOperationID == operationID else { return false }
@@ -391,7 +389,7 @@ final class HostWireGuardTunnelController {
     }
 
     private func configureAndSaveTunnelManager(
-        tunnelConfiguration: TunnelConfiguration,
+        connectionConfiguration: WireGuardConnectionConfiguration,
         operationID: UUID
     ) async throws -> NETunnelProviderManager {
         let manager = try await loadThruRNDISManager(
@@ -400,13 +398,13 @@ final class HostWireGuardTunnelController {
         try ensureOperationIsCurrent(operationID)
         cachedManager = manager
         guard let protocolConfiguration = NETunnelProviderProtocol(
-            thruRNDISConfiguration: tunnelConfiguration
+            wireGuardConfiguration: connectionConfiguration
         ) else {
-            throw HostWireGuardTunnelError.configurationCreationFailed
+            throw WireGuardTunnelError.configurationCreationFailed
         }
 
         manager.protocolConfiguration = protocolConfiguration
-        manager.localizedDescription = ThruRNDISTunnel.displayName
+        manager.localizedDescription = WireGuardTunnelContract.displayName
         manager.isEnabled = true
         try await saveToPreferences(manager)
         try ensureOperationIsCurrent(operationID)
@@ -417,7 +415,7 @@ final class HostWireGuardTunnelController {
 
     private func startTunnel(
         manager: NETunnelProviderManager,
-        wgQuickConfiguration: String,
+        configurationData: Data,
         operationID: UUID
     ) async throws {
         try ensureOperationIsCurrent(operationID)
@@ -434,7 +432,7 @@ final class HostWireGuardTunnelController {
                 manager: manager,
                 operationID: operationID
             ) else {
-                throw HostWireGuardTunnelError.stopTimedOut
+                throw WireGuardTunnelError.stopTimedOut
             }
         }
 
@@ -442,14 +440,14 @@ final class HostWireGuardTunnelController {
         try ensureOperationIsCurrent(operationID)
         try await startTunnelSession(
             manager: manager,
-            wgQuickConfiguration: wgQuickConfiguration,
+            configurationData: configurationData,
             operationID: operationID
         )
     }
 
     private func startTunnelSession(
         manager: NETunnelProviderManager,
-        wgQuickConfiguration: String,
+        configurationData: Data,
         operationID: UUID
     ) async throws {
         var retryCount: UInt = 0
@@ -457,7 +455,7 @@ final class HostWireGuardTunnelController {
         while true {
             try ensureOperationIsCurrent(operationID)
             guard let session = manager.connection as? NETunnelProviderSession else {
-                throw HostWireGuardTunnelError.sessionUnavailable
+                throw WireGuardTunnelError.sessionUnavailable
             }
             _ = trackConnection(
                 session,
@@ -467,8 +465,8 @@ final class HostWireGuardTunnelController {
 
             do {
                 let options: [String: NSObject] = [
-                    ThruRNDISTunnel.wireGuardConfigurationOptionKey:
-                        Data(wgQuickConfiguration.utf8) as NSData,
+                    WireGuardTunnelContract.tunnelConfigurationOptionKey:
+                        configurationData as NSData,
                 ]
                 try session.startTunnel(options: options)
                 setStatus(.connecting)
@@ -481,7 +479,7 @@ final class HostWireGuardTunnelController {
                     ? "configuration-stale"
                     : "configuration-invalid"
                 reportEventLog(
-                    "Retrying Host WireGuard tunnel start after NEVPN \(errorKind) " +
+                    "Retrying WireGuard tunnel start after NEVPN \(errorKind) " +
                         "error (attempt \(retryAttempt)/8): " +
                         Self.diagnosticDescription(for: error),
                     level: .debug
@@ -592,13 +590,13 @@ final class HostWireGuardTunnelController {
     private nonisolated func isThruRNDISManager(
         _ manager: NETunnelProviderManager
     ) -> Bool {
-        guard manager.localizedDescription == ThruRNDISTunnel.displayName,
+        guard manager.localizedDescription == WireGuardTunnelContract.displayName,
               let providerProtocol = manager.protocolConfiguration as? NETunnelProviderProtocol,
               let bundleIdentifier = Bundle.main.bundleIdentifier else {
             return false
         }
         return providerProtocol.providerBundleIdentifier ==
-            ThruRNDISTunnel.providerBundleIdentifier(derivedFrom: bundleIdentifier)
+            WireGuardTunnelContract.providerBundleIdentifier(derivedFrom: bundleIdentifier)
     }
 
     private func beginOperation() -> UUID {
@@ -660,9 +658,9 @@ final class HostWireGuardTunnelController {
 
     private func systemExtensionBundleIdentifier() throws -> String {
         guard let mainBundleIdentifier = Bundle.main.bundleIdentifier else {
-            throw HostWireGuardTunnelError.bundleIdentifierUnavailable
+            throw WireGuardTunnelError.bundleIdentifierUnavailable
         }
-        return ThruRNDISTunnel.providerBundleIdentifier(
+        return WireGuardTunnelContract.providerBundleIdentifier(
             derivedFrom: mainBundleIdentifier
         )
     }
@@ -670,7 +668,7 @@ final class HostWireGuardTunnelController {
     private func ensureOperationIsCurrent(_ operationID: UUID) throws {
         try Task.checkCancellation()
         guard activeOperationID == operationID else {
-            throw HostWireGuardTunnelError.operationSuperseded
+            throw WireGuardTunnelError.operationSuperseded
         }
     }
 
@@ -678,7 +676,7 @@ final class HostWireGuardTunnelController {
         try Task.checkCancellation()
         guard !areSystemExtensionOperationsInvalidated,
               activeSystemExtensionOperationID == operationID else {
-            throw HostWireGuardTunnelError.operationSuperseded
+            throw WireGuardTunnelError.operationSuperseded
         }
     }
 
@@ -739,7 +737,7 @@ final class HostWireGuardTunnelController {
         }
     }
 
-    private func setStatus(_ status: HostWireGuardTunnelStatus) {
+    private func setStatus(_ status: WireGuardTunnelStatus) {
         guard status != currentStatus else {
             return
         }
@@ -770,7 +768,7 @@ final class HostWireGuardTunnelController {
         let diagnostic = Self.diagnosticDescription(for: error)
         setStatus(.failed(diagnostic))
         reportEventLog(
-            "Host WireGuard tunnel \(action) failed: \(diagnostic)",
+            "WireGuard tunnel \(action) failed: \(diagnostic)",
             level: .error
         )
     }
@@ -788,7 +786,7 @@ final class HostWireGuardTunnelController {
 
     private nonisolated static func status(
         from status: NEVPNStatus
-    ) -> HostWireGuardTunnelStatus {
+    ) -> WireGuardTunnelStatus {
         switch status {
         case .invalid:
             return .unconfigured
@@ -808,7 +806,7 @@ final class HostWireGuardTunnelController {
     }
 }
 
-private enum HostWireGuardTunnelError: LocalizedError {
+private enum WireGuardTunnelError: LocalizedError {
     case bundleIdentifierUnavailable
     case configurationCreationFailed
     case operationSuperseded

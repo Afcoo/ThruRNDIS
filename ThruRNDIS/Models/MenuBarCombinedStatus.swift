@@ -37,7 +37,7 @@ struct MenuBarCombinedStatus: Equatable {
         vmRuntimeState: VMRuntimeState,
         isUSBAttached: Bool,
         dummyEthernetState: DummyEthernetState? = nil,
-        wireGuardTunnelStatus: HostWireGuardTunnelStatus
+        wireGuardTunnelStatus: WireGuardTunnelStatus
     ) {
         let isVMRunning = vmRuntimeState == .running
         let isWireGuardConnected = wireGuardTunnelStatus == .connected

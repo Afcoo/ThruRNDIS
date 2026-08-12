@@ -30,6 +30,8 @@
 		8F0000000000000000000004 /* USBAccessoryCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F0000000000000000000104 /* USBAccessoryCoordinator.swift */; };
 		K10000000000000000000001 /* TetheringWorkflowCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = K10000000000000000000101 /* TetheringWorkflowCoordinator.swift */; };
 		L10000000000000000000001 /* ManagedWireGuardConnectionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = L10000000000000000000101 /* ManagedWireGuardConnectionCoordinator.swift */; };
+		M10000000000000000000001 /* WireGuardTunnelContract.swift in Sources */ = {isa = PBXBuildFile; fileRef = M10000000000000000000101 /* WireGuardTunnelContract.swift */; };
+		M10000000000000000000002 /* WgQuickConfigurationRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = M10000000000000000000102 /* WgQuickConfigurationRenderer.swift */; };
 		8F0000000000000000000005 /* WireGuardConfigurationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F0000000000000000000105 /* WireGuardConfigurationStore.swift */; };
 		9A0000000000000000000001 /* MenuBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A0000000000000000000101 /* MenuBarController.swift */; };
 		9A0000000000000000000002 /* OnboardingWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A0000000000000000000102 /* OnboardingWindowController.swift */; };
@@ -51,20 +53,15 @@
 		D10000000000000000000002 /* USBSessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10000000000000000000102 /* USBSessionStore.swift */; };
 		D10000000000000000000003 /* VMConfigurationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10000000000000000000103 /* VMConfigurationStore.swift */; };
 		D10000000000000000000006 /* VMAssetStorageLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10000000000000000000106 /* VMAssetStorageLayout.swift */; };
-		DA1000000000000000000001 /* HostWireGuardTunnelStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA1000000000000000000101 /* HostWireGuardTunnelStatus.swift */; };
-		DA1000000000000000000003 /* HostWireGuardTunnelController.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA1000000000000000000103 /* HostWireGuardTunnelController.swift */; };
+		DA1000000000000000000001 /* WireGuardTunnelStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA1000000000000000000101 /* WireGuardTunnelStatus.swift */; };
+		DA1000000000000000000003 /* WireGuardTunnelController.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA1000000000000000000103 /* WireGuardTunnelController.swift */; };
 		DA1000000000000000000004 /* WireGuardSystemExtensionActivator.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA1000000000000000000104 /* WireGuardSystemExtensionActivator.swift */; };
-		DA1000000000000000000007 /* TunnelConfiguration+WgQuickConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA1000000000000000000107 /* TunnelConfiguration+WgQuickConfig.swift */; };
-		DA1000000000000000000008 /* NETunnelProviderProtocol+ThruRNDIS.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA1000000000000000000108 /* NETunnelProviderProtocol+ThruRNDIS.swift */; };
+		DA1000000000000000000007 /* WireGuardTunnelContract.swift in Sources */ = {isa = PBXBuildFile; fileRef = M10000000000000000000101 /* WireGuardTunnelContract.swift */; };
+		DA1000000000000000000008 /* NETunnelProviderProtocol+WireGuard.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA1000000000000000000108 /* NETunnelProviderProtocol+WireGuard.swift */; };
 		DA1000000000000000000009 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA100000000000000000010A /* main.swift */; };
 		DA100000000000000000000A /* PacketTunnelProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA100000000000000000010B /* PacketTunnelProvider.swift */; };
-		DA100000000000000000000C /* TunnelConfiguration+WgQuickConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA1000000000000000000107 /* TunnelConfiguration+WgQuickConfig.swift */; };
-		DA100000000000000000000E /* WireGuardKit in Frameworks */ = {isa = PBXBuildFile; productRef = DA1000000000000000000802 /* WireGuardKit */; };
 		DA100000000000000000000F /* WireGuardKit in Frameworks */ = {isa = PBXBuildFile; productRef = DA1000000000000000000802 /* WireGuardKit */; };
-		DA1000000000000000000011 /* ThruRNDISTunnel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA1000000000000000000110 /* ThruRNDISTunnel.swift */; };
-		DA1000000000000000000012 /* ThruRNDISTunnel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA1000000000000000000110 /* ThruRNDISTunnel.swift */; };
 		DA1000000000000000000013 /* WireGuardConnectionValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA1000000000000000000111 /* WireGuardConnectionValidator.swift */; };
-		DA1000000000000000000014 /* PacketTunnelProviderError.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA1000000000000000000112 /* PacketTunnelProviderError.swift */; };
 		DC1000000000000000000001 /* EventLogErrorFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC1000000000000000000101 /* EventLogErrorFormatter.swift */; };
 		DD1000000000000000000001 /* ApplicationRelaunchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD1000000000000000000101 /* ApplicationRelaunchService.swift */; };
 		DE1000000000000000000001 /* AppPreferencesStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE1000000000000000000101 /* AppPreferencesStore.swift */; };
@@ -224,6 +221,8 @@
 		8F0000000000000000000104 /* USBAccessoryCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBAccessoryCoordinator.swift; sourceTree = "<group>"; };
 		K10000000000000000000101 /* TetheringWorkflowCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TetheringWorkflowCoordinator.swift; sourceTree = "<group>"; };
 		L10000000000000000000101 /* ManagedWireGuardConnectionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManagedWireGuardConnectionCoordinator.swift; sourceTree = "<group>"; };
+		M10000000000000000000101 /* WireGuardTunnelContract.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardTunnelContract.swift; sourceTree = "<group>"; };
+		M10000000000000000000102 /* WgQuickConfigurationRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WgQuickConfigurationRenderer.swift; sourceTree = "<group>"; };
 		8F0000000000000000000105 /* WireGuardConfigurationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardConfigurationStore.swift; sourceTree = "<group>"; };
 		9A0000000000000000000101 /* MenuBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarController.swift; sourceTree = "<group>"; };
 		9A0000000000000000000102 /* OnboardingWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingWindowController.swift; sourceTree = "<group>"; };
@@ -245,11 +244,10 @@
 		D10000000000000000000102 /* USBSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBSessionStore.swift; sourceTree = "<group>"; };
 		D10000000000000000000103 /* VMConfigurationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMConfigurationStore.swift; sourceTree = "<group>"; };
 		D10000000000000000000106 /* VMAssetStorageLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMAssetStorageLayout.swift; sourceTree = "<group>"; };
-		DA1000000000000000000101 /* HostWireGuardTunnelStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostWireGuardTunnelStatus.swift; sourceTree = "<group>"; };
-		DA1000000000000000000103 /* HostWireGuardTunnelController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostWireGuardTunnelController.swift; sourceTree = "<group>"; };
+		DA1000000000000000000101 /* WireGuardTunnelStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardTunnelStatus.swift; sourceTree = "<group>"; };
+		DA1000000000000000000103 /* WireGuardTunnelController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardTunnelController.swift; sourceTree = "<group>"; };
 		DA1000000000000000000104 /* WireGuardSystemExtensionActivator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardSystemExtensionActivator.swift; sourceTree = "<group>"; };
-		DA1000000000000000000107 /* TunnelConfiguration+WgQuickConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TunnelConfiguration+WgQuickConfig.swift"; sourceTree = "<group>"; };
-		DA1000000000000000000108 /* NETunnelProviderProtocol+ThruRNDIS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NETunnelProviderProtocol+ThruRNDIS.swift"; sourceTree = "<group>"; };
+		DA1000000000000000000108 /* NETunnelProviderProtocol+WireGuard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NETunnelProviderProtocol+WireGuard.swift"; sourceTree = "<group>"; };
 		DA1000000000000000000109 /* Distribution.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Distribution.entitlements; sourceTree = "<group>"; };
 		DA100000000000000000010A /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		DA100000000000000000010B /* PacketTunnelProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PacketTunnelProvider.swift; sourceTree = "<group>"; };
@@ -257,9 +255,7 @@
 		DA100000000000000000010D /* Development.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Development.entitlements; sourceTree = "<group>"; };
 		DA100000000000000000010E /* Distribution.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Distribution.entitlements; sourceTree = "<group>"; };
 		DA100000000000000000010F /* ThruRNDISWireGuardNetworkExtension.systemextension */ = {isa = PBXFileReference; explicitFileType = "wrapper.system-extension"; includeInIndex = 0; path = "$(PRODUCT_NAME).systemextension"; sourceTree = BUILT_PRODUCTS_DIR; };
-		DA1000000000000000000110 /* ThruRNDISTunnel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThruRNDISTunnel.swift; sourceTree = "<group>"; };
 		DA1000000000000000000111 /* WireGuardConnectionValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardConnectionValidator.swift; sourceTree = "<group>"; };
-		DA1000000000000000000112 /* PacketTunnelProviderError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PacketTunnelProviderError.swift; sourceTree = "<group>"; };
 		DC1000000000000000000101 /* EventLogErrorFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventLogErrorFormatter.swift; sourceTree = "<group>"; };
 		DD1000000000000000000101 /* ApplicationRelaunchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationRelaunchService.swift; sourceTree = "<group>"; };
 		DE1000000000000000000101 /* AppPreferencesStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPreferencesStore.swift; sourceTree = "<group>"; };
@@ -313,7 +309,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				8E0000000000000000000001 /* SwiftTerm in Frameworks */,
-				DA100000000000000000000E /* WireGuardKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -417,7 +412,8 @@
 				8B0000000000000000000103 /* USBAccessoryRecord.swift */,
 				8B0000000000000000000104 /* VMRuntimeState.swift */,
 				8F0000000000000000000101 /* WireGuardKeyMaterial.swift */,
-				DA1000000000000000000101 /* HostWireGuardTunnelStatus.swift */,
+				M10000000000000000000101 /* WireGuardTunnelContract.swift */,
+				DA1000000000000000000101 /* WireGuardTunnelStatus.swift */,
 				9A0000000000000000000103 /* USBAttachmentPrompt.swift */,
 				B10000000000000000000101 /* VMAssetModels.swift */,
 			);
@@ -433,7 +429,7 @@
 				8B0000000000000000000105 /* USBAccessoryMonitor.swift */,
 				8B0000000000000000000107 /* VMConfigurationFactory.swift */,
 				9A0000000000000000000104 /* LaunchAtLoginService.swift */,
-				DA1000000000000000000103 /* HostWireGuardTunnelController.swift */,
+				DA1000000000000000000103 /* WireGuardTunnelController.swift */,
 				DA1000000000000000000104 /* WireGuardSystemExtensionActivator.swift */,
 				B10000000000000000000103 /* GitHubVMAssetReleaseService.swift */,
 				B10000000000000000000104 /* VMAssetDownloadService.swift */,
@@ -470,11 +466,10 @@
 				DE1000000000000000000103 /* NetworkExtensionSettingsOpener.swift */,
 				F40000000000000000000104 /* PeerCodeSigningRequirementBuilder.swift */,
 				8B0000000000000000000112 /* RuntimeEntitlements.swift */,
-				DA1000000000000000000108 /* NETunnelProviderProtocol+ThruRNDIS.swift */,
-				DA1000000000000000000110 /* ThruRNDISTunnel.swift */,
+				DA1000000000000000000108 /* NETunnelProviderProtocol+WireGuard.swift */,
 				F40000000000000000000105 /* ThruRNDISDummyEthernet.swift */,
-				DA1000000000000000000107 /* TunnelConfiguration+WgQuickConfig.swift */,
 				DA1000000000000000000111 /* WireGuardConnectionValidator.swift */,
+				M10000000000000000000102 /* WgQuickConfigurationRenderer.swift */,
 				E10000000000000000000101 /* USBDeviceNameResolver.swift */,
 				8F0000000000000000000102 /* WireGuardConfigurationBuilder.swift */,
 				B10000000000000000000102 /* VMAssetFolderResolver.swift */,
@@ -547,7 +542,6 @@
 			children = (
 				DA100000000000000000010A /* main.swift */,
 				DA100000000000000000010B /* PacketTunnelProvider.swift */,
-				DA1000000000000000000112 /* PacketTunnelProviderError.swift */,
 				DA100000000000000000010C /* Info.plist */,
 				DA100000000000000000010D /* Development.entitlements */,
 				DA100000000000000000010E /* Distribution.entitlements */,
@@ -636,7 +630,6 @@
 			name = ThruRNDIS;
 			packageProductDependencies = (
 				8E0000000000000000000102 /* SwiftTerm */,
-				DA1000000000000000000802 /* WireGuardKit */,
 			);
 			productName = ThruRNDIS;
 			productReference = 374FD25724CBADD100890848 /* ThruRNDIS.app */;
@@ -796,16 +789,16 @@
 				DE1000000000000000000003 /* NetworkExtensionSettingsOpener.swift in Sources */,
 				8B0000000000000000000012 /* RuntimeEntitlements.swift in Sources */,
 				8F0000000000000000000001 /* WireGuardKeyMaterial.swift in Sources */,
-				DA1000000000000000000001 /* HostWireGuardTunnelStatus.swift in Sources */,
+				DA1000000000000000000007 /* WireGuardTunnelContract.swift in Sources */,
+				DA1000000000000000000001 /* WireGuardTunnelStatus.swift in Sources */,
 				8F0000000000000000000005 /* WireGuardConfigurationStore.swift in Sources */,
 				8F0000000000000000000002 /* WireGuardConfigurationBuilder.swift in Sources */,
-				DA1000000000000000000003 /* HostWireGuardTunnelController.swift in Sources */,
+				DA1000000000000000000003 /* WireGuardTunnelController.swift in Sources */,
 				DA1000000000000000000004 /* WireGuardSystemExtensionActivator.swift in Sources */,
-				DA1000000000000000000011 /* ThruRNDISTunnel.swift in Sources */,
-				DA1000000000000000000007 /* TunnelConfiguration+WgQuickConfig.swift in Sources */,
 				DA1000000000000000000013 /* WireGuardConnectionValidator.swift in Sources */,
+				M10000000000000000000002 /* WgQuickConfigurationRenderer.swift in Sources */,
 				DC1000000000000000000001 /* EventLogErrorFormatter.swift in Sources */,
-				DA1000000000000000000008 /* NETunnelProviderProtocol+ThruRNDIS.swift in Sources */,
+				DA1000000000000000000008 /* NETunnelProviderProtocol+WireGuard.swift in Sources */,
 				8F0000000000000000000003 /* VMCoordinator.swift in Sources */,
 				8F0000000000000000000004 /* USBAccessoryCoordinator.swift in Sources */,
 				K10000000000000000000001 /* TetheringWorkflowCoordinator.swift in Sources */,
@@ -852,9 +845,7 @@
 			files = (
 				DA1000000000000000000009 /* main.swift in Sources */,
 				DA100000000000000000000A /* PacketTunnelProvider.swift in Sources */,
-				DA1000000000000000000014 /* PacketTunnelProviderError.swift in Sources */,
-				DA1000000000000000000012 /* ThruRNDISTunnel.swift in Sources */,
-				DA100000000000000000000C /* TunnelConfiguration+WgQuickConfig.swift in Sources */,
+				M10000000000000000000001 /* WireGuardTunnelContract.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

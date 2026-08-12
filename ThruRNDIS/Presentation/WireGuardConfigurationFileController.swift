@@ -60,9 +60,9 @@ final class WireGuardConfigurationFileController {
             return
         }
 
-        Clipboard.copy(wireGuardSession.clientConfiguration)
+        Clipboard.copy(wireGuardSession.renderedClientConfiguration)
         appendEventLog(
-            "WireGuard host configuration copied to clipboard.",
+            "WireGuard client configuration copied to clipboard.",
             level: .info
         )
     }
@@ -84,17 +84,17 @@ final class WireGuardConfigurationFileController {
         }
 
         do {
-            try wireGuardSession.clientConfiguration.write(
+            try wireGuardSession.renderedClientConfiguration.write(
                 to: url,
                 atomically: true,
                 encoding: .utf8
             )
             appendEventLog(
-                "WireGuard host configuration saved.",
+                "WireGuard client configuration saved.",
                 level: .info
             )
             appendEventLog(
-                "WireGuard host configuration save path: \(url.path).",
+                "WireGuard client configuration save path: \(url.path).",
                 level: .debug
             )
         } catch {

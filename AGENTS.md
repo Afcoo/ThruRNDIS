@@ -47,7 +47,7 @@ WireGuard-over-VZNAT architecture as the baseline.
   and forwards cross-feature events to `TetheringWorkflowCoordinator`, which
   owns only the serialized USB approval, VM preparation, passthrough, and
   optional WireGuard request workflow. `ManagedWireGuardConnectionCoordinator`
-  separately owns the Dummy Ethernet preparation, host-tunnel wait, cleanup,
+  separately owns the Dummy Ethernet preparation, WireGuard tunnel wait, cleanup,
   cancellation, and stale-operation protection used by app-managed connections.
   State that can be observed independently lives in child stores. `EventLogStore`
   owns the bounded in-memory app event log and screen filtering, while
@@ -58,7 +58,7 @@ WireGuard-over-VZNAT architecture as the baseline.
   owns the atomic USB UI snapshot plus USB attachment prompt queue, de-duplication,
   and VM-asset deferral, `VMConfigurationStore`
   owns persisted VM settings including the optional scratch disk,
-  `WireGuardSessionStore` owns host-tunnel/System Extension presentation state,
+  `WireGuardSessionStore` owns WireGuard tunnel/System Extension presentation state,
   the USB-triggered WireGuard connection prompt, WireGuard inputs, validation,
   and configuration readiness, and
   `AppPreferencesStore` owns onboarding completion, USB/WireGuard preferences,
@@ -86,7 +86,7 @@ WireGuard-over-VZNAT architecture as the baseline.
   by `TetheringWorkflowCoordinator` and executed by
   `ManagedWireGuardConnectionCoordinator`, which asks the owned
   `DummyEthernetStore` to prepare and wait until it is active before starting
-  the host tunnel. Preparation starts an inactive configuration and explicitly
+  the WireGuard tunnel. Preparation starts an inactive configuration and explicitly
   restarts a known degraded configuration through the shared Restart flow. The
   coordinator then stops Dummy Ethernet only after the tunnel reports that it
   is connected. The normal-mode menu bar uses the same prepared connection
@@ -141,8 +141,9 @@ WireGuard-over-VZNAT architecture as the baseline.
 - `WireGuardConfigurationStore` owns the app-local WireGuard directory and
   creates the server/client private-key files on first launch.
   `WireGuardConfigurationBuilder` accepts editable configuration elements, uses
-  defaults for now, generates `Shared/wg0.conf`, and renders the client
-  configuration for preview/export.
+  defaults for now, and builds the single-peer internal client connection state.
+  `WgQuickConfigurationRenderer` renders the guest `Shared/wg0.conf` and renders
+  that client state only for manual preview/export.
   Neither type reads WireGuard configuration from the selected VM asset tree or
   hard-codes key material.
 - `VMConfigurationFactory` builds the Linux VM configuration. The current
@@ -156,11 +157,18 @@ WireGuard-over-VZNAT architecture as the baseline.
 - The guest owns packet forwarding by running a normal WireGuard peer on the
   Virtualization NAT private network and masquerading WireGuard client traffic
   out the USB RNDIS interface.
-- `HostWireGuardTunnelController` activates the Network System Extension,
+- `WireGuardTunnelController` activates the Network System Extension,
   creates the single `NETunnelProviderManager` profile, and starts/stops the
-  session. It passes the rendered client configuration only in the in-memory
-  `startTunnel(options:)` payload; do not persist the client private key in
-  `providerConfiguration` or a system-wide location.
+  session. `WireGuardSessionStore` updates and retains one validated single-peer
+  client connection state whenever its keys or effective editable inputs change;
+  connect and manual preview/export reuse that same state without reparsing the
+  inputs. The controller passes the state's binary property-list encoding only
+  in the in-memory `startTunnel(options:)` payload. The Network
+  System Extension decodes that state and constructs WireGuardKit
+  `InterfaceConfiguration`, `PeerConfiguration`, and `TunnelConfiguration`
+  values directly. Do not persist the client private key in
+  `providerConfiguration` or a system-wide location, and do not reintroduce a
+  wg-quick parser into the provider connection path.
 - The app does not inject WireGuard diagnostics into the VM console. Keep the
   console available for user-driven troubleshooting, independent of provider
   connection management.
@@ -233,11 +241,13 @@ ThruRNDIS WireGuardKit Network System Extension
 - If both key files are absent, `WireGuardConfigurationStore` generates
   server/client X25519 keys with CryptoKit. If only one key is missing or either
   key is malformed, it reports an error without replacing the existing key.
-  `WireGuardConfigurationBuilder` derives both public keys and atomically
-  regenerates `Shared/wg0.conf` from the keys and current configuration
-  elements. The client `.conf` is not stored in Application Support; it is
-  rendered on demand. Existing asset configurations are ignored and are not
-  migrated.
+  `WireGuardConfigurationBuilder` receives both public/private raw key values
+  and builds the current single-peer client connection state. The wg-quick
+  renderer atomically regenerates `Shared/wg0.conf` directly from the server
+  key material and configuration elements. The client `.conf` is not stored in
+  Application Support; it is rendered from the client connection state on
+  demand only for manual preview/export. Existing asset configurations are
+  ignored and are not migrated.
   `PresharedKey` is not part of the current configuration format.
 - BusyBox `init` runs `init-virtiofs-wgconf` as a `::wait` action between
   `init-rndis` and `init-network`. It mounts the `thrurndis-wireguard` VirtioFS tag
@@ -288,7 +298,7 @@ ThruRNDIS WireGuardKit Network System Extension
   WireGuard setup requires Dummy Ethernet to provide that satisfied path.
   WireGuard connections accepted through the USB prompt, requested by USB
   auto-connect, or started from the normal-mode menu bar ensure Dummy Ethernet
-  is active first and stop it after the host tunnel reaches the connected state.
+  is active first and stop it after the WireGuard tunnel reaches the connected state.
   Connections started from Settings or the debug-mode menu bar keep Dummy
   Ethernet as a separate manual configuration. This requirement is limited to
   setup and network-path evaluation:
@@ -372,8 +382,8 @@ ThruRNDIS WireGuardKit Network System Extension
   `GitHub`.
 - Spell app-owned configuration identifiers with `Configuration`; do not
   introduce abbreviated `Conf` or `Config` type, file, property, or parameter
-  names. `WgQuickConfig` remains an exception only where the name follows the
-  WireGuardKit API or identifies the wg-quick format.
+  names. `WgQuickConfigurationRenderer` remains an exception because it
+  identifies the wg-quick file format.
 - Use role suffixes consistently. Observable UI state owners end in `Store`;
   long-running workflow and lifecycle owners in `Coordinator`; AppKit
   presentation owners in `Controller` or `WindowController`; external/system
@@ -396,7 +406,7 @@ ThruRNDIS WireGuardKit Network System Extension
   Closely related domain values and shared boundaries may use an umbrella file
   such as `VMAssetModels.swift` or `RuntimeEntitlements.swift`. Name focused
   extensions `ExtendedType+Concern.swift`, for example
-  `NETunnelProviderProtocol+ThruRNDIS.swift`.
+  `NETunnelProviderProtocol+WireGuard.swift`.
 
 ## Test Creation Policy
 
@@ -494,7 +504,8 @@ target membership, and build phase as applicable.
   privileged-helper registration, and the authenticated NSXPC helper client.
 - `ThruRNDIS/Models`: value types and protocol boundaries shared across layers,
   including VM Asset values, USB records/prompts, VM state, WireGuard settings,
-  and the narrow Dummy Ethernet configuration and status values.
+  the shared App-to-Network-Extension `WireGuardTunnelContract`, and the narrow
+  Dummy Ethernet configuration and status values.
 - `ThruRNDIS/Support`: small stateless helpers and narrow platform edges:
   clipboard/file panels, runtime entitlement reads, VM Asset folder validation,
   WireGuard configuration rendering, Dummy Ethernet IPv4 validation, shared
@@ -531,8 +542,10 @@ target membership, and build phase as applicable.
   under `dist/`.
 - `ThruRNDISWireGuardNetworkExtension`: the system-extension executable entry,
   `NEPacketTunnelProvider`, Info.plist, and development/distribution
-  entitlements. Shared parser/constants files remain under `ThruRNDIS/Support`
-  and are compiled into both targets.
+  entitlements. `PacketTunnelProvider.swift` also owns its private provider
+  errors and the conversion from the shared connection state into WireGuardKit
+  values. `WireGuardTunnelContract.swift` is compiled into both app and
+  extension targets. No wg-quick parser belongs in either target.
 - `ThruRNDISPrivilegedHelper`: the minimal root helper executable, launchd plist
   template, fixed `ifconfig` runner, SCNetworkConfiguration adapter,
   Network.framework path monitor, and minimal feth/static-bond lifecycle. It
@@ -822,7 +835,9 @@ xcrun notarytool store-credentials "thrurndis-notary"
 - Keep WireGuard key material and server configuration read-only. The Connection
   section may edit and persist only the client DNS servers, Endpoint override,
   and Allowed IPs; preview, copy, save/export, and provider connection must all
-  use the same effective values rendered by `WireGuardConfigurationBuilder`.
+  use the same typed internal client state built by
+  `WireGuardConfigurationBuilder`. Only preview, copy, and save/export render
+  that state as a wg-quick configuration.
   Applying edited server configuration to an already-running guest `wg0`
   remains follow-up work.
 - WireGuard private/public keys are generated by the app with CryptoKit, not by

@@ -27,8 +27,8 @@ private enum ManagedWireGuardConnectionState: Equatable {
 final class ManagedWireGuardConnectionCoordinator {
     struct Actions {
         let refreshRuntimeEntitlements: () -> Void
-        let canConnectHostWireGuardTunnel: () -> Bool
-        let connectHostWireGuardTunnel: () -> Bool
+        let canConnectWireGuardTunnel: () -> Bool
+        let connectWireGuardTunnel: () -> Bool
     }
 
     private let wireGuardSession: WireGuardSessionStore
@@ -59,10 +59,10 @@ final class ManagedWireGuardConnectionCoordinator {
     }
 
     func connect() {
-        guard actions.canConnectHostWireGuardTunnel() else { return }
+        guard actions.canConnectWireGuardTunnel() else { return }
 
         guard prepareDummyEthernet != nil || dummyEthernet != nil else {
-            _ = actions.connectHostWireGuardTunnel()
+            _ = actions.connectWireGuardTunnel()
             return
         }
         guard connectionTask == nil else { return }
@@ -71,7 +71,7 @@ final class ManagedWireGuardConnectionCoordinator {
         state = .preparingDummyEthernet(operationID: operationID)
         connectionTaskID = operationID
         appendEventLog(
-            "Preparing Dummy Ethernet before starting the Host WireGuard tunnel.",
+            "Preparing Dummy Ethernet before starting the WireGuard tunnel.",
             level: .debug
         )
 
@@ -102,18 +102,18 @@ final class ManagedWireGuardConnectionCoordinator {
             }
             guard isDummyEthernetActive else {
                 self.appendEventLog(
-                    "Host WireGuard tunnel not started: Dummy Ethernet did not become active.",
+                    "WireGuard tunnel not started: Dummy Ethernet did not become active.",
                     level: .error
                 )
                 return
             }
 
             self.actions.refreshRuntimeEntitlements()
-            guard self.actions.canConnectHostWireGuardTunnel() else { return }
-            guard self.actions.connectHostWireGuardTunnel() else { return }
+            guard self.actions.canConnectWireGuardTunnel() else { return }
+            guard self.actions.connectWireGuardTunnel() else { return }
             self.state = .waitingForTunnel(operationID: operationID)
 
-            for await status in self.wireGuardSession.$hostTunnelStatus
+            for await status in self.wireGuardSession.$tunnelStatus
                 .dropFirst().values {
                 guard !Task.isCancelled,
                       self.state.operationID == operationID else {
@@ -124,7 +124,7 @@ final class ManagedWireGuardConnectionCoordinator {
                 case .connected:
                     self.state = .stoppingDummyEthernet(operationID: operationID)
                     self.appendEventLog(
-                        "Host WireGuard tunnel connected; stopping automatically prepared Dummy Ethernet.",
+                        "WireGuard tunnel connected; stopping automatically prepared Dummy Ethernet.",
                         level: .debug
                     )
                     if let deactivateDummyEthernet {
@@ -152,7 +152,7 @@ final class ManagedWireGuardConnectionCoordinator {
         connectionTaskID = nil
         state = .idle
         appendEventLog(
-            "Pending automatic Host WireGuard connection cancelled: \(reason).",
+            "Pending automatic WireGuard connection cancelled: \(reason).",
             level: .debug
         )
     }

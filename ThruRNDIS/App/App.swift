@@ -73,7 +73,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     lazy var wireGuardSession = WireGuardSessionStore(
         configurationStore: WireGuardConfigurationStore(),
         configurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
-        tunnelController: HostWireGuardTunnelController(
+        tunnelController: WireGuardTunnelController(
             systemExtensionActivator: WireGuardSystemExtensionActivator()
         ),
         eventLog: eventLog

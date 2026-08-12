@@ -104,11 +104,11 @@ final class TetheringStore: ObservableObject {
                 refreshRuntimeEntitlements: { [weak self] in
                     self?.refreshRuntimeEntitlements()
                 },
-                canConnectHostWireGuardTunnel: { [weak self] in
-                    self?.canConnectHostWireGuardTunnel == true
+                canConnectWireGuardTunnel: { [weak self] in
+                    self?.canConnectWireGuardTunnel == true
                 },
-                connectHostWireGuardTunnel: { [weak self] in
-                    self?.connectHostWireGuardTunnel() == true
+                connectWireGuardTunnel: { [weak self] in
+                    self?.connectWireGuardTunnel() == true
                 }
             )
         )
@@ -133,8 +133,8 @@ final class TetheringStore: ObservableObject {
                 startVirtualMachine: { [weak self] in
                     self?.startVirtualMachine() == true
                 },
-                canConnectHostWireGuardTunnel: { [weak self] in
-                    self?.canConnectHostWireGuardTunnel == true
+                canConnectWireGuardTunnel: { [weak self] in
+                    self?.canConnectWireGuardTunnel == true
                 },
                 updateStatusMessage: { [weak self] message in
                     self?.statusMessage = message
@@ -309,7 +309,7 @@ final class TetheringStore: ObservableObject {
             && usbCoordinator.canRequestAttachment(for: accessoryID)
     }
 
-    var canConnectHostWireGuardTunnel: Bool {
+    var canConnectWireGuardTunnel: Bool {
         acceptsNewWork
             && runtimeState == .running
             && vmCoordinator.canSendConsoleInput
@@ -317,7 +317,7 @@ final class TetheringStore: ObservableObject {
             && runtimeEntitlements.packetTunnelProvider
             && runtimeEntitlements.systemExtensionInstall
             && wireGuardSession.systemExtensionStatus.isActive
-            && !wireGuardSession.hostTunnelStatus.isTransitioning
+            && !wireGuardSession.tunnelStatus.isTransitioning
     }
 
     var canRequestWireGuardSystemExtensionActivation: Bool {
@@ -326,18 +326,18 @@ final class TetheringStore: ObservableObject {
             && wireGuardSession.canRequestSystemExtensionActivation
     }
 
-    var canDisconnectHostWireGuardTunnel: Bool {
+    var canDisconnectWireGuardTunnel: Bool {
         acceptsNewWork && wireGuardSession.canDisconnectTunnel
     }
 
-    var canRefreshHostWireGuardTunnelStatus: Bool {
+    var canRefreshWireGuardTunnelStatus: Bool {
         acceptsNewWork
-            && !wireGuardSession.hostTunnelStatus.isTransitioning
+            && !wireGuardSession.tunnelStatus.isTransitioning
     }
 
     var shouldConfirmApplicationTermination: Bool {
         attachedAccessoryID != nil
-            && wireGuardSession.hostTunnelStatus.isConnectingOrConnected
+            && wireGuardSession.tunnelStatus.isConnectingOrConnected
     }
 
     private var accessoryMonitoringConfigurationBlocker:
@@ -419,7 +419,7 @@ final class TetheringStore: ObservableObject {
         consoleSession: ConsoleSessionStore,
         usbSession: USBSessionStore,
         vmConfiguration: VMConfigurationStore,
-        hostWireGuardTunnelController: HostWireGuardTunnelController,
+        wireGuardTunnelController: WireGuardTunnelController,
         runtimeEntitlementSnapshotProvider: @escaping () -> RuntimeEntitlementSnapshot = {
             .current
         },
@@ -432,7 +432,7 @@ final class TetheringStore: ObservableObject {
         let wireGuardSession = WireGuardSessionStore(
             configurationStore: wireGuardConfigurationStore,
             configurationBuilder: wireGuardConfigurationBuilder,
-            tunnelController: hostWireGuardTunnelController,
+            tunnelController: wireGuardTunnelController,
             eventLog: eventLog,
             systemExtensionSettingsOpener: systemExtensionSettingsOpener,
             defaults: defaults
@@ -820,28 +820,28 @@ final class TetheringStore: ObservableObject {
         }
     }
 
-    func refreshHostWireGuardTunnelStatus() {
-        guard canRefreshHostWireGuardTunnelStatus else { return }
+    func refreshWireGuardTunnelStatus() {
+        guard canRefreshWireGuardTunnelStatus else { return }
         refreshRuntimeEntitlements()
         refreshWireGuardSystemExtensionStatus()
-        guard !wireGuardSession.hostTunnelStatus.isTransitioning else {
+        guard !wireGuardSession.tunnelStatus.isTransitioning else {
             appendEventLog(
-                "Host WireGuard status refresh skipped during a tunnel transition.",
+                "WireGuard status refresh skipped during a tunnel transition.",
                 level: .debug,
                 category: .wireGuard
             )
             return
         }
         guard runtimeEntitlements.packetTunnelProvider else {
-            wireGuardSession.updateHostTunnelStatus(.missingPacketTunnelEntitlement)
+            wireGuardSession.updateTunnelStatus(.missingPacketTunnelEntitlement)
             appendEventLog(
-                "Host WireGuard status not refreshed: missing NetworkExtension entitlement.",
+                "WireGuard status not refreshed: missing NetworkExtension entitlement.",
                 level: .error,
                 category: .wireGuard
             )
             return
         }
-        wireGuardSession.refreshHostTunnelStatus()
+        wireGuardSession.refreshTunnelStatus()
     }
 
     func refreshWireGuardSystemExtensionStatus() {
@@ -893,38 +893,35 @@ final class TetheringStore: ObservableObject {
     }
 
     @discardableResult
-    func connectHostWireGuardTunnel() -> Bool {
+    func connectWireGuardTunnel() -> Bool {
         guard acceptsNewWork else { return false }
         refreshRuntimeEntitlements()
 
         guard runtimeState == .running, vmCoordinator.canSendConsoleInput else {
-            wireGuardSession.updateHostTunnelStatus(.unconfigured)
+            wireGuardSession.updateTunnelStatus(.unconfigured)
             appendEventLog(
-                "Host WireGuard tunnel not started: VM is not running.",
+                "WireGuard tunnel not started: VM is not running.",
                 level: .warning,
                 category: .wireGuard
             )
             return false
         }
-        guard wireGuardSession.validateConnectionInputs() else {
-            return false
-        }
         guard runtimeEntitlements.packetTunnelProvider else {
             reportMissingEntitlement(
                 .packetTunnelProvider,
-                action: "Host WireGuard tunnel start",
+                action: "WireGuard tunnel start",
                 category: .wireGuard
             )
-            wireGuardSession.updateHostTunnelStatus(.missingPacketTunnelEntitlement)
+            wireGuardSession.updateTunnelStatus(.missingPacketTunnelEntitlement)
             return false
         }
         guard runtimeEntitlements.systemExtensionInstall else {
             reportMissingEntitlement(
                 .systemExtensionInstall,
-                action: "Host WireGuard tunnel start",
+                action: "WireGuard tunnel start",
                 category: .wireGuard
             )
-            wireGuardSession.updateHostTunnelStatus(
+            wireGuardSession.updateTunnelStatus(
                 .missingSystemExtensionInstallEntitlement
             )
             return false
@@ -933,13 +930,13 @@ final class TetheringStore: ObservableObject {
         return wireGuardSession.connect()
     }
 
-    func connectHostWireGuardTunnelWithAutomaticDummyEthernet() {
-        guard acceptsNewWork, canConnectHostWireGuardTunnel else { return }
+    func connectWireGuardTunnelWithAutomaticDummyEthernet() {
+        guard acceptsNewWork, canConnectWireGuardTunnel else { return }
         managedWireGuardConnectionCoordinator.connect()
     }
 
-    func disconnectHostWireGuardTunnel() {
-        guard canDisconnectHostWireGuardTunnel else { return }
+    func disconnectWireGuardTunnel() {
+        guard canDisconnectWireGuardTunnel else { return }
         workflowCoordinator.cancelPendingWireGuardConnection(
             reason: "manual WireGuard disconnect"
         )
@@ -1014,7 +1011,7 @@ final class TetheringStore: ObservableObject {
                 localized: "Could not stop the WireGuard tunnel before resetting app settings."
             )
             appendEventLog(
-                "App settings reset cancelled: Host WireGuard tunnel could not be stopped.",
+                "App settings reset cancelled: WireGuard tunnel could not be stopped.",
                 level: .error,
                 category: .wireGuard
             )

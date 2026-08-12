@@ -2,9 +2,11 @@
 Copyright (C) 2026 Afcoo.
 */
 
+import Foundation
+
 struct WireGuardKeyMaterial: Equatable {
-    let serverPrivateKey: String
-    let serverPublicKey: String
-    let clientPrivateKey: String
-    let clientPublicKey: String
+    let serverPrivateKey: Data
+    let serverPublicKey: Data
+    let clientPrivateKey: Data
+    let clientPublicKey: Data
 }

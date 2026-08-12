@@ -7,7 +7,7 @@ import Foundation
 
 @MainActor
 final class WireGuardSessionStore: ObservableObject {
-    @Published private(set) var hostTunnelStatus: HostWireGuardTunnelStatus = .unconfigured
+    @Published private(set) var tunnelStatus: WireGuardTunnelStatus = .unconfigured
     @Published private(set) var systemExtensionStatus: WireGuardSystemExtensionStatus = .unknown
     @Published private(set) var discoveredEndpoint: String?
     @Published private(set) var invalidConnectionFields: Set<WireGuardConnectionField> = []
@@ -21,7 +21,7 @@ final class WireGuardSessionStore: ObservableObject {
                 return
             }
             defaults.set(dnsServersText, forKey: DefaultsKey.dnsServersText)
-            revalidateConnectionField(.dnsServers)
+            refreshConnectionConfiguration()
             notifyReadinessChange()
         }
     }
@@ -32,7 +32,7 @@ final class WireGuardSessionStore: ObservableObject {
                 return
             }
             defaults.set(endpointText, forKey: DefaultsKey.endpointText)
-            revalidateConnectionField(.endpoint)
+            refreshConnectionConfiguration()
             notifyReadinessChange()
         }
     }
@@ -43,7 +43,7 @@ final class WireGuardSessionStore: ObservableObject {
                 return
             }
             defaults.set(allowedIPsText, forKey: DefaultsKey.allowedIPsText)
-            revalidateConnectionField(.allowedIPs)
+            refreshConnectionConfiguration()
             notifyReadinessChange()
         }
     }
@@ -52,7 +52,7 @@ final class WireGuardSessionStore: ObservableObject {
 
     private let configurationStore: WireGuardConfigurationStore
     private let configurationBuilder: WireGuardConfigurationBuilder
-    private let tunnelController: HostWireGuardTunnelController
+    private let tunnelController: WireGuardTunnelController
     private let eventLog: EventLogStore
     private let systemExtensionSettingsOpener: @MainActor () -> Bool
     private let defaults: UserDefaults
@@ -60,11 +60,12 @@ final class WireGuardSessionStore: ObservableObject {
     private var connectTaskID: UUID?
     private var isPreparingForApplicationTermination = false
     private var isResettingPersistedValues = false
+    private var connectionConfiguration: WireGuardConnectionConfiguration?
 
     init(
         configurationStore: WireGuardConfigurationStore,
         configurationBuilder: WireGuardConfigurationBuilder,
-        tunnelController: HostWireGuardTunnelController,
+        tunnelController: WireGuardTunnelController,
         eventLog: EventLogStore,
         systemExtensionSettingsOpener: @escaping @MainActor () -> Bool = {
             NetworkExtensionSettingsOpener.open()
@@ -92,7 +93,6 @@ final class WireGuardSessionStore: ObservableObject {
 
         configureTunnelController()
         prepareConfiguration()
-        revalidateAllConnectionFields()
 
         Task { @MainActor [weak self] in
             guard let self,
@@ -124,7 +124,7 @@ final class WireGuardSessionStore: ObservableObject {
     }
 
     var canExportConfiguration: Bool {
-        keyMaterial != nil && resolvedEndpoint != nil
+        connectionConfiguration != nil
     }
 
     var resolvedEndpoint: String? {
@@ -134,12 +134,7 @@ final class WireGuardSessionStore: ObservableObject {
     var resolvedAllowedIPs: String {
         normalizedInput(allowedIPsText)
             ?? configurationBuilder.elements.clientAllowedIPs
-    }
-
-    var resolvedDNSServers: [String] {
-        resolvedDNSServersText
-            .components(separatedBy: CharacterSet(charactersIn: ",\n\r"))
-            .compactMap(normalizedInput)
+                .joined(separator: ", ")
     }
 
     var defaultDNSServersText: String {
@@ -170,20 +165,17 @@ final class WireGuardSessionStore: ObservableObject {
     }
 
     var canDisconnectTunnel: Bool {
-        hostTunnelStatus.canRequestStop
+        tunnelStatus.canRequestStop
     }
 
-    var clientConfiguration: String {
-        guard let keyMaterial else {
+    var renderedClientConfiguration: String {
+        guard keyMaterial != nil else {
             return "# WireGuard key material is unavailable in Application Support."
         }
-
-        return configurationBuilder.clientConfiguration(
-            keyMaterial: keyMaterial,
-            endpoint: resolvedEndpoint,
-            dnsServers: resolvedDNSServers,
-            allowedIPs: resolvedAllowedIPs
-        )
+        guard let connectionConfiguration else {
+            return "# A valid VM endpoint and connection settings are required."
+        }
+        return WgQuickConfigurationRenderer().render(connectionConfiguration)
     }
 
     @discardableResult
@@ -200,6 +192,7 @@ final class WireGuardSessionStore: ObservableObject {
                     builder: configurationBuilder
                 )
             keyMaterial = prepared.keyMaterial
+            refreshConnectionConfiguration()
             appendEventLog(
                 "Regenerated WireGuard configuration.",
                 level: .debug
@@ -213,6 +206,7 @@ final class WireGuardSessionStore: ObservableObject {
             return true
         } catch {
             keyMaterial = nil
+            refreshConnectionConfiguration()
             appendEventLog(
                 "WireGuard configuration load failed: " +
                     EventLogErrorFormatter.description(for: error),
@@ -239,7 +233,7 @@ final class WireGuardSessionStore: ObservableObject {
         defaults.removeObject(forKey: DefaultsKey.allowedIPsText)
         keyMaterial = nil
         discoveredEndpoint = nil
-        invalidConnectionFields = []
+        refreshConnectionConfiguration()
         wireGuardConnectionPrompt = nil
         notifyReadinessChange()
     }
@@ -260,19 +254,18 @@ final class WireGuardSessionStore: ObservableObject {
         wireGuardConnectionPrompt = nil
     }
 
-    @discardableResult
-    func validateConnectionInputs() -> Bool {
-        let invalidFields = currentInvalidConnectionFields()
-        if invalidConnectionFields != invalidFields {
-            invalidConnectionFields = invalidFields
+    private func hasValidConnectionInputs() -> Bool {
+        var fields = invalidConnectionFields
+        if resolvedEndpoint == nil {
+            fields.insert(.endpoint)
         }
-        guard invalidFields.isEmpty else {
+        guard fields.isEmpty else {
             let invalidFieldNames = WireGuardConnectionField.allCases
-                .filter(invalidFields.contains)
+                .filter(fields.contains)
                 .map(\.displayName)
                 .joined(separator: ", ")
             appendEventLog(
-                "Host WireGuard tunnel not started: invalid connection values " +
+                "WireGuard tunnel not started: invalid connection values " +
                     "(\(invalidFieldNames)).",
                 level: .warning
             )
@@ -283,26 +276,24 @@ final class WireGuardSessionStore: ObservableObject {
 
     @discardableResult
     func connect() -> Bool {
-        guard validateConnectionInputs() else {
+        guard hasValidConnectionInputs() else {
             return false
         }
         guard systemExtensionStatus.isActive else {
             appendEventLog(
-                "Host WireGuard tunnel not started: network extension is not active.",
+                "WireGuard tunnel not started: network extension is not active.",
                 level: .error
             )
             return false
         }
-        guard canExportConfiguration else {
-            updateHostTunnelStatus(.unconfigured)
+        guard let configuration = connectionConfiguration else {
+            updateTunnelStatus(.unconfigured)
             appendEventLog(
-                "Host WireGuard tunnel not started: VM endpoint is unknown.",
+                "WireGuard tunnel not started: connection configuration is not ready.",
                 level: .warning
             )
             return false
         }
-
-        let configuration = clientConfiguration
         connectTask?.cancel()
         let taskID = UUID()
         connectTaskID = taskID
@@ -310,9 +301,7 @@ final class WireGuardSessionStore: ObservableObject {
             guard let self else {
                 return
             }
-            await self.tunnelController.connect(
-                wgQuickConfiguration: configuration
-            )
+            await self.tunnelController.connect(configuration: configuration)
             guard self.connectTaskID == taskID else {
                 return
             }
@@ -342,10 +331,10 @@ final class WireGuardSessionStore: ObservableObject {
         return await tunnelController.removeSavedTunnelIfNeeded()
     }
 
-    func refreshHostTunnelStatus() {
-        guard !hostTunnelStatus.isTransitioning else {
+    func refreshTunnelStatus() {
+        guard !tunnelStatus.isTransitioning else {
             appendEventLog(
-                "Host WireGuard status refresh skipped during a tunnel transition.",
+                "WireGuard status refresh skipped during a tunnel transition.",
                 level: .debug
             )
             return
@@ -423,14 +412,14 @@ final class WireGuardSessionStore: ObservableObject {
     }
 
     func cancelTunnel(reason: String) {
-        guard connectTask != nil || hostTunnelStatus.canRequestStop else {
+        guard connectTask != nil || tunnelStatus.canRequestStop else {
             return
         }
-        let shouldLogStop = hostTunnelStatus.canRequestStop
+        let shouldLogStop = tunnelStatus.canRequestStop
         cancelPendingConnectTask()
         if shouldLogStop {
             appendEventLog(
-                "Stopping Host WireGuard tunnel because \(reason).",
+                "Stopping WireGuard tunnel because \(reason).",
                 level: .debug
             )
         }
@@ -453,7 +442,7 @@ final class WireGuardSessionStore: ObservableObject {
         }
 
         discoveredEndpoint = nil
-        revalidateConnectionField(.endpoint)
+        refreshConnectionConfiguration()
         if alwaysDisconnectTunnel || resolvedEndpoint != previousResolvedEndpoint {
             cancelTunnel(reason: reason)
         }
@@ -471,9 +460,9 @@ final class WireGuardSessionStore: ObservableObject {
 
         let previousResolvedEndpoint = resolvedEndpoint
         discoveredEndpoint = endpoint
-        revalidateConnectionField(.endpoint)
+        refreshConnectionConfiguration()
         if resolvedEndpoint != previousResolvedEndpoint,
-           hostTunnelStatus.canRequestStop || connectTask != nil {
+           tunnelStatus.canRequestStop || connectTask != nil {
             cancelTunnel(reason: "VM WireGuard endpoint changed")
         }
         appendEventLog(
@@ -487,11 +476,11 @@ final class WireGuardSessionStore: ObservableObject {
         notifyReadinessChange()
     }
 
-    func updateHostTunnelStatus(_ status: HostWireGuardTunnelStatus) {
-        guard hostTunnelStatus != status else {
+    func updateTunnelStatus(_ status: WireGuardTunnelStatus) {
+        guard tunnelStatus != status else {
             return
         }
-        hostTunnelStatus = status
+        tunnelStatus = status
         appendEventLog(
             "Provider: \(status.eventLogDescription)",
             level: Self.eventLogLevel(for: status)
@@ -517,9 +506,45 @@ final class WireGuardSessionStore: ObservableObject {
             ?? configurationBuilder.elements.dnsServers.joined(separator: ", ")
     }
 
+    private func refreshConnectionConfiguration() {
+        let endpointValue = resolvedEndpoint
+        let endpoint = endpointValue.flatMap {
+            WireGuardConnectionValidator.endpoint(from: $0)
+        }
+        let allowedIPs = WireGuardConnectionValidator.allowedIPRanges(
+            from: resolvedAllowedIPs
+        )
+        let dnsServers = WireGuardConnectionValidator.dnsServerAddresses(
+            from: resolvedDNSServersText
+        )
+
+        var invalidFields: Set<WireGuardConnectionField> = []
+        if endpointValue != nil, endpoint == nil {
+            invalidFields.insert(.endpoint)
+        }
+        if allowedIPs == nil {
+            invalidFields.insert(.allowedIPs)
+        }
+        if dnsServers == nil {
+            invalidFields.insert(.dnsServers)
+        }
+        invalidConnectionFields = invalidFields
+
+        guard let keyMaterial, let endpoint, let allowedIPs, let dnsServers else {
+            connectionConfiguration = nil
+            return
+        }
+        connectionConfiguration = configurationBuilder.connectionConfiguration(
+            keyMaterial: keyMaterial,
+            endpoint: endpoint,
+            dnsServers: dnsServers,
+            allowedIPs: allowedIPs
+        )
+    }
+
     private func configureTunnelController() {
         tunnelController.onStatusChange = { [weak self] status in
-            self?.updateHostTunnelStatus(status)
+            self?.updateTunnelStatus(status)
         }
         tunnelController.onSystemExtensionStatusChange = { [weak self] status in
             self?.updateSystemExtensionStatus(status)
@@ -544,6 +569,7 @@ final class WireGuardSessionStore: ObservableObject {
                 builder: configurationBuilder
             )
             keyMaterial = prepared.keyMaterial
+            refreshConnectionConfiguration()
             appendEventLog(
                 "Prepared WireGuard configuration from Application Support keys.",
                 level: .debug
@@ -555,58 +581,13 @@ final class WireGuardSessionStore: ObservableObject {
             )
         } catch {
             keyMaterial = nil
+            refreshConnectionConfiguration()
             appendEventLog(
                 "WireGuard key/configuration initialization failed without replacing " +
                     "existing keys: \(EventLogErrorFormatter.description(for: error))",
                 level: .error
             )
         }
-    }
-
-    private func revalidateConnectionField(_ field: WireGuardConnectionField) {
-        let isValid: Bool
-        switch field {
-        case .endpoint:
-            guard let endpoint = normalizedInput(endpointText) ?? discoveredEndpoint else {
-                var errors = invalidConnectionFields
-                errors.remove(.endpoint)
-                if errors != invalidConnectionFields {
-                    invalidConnectionFields = errors
-                }
-                return
-            }
-            isValid = WireGuardConnectionValidator.isValidEndpoint(endpoint)
-        case .allowedIPs:
-            isValid = WireGuardConnectionValidator.isValidAllowedIPs(
-                resolvedAllowedIPs
-            )
-        case .dnsServers:
-            isValid = WireGuardConnectionValidator.isValidDNSServers(
-                resolvedDNSServersText
-            )
-        }
-
-        var errors = invalidConnectionFields
-        if isValid {
-            errors.remove(field)
-        } else {
-            errors.insert(field)
-        }
-        if errors != invalidConnectionFields {
-            invalidConnectionFields = errors
-        }
-    }
-
-    private func revalidateAllConnectionFields() {
-        WireGuardConnectionField.allCases.forEach(revalidateConnectionField)
-    }
-
-    private func currentInvalidConnectionFields() -> Set<WireGuardConnectionField> {
-        WireGuardConnectionValidator.invalidFields(
-            endpoint: resolvedEndpoint,
-            allowedIPs: resolvedAllowedIPs,
-            dnsServers: resolvedDNSServersText
-        )
     }
 
     private func normalizedInput(_ value: String) -> String? {
@@ -626,7 +607,7 @@ final class WireGuardSessionStore: ObservableObject {
     }
 
     private static func eventLogLevel(
-        for status: HostWireGuardTunnelStatus
+        for status: WireGuardTunnelStatus
     ) -> EventLogLevel {
         switch status {
         case .activatingSystemExtension, .connecting, .disconnecting, .reasserting:

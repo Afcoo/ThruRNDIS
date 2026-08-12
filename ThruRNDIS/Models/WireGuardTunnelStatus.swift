@@ -4,7 +4,7 @@ Copyright (C) 2026 Afcoo.
 
 import Foundation
 
-enum HostWireGuardTunnelStatus: Equatable {
+enum WireGuardTunnelStatus: Equatable {
     case unconfigured
     case disconnected
     case activatingSystemExtension

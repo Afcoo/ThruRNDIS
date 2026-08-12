@@ -425,11 +425,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         if store.wireGuardSession.canDisconnectTunnel {
             wireGuardItem?.title = String(localized: "Disconnect WireGuard")
             wireGuardItem?.action = #selector(disconnectWireGuard)
-            wireGuardItem?.isEnabled = store.canDisconnectHostWireGuardTunnel
+            wireGuardItem?.isEnabled = store.canDisconnectWireGuardTunnel
         } else {
             wireGuardItem?.title = String(localized: "Connect WireGuard")
             wireGuardItem?.action = #selector(connectWireGuard)
-            wireGuardItem?.isEnabled = store.canConnectHostWireGuardTunnel
+            wireGuardItem?.isEnabled = store.canConnectWireGuardTunnel
         }
 
         refreshAttachSubmenu()
@@ -597,7 +597,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     private var wireGuardStatusTitle: String {
-        String(localized: "WireGuard: \(store.wireGuardSession.hostTunnelStatus.title)")
+        String(localized: "WireGuard: \(store.wireGuardSession.tunnelStatus.title)")
     }
 
     private var dummyEthernetStatusTitle: String {
@@ -649,7 +649,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         MenuBarCombinedStatus(
             vmRuntimeState: store.runtimeState,
             isUSBAttached: store.usbSession.attachedAccessoryID != nil,
-            wireGuardTunnelStatus: store.wireGuardSession.hostTunnelStatus
+            wireGuardTunnelStatus: store.wireGuardSession.tunnelStatus
         )
     }
 
@@ -685,7 +685,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     private var wireGuardStatusColor: NSColor {
-        switch store.wireGuardSession.hostTunnelStatus {
+        switch store.wireGuardSession.tunnelStatus {
         case .connected:
             return .systemGreen
         case .activatingSystemExtension, .connecting, .disconnecting, .reasserting:
@@ -788,14 +788,14 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     @objc private func connectWireGuard() {
         if currentPresentationMode == .normal {
-            store.connectHostWireGuardTunnelWithAutomaticDummyEthernet()
+            store.connectWireGuardTunnelWithAutomaticDummyEthernet()
         } else {
-            store.connectHostWireGuardTunnel()
+            store.connectWireGuardTunnel()
         }
     }
 
     @objc private func disconnectWireGuard() {
-        store.disconnectHostWireGuardTunnel()
+        store.disconnectWireGuardTunnel()
     }
 
     @objc private func startDummyEthernet() {
