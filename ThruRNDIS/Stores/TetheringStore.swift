@@ -791,9 +791,7 @@ final class TetheringStore: ObservableObject {
         )
     }
 
-    func prepareForApplicationTermination(
-        disconnectWireGuard: Bool = true
-    ) async {
+    func prepareForApplicationTermination() async {
         guard applicationState != .terminating else { return }
         applicationState = .terminating
         shouldRunAccessoryMonitoring = false
@@ -805,20 +803,14 @@ final class TetheringStore: ObservableObject {
         workflowCoordinator.cancelPendingWireGuardConnection(
             reason: "application termination"
         )
-        await wireGuardSession.prepareForApplicationTermination(
-            disconnectTunnel: disconnectWireGuard
-        )
+        await wireGuardSession.prepareForApplicationTermination()
         if let managedDummyEthernet {
             _ = await managedDummyEthernet
                 .stopForApplicationTerminationIfNeeded()
         }
         usbCoordinator.prepareForIntentionalVMStop()
         vmCoordinator.invalidate()
-        await withCheckedContinuation { continuation in
-            usbCoordinator.stopMonitoring(reason: "Application terminating.") {
-                continuation.resume()
-            }
-        }
+        usbCoordinator.stopMonitoring(reason: "Application terminating.")
     }
 
     func refreshWireGuardTunnelStatus() {

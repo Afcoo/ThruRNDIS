@@ -391,16 +391,14 @@ final class WireGuardSessionStore: ObservableObject {
         )
     }
 
-    func prepareForApplicationTermination(disconnectTunnel: Bool) async {
+    func prepareForApplicationTermination() async {
         isPreparingForApplicationTermination = true
         wireGuardConnectionPrompt = nil
         cancelPendingConnectTask()
         systemExtensionActivationTask?.cancel()
         systemExtensionActivationTask = nil
         tunnelController.invalidateSystemExtensionOperations()
-        if disconnectTunnel {
-            _ = await tunnelController.disconnect(waitUntilStopped: true)
-        }
+        _ = await tunnelController.disconnect(waitUntilStopped: true)
     }
 
     func cancelTunnel(reason: String) {

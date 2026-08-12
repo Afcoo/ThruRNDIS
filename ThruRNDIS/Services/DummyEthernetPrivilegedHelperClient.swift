@@ -41,8 +41,16 @@ enum DummyEthernetPrivilegedHelperClientError: Error, Equatable, LocalizedError 
 
 @MainActor
 final class DummyEthernetPrivilegedHelperClient {
+    private static let statusRequestTimeout: DispatchTimeInterval = .seconds(10)
+    // A normal start may spend 3 seconds waiting for its Bond and another
+    // 12 seconds waiting for the wired network path before replying.
+    private static let startRequestTimeout: DispatchTimeInterval = .seconds(20)
+    private static let stopRequestTimeout: DispatchTimeInterval = .seconds(10)
+
     func status() async throws -> DummyEthernetNetworkSnapshot {
-        try await sendRequest { proxy, reply in
+        try await sendRequest(
+            timeout: Self.statusRequestTimeout
+        ) { proxy, reply in
             proxy.status(withReply: reply)
         }
     }
@@ -50,18 +58,30 @@ final class DummyEthernetPrivilegedHelperClient {
     func start(
         configuration: DummyEthernetConfiguration
     ) async throws -> DummyEthernetNetworkSnapshot {
-        try await sendRequest { proxy, reply in
-            proxy.start(
-                hostIPv4Address: configuration.hostIPv4Address,
-                memberInterfaceName: configuration.memberInterfaceName,
-                peerInterfaceName: configuration.peerInterfaceName,
-                withReply: reply
-            )
+        do {
+            return try await sendRequest(
+                timeout: Self.startRequestTimeout
+            ) { proxy, reply in
+                proxy.start(
+                    hostIPv4Address: configuration.hostIPv4Address,
+                    memberInterfaceName: configuration.memberInterfaceName,
+                    peerInterfaceName: configuration.peerInterfaceName,
+                    withReply: reply
+                )
+            }
+        } catch let error as DummyEthernetPrivilegedHelperClientError
+            where error == .requestTimedOut {
+            // The helper may still finish a queued Start after the client timeout.
+            // Queue a bounded Stop so that late completion cannot leave it active.
+            _ = try? await stop()
+            throw error
         }
     }
 
     func stop() async throws -> DummyEthernetNetworkSnapshot {
-        try await sendRequest { proxy, reply in
+        try await sendRequest(
+            timeout: Self.stopRequestTimeout
+        ) { proxy, reply in
             proxy.stop(withReply: reply)
         }
     }
@@ -80,6 +100,7 @@ final class DummyEthernetPrivilegedHelperClient {
     }
 
     private func sendRequest(
+        timeout requestTimeout: DispatchTimeInterval,
         _ request: @escaping (
             DummyEthernetPrivilegedHelperProtocol,
             @escaping DummyEthernetPrivilegedHelperReply
@@ -92,6 +113,18 @@ final class DummyEthernetPrivilegedHelperClient {
                 connection: connection,
                 continuation: continuation
             )
+            connection.interruptionHandler = {
+                reply.resume(with: .failure(
+                    DummyEthernetPrivilegedHelperClientError
+                        .remoteObjectUnavailable(message: nil)
+                ))
+            }
+            connection.invalidationHandler = {
+                reply.resume(with: .failure(
+                    DummyEthernetPrivilegedHelperClientError
+                        .remoteObjectUnavailable(message: nil)
+                ))
+            }
             connection.activate()
 
             let remoteObject = connection.remoteObjectProxyWithErrorHandler {
@@ -127,8 +160,9 @@ final class DummyEthernetPrivilegedHelperClient {
                     ))
                 }
             }
-            DispatchQueue.global().asyncAfter(deadline: .now() + 60) {
-                [weak reply] in
+            DispatchQueue.global().asyncAfter(
+                deadline: .now() + requestTimeout
+            ) { [weak reply] in
                 reply?.resume(with: .failure(
                     DummyEthernetPrivilegedHelperClientError.requestTimedOut
                 ))
