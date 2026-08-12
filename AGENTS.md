@@ -62,7 +62,10 @@ WireGuard-over-VZNAT architecture as the baseline.
   the USB-triggered WireGuard connection prompt, WireGuard inputs, validation,
   and configuration readiness, and
   `AppPreferencesStore` owns onboarding completion, USB/WireGuard preferences,
-  and Launch at Login state. VM lifecycle work belongs in `VMCoordinator`; USB
+  WireGuard Manual Configuration Mode, and Launch at Login state. WireGuard
+  Manual Configuration Mode keeps guest WireGuard configuration generation and host configuration
+  export available, but disables app-managed host WireGuard connections and
+  Dummy Ethernet. VM lifecycle work belongs in `VMCoordinator`; USB
   AccessoryAccess selection and passthrough policy belong in
   `USBAccessoryCoordinator`.
 - `AppDelegate` is the composition root. It owns one shared
@@ -70,8 +73,11 @@ WireGuard-over-VZNAT architecture as the baseline.
   and the independently injected child state stores, and injects them into one shared `TetheringStore`,
   requests AccessoryAccess monitoring at app launch, and passes the same objects
   to onboarding, Settings, and the menu bar. Before each listener start in normal
-  mode, `TetheringStore` requires completed onboarding, valid VM Assets, an active
-  Network Extension, and the current Dummy Ethernet helper. Views observe the narrowest child
+  app-managed mode, `TetheringStore` requires completed onboarding, valid VM Assets,
+  an active Network Extension, and the current Dummy Ethernet helper. Manual
+  Configuration Mode requires only completed onboarding and valid VM Assets;
+  it must not require Network Extension activation or privileged-helper installation.
+  Views observe the narrowest child
   store that owns their state while invoking `TetheringStore` only for
   cross-feature actions. Keep the dependency one-way: `TetheringStore` sees
   only the read-only `VMAssetProviding` boundary, and
@@ -223,6 +229,12 @@ ThruRNDIS WireGuardKit Network System Extension
 -> USB RNDIS upstream
 ```
 
+In WireGuard Manual Configuration Mode, a user-managed WireGuard client replaces the
+ThruRNDIS Network System Extension at the start of this path. The app still
+generates the guest `wg0.conf` and renders the host configuration for manual
+copy/export, but it must not request a host tunnel connection or prepare Dummy
+Ethernet.
+
 - The current WireGuard test addresses are guest `10.100.0.1/24` and
   macOS host tunnel `10.100.0.2/24`; the guest peer should allow
   `10.100.0.2/32`.
@@ -309,6 +321,12 @@ ThruRNDIS WireGuardKit Network System Extension
   stop before quitting. The explicit Reset All Settings action additionally
   unregisters the helper and restores the persisted Dummy Ethernet inputs to
   defaults after stopping the managed configuration.
+  WireGuard Manual Configuration Mode hides Dummy Ethernet settings and menu presentation,
+  excludes helper readiness from USB-listener prerequisites, and never starts
+  Dummy Ethernet. Disable the mode toggle while app-managed WireGuard
+  is connected or transitioning, or Dummy Ethernet is active or degraded. VM
+  lifecycle does not affect mode availability, and mode changes do not stop those
+  components.
 - `SMAppService` registration is explicit. After a successful register request,
   record the helper-specific installation identity embedded in the helper file
   rather than the app build number or file-system metadata. Keep that identity
@@ -799,7 +817,7 @@ xcrun notarytool store-credentials "thrurndis-notary"
   helper. A Login
   Items approval-required result is a visible recoverable state, not permission
   to bypass `SMAppService` or elevate through another mechanism.
-- In normal mode, require completed onboarding, valid VM Assets, an active
+- In normal app-managed mode, require completed onboarding, valid VM Assets, an active
   Network Extension, and the current enabled Dummy Ethernet privileged helper
   immediately before starting or reloading AccessoryAccess monitoring. Do not
   stop an active listener merely because a prerequisite later becomes
@@ -808,6 +826,9 @@ xcrun notarytool store-credentials "thrurndis-notary"
   AccessoryAccess entitlement or listener-transition safety checks. Settings may
   stop or sequentially reload the listener for the current session, but a later
   app launch requests it again.
+  WireGuard Manual Configuration Mode instead requires only completed onboarding and valid
+  VM Assets, skips the WireGuard connection prompt/auto-connect path, and omits
+  app-managed WireGuard and Dummy Ethernet menu controls.
 - Keep USB approval prompts AppKit-presented so they remain visible while all
   windows are closed. The store must serialize USB approval, VM
   start/stop/restart, and VZ attach completions. Preserve the VM-generation and

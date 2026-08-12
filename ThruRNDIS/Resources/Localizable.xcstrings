@@ -1,6 +1,16 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Manual Configuration Mode" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "수동 구성 모드"
+          }
+        }
+      }
+    },
     "%@ (%@)" : {
       "localizations" : {
         "en" : {

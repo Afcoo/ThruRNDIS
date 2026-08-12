@@ -16,7 +16,7 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationSplitView {
-            List(SettingsSection.allCases, selection: $selectedSection) { section in
+            List(availableSections, selection: $selectedSection) { section in
                 Label(section.title, systemImage: section.systemImage)
                     .tag(section)
             }
@@ -51,6 +51,19 @@ struct SettingsView: View {
         .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
         .onAppear {
             appPreferences.refreshLaunchAtLoginStatus()
+        }
+        .onChange(of: appPreferences.isWireGuardManualConfigurationModeEnabled) {
+            _, isEnabled in
+            if isEnabled, selectedSection == .dummyEthernet {
+                selectedSection = .general
+            }
+        }
+    }
+
+    private var availableSections: [SettingsSection] {
+        SettingsSection.allCases.filter {
+            !appPreferences.isWireGuardManualConfigurationModeEnabled
+                || $0 != .dummyEthernet
         }
     }
 }

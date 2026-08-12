@@ -21,6 +21,18 @@ final class AppPreferencesStore: ObservableObject {
         }
     }
 
+    @Published var isWireGuardManualConfigurationModeEnabled: Bool {
+        didSet {
+            guard !isResettingPersistedValues else {
+                return
+            }
+            defaults.set(
+                isWireGuardManualConfigurationModeEnabled,
+                forKey: DefaultsKey.isWireGuardManualConfigurationModeEnabled
+            )
+        }
+    }
+
     @Published var shouldAskToAttachDetectedUSBDevices: Bool {
         didSet {
             guard !isResettingPersistedValues else {
@@ -61,6 +73,9 @@ final class AppPreferencesStore: ObservableObject {
         self.defaults = defaults
         self.isDebugModeEnabled = defaults.bool(
             forKey: DefaultsKey.isDebugModeEnabled
+        )
+        self.isWireGuardManualConfigurationModeEnabled = defaults.bool(
+            forKey: DefaultsKey.isWireGuardManualConfigurationModeEnabled
         )
         self.shouldAskToAttachDetectedUSBDevices = defaults.object(
             forKey: DefaultsKey.shouldAskToAttachDetectedUSBDevices
@@ -105,6 +120,9 @@ final class AppPreferencesStore: ObservableObject {
     func resetPersistedValues() throws {
         defaults.removeObject(forKey: DefaultsKey.onboardingVersion)
         defaults.removeObject(forKey: DefaultsKey.isDebugModeEnabled)
+        defaults.removeObject(
+            forKey: DefaultsKey.isWireGuardManualConfigurationModeEnabled
+        )
         defaults.removeObject(forKey: DefaultsKey.shouldAskToAttachDetectedUSBDevices)
         defaults.removeObject(
             forKey: DefaultsKey.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches
@@ -112,6 +130,7 @@ final class AppPreferencesStore: ObservableObject {
 
         isResettingPersistedValues = true
         isDebugModeEnabled = false
+        isWireGuardManualConfigurationModeEnabled = false
         shouldAskToAttachDetectedUSBDevices = true
         shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches = false
         hasCompletedOnboarding = false
@@ -132,6 +151,8 @@ final class AppPreferencesStore: ObservableObject {
     private enum DefaultsKey {
         static let onboardingVersion = "Onboarding.completedVersion"
         static let isDebugModeEnabled = "Application.debugModeEnabled"
+        static let isWireGuardManualConfigurationModeEnabled =
+            "Application.manualConfigurationModeEnabled"
         static let shouldAskToAttachDetectedUSBDevices = "USB.askToAttachDetectedDevices"
         static let shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches =
             "WireGuard.connectAutomaticallyWhenUSBDeviceAttaches"

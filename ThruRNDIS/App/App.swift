@@ -259,7 +259,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidBecomeActive(_ notification: Notification) {
         appPreferences.refreshLaunchAtLoginStatus()
         store.refreshWireGuardSystemExtensionStatus()
-        store.dummyEthernet.refresh()
+        if !appPreferences.isWireGuardManualConfigurationModeEnabled {
+            store.dummyEthernet.refresh()
+        }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -292,6 +294,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func presentDummyEthernetHelperUpdateIfNeeded() {
+        guard !appPreferences.isWireGuardManualConfigurationModeEnabled else {
+            return
+        }
         let helper = store.dummyEthernet.helper
         helper.refresh()
         guard helper.registrationStatus == .updateRequired else {

@@ -153,6 +153,13 @@ final class TetheringStore: ObservableObject {
         applicationState == .resetting
     }
 
+    var canChangeWireGuardManualConfigurationMode: Bool {
+        (wireGuardSession.tunnelStatus == .unconfigured
+            || wireGuardSession.tunnelStatus == .disconnected)
+            && (managedDummyEthernet?.runtimeState == nil
+                || managedDummyEthernet?.runtimeState == .inactive)
+    }
+
     private var acceptsNewWork: Bool {
         applicationState == .active
     }
@@ -352,6 +359,9 @@ final class TetheringStore: ObservableObject {
         guard hasConfiguredVMAssets else {
             return .vmAssetsUnavailable
         }
+        guard !appPreferences.isWireGuardManualConfigurationModeEnabled else {
+            return nil
+        }
         guard wireGuardSession.systemExtensionStatus.isActive else {
             return .networkExtensionInactive
         }
@@ -453,6 +463,25 @@ final class TetheringStore: ObservableObject {
             wireGuardSession: wireGuardSession,
             appPreferences: appPreferences,
             runtimeEntitlementSnapshotProvider: runtimeEntitlementSnapshotProvider
+        )
+    }
+
+    func setWireGuardManualConfigurationModeEnabled(_ isEnabled: Bool) {
+        guard appPreferences.isWireGuardManualConfigurationModeEnabled
+                != isEnabled else {
+            return
+        }
+
+        appPreferences.isWireGuardManualConfigurationModeEnabled = isEnabled
+        objectWillChange.send()
+
+        if !isEnabled {
+            refreshWireGuardSystemExtensionStatus()
+            managedDummyEthernet?.refresh()
+        }
+
+        scheduleAccessoryMonitoringStartIfRequested(
+            reason: "WireGuard manual configuration mode changed"
         )
     }
 
@@ -807,8 +836,10 @@ final class TetheringStore: ObservableObject {
         )
         await wireGuardSession.prepareForApplicationTermination(
             disconnectTunnel: disconnectWireGuard
+                && !appPreferences.isWireGuardManualConfigurationModeEnabled
         )
-        if let managedDummyEthernet {
+        if !appPreferences.isWireGuardManualConfigurationModeEnabled,
+           let managedDummyEthernet {
             _ = await managedDummyEthernet
                 .stopForApplicationTerminationIfNeeded()
         }
@@ -822,9 +853,10 @@ final class TetheringStore: ObservableObject {
     }
 
     func refreshWireGuardTunnelStatus() {
-        guard canRefreshWireGuardTunnelStatus else { return }
+        guard !appPreferences.isWireGuardManualConfigurationModeEnabled,
+              canRefreshWireGuardTunnelStatus else { return }
         refreshRuntimeEntitlements()
-        refreshWireGuardSystemExtensionStatus()
+        wireGuardSession.refreshSystemExtensionStatus()
         guard runtimeEntitlements.packetTunnelProvider else {
             wireGuardSession.updateTunnelFailure(.missingPacketTunnelEntitlement)
             appendEventLog(
@@ -838,7 +870,8 @@ final class TetheringStore: ObservableObject {
     }
 
     func refreshWireGuardSystemExtensionStatus() {
-        guard acceptsNewWork else {
+        guard acceptsNewWork,
+              !appPreferences.isWireGuardManualConfigurationModeEnabled else {
             return
         }
         refreshRuntimeEntitlements()
@@ -847,7 +880,8 @@ final class TetheringStore: ObservableObject {
 
     @discardableResult
     func requestWireGuardSystemExtensionActivation() -> Bool {
-        guard acceptsNewWork else {
+        guard acceptsNewWork,
+              !appPreferences.isWireGuardManualConfigurationModeEnabled else {
             return false
         }
         refreshRuntimeEntitlements()
@@ -879,7 +913,8 @@ final class TetheringStore: ObservableObject {
     }
 
     func openWireGuardSystemExtensionSettings() {
-        guard acceptsNewWork else {
+        guard acceptsNewWork,
+              !appPreferences.isWireGuardManualConfigurationModeEnabled else {
             return
         }
         wireGuardSession.openSystemExtensionSettings()
@@ -887,7 +922,8 @@ final class TetheringStore: ObservableObject {
 
     @discardableResult
     func connectWireGuardTunnel() -> Bool {
-        guard acceptsNewWork else { return false }
+        guard acceptsNewWork,
+              !appPreferences.isWireGuardManualConfigurationModeEnabled else { return false }
         refreshRuntimeEntitlements()
 
         guard runtimeState == .running, vmCoordinator.canSendConsoleInput else {
@@ -924,12 +960,15 @@ final class TetheringStore: ObservableObject {
     }
 
     func connectWireGuardTunnelWithAutomaticDummyEthernet() {
-        guard acceptsNewWork, canConnectWireGuardTunnel else { return }
+        guard acceptsNewWork,
+              !appPreferences.isWireGuardManualConfigurationModeEnabled,
+              canConnectWireGuardTunnel else { return }
         managedWireGuardConnectionCoordinator.connect()
     }
 
     func disconnectWireGuardTunnel() {
-        guard canDisconnectWireGuardTunnel else { return }
+        guard !appPreferences.isWireGuardManualConfigurationModeEnabled,
+              canDisconnectWireGuardTunnel else { return }
         workflowCoordinator.cancelPendingWireGuardConnection(
             reason: "manual WireGuard disconnect"
         )
