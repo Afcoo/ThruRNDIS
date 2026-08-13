@@ -9,14 +9,15 @@ struct SettingsView: View {
     @State private var selectedSection: SettingsSection = .general
 
     let openConsole: () -> Void
-    let resetAndRestart: () -> Void
+    let resetAndQuit: () -> Void
+    let quitWithWireGuardManualConfigurationMode: (Bool) -> Void
     let openWireGuardConfigurationFolder: () -> Void
     let copyWireGuardConfiguration: () -> Void
     let saveWireGuardConfiguration: () -> Void
 
     var body: some View {
         NavigationSplitView {
-            List(SettingsSection.allCases, selection: $selectedSection) { section in
+            List(availableSections, selection: $selectedSection) { section in
                 Label(section.title, systemImage: section.systemImage)
                     .tag(section)
             }
@@ -33,6 +34,8 @@ struct SettingsView: View {
                     USBDevicesView()
                 case .wireGuard:
                     WireGuardView(
+                        quitWithManualConfigurationMode:
+                            quitWithWireGuardManualConfigurationMode,
                         openConfigurationFolder: openWireGuardConfigurationFolder,
                         copyConfiguration: copyWireGuardConfiguration,
                         saveConfiguration: saveWireGuardConfiguration
@@ -40,7 +43,7 @@ struct SettingsView: View {
                 case .dummyEthernet:
                     DummyEthernetView()
                 case .info:
-                    InfoView(resetAndRestart: resetAndRestart)
+                    InfoView(resetAndQuit: resetAndQuit)
                 }
             }
             .navigationTitle(selectedSection.title)
@@ -51,6 +54,13 @@ struct SettingsView: View {
         .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
         .onAppear {
             appPreferences.refreshLaunchAtLoginStatus()
+        }
+    }
+
+    private var availableSections: [SettingsSection] {
+        SettingsSection.allCases.filter {
+            !appPreferences.isWireGuardManualConfigurationModeEnabled
+                || $0 != .dummyEthernet
         }
     }
 }

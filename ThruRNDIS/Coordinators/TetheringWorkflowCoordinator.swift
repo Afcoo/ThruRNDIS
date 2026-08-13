@@ -598,6 +598,10 @@ final class TetheringWorkflowCoordinator {
     private func prepareWireGuardConnectionForUSBAttachment(
         _ accessory: USBAccessoryRecord
     ) {
+        guard !appPreferences.isWireGuardManualConfigurationModeEnabled else {
+            return
+        }
+
         if appPreferences.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches {
             requestWireGuardConnectionAfterUSBAttachment(accessoryID: accessory.id)
         } else {

@@ -71,7 +71,8 @@ final class WireGuardSessionStore: ObservableObject {
         systemExtensionSettingsOpener: @escaping @MainActor () -> Bool = {
             NetworkExtensionSettingsOpener.open()
         },
-        defaults: UserDefaults = .standard
+        defaults: UserDefaults = .standard,
+        shouldRefreshManagedWireGuardStatus: Bool = true
     ) {
         self.configurationStore = configurationStore
         self.configurationBuilder = configurationBuilder
@@ -95,9 +96,11 @@ final class WireGuardSessionStore: ObservableObject {
         configureTunnelController()
         prepareConfiguration()
 
-        refreshSystemExtensionStatus()
-        Task { @MainActor [weak self] in
-            await self?.tunnelController.refreshStatus()
+        if shouldRefreshManagedWireGuardStatus {
+            refreshSystemExtensionStatus()
+            Task { @MainActor [weak self] in
+                await self?.tunnelController.refreshStatus()
+            }
         }
     }
 
@@ -391,14 +394,14 @@ final class WireGuardSessionStore: ObservableObject {
         )
     }
 
-    func prepareForApplicationTermination() async {
+    func prepareForApplicationTermination() async -> Bool {
         isPreparingForApplicationTermination = true
         wireGuardConnectionPrompt = nil
         cancelPendingConnectTask()
         systemExtensionActivationTask?.cancel()
         systemExtensionActivationTask = nil
         tunnelController.invalidateSystemExtensionOperations()
-        _ = await tunnelController.disconnect(waitUntilStopped: true)
+        return await tunnelController.disconnect(waitUntilStopped: true)
     }
 
     func cancelTunnel(reason: String) {

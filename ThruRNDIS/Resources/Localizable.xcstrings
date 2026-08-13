@@ -1,6 +1,36 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Manual Configuration Mode" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "수동 구성 모드"
+          }
+        }
+      }
+    },
+    "Manual Configuration Mode will be disabled after you reopen ThruRNDIS." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ThruRNDIS를 다시 열면 일반 구성 모드로 변경됩니다."
+          }
+        }
+      }
+    },
+    "Manual Configuration Mode will be enabled after you reopen ThruRNDIS." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ThruRNDIS를 다시 열면 수동 구성 모드로 변경됩니다."
+          }
+        }
+      }
+    },
     "%@ (%@)" : {
       "localizations" : {
         "en" : {
@@ -189,12 +219,12 @@
         }
       }
     },
-    "All settings will be reset, and ThruRNDIS will quit and relaunch." : {
+    "All settings will be reset, and ThruRNDIS will quit." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "모든 설정이 초기화되며 ThruRNDIS가 종료 후 다시 시작됩니다."
+            "value" : "모든 설정이 초기화되며 ThruRNDIS가 종료됩니다."
           }
         }
       }
@@ -1985,12 +2015,12 @@
         }
       }
     },
-    "Reset and Restart" : {
+    "Reset and Quit" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "초기화 후 다시 시작"
+            "value" : "초기화 후 종료"
           }
         }
       }
@@ -2201,16 +2231,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "설정은 초기화되었지만 로그인 시 열기를 비활성화할 수 없습니다: %@"
-          }
-        }
-      }
-    },
-    "Settings were reset, but a new ThruRNDIS instance could not be opened." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "설정은 초기화되었지만 새 ThruRNDIS 앱을 열 수 없습니다."
           }
         }
       }
@@ -2683,16 +2703,6 @@
         }
       }
     },
-    "ThruRNDIS Could Not Restart" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ThruRNDIS를 다시 시작할 수 없음"
-          }
-        }
-      }
-    },
     "ThruRNDIS initramfs" : {
       "localizations" : {
         "ko" : {
@@ -2763,12 +2773,12 @@
         }
       }
     },
-    "ThruRNDIS Will Restart" : {
+    "ThruRNDIS Will Quit" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ThruRNDIS가 다시 시작됩니다"
+            "value" : "ThruRNDIS가 종료됩니다"
           }
         }
       }

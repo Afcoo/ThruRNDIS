@@ -9,14 +9,29 @@ struct WireGuardView: View {
     @EnvironmentObject private var wireGuardSession: WireGuardSessionStore
     @EnvironmentObject private var appPreferences: AppPreferencesStore
 
+    let quitWithManualConfigurationMode: (Bool) -> Void
     let openConfigurationFolder: () -> Void
     let copyConfiguration: () -> Void
     let saveConfiguration: () -> Void
 
     var body: some View {
         Form {
-            if !store.runtimeEntitlements.packetTunnelProvider
-                || !store.runtimeEntitlements.systemExtensionInstall {
+            Section {
+                Toggle(
+                    "Manual Configuration Mode",
+                    isOn: Binding(
+                        get: {
+                            appPreferences
+                                .isWireGuardManualConfigurationModeEnabled
+                        },
+                        set: quitWithManualConfigurationMode
+                    )
+                )
+            }
+
+            if !appPreferences.isWireGuardManualConfigurationModeEnabled
+                && (!store.runtimeEntitlements.packetTunnelProvider
+                    || !store.runtimeEntitlements.systemExtensionInstall) {
                 Section {
                     Label(
                         "WireGuard connections are unavailable in this unsigned build.",
@@ -26,15 +41,17 @@ struct WireGuardView: View {
                 }
             }
 
-            Section {
-                NetworkExtensionPermissionView()
-            } header: {
-                Text("Network Extension")
-            } footer: {
-                Text("Network Extension permission is required for WireGuard connections.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+            if !appPreferences.isWireGuardManualConfigurationModeEnabled {
+                Section {
+                    NetworkExtensionPermissionView()
+                } header: {
+                    Text("Network Extension")
+                } footer: {
+                    Text("Network Extension permission is required for WireGuard connections.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
 
             Section("Connection") {
@@ -89,35 +106,37 @@ struct WireGuardView: View {
                     }
                 }
 
-                HStack {
-                    Button {
-                        store.connectWireGuardTunnel()
-                    } label: {
-                        Text(
-                            wireGuardSession.tunnelStatus.isConnectingOrConnected
-                                ? String(localized: "Reconnect")
-                                : String(localized: "Connect")
+                if !appPreferences.isWireGuardManualConfigurationModeEnabled {
+                    HStack {
+                        Button {
+                            store.connectWireGuardTunnel()
+                        } label: {
+                            Text(
+                                wireGuardSession.tunnelStatus.isConnectingOrConnected
+                                    ? String(localized: "Reconnect")
+                                    : String(localized: "Connect")
+                            )
+                        }
+                        .disabled(!store.canConnectWireGuardTunnel)
+
+                        Button("Disconnect") {
+                            store.disconnectWireGuardTunnel()
+                        }
+                        .disabled(!store.canDisconnectWireGuardTunnel)
+
+                        Button("Refresh") {
+                            store.refreshWireGuardTunnelStatus()
+                        }
+                        .disabled(!store.canRefreshWireGuardTunnelStatus)
+
+                        Spacer()
+
+                        Toggle(
+                            "Connect automatically when device is attached",
+                            isOn: $appPreferences.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches
                         )
+                        .toggleStyle(.checkbox)
                     }
-                    .disabled(!store.canConnectWireGuardTunnel)
-
-                    Button("Disconnect") {
-                        store.disconnectWireGuardTunnel()
-                    }
-                    .disabled(!store.canDisconnectWireGuardTunnel)
-
-                    Button("Refresh") {
-                        store.refreshWireGuardTunnelStatus()
-                    }
-                    .disabled(!store.canRefreshWireGuardTunnelStatus)
-
-                    Spacer()
-
-                    Toggle(
-                        "Connect automatically when device is attached",
-                        isOn: $appPreferences.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches
-                    )
-                    .toggleStyle(.checkbox)
                 }
             }
 

@@ -352,6 +352,9 @@ final class TetheringStore: ObservableObject {
         guard hasConfiguredVMAssets else {
             return .vmAssetsUnavailable
         }
+        guard !appPreferences.isWireGuardManualConfigurationModeEnabled else {
+            return nil
+        }
         guard wireGuardSession.systemExtensionStatus.isActive else {
             return .networkExtensionInactive
         }
@@ -430,17 +433,19 @@ final class TetheringStore: ObservableObject {
         launchAtLoginService: LaunchAtLoginService = LaunchAtLoginService(),
         defaults: UserDefaults = .standard
     ) {
+        let appPreferences = AppPreferencesStore(
+            launchAtLoginService: launchAtLoginService,
+            defaults: defaults
+        )
         let wireGuardSession = WireGuardSessionStore(
             configurationStore: wireGuardConfigurationStore,
             configurationBuilder: wireGuardConfigurationBuilder,
             tunnelController: wireGuardTunnelController,
             eventLog: eventLog,
             systemExtensionSettingsOpener: systemExtensionSettingsOpener,
-            defaults: defaults
-        )
-        let appPreferences = AppPreferencesStore(
-            launchAtLoginService: launchAtLoginService,
-            defaults: defaults
+            defaults: defaults,
+            shouldRefreshManagedWireGuardStatus:
+                !appPreferences.isWireGuardManualConfigurationModeEnabled
         )
         self.init(
             assetProvider: assetProvider,
@@ -791,8 +796,8 @@ final class TetheringStore: ObservableObject {
         )
     }
 
-    func prepareForApplicationTermination() async {
-        guard applicationState != .terminating else { return }
+    func prepareForApplicationTermination() async -> Bool {
+        guard applicationState != .terminating else { return false }
         applicationState = .terminating
         shouldRunAccessoryMonitoring = false
         appendEventLog(
@@ -803,20 +808,30 @@ final class TetheringStore: ObservableObject {
         workflowCoordinator.cancelPendingWireGuardConnection(
             reason: "application termination"
         )
-        await wireGuardSession.prepareForApplicationTermination()
-        if let managedDummyEthernet {
-            _ = await managedDummyEthernet
-                .stopForApplicationTerminationIfNeeded()
+        var didStopManagedNetworkServices = true
+        if !appPreferences.isWireGuardManualConfigurationModeEnabled {
+            let didStopWireGuard =
+                await wireGuardSession.prepareForApplicationTermination()
+            let didStopDummyEthernet = if let managedDummyEthernet {
+                await managedDummyEthernet
+                    .stopForApplicationTerminationIfNeeded()
+            } else {
+                true
+            }
+            didStopManagedNetworkServices =
+                didStopWireGuard && didStopDummyEthernet
         }
         usbCoordinator.prepareForIntentionalVMStop()
         vmCoordinator.invalidate()
         usbCoordinator.stopMonitoring(reason: "Application terminating.")
+        return didStopManagedNetworkServices
     }
 
     func refreshWireGuardTunnelStatus() {
-        guard canRefreshWireGuardTunnelStatus else { return }
+        guard !appPreferences.isWireGuardManualConfigurationModeEnabled,
+              canRefreshWireGuardTunnelStatus else { return }
         refreshRuntimeEntitlements()
-        refreshWireGuardSystemExtensionStatus()
+        wireGuardSession.refreshSystemExtensionStatus()
         guard runtimeEntitlements.packetTunnelProvider else {
             wireGuardSession.updateTunnelFailure(.missingPacketTunnelEntitlement)
             appendEventLog(
@@ -830,7 +845,8 @@ final class TetheringStore: ObservableObject {
     }
 
     func refreshWireGuardSystemExtensionStatus() {
-        guard acceptsNewWork else {
+        guard acceptsNewWork,
+              !appPreferences.isWireGuardManualConfigurationModeEnabled else {
             return
         }
         refreshRuntimeEntitlements()
@@ -839,7 +855,8 @@ final class TetheringStore: ObservableObject {
 
     @discardableResult
     func requestWireGuardSystemExtensionActivation() -> Bool {
-        guard acceptsNewWork else {
+        guard acceptsNewWork,
+              !appPreferences.isWireGuardManualConfigurationModeEnabled else {
             return false
         }
         refreshRuntimeEntitlements()
@@ -871,7 +888,8 @@ final class TetheringStore: ObservableObject {
     }
 
     func openWireGuardSystemExtensionSettings() {
-        guard acceptsNewWork else {
+        guard acceptsNewWork,
+              !appPreferences.isWireGuardManualConfigurationModeEnabled else {
             return
         }
         wireGuardSession.openSystemExtensionSettings()
@@ -879,7 +897,8 @@ final class TetheringStore: ObservableObject {
 
     @discardableResult
     func connectWireGuardTunnel() -> Bool {
-        guard acceptsNewWork else { return false }
+        guard acceptsNewWork,
+              !appPreferences.isWireGuardManualConfigurationModeEnabled else { return false }
         refreshRuntimeEntitlements()
 
         guard runtimeState == .running, vmCoordinator.canSendConsoleInput else {
@@ -916,12 +935,15 @@ final class TetheringStore: ObservableObject {
     }
 
     func connectWireGuardTunnelWithAutomaticDummyEthernet() {
-        guard acceptsNewWork, canConnectWireGuardTunnel else { return }
+        guard acceptsNewWork,
+              !appPreferences.isWireGuardManualConfigurationModeEnabled,
+              canConnectWireGuardTunnel else { return }
         managedWireGuardConnectionCoordinator.connect()
     }
 
     func disconnectWireGuardTunnel() {
-        guard canDisconnectWireGuardTunnel else { return }
+        guard !appPreferences.isWireGuardManualConfigurationModeEnabled,
+              canDisconnectWireGuardTunnel else { return }
         workflowCoordinator.cancelPendingWireGuardConnection(
             reason: "manual WireGuard disconnect"
         )
@@ -1051,6 +1073,18 @@ final class TetheringStore: ObservableObject {
         wireGuardSession.resetPersistedValues()
         statusMessage = String(localized: "App settings reset. Install or select VM assets to continue.")
 
+        if let managedDummyEthernet {
+            do {
+                try await managedDummyEthernet
+                    .resetForAppSettings()
+            } catch {
+                resetStatusMessage = String(
+                    localized: "Could not reset Dummy Ethernet: \(error.localizedDescription)"
+                )
+                return false
+            }
+        }
+
         do {
             try appPreferences.resetPersistedValues()
             resetStatusMessage = String(localized: "App settings were reset.")
@@ -1062,18 +1096,6 @@ final class TetheringStore: ObservableObject {
                 level: .warning,
                 category: .application
             )
-        }
-
-        if let managedDummyEthernet {
-            do {
-                try await managedDummyEthernet
-                    .resetForAppSettings()
-            } catch {
-                resetStatusMessage = String(
-                    localized: "Could not reset Dummy Ethernet: \(error.localizedDescription)"
-                )
-                return false
-            }
         }
 
         appendEventLog(

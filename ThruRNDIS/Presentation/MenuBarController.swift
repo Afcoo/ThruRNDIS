@@ -5,24 +5,24 @@ Copyright (C) 2026 Afcoo.
 import AppKit
 import Combine
 
-private enum MenuBarPresentationMode: Equatable {
-    case normal
-    case debug
-
-    init(isDebugModeEnabled: Bool) {
-        self = isDebugModeEnabled ? .debug : .normal
-    }
+private struct MenuBarPresentationMode: Equatable {
+    let isDebugModeEnabled: Bool
+    let isWireGuardManualConfigurationModeEnabled: Bool
 
     var displaysIndividualStatusItems: Bool {
-        self == .debug
+        isDebugModeEnabled
     }
 
     var displaysVMControls: Bool {
-        self == .debug
+        isDebugModeEnabled
+    }
+
+    var displaysWireGuard: Bool {
+        !isWireGuardManualConfigurationModeEnabled
     }
 
     var displaysDummyEthernetControls: Bool {
-        self == .debug
+        isDebugModeEnabled && !isWireGuardManualConfigurationModeEnabled
     }
 }
 
@@ -112,12 +112,16 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             }
             .store(in: &cancellables)
 
-        dummyEthernet.refresh()
+        if !store.appPreferences.isWireGuardManualConfigurationModeEnabled {
+            dummyEthernet.refresh()
+        }
     }
 
     func menuWillOpen(_ menu: NSMenu) {
         isMenuOpen = true
-        dummyEthernet.refresh()
+        if !store.appPreferences.isWireGuardManualConfigurationModeEnabled {
+            dummyEthernet.refresh()
+        }
         rebuildMenu()
     }
 
@@ -227,6 +231,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         let guidanceTitles = currentConfigurationGuidanceTitles
         if !guidanceTitles.isEmpty {
             button.toolTip = guidanceTitles.joined(separator: "\n")
+        } else if store.appPreferences.isWireGuardManualConfigurationModeEnabled {
+            button.toolTip = "ThruRNDIS — VM \(store.vmDisplayState.localizedName), \(usbStatusTitle)"
         } else {
             button.toolTip = String(
                 localized: "ThruRNDIS — VM \(store.vmDisplayState.localizedName), \(usbStatusTitle), \(wireGuardStatusTitle), \(dummyEthernetStatusTitle)"
@@ -247,7 +253,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         }
 
         let displaysOperationalSections = configurationGuidanceTitles.isEmpty
-            || presentationMode == .debug
+            || presentationMode.isDebugModeEnabled
         if displaysOperationalSections {
             if !configurationGuidanceTitles.isEmpty {
                 menu.addItem(.separator())
@@ -261,8 +267,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
             menu.addItem(.separator())
             addUSBControlsSection()
-            menu.addItem(.separator())
-            addWireGuardControlsSection()
+            if presentationMode.displaysWireGuard {
+                menu.addItem(.separator())
+                addWireGuardControlsSection()
+            }
             if presentationMode.displaysDummyEthernetControls {
                 addDummyEthernetControlsSection()
             }
@@ -274,7 +282,9 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             return
         }
 
-        refreshDummyEthernetPresentation()
+        if !presentationMode.isWireGuardManualConfigurationModeEnabled {
+            refreshDummyEthernetPresentation()
+        }
         refreshOperationalMenuPresentation()
     }
 
@@ -294,14 +304,18 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             self.usbStatusItem = usbStatusItem
             menu.addItem(usbStatusItem)
 
-            let wireGuardStatusItem = statusItemLine(
-                title: wireGuardStatusTitle,
-                dotColor: wireGuardStatusColor
-            )
-            self.wireGuardStatusItem = wireGuardStatusItem
-            menu.addItem(wireGuardStatusItem)
+            if presentationMode.displaysWireGuard {
+                let wireGuardStatusItem = statusItemLine(
+                    title: wireGuardStatusTitle,
+                    dotColor: wireGuardStatusColor
+                )
+                self.wireGuardStatusItem = wireGuardStatusItem
+                menu.addItem(wireGuardStatusItem)
+            }
 
-            addDummyEthernetStatusItem()
+            if !presentationMode.isWireGuardManualConfigurationModeEnabled {
+                addDummyEthernetStatusItem()
+            }
         } else {
             addCombinedStatusItem()
         }
@@ -388,11 +402,13 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             return
         }
 
-        refreshDummyEthernetPresentation()
+        if !presentationMode.isWireGuardManualConfigurationModeEnabled {
+            refreshDummyEthernetPresentation()
+        }
         refreshCombinedStatusItem()
 
         guard configurationGuidanceTitles.isEmpty
-                || presentationMode == .debug else {
+                || presentationMode.isDebugModeEnabled else {
             return
         }
 
@@ -633,27 +649,41 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     private var currentPresentationMode: MenuBarPresentationMode {
         MenuBarPresentationMode(
-            isDebugModeEnabled: store.appPreferences.isDebugModeEnabled
+            isDebugModeEnabled: store.appPreferences.isDebugModeEnabled,
+            isWireGuardManualConfigurationModeEnabled:
+                store.appPreferences.isWireGuardManualConfigurationModeEnabled
         )
     }
 
     private var currentConfigurationGuidanceTitles: [String] {
-        [
+        var titles = [
             assetWorkflowCoordinator.hasConfiguredAssets
                 ? nil : String(localized: "Configure VM Assets in Settings"),
+        ].compactMap { $0 }
+
+        guard !store.appPreferences.isWireGuardManualConfigurationModeEnabled else {
+            return titles
+        }
+
+        titles.append(contentsOf: [
             store.wireGuardSession.systemExtensionStatus.isActive
                 ? nil : String(localized: "Configure Network Extension in Settings"),
             dummyEthernetHelper.registrationStatus == .enabled
                 ? nil : String(localized: "Configure Dummy Ethernet helper in Settings"),
-        ].compactMap { $0 }
+        ].compactMap { $0 })
+        return titles
     }
 
     private var currentCombinedStatus: MenuBarCombinedStatus {
         MenuBarCombinedStatus(
             vmRuntimeState: store.runtimeState,
             isUSBAttached: store.usbSession.attachedAccessoryID != nil,
-            wireGuardTunnelStatus: store.wireGuardSession.tunnelStatus,
-            hasWireGuardFailure: store.wireGuardSession.tunnelFailure != nil
+            wireGuardTunnelStatus: store.appPreferences
+                .isWireGuardManualConfigurationModeEnabled
+                ? nil : store.wireGuardSession.tunnelStatus,
+            hasWireGuardFailure: !store.appPreferences
+                .isWireGuardManualConfigurationModeEnabled
+                && store.wireGuardSession.tunnelFailure != nil
         )
     }
 
@@ -794,7 +824,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     @objc private func connectWireGuard() {
-        if currentPresentationMode == .normal {
+        if !currentPresentationMode.isDebugModeEnabled {
             store.connectWireGuardTunnelWithAutomaticDummyEthernet()
         } else {
             store.connectWireGuardTunnel()

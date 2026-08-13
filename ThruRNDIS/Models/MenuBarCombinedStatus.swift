@@ -38,7 +38,7 @@ struct MenuBarCombinedStatus: Equatable {
         vmRuntimeState: VMRuntimeState,
         isUSBAttached: Bool,
         dummyEthernetState: DummyEthernetState? = nil,
-        wireGuardTunnelStatus: WireGuardTunnelStatus,
+        wireGuardTunnelStatus: WireGuardTunnelStatus?,
         hasWireGuardFailure: Bool = false
     ) {
         let isVMRunning = vmRuntimeState == .running
@@ -47,8 +47,10 @@ struct MenuBarCombinedStatus: Equatable {
         var activeComponents = [
             isVMRunning,
             isUSBAttached,
-            isWireGuardActive,
         ]
+        if wireGuardTunnelStatus != nil {
+            activeComponents.append(isWireGuardActive)
+        }
         if let dummyEthernetState {
             activeComponents.append(dummyEthernetState == .active)
         }
@@ -67,9 +69,9 @@ struct MenuBarCombinedStatus: Equatable {
             stage = .inactive
         } else if !isUSBAttached {
             stage = .usbNotAttached
-        } else if hasWireGuardFailure {
+        } else if wireGuardTunnelStatus != nil, hasWireGuardFailure {
             stage = .wireGuardNeedsAttention
-        } else if !isWireGuardConnected {
+        } else if wireGuardTunnelStatus != nil, !isWireGuardConnected {
             stage = .wireGuardDisconnected
         } else if let dummyEthernetState,
                   dummyEthernetState != .active {
