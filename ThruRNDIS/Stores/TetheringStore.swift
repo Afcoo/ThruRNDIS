@@ -1073,6 +1073,18 @@ final class TetheringStore: ObservableObject {
         wireGuardSession.resetPersistedValues()
         statusMessage = String(localized: "App settings reset. Install or select VM assets to continue.")
 
+        if let managedDummyEthernet {
+            do {
+                try await managedDummyEthernet
+                    .resetForAppSettings()
+            } catch {
+                resetStatusMessage = String(
+                    localized: "Could not reset Dummy Ethernet: \(error.localizedDescription)"
+                )
+                return false
+            }
+        }
+
         do {
             try appPreferences.resetPersistedValues()
             resetStatusMessage = String(localized: "App settings were reset.")
@@ -1084,18 +1096,6 @@ final class TetheringStore: ObservableObject {
                 level: .warning,
                 category: .application
             )
-        }
-
-        if let managedDummyEthernet {
-            do {
-                try await managedDummyEthernet
-                    .resetForAppSettings()
-            } catch {
-                resetStatusMessage = String(
-                    localized: "Could not reset Dummy Ethernet: \(error.localizedDescription)"
-                )
-                return false
-            }
         }
 
         appendEventLog(
