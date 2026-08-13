@@ -27,6 +27,9 @@ enum DummyEthernetOperation: String, Equatable {
 
 @MainActor
 final class DummyEthernetStore: ObservableObject {
+    private static let applicationTerminationCleanupTimeout:
+        DispatchTimeInterval = .seconds(5)
+
     let helper: DummyEthernetHelperStore
 
     @Published private(set) var runtimeState: DummyEthernetNetworkState?
@@ -239,7 +242,7 @@ final class DummyEthernetStore: ObservableObject {
             return !Task.isCancelled && snapshot.state == .active
         } catch {
             reportError(
-                "Dummy Ethernet start failed: \(error.localizedDescription)"
+                "Dummy Ethernet start failed: \(Self.diagnosticDescription(for: error))"
             )
             return false
         }
@@ -260,8 +263,19 @@ final class DummyEthernetStore: ObservableObject {
 
     @discardableResult
     func stopForApplicationTerminationIfNeeded() async -> Bool {
-        guard await waitUntilCurrentOperationFinishes(),
-              !Task.isCancelled else {
+        let terminationDeadline = DispatchTime.now()
+            + Self.applicationTerminationCleanupTimeout
+        guard await waitUntilCurrentOperationFinishes(
+            before: terminationDeadline
+        ) else {
+            if !Task.isCancelled {
+                reportError(
+                    "Dummy Ethernet application termination cleanup timed out while waiting for the current operation to finish."
+                )
+            }
+            return false
+        }
+        guard !Task.isCancelled else {
             return false
         }
 
@@ -282,7 +296,11 @@ final class DummyEthernetStore: ObservableObject {
 
         return await stopManagedConfiguration(
             requestMessage: "Dummy Ethernet stop requested for application termination.",
-            stopRequest: networkManager.stopAndWaitUntilFinished
+            stopRequest: {
+                try await networkManager.stopAndWaitUntilFinished(
+                    before: terminationDeadline
+                )
+            }
         )
     }
 
@@ -314,7 +332,7 @@ final class DummyEthernetStore: ObservableObject {
             return true
         } catch {
             reportError(
-                "Dummy Ethernet stop failed: \(error.localizedDescription)"
+                "Dummy Ethernet stop failed: \(Self.diagnosticDescription(for: error))"
             )
             return false
         }
@@ -362,18 +380,23 @@ final class DummyEthernetStore: ObservableObject {
 
             let snapshot: DummyEthernetNetworkSnapshot
             do {
-                snapshot = try await networkManager.stop()
+                snapshot = try await networkManager
+                    .stopAndWaitUntilFinished()
             } catch {
                 let resetError = DummyEthernetSettingsResetError
                     .stopFailed(error.localizedDescription)
-                reportError(resetError.localizedDescription)
+                reportError(
+                    "Dummy Ethernet settings reset failed while stopping: \(Self.diagnosticDescription(for: error))"
+                )
                 throw resetError
             }
             applySnapshot(snapshot)
             guard snapshot.state == .inactive else {
                 let resetError = DummyEthernetSettingsResetError
                     .stopIncomplete
-                reportError(resetError.localizedDescription)
+                reportError(
+                    "Dummy Ethernet settings reset failed: the managed configuration remained active or degraded."
+                )
                 throw resetError
             }
             appendCompletionEvent(for: .stopping, snapshot: snapshot)
@@ -381,13 +404,17 @@ final class DummyEthernetStore: ObservableObject {
         case .updateRequired:
             let resetError = DummyEthernetSettingsResetError
                 .helperUpdateRequired
-            reportError(resetError.localizedDescription)
+            reportError(
+                "Dummy Ethernet settings reset failed: the helper requires reinstallation."
+            )
             throw resetError
 
         case .unknown:
             let resetError = DummyEthernetSettingsResetError
                 .helperStatusUnavailable
-            reportError(resetError.localizedDescription)
+            reportError(
+                "Dummy Ethernet settings reset failed: the helper registration status is unavailable."
+            )
             throw resetError
 
         case .notRegistered, .notFound:
@@ -403,13 +430,17 @@ final class DummyEthernetStore: ObservableObject {
         } catch {
             let resetError = DummyEthernetSettingsResetError
                 .helperRemovalFailed(error.localizedDescription)
-            reportError(resetError.localizedDescription)
+            reportError(
+                "Dummy Ethernet settings reset failed while removing the helper: \(Self.diagnosticDescription(for: error))"
+            )
             throw resetError
         }
         guard removalStatus == .notRegistered || removalStatus == .notFound else {
             let resetError = DummyEthernetSettingsResetError
                 .helperRemovalIncomplete
-            reportError(resetError.localizedDescription)
+            reportError(
+                "Dummy Ethernet settings reset failed: the helper remained registered."
+            )
             throw resetError
         }
 
@@ -462,21 +493,37 @@ final class DummyEthernetStore: ObservableObject {
                 )
             } catch {
                 self.reportError(
-                    "Dummy Ethernet \(nextOperation.rawValue) failed: \(error.localizedDescription)"
+                    "Dummy Ethernet \(nextOperation.rawValue) failed: \(Self.diagnosticDescription(for: error))"
                 )
             }
         }
     }
 
-    private func waitUntilCurrentOperationFinishes() async -> Bool {
+    private func waitUntilCurrentOperationFinishes(
+        before deadline: DispatchTime? = nil
+    ) async -> Bool {
         while isAnyOperationInProgress {
+            let sleepDuration: Duration
+            if let deadline {
+                let now = DispatchTime.now().uptimeNanoseconds
+                guard now < deadline.uptimeNanoseconds else {
+                    return false
+                }
+                sleepDuration = .nanoseconds(
+                    Int64(min(deadline.uptimeNanoseconds - now, 50_000_000))
+                )
+            } else {
+                sleepDuration = .milliseconds(50)
+            }
             do {
-                try await Task.sleep(for: .milliseconds(50))
+                try await Task.sleep(for: sleepDuration)
             } catch {
                 return false
             }
         }
-        return true
+        guard let deadline else { return true }
+        return DispatchTime.now().uptimeNanoseconds
+            < deadline.uptimeNanoseconds
     }
 
     private func configuration(
@@ -543,7 +590,7 @@ final class DummyEthernetStore: ObservableObject {
             return !Task.isCancelled && restartedSnapshot.state == .active
         } catch {
             reportError(
-                "Dummy Ethernet restart failed: \(error.localizedDescription)"
+                "Dummy Ethernet restart failed: \(Self.diagnosticDescription(for: error))"
             )
             return false
         }
@@ -584,6 +631,15 @@ final class DummyEthernetStore: ObservableObject {
 
     private func reportError(_ message: String) {
         appendEventLog(message, level: .error)
+    }
+
+    private static func diagnosticDescription(for error: Error) -> String {
+        if let error = error as? DummyEthernetPrivilegedHelperClientError {
+            return error.diagnosticDescription
+        }
+
+        let nsError = error as NSError
+        return "domain=\(nsError.domain), code=\(nsError.code)"
     }
 
     private static func validationResult(

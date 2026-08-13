@@ -37,6 +37,25 @@ enum DummyEthernetPrivilegedHelperClientError: Error, Equatable, LocalizedError 
             return message
         }
     }
+
+    var diagnosticDescription: String {
+        switch self {
+        case .applicationBundleIdentifierUnavailable:
+            "The ThruRNDIS bundle identifier is unavailable."
+        case .remoteObjectUnavailable(let message):
+            if let message, !message.isEmpty {
+                "The Dummy Ethernet helper XPC interface is unavailable. \(message)"
+            } else {
+                "The Dummy Ethernet helper XPC interface is unavailable."
+            }
+        case .malformedResponse:
+            "The Dummy Ethernet helper returned an incomplete response."
+        case .requestTimedOut:
+            "The Dummy Ethernet helper did not respond before the request timed out."
+        case .helperFailure(let message):
+            message
+        }
+    }
 }
 
 @MainActor
@@ -46,6 +65,8 @@ final class DummyEthernetPrivilegedHelperClient {
     // 12 seconds waiting for the wired network path before replying.
     private static let startRequestTimeout: DispatchTimeInterval = .seconds(20)
     private static let stopRequestTimeout: DispatchTimeInterval = .seconds(10)
+    private static let terminationStopRequestTimeout: DispatchTimeInterval =
+        .seconds(5)
 
     func status() async throws -> DummyEthernetNetworkSnapshot {
         try await sendRequest(
@@ -83,13 +104,27 @@ final class DummyEthernetPrivilegedHelperClient {
     }
 
     func stopAndWaitUntilFinished() async throws -> DummyEthernetNetworkSnapshot {
-        try await stop(timeout: nil)
+        try await stop(timeout: Self.terminationStopRequestTimeout)
+    }
+
+    func stopAndWaitUntilFinished(
+        before deadline: DispatchTime
+    ) async throws -> DummyEthernetNetworkSnapshot {
+        guard DispatchTime.now().uptimeNanoseconds
+                < deadline.uptimeNanoseconds else {
+            throw DummyEthernetPrivilegedHelperClientError.requestTimedOut
+        }
+        return try await stop(timeout: nil, deadline: deadline)
     }
 
     private func stop(
-        timeout: DispatchTimeInterval?
+        timeout: DispatchTimeInterval?,
+        deadline: DispatchTime? = nil
     ) async throws -> DummyEthernetNetworkSnapshot {
-        try await sendRequest(timeout: timeout) { proxy, reply in
+        try await sendRequest(
+            timeout: timeout,
+            deadline: deadline
+        ) { proxy, reply in
             proxy.stop(withReply: reply)
         }
     }
@@ -109,6 +144,7 @@ final class DummyEthernetPrivilegedHelperClient {
 
     private func sendRequest(
         timeout requestTimeout: DispatchTimeInterval?,
+        deadline requestDeadline: DispatchTime? = nil,
         _ request: @escaping (
             DummyEthernetPrivilegedHelperProtocol,
             @escaping DummyEthernetPrivilegedHelperReply
@@ -137,10 +173,11 @@ final class DummyEthernetPrivilegedHelperClient {
 
             let remoteObject = connection.remoteObjectProxyWithErrorHandler {
                 error in
+                let nsError = error as NSError
                 reply.resume(with: .failure(
                     DummyEthernetPrivilegedHelperClientError
                         .remoteObjectUnavailable(
-                            message: error.localizedDescription
+                            message: "domain=\(nsError.domain), code=\(nsError.code)"
                         )
                 ))
             }
@@ -168,9 +205,12 @@ final class DummyEthernetPrivilegedHelperClient {
                     ))
                 }
             }
-            if let requestTimeout {
+            let timeoutDeadline = requestDeadline ?? requestTimeout.map {
+                DispatchTime.now() + $0
+            }
+            if let timeoutDeadline {
                 DispatchQueue.global().asyncAfter(
-                    deadline: .now() + requestTimeout
+                    deadline: timeoutDeadline
                 ) { [weak reply] in
                     reply?.resume(with: .failure(
                         DummyEthernetPrivilegedHelperClientError.requestTimedOut
