@@ -249,7 +249,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         isTerminating = true
         Task { @MainActor [weak self] in
             guard let self else { return }
-            _ = await self.prepareApplicationServicesForTermination()
+            guard await self.prepareApplicationServicesForTermination() else {
+                self.isTerminating = false
+                sender.reply(toApplicationShouldTerminate: false)
+                self.presentApplicationTerminationFailure()
+                return
+            }
             sender.reply(toApplicationShouldTerminate: true)
         }
         return .terminateLater
@@ -381,9 +386,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 category: .application
             )
 
-            if await self.prepareApplicationServicesForTermination() {
-                afterTerminationPreparation()
+            guard await self.prepareApplicationServicesForTermination() else {
+                self.finishFailedSettingsChange()
+                self.presentApplicationTerminationFailure()
+                return
             }
+            afterTerminationPreparation()
             self.isPreparedToQuitAfterSettingsChange = true
             self.isQuittingAfterSettingsChange = false
             if self.isTerminating {
@@ -452,6 +460,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    private func presentApplicationTerminationFailure() {
+        let alert = NSAlert()
+        alert.alertStyle = .critical
+        alert.messageText = String(localized: "ThruRNDIS Could Not Quit")
+        alert.addButton(withTitle: String(localized: "OK"))
+
+        if let window = settingsWindowController?.window,
+           window.isVisible {
+            alert.beginSheetModal(for: window)
+        } else {
+            NSApp.activate(ignoringOtherApps: true)
+            alert.runModal()
+        }
+    }
+
     private func showOnboardingWindow(restart: Bool = false) {
         if restart || onboardingWindowController?.window?.isVisible != true {
             let presentationID = UUID()
@@ -511,11 +534,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             level: .debug,
             category: .application
         )
-        async let assetTermination: Void = assetWorkflowCoordinator
-            .prepareForApplicationTermination()
-        let didPrepareStore = await store.prepareForApplicationTermination()
-        await assetTermination
+        guard await store.prepareForApplicationTermination() else {
+            await eventLog.flushFilePersistence()
+            return false
+        }
+        await assetWorkflowCoordinator.prepareForApplicationTermination()
         await eventLog.prepareForApplicationTermination()
-        return didPrepareStore
+        return true
     }
 }

@@ -239,7 +239,7 @@ final class DummyEthernetStore: ObservableObject {
             return !Task.isCancelled && snapshot.state == .active
         } catch {
             reportError(
-                "Dummy Ethernet start failed: \(error.localizedDescription)"
+                "Dummy Ethernet start failed: \(Self.diagnosticDescription(for: error))"
             )
             return false
         }
@@ -314,7 +314,7 @@ final class DummyEthernetStore: ObservableObject {
             return true
         } catch {
             reportError(
-                "Dummy Ethernet stop failed: \(error.localizedDescription)"
+                "Dummy Ethernet stop failed: \(Self.diagnosticDescription(for: error))"
             )
             return false
         }
@@ -462,7 +462,7 @@ final class DummyEthernetStore: ObservableObject {
                 )
             } catch {
                 self.reportError(
-                    "Dummy Ethernet \(nextOperation.rawValue) failed: \(error.localizedDescription)"
+                    "Dummy Ethernet \(nextOperation.rawValue) failed: \(Self.diagnosticDescription(for: error))"
                 )
             }
         }
@@ -543,7 +543,7 @@ final class DummyEthernetStore: ObservableObject {
             return !Task.isCancelled && restartedSnapshot.state == .active
         } catch {
             reportError(
-                "Dummy Ethernet restart failed: \(error.localizedDescription)"
+                "Dummy Ethernet restart failed: \(Self.diagnosticDescription(for: error))"
             )
             return false
         }
@@ -584,6 +584,15 @@ final class DummyEthernetStore: ObservableObject {
 
     private func reportError(_ message: String) {
         appendEventLog(message, level: .error)
+    }
+
+    private static func diagnosticDescription(for error: Error) -> String {
+        if let error = error as? DummyEthernetPrivilegedHelperClientError {
+            return error.diagnosticDescription
+        }
+
+        let nsError = error as NSError
+        return "domain=\(nsError.domain), code=\(nsError.code)"
     }
 
     private static func validationResult(

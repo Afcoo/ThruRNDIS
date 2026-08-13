@@ -37,6 +37,25 @@ enum DummyEthernetPrivilegedHelperClientError: Error, Equatable, LocalizedError 
             return message
         }
     }
+
+    var diagnosticDescription: String {
+        switch self {
+        case .applicationBundleIdentifierUnavailable:
+            "The ThruRNDIS bundle identifier is unavailable."
+        case .remoteObjectUnavailable(let message):
+            if let message, !message.isEmpty {
+                "The Dummy Ethernet helper XPC interface is unavailable. \(message)"
+            } else {
+                "The Dummy Ethernet helper XPC interface is unavailable."
+            }
+        case .malformedResponse:
+            "The Dummy Ethernet helper returned an incomplete response."
+        case .requestTimedOut:
+            "The Dummy Ethernet helper did not respond before the request timed out."
+        case .helperFailure(let message):
+            message
+        }
+    }
 }
 
 @MainActor
@@ -137,10 +156,11 @@ final class DummyEthernetPrivilegedHelperClient {
 
             let remoteObject = connection.remoteObjectProxyWithErrorHandler {
                 error in
+                let nsError = error as NSError
                 reply.resume(with: .failure(
                     DummyEthernetPrivilegedHelperClientError
                         .remoteObjectUnavailable(
-                            message: error.localizedDescription
+                            message: "domain=\(nsError.domain), code=\(nsError.code)"
                         )
                 ))
             }

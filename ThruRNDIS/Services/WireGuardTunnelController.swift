@@ -157,6 +157,10 @@ final class WireGuardTunnelController {
 
     func invalidateSystemExtensionOperations() {
         areSystemExtensionOperationsInvalidated = true
+        cancelPendingSystemExtensionOperations()
+    }
+
+    func cancelPendingSystemExtensionOperations() {
         _ = beginSystemExtensionOperation()
         systemExtensionActivator.cancelPendingRequests()
     }
