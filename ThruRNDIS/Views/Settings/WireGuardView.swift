@@ -8,6 +8,7 @@ struct WireGuardView: View {
     @EnvironmentObject private var store: TetheringStore
     @EnvironmentObject private var wireGuardSession: WireGuardSessionStore
     @EnvironmentObject private var appPreferences: AppPreferencesStore
+    @EnvironmentObject private var usbSession: USBSessionStore
     @EnvironmentObject private var dummyEthernet: DummyEthernetStore
 
     let openConfigurationFolder: () -> Void

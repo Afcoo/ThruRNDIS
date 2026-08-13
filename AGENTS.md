@@ -106,9 +106,10 @@ WireGuard-over-VZNAT architecture as the baseline.
   configuration and `DummyEthernetHelperStore` to unregister the privileged
   helper before `AppDelegate` clears the remaining selection and relaunches.
   A failed stop must leave the helper registered, and any Dummy Ethernet
-  cleanup failure must prevent relaunch. Normal application termination also
-  waits for any configured Dummy Ethernet operation and its stop request to
-  finish before `AppDelegate` allows the process to exit. The menu bar keeps a
+  cleanup failure must prevent relaunch. Normal application termination in
+  app-managed mode also waits for any configured Dummy Ethernet operation and
+  its stop request to finish before `AppDelegate` allows the process to exit.
+  The menu bar keeps a
   leading configuration section that lists Settings guidance for each unavailable
   VM Assets, Network Extension, and privileged-helper prerequisite. In normal
   mode, any unavailable prerequisite hides every status and control section;
@@ -317,16 +318,18 @@ Ethernet.
   Dummy Ethernet remains independent of the tethering data path, does not
   provide connectivity, forwarding, DNS, or NAT, and retains its manual
   Start/Stop/Restart controls in addition to the automatic WireGuard prerequisite.
-  Normal application termination waits for any configured Dummy Ethernet to
-  stop before quitting. The explicit Reset All Settings action additionally
-  unregisters the helper and restores the persisted Dummy Ethernet inputs to
-  defaults after stopping the managed configuration.
+  Normal application termination in app-managed mode waits for any configured
+  Dummy Ethernet to stop before quitting. The explicit Reset All Settings
+  action additionally unregisters the helper and restores the persisted Dummy
+  Ethernet inputs to defaults after stopping the managed configuration.
   WireGuard Manual Configuration Mode hides Dummy Ethernet settings and menu presentation,
   excludes helper readiness from USB-listener prerequisites, and never starts
-  Dummy Ethernet. Disable the mode toggle while app-managed WireGuard
-  is connected or transitioning, or Dummy Ethernet is active or degraded. VM
-  lifecycle does not affect mode availability, and mode changes do not stop those
-  components.
+  Dummy Ethernet. It does not run app-managed WireGuard or Dummy Ethernet
+  termination cleanup. The mode toggle is available only while the VM is idle
+  or stopped, no USB accessory is attached, app-managed WireGuard is
+  unconfigured or disconnected, and Dummy Ethernet is inactive with no
+  operation in progress. Enabling the mode cancels queued, not-yet-started
+  app-managed WireGuard requests; mode changes do not stop running components.
 - `SMAppService` registration is explicit. After a successful register request,
   record the helper-specific installation identity embedded in the helper file
   rather than the app build number or file-system metadata. Keep that identity

@@ -154,8 +154,11 @@ final class TetheringStore: ObservableObject {
     }
 
     var canChangeWireGuardManualConfigurationMode: Bool {
-        (wireGuardSession.tunnelStatus == .unconfigured
-            || wireGuardSession.tunnelStatus == .disconnected)
+        (runtimeState == .idle || runtimeState == .stopped)
+            && attachedAccessoryID == nil
+            && (wireGuardSession.tunnelStatus == .unconfigured
+                || wireGuardSession.tunnelStatus == .disconnected)
+            && managedDummyEthernet?.isAnyOperationInProgress != true
             && (managedDummyEthernet?.runtimeState == nil
                 || managedDummyEthernet?.runtimeState == .inactive)
     }
@@ -470,6 +473,12 @@ final class TetheringStore: ObservableObject {
         guard appPreferences.isWireGuardManualConfigurationModeEnabled
                 != isEnabled else {
             return
+        }
+
+        if isEnabled {
+            workflowCoordinator.cancelPendingWireGuardConnection(
+                reason: "WireGuard manual configuration mode enabled"
+            )
         }
 
         appPreferences.isWireGuardManualConfigurationModeEnabled = isEnabled
@@ -834,14 +843,14 @@ final class TetheringStore: ObservableObject {
         workflowCoordinator.cancelPendingWireGuardConnection(
             reason: "application termination"
         )
-        await wireGuardSession.prepareForApplicationTermination(
-            disconnectTunnel: disconnectWireGuard
-                && !appPreferences.isWireGuardManualConfigurationModeEnabled
-        )
-        if !appPreferences.isWireGuardManualConfigurationModeEnabled,
-           let managedDummyEthernet {
-            _ = await managedDummyEthernet
-                .stopForApplicationTerminationIfNeeded()
+        if !appPreferences.isWireGuardManualConfigurationModeEnabled {
+            await wireGuardSession.prepareForApplicationTermination(
+                disconnectTunnel: disconnectWireGuard
+            )
+            if let managedDummyEthernet {
+                _ = await managedDummyEthernet
+                    .stopForApplicationTerminationIfNeeded()
+            }
         }
         usbCoordinator.prepareForIntentionalVMStop()
         vmCoordinator.invalidate()
