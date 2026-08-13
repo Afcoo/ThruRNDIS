@@ -107,10 +107,24 @@ final class DummyEthernetPrivilegedHelperClient {
         try await stop(timeout: Self.terminationStopRequestTimeout)
     }
 
-    private func stop(
-        timeout: DispatchTimeInterval?
+    func stopAndWaitUntilFinished(
+        before deadline: DispatchTime
     ) async throws -> DummyEthernetNetworkSnapshot {
-        try await sendRequest(timeout: timeout) { proxy, reply in
+        guard DispatchTime.now().uptimeNanoseconds
+                < deadline.uptimeNanoseconds else {
+            throw DummyEthernetPrivilegedHelperClientError.requestTimedOut
+        }
+        return try await stop(timeout: nil, deadline: deadline)
+    }
+
+    private func stop(
+        timeout: DispatchTimeInterval?,
+        deadline: DispatchTime? = nil
+    ) async throws -> DummyEthernetNetworkSnapshot {
+        try await sendRequest(
+            timeout: timeout,
+            deadline: deadline
+        ) { proxy, reply in
             proxy.stop(withReply: reply)
         }
     }
@@ -130,6 +144,7 @@ final class DummyEthernetPrivilegedHelperClient {
 
     private func sendRequest(
         timeout requestTimeout: DispatchTimeInterval?,
+        deadline requestDeadline: DispatchTime? = nil,
         _ request: @escaping (
             DummyEthernetPrivilegedHelperProtocol,
             @escaping DummyEthernetPrivilegedHelperReply
@@ -190,9 +205,12 @@ final class DummyEthernetPrivilegedHelperClient {
                     ))
                 }
             }
-            if let requestTimeout {
+            let timeoutDeadline = requestDeadline ?? requestTimeout.map {
+                DispatchTime.now() + $0
+            }
+            if let timeoutDeadline {
                 DispatchQueue.global().asyncAfter(
-                    deadline: .now() + requestTimeout
+                    deadline: timeoutDeadline
                 ) { [weak reply] in
                     reply?.resume(with: .failure(
                         DummyEthernetPrivilegedHelperClientError.requestTimedOut

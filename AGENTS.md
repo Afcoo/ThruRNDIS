@@ -107,10 +107,14 @@ WireGuard-over-VZNAT architecture as the baseline.
   helper. `AppDelegate` clears the remaining selection only after the reset
   succeeds. A failed stop must leave the helper registered. All
   application-termination cleanup is best-effort and bounded to ten seconds.
-  Network-service termination waits use a five-second internal limit so their
-  failures can be logged before the outer deadline; reserve the final second
-  for bounded event-log persistence, then allow the process to exit. Explicit
-  Stop and Restart actions continue to report failure normally.
+  `AppDelegate` gives operational cleanup, including normal event-log
+  preparation, nine seconds. If that deadline expires, it logs the timeout and
+  gives event-log file persistence one additional second before allowing the
+  process to exit. The WireGuard tunnel stop wait uses a five-second internal
+  limit. Dummy Ethernet termination uses one five-second deadline shared by
+  waiting for its current operation and sending its stop request, so failures
+  can be logged before the outer deadline. Explicit Stop and Restart actions
+  continue to report failure normally.
   The menu bar keeps a
   leading configuration section that lists Settings guidance for each unavailable
   VM Assets, Network Extension, and privileged-helper prerequisite. In normal
@@ -320,12 +324,15 @@ Ethernet.
   Dummy Ethernet remains independent of the tethering data path, does not
   provide connectivity, forwarding, DNS, or NAT, and retains its manual
   Start/Stop/Restart controls in addition to the automatic WireGuard prerequisite.
-  Normal application termination in app-managed mode attempts to stop any
-  configured Dummy Ethernet within the shared ten-second termination-cleanup
-  limit, then exits after logging any failure. The explicit Reset All Settings
+  Normal application termination in app-managed mode gives configured Dummy
+  Ethernet one five-second deadline covering both its current-operation wait
+  and stop request. This runs inside the shared nine-second operational-cleanup
+  deadline. If that outer deadline expires, event-log file persistence gets one
+  additional second before the app exits. The explicit Reset All Settings
   action additionally attempts to unregister the helper and restore the
-  persisted Dummy Ethernet inputs to defaults before quitting; a failure is
-  logged and does not prevent application termination.
+  persisted Dummy Ethernet inputs to defaults before quitting; its Dummy
+  Ethernet stop request has a five-second limit, and a failure is logged without
+  preventing application termination.
   WireGuard Manual Configuration Mode hides Dummy Ethernet settings and menu presentation,
   excludes helper readiness from USB-listener prerequisites, and never starts
   Dummy Ethernet. It does not run app-managed WireGuard or Dummy Ethernet

@@ -27,6 +27,9 @@ enum DummyEthernetOperation: String, Equatable {
 
 @MainActor
 final class DummyEthernetStore: ObservableObject {
+    private static let applicationTerminationCleanupTimeout:
+        DispatchTimeInterval = .seconds(5)
+
     let helper: DummyEthernetHelperStore
 
     @Published private(set) var runtimeState: DummyEthernetNetworkState?
@@ -260,8 +263,19 @@ final class DummyEthernetStore: ObservableObject {
 
     @discardableResult
     func stopForApplicationTerminationIfNeeded() async -> Bool {
-        guard await waitUntilCurrentOperationFinishes(),
-              !Task.isCancelled else {
+        let terminationDeadline = DispatchTime.now()
+            + Self.applicationTerminationCleanupTimeout
+        guard await waitUntilCurrentOperationFinishes(
+            before: terminationDeadline
+        ) else {
+            if !Task.isCancelled {
+                reportError(
+                    "Dummy Ethernet application termination cleanup timed out while waiting for the current operation to finish."
+                )
+            }
+            return false
+        }
+        guard !Task.isCancelled else {
             return false
         }
 
@@ -282,7 +296,11 @@ final class DummyEthernetStore: ObservableObject {
 
         return await stopManagedConfiguration(
             requestMessage: "Dummy Ethernet stop requested for application termination.",
-            stopRequest: networkManager.stopAndWaitUntilFinished
+            stopRequest: {
+                try await networkManager.stopAndWaitUntilFinished(
+                    before: terminationDeadline
+                )
+            }
         )
     }
 
@@ -481,15 +499,31 @@ final class DummyEthernetStore: ObservableObject {
         }
     }
 
-    private func waitUntilCurrentOperationFinishes() async -> Bool {
+    private func waitUntilCurrentOperationFinishes(
+        before deadline: DispatchTime? = nil
+    ) async -> Bool {
         while isAnyOperationInProgress {
+            let sleepDuration: Duration
+            if let deadline {
+                let now = DispatchTime.now().uptimeNanoseconds
+                guard now < deadline.uptimeNanoseconds else {
+                    return false
+                }
+                sleepDuration = .nanoseconds(
+                    Int64(min(deadline.uptimeNanoseconds - now, 50_000_000))
+                )
+            } else {
+                sleepDuration = .milliseconds(50)
+            }
             do {
-                try await Task.sleep(for: .milliseconds(50))
+                try await Task.sleep(for: sleepDuration)
             } catch {
                 return false
             }
         }
-        return true
+        guard let deadline else { return true }
+        return DispatchTime.now().uptimeNanoseconds
+            < deadline.uptimeNanoseconds
     }
 
     private func configuration(
