@@ -156,6 +156,7 @@ final class TetheringStore: ObservableObject {
     var canChangeWireGuardManualConfigurationMode: Bool {
         (runtimeState == .idle || runtimeState == .stopped)
             && attachedAccessoryID == nil
+            && wireGuardSession.hasResolvedInitialTunnelStatus
             && (wireGuardSession.tunnelStatus == .unconfigured
                 || wireGuardSession.tunnelStatus == .disconnected)
             && managedDummyEthernet?.isAnyOperationInProgress != true

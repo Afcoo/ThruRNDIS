@@ -161,13 +161,13 @@ final class WireGuardTunnelController {
         systemExtensionActivator.cancelPendingRequests()
     }
 
-    func refreshStatus(allowDuringTransition: Bool = false) async {
+    func refreshStatus(allowDuringTransition: Bool = false) async -> Bool {
         guard allowDuringTransition || !currentStatus.isTransitioning else {
             reportEventLog(
                 "Ignored WireGuard status refresh during a tunnel transition.",
                 level: .debug
             )
-            return
+            return false
         }
         let operationID = beginOperation()
         do {
@@ -188,13 +188,15 @@ final class WireGuardTunnelController {
                 try ensureOperationIsCurrent(operationID)
                 setStatus(.unconfigured)
             }
+            return true
         } catch is CancellationError {
-            return
+            return false
         } catch WireGuardTunnelError.operationSuperseded {
-            return
+            return false
         } catch {
-            guard activeOperationID == operationID else { return }
+            guard activeOperationID == operationID else { return false }
             fail(action: "status refresh", error: error)
+            return false
         }
     }
 
