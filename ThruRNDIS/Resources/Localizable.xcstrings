@@ -2693,26 +2693,6 @@
         }
       }
     },
-    "ThruRNDIS Could Not Quit" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ThruRNDIS를 종료할 수 없음"
-          }
-        }
-      }
-    },
-    "ThruRNDIS Could Not Reset Settings" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ThruRNDIS 설정을 초기화할 수 없음"
-          }
-        }
-      }
-    },
     "ThruRNDIS initramfs" : {
       "localizations" : {
         "ko" : {

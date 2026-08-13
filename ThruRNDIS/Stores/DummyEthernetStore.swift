@@ -362,18 +362,23 @@ final class DummyEthernetStore: ObservableObject {
 
             let snapshot: DummyEthernetNetworkSnapshot
             do {
-                snapshot = try await networkManager.stop()
+                snapshot = try await networkManager
+                    .stopAndWaitUntilFinished()
             } catch {
                 let resetError = DummyEthernetSettingsResetError
                     .stopFailed(error.localizedDescription)
-                reportError(resetError.localizedDescription)
+                reportError(
+                    "Dummy Ethernet settings reset failed while stopping: \(Self.diagnosticDescription(for: error))"
+                )
                 throw resetError
             }
             applySnapshot(snapshot)
             guard snapshot.state == .inactive else {
                 let resetError = DummyEthernetSettingsResetError
                     .stopIncomplete
-                reportError(resetError.localizedDescription)
+                reportError(
+                    "Dummy Ethernet settings reset failed: the managed configuration remained active or degraded."
+                )
                 throw resetError
             }
             appendCompletionEvent(for: .stopping, snapshot: snapshot)
@@ -381,13 +386,17 @@ final class DummyEthernetStore: ObservableObject {
         case .updateRequired:
             let resetError = DummyEthernetSettingsResetError
                 .helperUpdateRequired
-            reportError(resetError.localizedDescription)
+            reportError(
+                "Dummy Ethernet settings reset failed: the helper requires reinstallation."
+            )
             throw resetError
 
         case .unknown:
             let resetError = DummyEthernetSettingsResetError
                 .helperStatusUnavailable
-            reportError(resetError.localizedDescription)
+            reportError(
+                "Dummy Ethernet settings reset failed: the helper registration status is unavailable."
+            )
             throw resetError
 
         case .notRegistered, .notFound:
@@ -403,13 +412,17 @@ final class DummyEthernetStore: ObservableObject {
         } catch {
             let resetError = DummyEthernetSettingsResetError
                 .helperRemovalFailed(error.localizedDescription)
-            reportError(resetError.localizedDescription)
+            reportError(
+                "Dummy Ethernet settings reset failed while removing the helper: \(Self.diagnosticDescription(for: error))"
+            )
             throw resetError
         }
         guard removalStatus == .notRegistered || removalStatus == .notFound else {
             let resetError = DummyEthernetSettingsResetError
                 .helperRemovalIncomplete
-            reportError(resetError.localizedDescription)
+            reportError(
+                "Dummy Ethernet settings reset failed: the helper remained registered."
+            )
             throw resetError
         }
 

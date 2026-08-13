@@ -65,6 +65,8 @@ final class DummyEthernetPrivilegedHelperClient {
     // 12 seconds waiting for the wired network path before replying.
     private static let startRequestTimeout: DispatchTimeInterval = .seconds(20)
     private static let stopRequestTimeout: DispatchTimeInterval = .seconds(10)
+    private static let terminationStopRequestTimeout: DispatchTimeInterval =
+        .seconds(5)
 
     func status() async throws -> DummyEthernetNetworkSnapshot {
         try await sendRequest(
@@ -102,7 +104,7 @@ final class DummyEthernetPrivilegedHelperClient {
     }
 
     func stopAndWaitUntilFinished() async throws -> DummyEthernetNetworkSnapshot {
-        try await stop(timeout: nil)
+        try await stop(timeout: Self.terminationStopRequestTimeout)
     }
 
     private func stop(

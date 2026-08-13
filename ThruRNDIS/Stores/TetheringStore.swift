@@ -796,8 +796,8 @@ final class TetheringStore: ObservableObject {
         )
     }
 
-    func prepareForApplicationTermination() async -> Bool {
-        guard applicationState != .terminating else { return false }
+    func prepareForApplicationTermination() async {
+        guard applicationState != .terminating else { return }
         applicationState = .terminating
         appendEventLog(
             "Application terminating.",
@@ -808,22 +808,24 @@ final class TetheringStore: ObservableObject {
             reason: "application termination"
         )
         if !appPreferences.isWireGuardManualConfigurationModeEnabled {
-            let didStopWireGuard =
-                await wireGuardSession.stopForApplicationTermination()
-            let didStopDummyEthernet = if let managedDummyEthernet {
+            async let wireGuardStop =
+                wireGuardSession.stopForApplicationTermination()
+            async let dummyEthernetStop = if let managedDummyEthernet {
                 await managedDummyEthernet
                     .stopForApplicationTerminationIfNeeded()
             } else {
                 true
             }
-            guard didStopWireGuard && didStopDummyEthernet else {
-                applicationState = .active
+            let (didStopWireGuard, didStopDummyEthernet) = await (
+                wireGuardStop,
+                dummyEthernetStop
+            )
+            if !didStopWireGuard || !didStopDummyEthernet {
                 appendEventLog(
-                    "Application termination cancelled: managed network services could not be stopped.",
+                    "Application termination will continue after managed network service cleanup failed: WireGuard=\(didStopWireGuard), DummyEthernet=\(didStopDummyEthernet).",
                     level: .error,
                     category: .application
                 )
-                return false
             }
 
             wireGuardSession.finishApplicationTerminationPreparation()
@@ -832,7 +834,6 @@ final class TetheringStore: ObservableObject {
         usbCoordinator.prepareForIntentionalVMStop()
         vmCoordinator.invalidate()
         usbCoordinator.stopMonitoring(reason: "Application terminating.")
-        return true
     }
 
     func refreshWireGuardTunnelStatus() {

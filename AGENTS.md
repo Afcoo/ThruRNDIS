@@ -104,11 +104,13 @@ WireGuard-over-VZNAT architecture as the baseline.
   Settings workflow is owned by `TetheringStore`; after its VM, USB, and
   WireGuard cleanup, it asks `DummyEthernetStore` to stop its managed
   configuration and `DummyEthernetHelperStore` to unregister the privileged
-  helper before `AppDelegate` clears the remaining selection and quits.
-  A failed stop must leave the helper registered, and any Dummy Ethernet
-  cleanup failure must prevent quitting. Normal application termination in
-  app-managed mode also waits for any configured Dummy Ethernet operation and
-  its stop request to finish before `AppDelegate` allows the process to exit.
+  helper. `AppDelegate` clears the remaining selection only after the reset
+  succeeds. A failed stop must leave the helper registered. All
+  application-termination cleanup is best-effort and bounded to ten seconds.
+  Network-service termination waits use a five-second internal limit so their
+  failures can be logged before the outer deadline; reserve the final second
+  for bounded event-log persistence, then allow the process to exit. Explicit
+  Stop and Restart actions continue to report failure normally.
   The menu bar keeps a
   leading configuration section that lists Settings guidance for each unavailable
   VM Assets, Network Extension, and privileged-helper prerequisite. In normal
@@ -318,17 +320,19 @@ Ethernet.
   Dummy Ethernet remains independent of the tethering data path, does not
   provide connectivity, forwarding, DNS, or NAT, and retains its manual
   Start/Stop/Restart controls in addition to the automatic WireGuard prerequisite.
-  Normal application termination in app-managed mode waits for any configured
-  Dummy Ethernet to stop before quitting. The explicit Reset All Settings
-  action additionally unregisters the helper and restores the persisted Dummy
-  Ethernet inputs to defaults after stopping the managed configuration.
+  Normal application termination in app-managed mode attempts to stop any
+  configured Dummy Ethernet within the shared ten-second termination-cleanup
+  limit, then exits after logging any failure. The explicit Reset All Settings
+  action additionally attempts to unregister the helper and restore the
+  persisted Dummy Ethernet inputs to defaults before quitting; a failure is
+  logged and does not prevent application termination.
   WireGuard Manual Configuration Mode hides Dummy Ethernet settings and menu presentation,
   excludes helper readiness from USB-listener prerequisites, and never starts
   Dummy Ethernet. It does not run app-managed WireGuard or Dummy Ethernet
   termination cleanup. Changing the mode requires user confirmation and
   application termination. Keep the running process in the mode selected at
-  launch, successfully finish that mode's termination preparation before persisting the
-  target mode, and apply the change the next time the user opens the app. Do
+  launch, persist the target mode after the bounded best-effort termination
+  preparation, and apply the change the next time the user opens the app. Do
   not add live-transition conditions, component-state tracking, or listener
   revalidation for a mode change.
 - `SMAppService` registration is explicit. After a successful register request,
@@ -852,10 +856,11 @@ xcrun notarytool store-credentials "thrurndis-notary"
   be requested while the VM or USB passthrough attachment is active: disconnect
   WireGuard first, stop the VM and wait for its USB attachment lifecycle to end,
   delete the WireGuard directory, stop the managed Dummy Ethernet configuration,
-  unregister its privileged helper, and then clear the Asset selection. It
-  preserves managed Asset releases. If the VM or Dummy Ethernet does not stop,
-  WireGuard deletion fails, or helper removal fails, report the error and do not
-  quit the app. A successful reset creates fresh key files and a generated
+  unregister its privileged helper, and then clear the Asset selection on
+  complete success. It preserves managed Asset releases. If the VM or Dummy
+  Ethernet does not stop, WireGuard deletion fails, or helper removal fails,
+  retain any unfinished state, log the error, and continue application
+  termination. A successful reset creates fresh key files and a generated
   server config on the next launch.
 - Keep WireGuard key material and server configuration read-only. The Connection
   section may edit and persist only the client DNS servers, Endpoint override,

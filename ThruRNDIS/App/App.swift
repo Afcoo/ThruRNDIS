@@ -63,6 +63,10 @@ enum App {
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    // Reserve the final second of the ten-second termination budget for logs.
+    private static let terminationCleanupTimeout = Duration.seconds(9)
+    private static let terminationLogFlushTimeout = Duration.seconds(1)
+
     lazy var assetWorkflowCoordinator = VMAssetWorkflowCoordinator()
     lazy var eventLog = EventLogStore(
         filePersistence: EventLogFileStore()
@@ -249,12 +253,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         isTerminating = true
         Task { @MainActor [weak self] in
             guard let self else { return }
-            guard await self.prepareApplicationServicesForTermination() else {
-                self.isTerminating = false
-                sender.reply(toApplicationShouldTerminate: false)
-                self.presentApplicationTerminationFailure()
-                return
-            }
+            await self.prepareApplicationServicesForTermination()
             sender.reply(toApplicationShouldTerminate: true)
         }
         return .terminateLater
@@ -343,25 +342,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         quitApplication(
             reason: "app settings reset",
             prepare: { [weak self] in
-                guard let self else {
-                    return false
-                }
+                guard let self else { return }
                 guard await self.store.resetAppSettings() else {
-                    return false
+                    self.eventLog.append(
+                        "Application termination will continue after the app settings reset failed.",
+                        level: .error,
+                        category: .application
+                    )
+                    return
                 }
                 self.assetWorkflowCoordinator.clearSelection()
-                return true
-            },
-            onPreparationFailure: { [weak self] in
-                self?.presentResetFailure()
             }
         )
     }
 
     private func quitApplication(
         reason: String,
-        prepare: @escaping @MainActor () async -> Bool = { true },
-        onPreparationFailure: @escaping @MainActor () -> Void = {},
+        prepare: @escaping @MainActor () async -> Void = {},
         afterTerminationPreparation: @escaping @MainActor () -> Void = {}
     ) {
         guard !isQuittingAfterSettingsChange,
@@ -374,23 +371,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard let self else {
                 return
             }
-            guard await prepare() else {
-                self.finishFailedSettingsChange()
-                onPreparationFailure()
-                return
-            }
-
             self.eventLog.append(
                 "Application will quit after \(reason).",
                 level: .debug,
                 category: .application
             )
 
-            guard await self.prepareApplicationServicesForTermination() else {
-                self.finishFailedSettingsChange()
-                self.presentApplicationTerminationFailure()
-                return
-            }
+            await self.prepareApplicationServicesForTermination(
+                prepare: prepare
+            )
             afterTerminationPreparation()
             self.isPreparedToQuitAfterSettingsChange = true
             self.isQuittingAfterSettingsChange = false
@@ -437,42 +426,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     )
             }
         )
-    }
-
-    private func finishFailedSettingsChange() {
-        isQuittingAfterSettingsChange = false
-        guard isTerminating else { return }
-        isTerminating = false
-        NSApp.reply(toApplicationShouldTerminate: false)
-    }
-
-    private func presentResetFailure(_ message: String? = nil) {
-        let alert = NSAlert()
-        alert.alertStyle = .critical
-        alert.messageText = String(localized: "ThruRNDIS Could Not Reset Settings")
-        alert.informativeText = message ?? store.resetStatusMessage
-        alert.addButton(withTitle: String(localized: "OK"))
-
-        if let window = settingsWindowController?.window {
-            alert.beginSheetModal(for: window)
-        } else {
-            alert.runModal()
-        }
-    }
-
-    private func presentApplicationTerminationFailure() {
-        let alert = NSAlert()
-        alert.alertStyle = .critical
-        alert.messageText = String(localized: "ThruRNDIS Could Not Quit")
-        alert.addButton(withTitle: String(localized: "OK"))
-
-        if let window = settingsWindowController?.window,
-           window.isVisible {
-            alert.beginSheetModal(for: window)
-        } else {
-            NSApp.activate(ignoringOtherApps: true)
-            alert.runModal()
-        }
     }
 
     private func showOnboardingWindow(restart: Bool = false) {
@@ -528,18 +481,67 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return alert.runModal() == .alertFirstButtonReturn
     }
 
-    private func prepareApplicationServicesForTermination() async -> Bool {
+    private func prepareApplicationServicesForTermination(
+        prepare: @escaping @MainActor () async -> Void = {}
+    ) async {
         eventLog.append(
             "Preparing application services for termination.",
             level: .debug,
             category: .application
         )
-        guard await store.prepareForApplicationTermination() else {
-            await eventLog.flushFilePersistence()
-            return false
+
+        let didFinishCleanup = await performTerminationOperation(
+            timeout: Self.terminationCleanupTimeout
+        ) { [weak self] in
+            guard let self else {
+                return
+            }
+            await prepare()
+            async let assetTermination: Void = assetWorkflowCoordinator
+                .prepareForApplicationTermination()
+            await store.prepareForApplicationTermination()
+            await assetTermination
+            await eventLog.prepareForApplicationTermination()
         }
-        await assetWorkflowCoordinator.prepareForApplicationTermination()
-        await eventLog.prepareForApplicationTermination()
-        return true
+
+        guard !didFinishCleanup else { return }
+
+        eventLog.append(
+            "Application termination cleanup timed out; termination will continue.",
+            level: .error,
+            category: .application
+        )
+        _ = await performTerminationOperation(
+            timeout: Self.terminationLogFlushTimeout
+        ) { [weak self] in
+            await self?.eventLog.flushFilePersistence()
+        }
+    }
+
+    private func performTerminationOperation(
+        timeout: Duration,
+        operation: @escaping @MainActor () async -> Void
+    ) async -> Bool {
+        let (results, resultContinuation) = AsyncStream<Bool>.makeStream()
+        let operationTask = Task { @MainActor in
+            await operation()
+            resultContinuation.yield(true)
+        }
+        let timeoutTask = Task.detached {
+            do {
+                try await Task.sleep(for: timeout)
+            } catch {
+                return
+            }
+            resultContinuation.yield(false)
+        }
+        var iterator = results.makeAsyncIterator()
+        let didFinishOperation = await iterator.next() ?? false
+        resultContinuation.finish()
+        timeoutTask.cancel()
+        if !didFinishOperation {
+            operationTask.cancel()
+        }
+        return didFinishOperation
     }
 }
