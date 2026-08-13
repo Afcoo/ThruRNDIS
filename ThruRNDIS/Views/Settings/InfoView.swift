@@ -12,7 +12,7 @@ struct InfoView: View {
     @State private var resetConfirmation: ResetConfirmation?
     @State private var isOpenSourceAcknowledgementsPresented = false
 
-    let resetAndRestart: () -> Void
+    let resetAndQuit: () -> Void
 
     private let projectURL = URL(
         string: "https://github.com/Afcoo/ThruRNDIS"
@@ -89,17 +89,17 @@ struct InfoView: View {
                     message: Text("All settings except VM asset files will be reset."),
                     primaryButton: .destructive(Text("Continue")) {
                         Task { @MainActor in
-                            resetConfirmation = .restart
+                            resetConfirmation = .quit
                         }
                     },
                     secondaryButton: .cancel()
                 )
-            case .restart:
+            case .quit:
                 Alert(
-                    title: Text("ThruRNDIS Will Restart"),
-                    message: Text("All settings will be reset, and ThruRNDIS will quit and relaunch."),
-                    primaryButton: .destructive(Text("Reset and Restart")) {
-                        resetAndRestart()
+                    title: Text("ThruRNDIS Will Quit"),
+                    message: Text("All settings will be reset, and ThruRNDIS will quit."),
+                    primaryButton: .destructive(Text("Reset and Quit")) {
+                        resetAndQuit()
                     },
                     secondaryButton: .cancel()
                 )
@@ -118,7 +118,7 @@ struct InfoView: View {
 
 private enum ResetConfirmation: Identifiable {
     case reset
-    case restart
+    case quit
 
     var id: Self { self }
 }

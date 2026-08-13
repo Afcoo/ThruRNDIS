@@ -9,7 +9,7 @@ struct WireGuardView: View {
     @EnvironmentObject private var wireGuardSession: WireGuardSessionStore
     @EnvironmentObject private var appPreferences: AppPreferencesStore
 
-    let restartWithManualConfigurationMode: (Bool) -> Void
+    let quitWithManualConfigurationMode: (Bool) -> Void
     let openConfigurationFolder: () -> Void
     let copyConfiguration: () -> Void
     let saveConfiguration: () -> Void
@@ -24,7 +24,7 @@ struct WireGuardView: View {
                             appPreferences
                                 .isWireGuardManualConfigurationModeEnabled
                         },
-                        set: restartWithManualConfigurationMode
+                        set: quitWithManualConfigurationMode
                     )
                 )
             }

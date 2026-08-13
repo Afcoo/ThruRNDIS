@@ -104,9 +104,9 @@ WireGuard-over-VZNAT architecture as the baseline.
   Settings workflow is owned by `TetheringStore`; after its VM, USB, and
   WireGuard cleanup, it asks `DummyEthernetStore` to stop its managed
   configuration and `DummyEthernetHelperStore` to unregister the privileged
-  helper before `AppDelegate` clears the remaining selection and relaunches.
+  helper before `AppDelegate` clears the remaining selection and quits.
   A failed stop must leave the helper registered, and any Dummy Ethernet
-  cleanup failure must prevent relaunch. Normal application termination in
+  cleanup failure must prevent quitting. Normal application termination in
   app-managed mode also waits for any configured Dummy Ethernet operation and
   its stop request to finish before `AppDelegate` allows the process to exit.
   The menu bar keeps a
@@ -325,11 +325,12 @@ Ethernet.
   WireGuard Manual Configuration Mode hides Dummy Ethernet settings and menu presentation,
   excludes helper readiness from USB-listener prerequisites, and never starts
   Dummy Ethernet. It does not run app-managed WireGuard or Dummy Ethernet
-  termination cleanup. Changing the mode requires user confirmation and an
-  application relaunch. Keep the running process in the mode selected at launch,
-  finish that mode's termination preparation before persisting the target mode,
-  and apply the change on the next launch. Do not add live-transition conditions,
-  component-state tracking, or listener revalidation for a mode change.
+  termination cleanup. Changing the mode requires user confirmation and
+  application termination. Keep the running process in the mode selected at
+  launch, finish that mode's termination preparation before persisting the
+  target mode, and apply the change the next time the user opens the app. Do
+  not add live-transition conditions, component-state tracking, or listener
+  revalidation for a mode change.
 - `SMAppService` registration is explicit. After a successful register request,
   record the helper-specific installation identity embedded in the helper file
   rather than the app build number or file-system metadata. Keep that identity

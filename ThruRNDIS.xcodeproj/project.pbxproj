@@ -63,7 +63,6 @@
 		DA100000000000000000000F /* WireGuardKit in Frameworks */ = {isa = PBXBuildFile; productRef = DA1000000000000000000802 /* WireGuardKit */; };
 		DA1000000000000000000013 /* WireGuardConnectionValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA1000000000000000000111 /* WireGuardConnectionValidator.swift */; };
 		DC1000000000000000000001 /* EventLogErrorFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC1000000000000000000101 /* EventLogErrorFormatter.swift */; };
-		DD1000000000000000000001 /* ApplicationRelaunchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD1000000000000000000101 /* ApplicationRelaunchService.swift */; };
 		DE1000000000000000000001 /* AppPreferencesStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE1000000000000000000101 /* AppPreferencesStore.swift */; };
 		DE1000000000000000000002 /* WireGuardSessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE1000000000000000000102 /* WireGuardSessionStore.swift */; };
 		DE1000000000000000000003 /* NetworkExtensionSettingsOpener.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE1000000000000000000103 /* NetworkExtensionSettingsOpener.swift */; };
@@ -257,7 +256,6 @@
 		DA100000000000000000010F /* ThruRNDISWireGuardNetworkExtension.systemextension */ = {isa = PBXFileReference; explicitFileType = "wrapper.system-extension"; includeInIndex = 0; path = "$(PRODUCT_NAME).systemextension"; sourceTree = BUILT_PRODUCTS_DIR; };
 		DA1000000000000000000111 /* WireGuardConnectionValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardConnectionValidator.swift; sourceTree = "<group>"; };
 		DC1000000000000000000101 /* EventLogErrorFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventLogErrorFormatter.swift; sourceTree = "<group>"; };
-		DD1000000000000000000101 /* ApplicationRelaunchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationRelaunchService.swift; sourceTree = "<group>"; };
 		DE1000000000000000000101 /* AppPreferencesStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPreferencesStore.swift; sourceTree = "<group>"; };
 		DE1000000000000000000102 /* WireGuardSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardSessionStore.swift; sourceTree = "<group>"; };
 		DE1000000000000000000103 /* NetworkExtensionSettingsOpener.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkExtensionSettingsOpener.swift; sourceTree = "<group>"; };
@@ -423,7 +421,6 @@
 		8B0000000000000000000203 /* Services */ = {
 			isa = PBXGroup;
 			children = (
-				DD1000000000000000000101 /* ApplicationRelaunchService.swift */,
 				F40000000000000000000106 /* DummyEthernetPrivilegedHelperClient.swift */,
 				F40000000000000000000107 /* DummyEthernetPrivilegedHelperRegistrationService.swift */,
 				8B0000000000000000000105 /* USBAccessoryMonitor.swift */,
@@ -835,7 +832,6 @@
 				B10000000000000000000005 /* VMAssetInstallService.swift in Sources */,
 				B10000000000000000000006 /* VMAssetSelectionStore.swift in Sources */,
 				B10000000000000000000007 /* VMAssetWorkflowCoordinator.swift in Sources */,
-				DD1000000000000000000001 /* ApplicationRelaunchService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

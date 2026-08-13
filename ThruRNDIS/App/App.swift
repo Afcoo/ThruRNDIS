@@ -104,9 +104,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var onboardingPresentationID: UUID?
     private var cancellables: Set<AnyCancellable> = []
     private var isTerminating = false
-    private var isRelaunching = false
-    private let applicationRelaunchService = ApplicationRelaunchService()
-    private var isPreparedForRelaunchTermination = false
+    private var isQuittingAfterSettingsChange = false
+    private var isPreparedToQuitAfterSettingsChange = false
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
 
@@ -215,17 +214,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard !isPreparedForRelaunchTermination else {
+        guard !isPreparedToQuitAfterSettingsChange else {
             return .terminateNow
         }
 
-        if isRelaunching {
+        if isQuittingAfterSettingsChange {
             guard !isTerminating else {
                 return .terminateLater
             }
             isTerminating = true
             eventLog.append(
-                "Application termination will wait for the relaunch workflow.",
+                "Application termination will wait for the settings change workflow.",
                 level: .debug,
                 category: .application
             )
@@ -274,10 +273,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 openConsole: { [weak self] in
                     self?.showConsoleWindow()
                 },
-                resetAndRestart: { [weak self] in
-                    self?.resetAppSettingsAndRestart()
+                resetAndQuit: { [weak self] in
+                    self?.resetAppSettingsAndQuit()
                 },
-                restartWithWireGuardManualConfigurationMode: {
+                quitWithWireGuardManualConfigurationMode: {
                     [weak self] isEnabled in
                     self?.confirmWireGuardManualConfigurationModeChange(
                         isEnabled
@@ -333,8 +332,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         store.dummyEthernet.reinstallHelper()
     }
 
-    private func resetAppSettingsAndRestart() {
-        relaunchApplication(
+    private func resetAppSettingsAndQuit() {
+        quitApplication(
             reason: "app settings reset",
             prepare: { [weak self] in
                 guard let self else {
@@ -352,53 +351,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
     }
 
-    private func relaunchApplication(
+    private func quitApplication(
         reason: String,
         prepare: @escaping @MainActor () async -> Bool = { true },
         onPreparationFailure: @escaping @MainActor () -> Void = {},
         afterTerminationPreparation: @escaping @MainActor () -> Void = {}
     ) {
-        guard !isRelaunching,
+        guard !isQuittingAfterSettingsChange,
               !isTerminating else {
             return
         }
 
-        isRelaunching = true
+        isQuittingAfterSettingsChange = true
         Task { @MainActor [weak self] in
             guard let self else {
                 return
             }
             guard await prepare() else {
-                self.finishFailedRelaunch()
+                self.finishFailedSettingsChange()
                 onPreparationFailure()
                 return
             }
 
-            do {
-                try self.applicationRelaunchService.scheduleRelaunch(
-                    applicationURL: Bundle.main.bundleURL
-                )
-            } catch {
-                self.eventLog.append(
-                    "Could not schedule application relaunch after \(reason): " +
-                        EventLogErrorFormatter.description(for: error),
-                    level: .error,
-                    category: .application
-                )
-                self.finishFailedRelaunch()
-                self.presentRestartFailure(error)
-                return
-            }
             self.eventLog.append(
-                "Scheduled application relaunch after \(reason).",
+                "Application will quit after \(reason).",
                 level: .debug,
                 category: .application
             )
 
             await self.prepareApplicationServicesForTermination()
             afterTerminationPreparation()
-            self.isPreparedForRelaunchTermination = true
-            self.isRelaunching = false
+            self.isPreparedToQuitAfterSettingsChange = true
+            self.isQuittingAfterSettingsChange = false
             if self.isTerminating {
                 NSApp.reply(toApplicationShouldTerminate: true)
             } else {
@@ -412,24 +396,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     ) {
         guard appPreferences.isWireGuardManualConfigurationModeEnabled
                 != isEnabled,
-              !isRelaunching,
+              !isQuittingAfterSettingsChange,
               !isTerminating else {
             return
         }
 
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = String(localized: "ThruRNDIS Will Restart")
-        alert.informativeText = String(
-            localized: "Manual Configuration Mode will change after ThruRNDIS restarts."
-        )
-        alert.addButton(withTitle: String(localized: "Restart"))
+        alert.messageText = String(localized: "ThruRNDIS Will Quit")
+        alert.informativeText = isEnabled
+            ? String(
+                localized: "Manual Configuration Mode will be enabled after you reopen ThruRNDIS."
+            )
+            : String(
+                localized: "Manual Configuration Mode will be disabled after you reopen ThruRNDIS."
+            )
+        alert.addButton(withTitle: String(localized: "Quit ThruRNDIS"))
         alert.addButton(withTitle: String(localized: "Cancel"))
         guard alert.runModal() == .alertFirstButtonReturn else {
             return
         }
 
-        relaunchApplication(
+        quitApplication(
             reason: "WireGuard manual configuration mode change",
             afterTerminationPreparation: { [weak self] in
                 self?.appPreferences
@@ -440,8 +428,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
     }
 
-    private func finishFailedRelaunch() {
-        isRelaunching = false
+    private func finishFailedSettingsChange() {
+        isQuittingAfterSettingsChange = false
         guard isTerminating else { return }
         isTerminating = false
         NSApp.reply(toApplicationShouldTerminate: false)
@@ -452,21 +440,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.alertStyle = .critical
         alert.messageText = String(localized: "ThruRNDIS Could Not Reset Settings")
         alert.informativeText = message ?? store.resetStatusMessage
-        alert.addButton(withTitle: String(localized: "OK"))
-
-        if let window = settingsWindowController?.window {
-            alert.beginSheetModal(for: window)
-        } else {
-            alert.runModal()
-        }
-    }
-
-    private func presentRestartFailure(_ error: Error?) {
-        let alert = NSAlert()
-        alert.alertStyle = .critical
-        alert.messageText = String(localized: "ThruRNDIS Could Not Restart")
-        alert.informativeText = error?.localizedDescription
-            ?? String(localized: "Settings were reset, but a new ThruRNDIS instance could not be opened.")
         alert.addButton(withTitle: String(localized: "OK"))
 
         if let window = settingsWindowController?.window {

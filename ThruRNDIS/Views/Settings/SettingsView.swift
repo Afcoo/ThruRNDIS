@@ -9,8 +9,8 @@ struct SettingsView: View {
     @State private var selectedSection: SettingsSection = .general
 
     let openConsole: () -> Void
-    let resetAndRestart: () -> Void
-    let restartWithWireGuardManualConfigurationMode: (Bool) -> Void
+    let resetAndQuit: () -> Void
+    let quitWithWireGuardManualConfigurationMode: (Bool) -> Void
     let openWireGuardConfigurationFolder: () -> Void
     let copyWireGuardConfiguration: () -> Void
     let saveWireGuardConfiguration: () -> Void
@@ -34,8 +34,8 @@ struct SettingsView: View {
                     USBDevicesView()
                 case .wireGuard:
                     WireGuardView(
-                        restartWithManualConfigurationMode:
-                            restartWithWireGuardManualConfigurationMode,
+                        quitWithManualConfigurationMode:
+                            quitWithWireGuardManualConfigurationMode,
                         openConfigurationFolder: openWireGuardConfigurationFolder,
                         copyConfiguration: copyWireGuardConfiguration,
                         saveConfiguration: saveWireGuardConfiguration
@@ -43,7 +43,7 @@ struct SettingsView: View {
                 case .dummyEthernet:
                     DummyEthernetView()
                 case .info:
-                    InfoView(resetAndRestart: resetAndRestart)
+                    InfoView(resetAndQuit: resetAndQuit)
                 }
             }
             .navigationTitle(selectedSection.title)
