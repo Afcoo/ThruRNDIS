@@ -247,7 +247,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         isTerminating = true
         Task { @MainActor [weak self] in
             guard let self else { return }
-            await self.prepareApplicationServicesForTermination()
+            _ = await self.prepareApplicationServicesForTermination()
             sender.reply(toApplicationShouldTerminate: true)
         }
         return .terminateLater
@@ -379,8 +379,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 category: .application
             )
 
-            await self.prepareApplicationServicesForTermination()
-            afterTerminationPreparation()
+            if await self.prepareApplicationServicesForTermination() {
+                afterTerminationPreparation()
+            }
             self.isPreparedToQuitAfterSettingsChange = true
             self.isQuittingAfterSettingsChange = false
             if self.isTerminating {
@@ -502,7 +503,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return alert.runModal() == .alertFirstButtonReturn
     }
 
-    private func prepareApplicationServicesForTermination() async {
+    private func prepareApplicationServicesForTermination() async -> Bool {
         eventLog.append(
             "Preparing application services for termination.",
             level: .debug,
@@ -510,8 +511,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         async let assetTermination: Void = assetWorkflowCoordinator
             .prepareForApplicationTermination()
-        await store.prepareForApplicationTermination()
+        let didPrepareStore = await store.prepareForApplicationTermination()
         await assetTermination
         await eventLog.prepareForApplicationTermination()
+        return didPrepareStore
     }
 }

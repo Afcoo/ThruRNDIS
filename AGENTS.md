@@ -327,7 +327,7 @@ Ethernet.
   Dummy Ethernet. It does not run app-managed WireGuard or Dummy Ethernet
   termination cleanup. Changing the mode requires user confirmation and
   application termination. Keep the running process in the mode selected at
-  launch, finish that mode's termination preparation before persisting the
+  launch, successfully finish that mode's termination preparation before persisting the
   target mode, and apply the change the next time the user opens the app. Do
   not add live-transition conditions, component-state tracking, or listener
   revalidation for a mode change.

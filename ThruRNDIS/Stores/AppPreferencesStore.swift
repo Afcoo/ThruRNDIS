@@ -129,7 +129,6 @@ final class AppPreferencesStore: ObservableObject {
 
         isResettingPersistedValues = true
         isDebugModeEnabled = false
-        isWireGuardManualConfigurationModeEnabled = false
         shouldAskToAttachDetectedUSBDevices = true
         shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches = false
         hasCompletedOnboarding = false
