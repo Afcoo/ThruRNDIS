@@ -827,8 +827,6 @@ final class TetheringStore: ObservableObject {
                     category: .application
                 )
             }
-
-            wireGuardSession.finishApplicationTerminationPreparation()
         }
         shouldRunAccessoryMonitoring = false
         usbCoordinator.prepareForIntentionalVMStop()
