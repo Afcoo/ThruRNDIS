@@ -10,6 +10,7 @@ struct SettingsView: View {
 
     let openConsole: () -> Void
     let resetAndRestart: () -> Void
+    let restartWithWireGuardManualConfigurationMode: (Bool) -> Void
     let openWireGuardConfigurationFolder: () -> Void
     let copyWireGuardConfiguration: () -> Void
     let saveWireGuardConfiguration: () -> Void
@@ -33,6 +34,8 @@ struct SettingsView: View {
                     USBDevicesView()
                 case .wireGuard:
                     WireGuardView(
+                        restartWithManualConfigurationMode:
+                            restartWithWireGuardManualConfigurationMode,
                         openConfigurationFolder: openWireGuardConfigurationFolder,
                         copyConfiguration: copyWireGuardConfiguration,
                         saveConfiguration: saveWireGuardConfiguration
@@ -51,12 +54,6 @@ struct SettingsView: View {
         .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
         .onAppear {
             appPreferences.refreshLaunchAtLoginStatus()
-        }
-        .onChange(of: appPreferences.isWireGuardManualConfigurationModeEnabled) {
-            _, isEnabled in
-            if isEnabled, selectedSection == .dummyEthernet {
-                selectedSection = .general
-            }
         }
     }
 

@@ -153,18 +153,6 @@ final class TetheringStore: ObservableObject {
         applicationState == .resetting
     }
 
-    var canChangeWireGuardManualConfigurationMode: Bool {
-        (runtimeState == .idle || runtimeState == .stopped)
-            && attachedAccessoryID == nil
-            && (appPreferences.isWireGuardManualConfigurationModeEnabled
-                || wireGuardSession.hasResolvedInitialTunnelStatus)
-            && (wireGuardSession.tunnelStatus == .unconfigured
-                || wireGuardSession.tunnelStatus == .disconnected)
-            && managedDummyEthernet?.isAnyOperationInProgress != true
-            && (managedDummyEthernet?.runtimeState == nil
-                || managedDummyEthernet?.runtimeState == .inactive)
-    }
-
     private var acceptsNewWork: Bool {
         applicationState == .active
     }
@@ -468,31 +456,6 @@ final class TetheringStore: ObservableObject {
             wireGuardSession: wireGuardSession,
             appPreferences: appPreferences,
             runtimeEntitlementSnapshotProvider: runtimeEntitlementSnapshotProvider
-        )
-    }
-
-    func setWireGuardManualConfigurationModeEnabled(_ isEnabled: Bool) {
-        guard appPreferences.isWireGuardManualConfigurationModeEnabled
-                != isEnabled else {
-            return
-        }
-
-        if isEnabled {
-            workflowCoordinator.cancelPendingWireGuardConnection(
-                reason: "WireGuard manual configuration mode enabled"
-            )
-        }
-
-        appPreferences.isWireGuardManualConfigurationModeEnabled = isEnabled
-        objectWillChange.send()
-
-        if !isEnabled {
-            refreshWireGuardSystemExtensionStatus()
-            managedDummyEthernet?.refresh()
-        }
-
-        scheduleAccessoryMonitoringStartIfRequested(
-            reason: "WireGuard manual configuration mode changed"
         )
     }
 

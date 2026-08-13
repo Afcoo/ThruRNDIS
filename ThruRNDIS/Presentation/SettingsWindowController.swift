@@ -13,7 +13,8 @@ final class SettingsWindowController: NSWindowController {
         store: TetheringStore,
         assetWorkflowCoordinator: VMAssetWorkflowCoordinator,
         openConsole: @escaping () -> Void,
-        resetAndRestart: @escaping () -> Void
+        resetAndRestart: @escaping () -> Void,
+        restartWithWireGuardManualConfigurationMode: @escaping (Bool) -> Void
     ) {
         let wireGuardConfigurationFileController = WireGuardConfigurationFileController(
             wireGuardSession: store.wireGuardSession,
@@ -23,6 +24,8 @@ final class SettingsWindowController: NSWindowController {
         let rootView = SettingsView(
             openConsole: openConsole,
             resetAndRestart: resetAndRestart,
+            restartWithWireGuardManualConfigurationMode:
+                restartWithWireGuardManualConfigurationMode,
             openWireGuardConfigurationFolder:
                 wireGuardConfigurationFileController.openConfigurationFolder,
             copyWireGuardConfiguration:

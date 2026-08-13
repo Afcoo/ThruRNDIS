@@ -21,17 +21,7 @@ final class AppPreferencesStore: ObservableObject {
         }
     }
 
-    @Published var isWireGuardManualConfigurationModeEnabled: Bool {
-        didSet {
-            guard !isResettingPersistedValues else {
-                return
-            }
-            defaults.set(
-                isWireGuardManualConfigurationModeEnabled,
-                forKey: DefaultsKey.isWireGuardManualConfigurationModeEnabled
-            )
-        }
-    }
+    @Published private(set) var isWireGuardManualConfigurationModeEnabled: Bool
 
     @Published var shouldAskToAttachDetectedUSBDevices: Bool {
         didSet {
@@ -115,6 +105,15 @@ final class AppPreferencesStore: ObservableObject {
     func refreshLaunchAtLoginStatus() {
         launchAtLoginSnapshot = launchAtLoginService.snapshot()
         launchAtLoginStatusMessage = ""
+    }
+
+    func setWireGuardManualConfigurationModeEnabledForNextLaunch(
+        _ isEnabled: Bool
+    ) {
+        defaults.set(
+            isEnabled,
+            forKey: DefaultsKey.isWireGuardManualConfigurationModeEnabled
+        )
     }
 
     func resetPersistedValues() throws {

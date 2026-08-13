@@ -8,9 +8,8 @@ struct WireGuardView: View {
     @EnvironmentObject private var store: TetheringStore
     @EnvironmentObject private var wireGuardSession: WireGuardSessionStore
     @EnvironmentObject private var appPreferences: AppPreferencesStore
-    @EnvironmentObject private var usbSession: USBSessionStore
-    @EnvironmentObject private var dummyEthernet: DummyEthernetStore
 
+    let restartWithManualConfigurationMode: (Bool) -> Void
     let openConfigurationFolder: () -> Void
     let copyConfiguration: () -> Void
     let saveConfiguration: () -> Void
@@ -25,11 +24,9 @@ struct WireGuardView: View {
                             appPreferences
                                 .isWireGuardManualConfigurationModeEnabled
                         },
-                        set: store
-                            .setWireGuardManualConfigurationModeEnabled
+                        set: restartWithManualConfigurationMode
                     )
                 )
-                .disabled(!store.canChangeWireGuardManualConfigurationMode)
             }
 
             if !appPreferences.isWireGuardManualConfigurationModeEnabled

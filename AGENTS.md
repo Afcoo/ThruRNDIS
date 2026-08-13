@@ -325,13 +325,11 @@ Ethernet.
   WireGuard Manual Configuration Mode hides Dummy Ethernet settings and menu presentation,
   excludes helper readiness from USB-listener prerequisites, and never starts
   Dummy Ethernet. It does not run app-managed WireGuard or Dummy Ethernet
-  termination cleanup. Entering the mode requires the initial app-managed
-  WireGuard tunnel status to have been resolved. Mode changes are available
-  only while the VM is idle or stopped, no USB accessory is attached,
-  app-managed WireGuard is unconfigured or disconnected, and Dummy Ethernet is
-  inactive with no operation in progress. Enabling the mode cancels queued,
-  not-yet-started app-managed WireGuard requests; mode changes do not stop
-  running components.
+  termination cleanup. Changing the mode requires user confirmation and an
+  application relaunch. Keep the running process in the mode selected at launch,
+  finish that mode's termination preparation before persisting the target mode,
+  and apply the change on the next launch. Do not add live-transition conditions,
+  component-state tracking, or listener revalidation for a mode change.
 - `SMAppService` registration is explicit. After a successful register request,
   record the helper-specific installation identity embedded in the helper file
   rather than the app build number or file-system metadata. Keep that identity

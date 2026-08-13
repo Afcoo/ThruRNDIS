@@ -8,7 +8,6 @@ import Foundation
 @MainActor
 final class WireGuardSessionStore: ObservableObject {
     @Published private(set) var tunnelStatus: WireGuardTunnelStatus = .unconfigured
-    @Published private(set) var hasResolvedInitialTunnelStatus = false
     @Published private(set) var tunnelFailure: WireGuardTunnelFailure?
     @Published private(set) var systemExtensionStatus: WireGuardSystemExtensionStatus = .notChecked
     @Published private(set) var discoveredEndpoint: String?
@@ -98,11 +97,7 @@ final class WireGuardSessionStore: ObservableObject {
 
         refreshSystemExtensionStatus()
         Task { @MainActor [weak self] in
-            guard let self,
-                  await self.tunnelController.refreshStatus() else {
-                return
-            }
-            self.hasResolvedInitialTunnelStatus = true
+            await self?.tunnelController.refreshStatus()
         }
     }
 
@@ -336,13 +331,9 @@ final class WireGuardSessionStore: ObservableObject {
         let allowsTransitionRefresh = tunnelStatus.isTransitioning
             && tunnelFailure != nil
         Task { @MainActor [weak self] in
-            guard let self,
-                  await self.tunnelController.refreshStatus(
+            await self?.tunnelController.refreshStatus(
                 allowDuringTransition: allowsTransitionRefresh
-            ) else {
-                return
-            }
-            self.hasResolvedInitialTunnelStatus = true
+            )
         }
     }
 

@@ -11,6 +11,16 @@
         }
       }
     },
+    "Manual Configuration Mode will change after ThruRNDIS restarts." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ThruRNDIS를 재시작한 후 수동 구성 모드가 변경됩니다."
+          }
+        }
+      }
+    },
     "%@ (%@)" : {
       "localizations" : {
         "en" : {
