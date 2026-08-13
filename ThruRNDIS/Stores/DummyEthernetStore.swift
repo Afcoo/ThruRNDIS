@@ -253,7 +253,8 @@ final class DummyEthernetStore: ObservableObject {
         }
 
         return await stopManagedConfiguration(
-            requestMessage: "Dummy Ethernet stop requested."
+            requestMessage: "Dummy Ethernet stop requested.",
+            stopRequest: networkManager.stop
         )
     }
 
@@ -280,12 +281,15 @@ final class DummyEthernetStore: ObservableObject {
         }
 
         return await stopManagedConfiguration(
-            requestMessage: "Dummy Ethernet stop requested for application termination."
+            requestMessage: "Dummy Ethernet stop requested for application termination.",
+            stopRequest: networkManager.stopAndWaitUntilFinished
         )
     }
 
     private func stopManagedConfiguration(
-        requestMessage: String
+        requestMessage: String,
+        stopRequest: @MainActor () async throws
+            -> DummyEthernetNetworkSnapshot
     ) async -> Bool {
         helper.refresh()
         guard helper.isAvailable else {
@@ -298,7 +302,7 @@ final class DummyEthernetStore: ObservableObject {
         defer { operation = nil }
 
         do {
-            let snapshot = try await networkManager.stop()
+            let snapshot = try await stopRequest()
             applySnapshot(snapshot)
             appendCompletionEvent(for: .stopping, snapshot: snapshot)
             guard snapshot.state == .inactive else {
