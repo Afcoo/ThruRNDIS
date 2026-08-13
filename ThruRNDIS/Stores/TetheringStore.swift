@@ -1022,7 +1022,7 @@ final class TetheringStore: ObservableObject {
         workflowCoordinator.cancelManagedWireGuardConnection(
             reason: "app settings reset"
         )
-        guard await wireGuardSession.disconnectAndWait() else {
+        guard await wireGuardSession.stopForApplicationTermination() else {
             resetStatusMessage = String(
                 localized: "Could not stop the WireGuard tunnel before resetting app settings."
             )
