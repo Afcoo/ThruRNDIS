@@ -433,17 +433,19 @@ final class TetheringStore: ObservableObject {
         launchAtLoginService: LaunchAtLoginService = LaunchAtLoginService(),
         defaults: UserDefaults = .standard
     ) {
+        let appPreferences = AppPreferencesStore(
+            launchAtLoginService: launchAtLoginService,
+            defaults: defaults
+        )
         let wireGuardSession = WireGuardSessionStore(
             configurationStore: wireGuardConfigurationStore,
             configurationBuilder: wireGuardConfigurationBuilder,
             tunnelController: wireGuardTunnelController,
             eventLog: eventLog,
             systemExtensionSettingsOpener: systemExtensionSettingsOpener,
-            defaults: defaults
-        )
-        let appPreferences = AppPreferencesStore(
-            launchAtLoginService: launchAtLoginService,
-            defaults: defaults
+            defaults: defaults,
+            shouldRefreshManagedWireGuardStatus:
+                !appPreferences.isWireGuardManualConfigurationModeEnabled
         )
         self.init(
             assetProvider: assetProvider,

@@ -71,7 +71,8 @@ final class WireGuardSessionStore: ObservableObject {
         systemExtensionSettingsOpener: @escaping @MainActor () -> Bool = {
             NetworkExtensionSettingsOpener.open()
         },
-        defaults: UserDefaults = .standard
+        defaults: UserDefaults = .standard,
+        shouldRefreshManagedWireGuardStatus: Bool = true
     ) {
         self.configurationStore = configurationStore
         self.configurationBuilder = configurationBuilder
@@ -95,9 +96,11 @@ final class WireGuardSessionStore: ObservableObject {
         configureTunnelController()
         prepareConfiguration()
 
-        refreshSystemExtensionStatus()
-        Task { @MainActor [weak self] in
-            await self?.tunnelController.refreshStatus()
+        if shouldRefreshManagedWireGuardStatus {
+            refreshSystemExtensionStatus()
+            Task { @MainActor [weak self] in
+                await self?.tunnelController.refreshStatus()
+            }
         }
     }
 

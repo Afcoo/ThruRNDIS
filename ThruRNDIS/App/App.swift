@@ -70,15 +70,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     lazy var consoleSession = ConsoleSessionStore()
     lazy var usbSession = USBSessionStore()
     lazy var vmConfiguration = VMConfigurationStore()
+    lazy var appPreferences = AppPreferencesStore()
     lazy var wireGuardSession = WireGuardSessionStore(
         configurationStore: WireGuardConfigurationStore(),
         configurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
         tunnelController: WireGuardTunnelController(
             systemExtensionActivator: WireGuardSystemExtensionActivator()
         ),
-        eventLog: eventLog
+        eventLog: eventLog,
+        shouldRefreshManagedWireGuardStatus:
+            !appPreferences.isWireGuardManualConfigurationModeEnabled
     )
-    lazy var appPreferences = AppPreferencesStore()
     lazy var store: TetheringStore = {
         let dummyEthernet = DummyEthernetStore(eventLog: eventLog)
         return TetheringStore(
