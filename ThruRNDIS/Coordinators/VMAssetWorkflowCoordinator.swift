@@ -260,8 +260,10 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
         installState = currentSelection.map { .ready(message: readyMessage(for: $0)) } ?? .idle
     }
 
-    func prepareForApplicationTermination() {
-        operationTask?.cancel()
+    func prepareForApplicationTermination() async {
+        let task = operationTask
+        task?.cancel()
+        await task?.value
     }
 
     private func runLatestInstall(operationID: UUID) async {

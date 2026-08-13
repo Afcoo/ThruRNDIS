@@ -103,12 +103,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var onboardingWindowController: OnboardingWindowController?
     private var onboardingPresentationID: UUID?
     private var cancellables: Set<AnyCancellable> = []
-    private var pendingTerminationApplication: NSApplication?
-    private var pendingResetTerminationApplication: NSApplication?
-    private var didPrepareForTermination = false
-    private var storeTerminationTask: Task<Void, Never>?
-    private var eventLogTerminationTask: Task<Void, Never>?
-    private var resetAndRestartTask: Task<Void, Never>?
+    private var isTerminating = false
+    private var isResettingAndRestarting = false
     private let applicationRelaunchService = ApplicationRelaunchService()
     private var isPreparedForResetRelaunchTermination = false
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -188,8 +184,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 guard let self else {
                     return
                 }
-                guard self.pendingTerminationApplication == nil else {
-                    self.finishPendingTerminationIfPossible()
+                guard !self.isTerminating else {
                     return
                 }
                 self.store.assetAvailabilityDidChange()
@@ -224,11 +219,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return .terminateNow
         }
 
-        if resetAndRestartTask != nil {
-            guard pendingResetTerminationApplication == nil else {
+        if isResettingAndRestarting {
+            guard !isTerminating else {
                 return .terminateLater
             }
-            pendingResetTerminationApplication = sender
+            isTerminating = true
             eventLog.append(
                 "Application termination will wait for the settings reset workflow.",
                 level: .debug,
@@ -237,7 +232,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return .terminateLater
         }
 
-        guard pendingTerminationApplication == nil else {
+        guard !isTerminating else {
             return .terminateLater
         }
 
@@ -250,9 +245,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return .terminateCancel
         }
 
-        pendingTerminationApplication = sender
-        prepareForTerminationIfNeeded()
-        finishPendingTerminationIfPossible()
+        isTerminating = true
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            await self.prepareApplicationServicesForTermination()
+            sender.reply(toApplicationShouldTerminate: true)
+        }
         return .terminateLater
     }
 
@@ -325,20 +323,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func resetAppSettingsAndRestart() {
-        guard resetAndRestartTask == nil,
-              pendingTerminationApplication == nil,
-              pendingResetTerminationApplication == nil,
-              !didPrepareForTermination else {
+        guard !isResettingAndRestarting,
+              !isTerminating else {
             return
         }
 
-        resetAndRestartTask = Task { @MainActor [weak self] in
+        isResettingAndRestarting = true
+        Task { @MainActor [weak self] in
             guard let self else {
                 return
             }
             guard await self.store.resetAppSettings() else {
-                self.resetAndRestartTask = nil
-                self.cancelPendingTerminationDuringReset()
+                self.finishFailedReset()
                 self.presentResetFailure()
                 return
             }
@@ -355,8 +351,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     level: .error,
                     category: .application
                 )
-                self.resetAndRestartTask = nil
-                self.cancelPendingTerminationDuringReset()
+                self.finishFailedReset()
                 self.presentRestartFailure(error)
                 return
             }
@@ -366,29 +361,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 category: .application
             )
 
-            self.assetWorkflowCoordinator.prepareForApplicationTermination()
-            await self.store.prepareForApplicationTermination(
-                disconnectWireGuard: false
-            )
-            await self.eventLog.prepareForApplicationTermination()
-            self.didPrepareForTermination = true
+            await self.prepareApplicationServicesForTermination()
             self.isPreparedForResetRelaunchTermination = true
-            self.resetAndRestartTask = nil
-            if let application = self.pendingResetTerminationApplication {
-                self.pendingResetTerminationApplication = nil
-                application.reply(toApplicationShouldTerminate: true)
+            self.isResettingAndRestarting = false
+            if self.isTerminating {
+                NSApp.reply(toApplicationShouldTerminate: true)
             } else {
                 NSApp.terminate(nil)
             }
         }
     }
 
-    private func cancelPendingTerminationDuringReset() {
-        guard let application = pendingResetTerminationApplication else {
-            return
-        }
-        pendingResetTerminationApplication = nil
-        application.reply(toApplicationShouldTerminate: false)
+    private func finishFailedReset() {
+        isResettingAndRestarting = false
+        guard isTerminating else { return }
+        isTerminating = false
+        NSApp.reply(toApplicationShouldTerminate: false)
     }
 
     private func presentResetFailure(_ message: String? = nil) {
@@ -473,49 +461,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return alert.runModal() == .alertFirstButtonReturn
     }
 
-    private func prepareForTerminationIfNeeded() {
-        guard !didPrepareForTermination else {
-            return
-        }
-        didPrepareForTermination = true
+    private func prepareApplicationServicesForTermination() async {
         eventLog.append(
             "Preparing application services for termination.",
             level: .debug,
             category: .application
         )
-        assetWorkflowCoordinator.prepareForApplicationTermination()
-        storeTerminationTask = Task { @MainActor [weak self] in
-            guard let self else {
-                return
-            }
-            await self.store.prepareForApplicationTermination()
-            self.storeTerminationTask = nil
-            self.finishPendingTerminationIfPossible()
-        }
-    }
-
-    private func finishPendingTerminationIfPossible() {
-        guard let application = pendingTerminationApplication,
-              !assetWorkflowCoordinator.isBusy,
-              storeTerminationTask == nil else {
-            return
-        }
-        guard eventLogTerminationTask == nil else {
-            return
-        }
-
-        eventLogTerminationTask = Task { @MainActor [weak self] in
-            guard let self else {
-                return
-            }
-            await self.eventLog.prepareForApplicationTermination()
-            guard self.pendingTerminationApplication === application else {
-                self.eventLogTerminationTask = nil
-                return
-            }
-            self.eventLogTerminationTask = nil
-            self.pendingTerminationApplication = nil
-            application.reply(toApplicationShouldTerminate: true)
-        }
+        async let assetTermination: Void = assetWorkflowCoordinator
+            .prepareForApplicationTermination()
+        await store.prepareForApplicationTermination()
+        await assetTermination
+        await eventLog.prepareForApplicationTermination()
     }
 }
