@@ -400,7 +400,7 @@ final class WireGuardSessionStore: ObservableObject {
         systemExtensionActivationTask?.cancel()
         systemExtensionActivationTask = nil
         tunnelController.cancelPendingSystemExtensionOperations()
-        return await tunnelController.disconnect(waitUntilStopped: true)
+        return await tunnelController.disconnectForApplicationTermination()
     }
 
     func finishApplicationTerminationPreparation() {

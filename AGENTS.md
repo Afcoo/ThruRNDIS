@@ -110,11 +110,11 @@ WireGuard-over-VZNAT architecture as the baseline.
   `AppDelegate` gives operational cleanup, including normal event-log
   preparation, nine seconds. If that deadline expires, it logs the timeout and
   gives event-log file persistence one additional second before allowing the
-  process to exit. The WireGuard tunnel stop wait uses a five-second internal
-  limit. Dummy Ethernet termination uses one five-second deadline shared by
-  waiting for its current operation and sending its stop request, so failures
-  can be logged before the outer deadline. Explicit Stop and Restart actions
-  continue to report failure normally.
+  process to exit. The complete WireGuard termination stop attempt uses one
+  five-second internal limit. Dummy Ethernet termination uses one five-second
+  deadline shared by waiting for its current operation and sending its stop
+  request, so failures can be logged before the outer deadline. Explicit Stop
+  and Restart actions continue to report failure normally.
   The menu bar keeps a
   leading configuration section that lists Settings guidance for each unavailable
   VM Assets, Network Extension, and privileged-helper prerequisite. In normal

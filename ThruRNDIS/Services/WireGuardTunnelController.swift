@@ -12,6 +12,9 @@ private struct ConnectionObservationContext: Equatable {
 
 @MainActor
 final class WireGuardTunnelController {
+    private static let applicationTerminationStopTimeout =
+        Duration.seconds(5)
+
     var onStatusChange: ((WireGuardTunnelStatus) -> Void)?
     var onFailureChange: ((WireGuardTunnelFailure?) -> Void)?
     var onSystemExtensionStatusChange: ((WireGuardSystemExtensionStatus) -> Void)?
@@ -361,6 +364,43 @@ final class WireGuardTunnelController {
             )
             return false
         }
+    }
+
+    func disconnectForApplicationTermination() async -> Bool {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(
+            by: Self.applicationTerminationStopTimeout
+        )
+        let (results, resultContinuation) =
+            AsyncStream<(didFinish: Bool, didStop: Bool)>.makeStream()
+        let disconnectTask = Task { @MainActor in
+            let didStop = await disconnect(waitUntilStopped: true)
+            resultContinuation.yield((true, didStop))
+        }
+        let timeoutTask = Task.detached {
+            do {
+                try await clock.sleep(until: deadline)
+            } catch {
+                return
+            }
+            resultContinuation.yield((false, false))
+        }
+
+        var iterator = results.makeAsyncIterator()
+        let result = await iterator.next() ?? (false, false)
+        resultContinuation.finish()
+        timeoutTask.cancel()
+
+        guard result.didFinish else {
+            disconnectTask.cancel()
+            _ = beginOperation()
+            reportEventLog(
+                "WireGuard tunnel stop timed out after five seconds during application termination.",
+                level: .error
+            )
+            return false
+        }
+        return result.didStop
     }
 
     @discardableResult
