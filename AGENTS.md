@@ -855,7 +855,7 @@ xcrun notarytool store-credentials "thrurndis-notary"
   unregister its privileged helper, and then clear the Asset selection. It
   preserves managed Asset releases. If the VM or Dummy Ethernet does not stop,
   WireGuard deletion fails, or helper removal fails, report the error and do not
-  restart the app. A successful reset creates fresh key files and a generated
+  quit the app. A successful reset creates fresh key files and a generated
   server config on the next launch.
 - Keep WireGuard key material and server configuration read-only. The Connection
   section may edit and persist only the client DNS servers, Endpoint override,
