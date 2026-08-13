@@ -79,9 +79,17 @@ final class DummyEthernetPrivilegedHelperClient {
     }
 
     func stop() async throws -> DummyEthernetNetworkSnapshot {
-        try await sendRequest(
-            timeout: Self.stopRequestTimeout
-        ) { proxy, reply in
+        try await stop(timeout: Self.stopRequestTimeout)
+    }
+
+    func stopAndWaitUntilFinished() async throws -> DummyEthernetNetworkSnapshot {
+        try await stop(timeout: nil)
+    }
+
+    private func stop(
+        timeout: DispatchTimeInterval?
+    ) async throws -> DummyEthernetNetworkSnapshot {
+        try await sendRequest(timeout: timeout) { proxy, reply in
             proxy.stop(withReply: reply)
         }
     }
@@ -100,7 +108,7 @@ final class DummyEthernetPrivilegedHelperClient {
     }
 
     private func sendRequest(
-        timeout requestTimeout: DispatchTimeInterval,
+        timeout requestTimeout: DispatchTimeInterval?,
         _ request: @escaping (
             DummyEthernetPrivilegedHelperProtocol,
             @escaping DummyEthernetPrivilegedHelperReply
@@ -160,12 +168,14 @@ final class DummyEthernetPrivilegedHelperClient {
                     ))
                 }
             }
-            DispatchQueue.global().asyncAfter(
-                deadline: .now() + requestTimeout
-            ) { [weak reply] in
-                reply?.resume(with: .failure(
-                    DummyEthernetPrivilegedHelperClientError.requestTimedOut
-                ))
+            if let requestTimeout {
+                DispatchQueue.global().asyncAfter(
+                    deadline: .now() + requestTimeout
+                ) { [weak reply] in
+                    reply?.resume(with: .failure(
+                        DummyEthernetPrivilegedHelperClientError.requestTimedOut
+                    ))
+                }
             }
         }
         return try Self.decodeSnapshot(from: data)

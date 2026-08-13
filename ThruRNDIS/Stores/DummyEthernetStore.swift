@@ -298,7 +298,7 @@ final class DummyEthernetStore: ObservableObject {
         defer { operation = nil }
 
         do {
-            let snapshot = try await networkManager.stop()
+            let snapshot = try await networkManager.stopAndWaitUntilFinished()
             applySnapshot(snapshot)
             appendCompletionEvent(for: .stopping, snapshot: snapshot)
             guard snapshot.state == .inactive else {
