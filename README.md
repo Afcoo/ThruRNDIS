@@ -27,7 +27,6 @@ ThruRNDIS is a Swift app based on the Virtualization framework that enables Andr
 ## Requirements
 
 - macOS 27 or later
-- A device that supports RNDIS USB tethering (ex. an Android device)
 - Network Extension and LaunchDaemon permissions
 
 ## Installation
