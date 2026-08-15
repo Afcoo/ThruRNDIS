@@ -8,19 +8,19 @@ import ServiceManagement
 
 @MainActor
 struct DummyEthernetPrivilegedHelperRegistrationService {
-    private static let registeredIdentityKey =
-        "DummyEthernet.registeredHelperIdentity"
+    private static let registeredBuildVersionKey =
+        "DummyEthernet.registeredHelperBuildVersion"
 
     private let service: SMAppService
     private let defaults: UserDefaults
-    private let currentHelperIdentity: String?
+    private let currentHelperBuildVersion: String?
 
     init() {
         service = SMAppService.daemon(
             plistName: ThruRNDISDummyEthernet.helperLaunchDaemonPlistName
         )
         defaults = .standard
-        currentHelperIdentity = Self.helperInstallationIdentity()
+        currentHelperBuildVersion = Self.helperBuildVersion()
     }
 
     func status() -> DummyEthernetHelperRegistrationStatus {
@@ -28,9 +28,9 @@ struct DummyEthernetPrivilegedHelperRegistrationService {
         guard registrationStatus == .enabled else {
             return registrationStatus
         }
-        guard let currentHelperIdentity,
-              defaults.string(forKey: Self.registeredIdentityKey)
-                == currentHelperIdentity else {
+        guard let currentHelperBuildVersion,
+              defaults.string(forKey: Self.registeredBuildVersionKey)
+                == currentHelperBuildVersion else {
             return .updateRequired
         }
         return .enabled
@@ -46,10 +46,10 @@ struct DummyEthernetPrivilegedHelperRegistrationService {
         }
 
         try service.register()
-        if let currentHelperIdentity {
+        if let currentHelperBuildVersion {
             defaults.set(
-                currentHelperIdentity,
-                forKey: Self.registeredIdentityKey
+                currentHelperBuildVersion,
+                forKey: Self.registeredBuildVersionKey
             )
         }
         return status()
@@ -60,14 +60,14 @@ struct DummyEthernetPrivilegedHelperRegistrationService {
         let currentStatus = status()
         switch currentStatus {
         case .notRegistered, .notFound:
-            clearRegisteredIdentity()
+            clearRegisteredBuildVersion()
             return currentStatus
         case .unknown, .enabled, .updateRequired, .requiresApproval:
             break
         }
 
         try await service.unregister()
-        clearRegisteredIdentity()
+        clearRegisteredBuildVersion()
         return status()
     }
 
@@ -75,11 +75,11 @@ struct DummyEthernetPrivilegedHelperRegistrationService {
         SMAppService.openSystemSettingsLoginItems()
     }
 
-    private func clearRegisteredIdentity() {
-        defaults.removeObject(forKey: Self.registeredIdentityKey)
+    private func clearRegisteredBuildVersion() {
+        defaults.removeObject(forKey: Self.registeredBuildVersionKey)
     }
 
-    private static func helperInstallationIdentity() -> String? {
+    private static func helperBuildVersion() -> String? {
         let helperURL = Bundle.main.bundleURL
             .appendingPathComponent("Contents/MacOS", isDirectory: true)
             .appendingPathComponent(
@@ -88,14 +88,12 @@ struct DummyEthernetPrivilegedHelperRegistrationService {
         guard let infoDictionary = CFBundleCopyInfoDictionaryForURL(
             helperURL as CFURL
         ) as? [String: Any],
-            let identity = infoDictionary[
-                ThruRNDISDummyEthernet
-                    .helperInstallationIdentityInfoDictionaryKey
-            ] as? String,
-            !identity.isEmpty else {
+            let buildVersion = infoDictionary[kCFBundleVersionKey as String]
+                as? String,
+            !buildVersion.isEmpty else {
             return nil
         }
-        return identity
+        return buildVersion
     }
 
     private static func registrationStatus(

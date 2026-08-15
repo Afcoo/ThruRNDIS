@@ -176,7 +176,7 @@ final class DummyEthernetHelperStore: ObservableObject {
         guard canReinstall else { return }
         operation = .reinstalling
         appendEventLog(
-            "Dummy Ethernet helper reinstall requested.",
+            "Dummy Ethernet helper reinstall started.",
             level: .debug
         )
 
