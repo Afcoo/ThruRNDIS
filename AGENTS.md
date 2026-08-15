@@ -19,9 +19,11 @@ WireGuard-over-VZNAT architecture as the baseline.
 - `ThruRNDISPrivilegedHelper` is a small command-line privileged helper embedded
   at `Contents/MacOS/ThruRNDISPrivilegedHelper`, with its launchd property list
   at `Contents/Library/LaunchDaemons/ThruRNDISPrivilegedHelper.plist`. The app
-  registers it with `SMAppService.daemon` only after an explicit request in the
-  onboarding permissions page or Dummy Ethernet Settings tab. The app bundle is
-  the helper executable's only source; never copy it to
+  initially registers it with `SMAppService.daemon` only after an explicit
+  request in the onboarding permissions page or Dummy Ethernet Settings tab.
+  A registered helper is automatically replaced when its build version differs
+  from the current app build. The app bundle is the helper executable's only
+  source; never copy it to
   `/Library/PrivilegedHelperTools` or maintain a versioned system-path copy.
   This project does not use DriverKit.
 - Linux assets are not bundled with the app. The shared onboarding and Settings
@@ -342,17 +344,19 @@ Ethernet.
   preparation, and apply the change the next time the user opens the app. Do
   not add live-transition conditions, component-state tracking, or listener
   revalidation for a mode change.
-- `SMAppService` registration is explicit. After a successful register request,
-  record the helper-specific installation identity embedded in the helper file
-  rather than the app build number or file-system metadata. Keep that identity
-  stable when only the app marketing/build version changes, and increment it
-  whenever the installed helper implementation changes. Replacing an app bundle
-  can leave the previous root helper process alive; an identity mismatch must
-  block network operations until the user explicitly reinstalls the helper or
-  removes the old registration and installs it again.
-  Do not add runtime helper metadata handshakes, connection-probe retry state,
-  or automatic registration repair in response to refresh or a normal
-  network-operation failure.
+- Initial `SMAppService` registration is explicit. After a successful register
+  request, record the helper executable's embedded `CFBundleVersion`. The helper
+  shares the app build version, and every app update must increment
+  `CURRENT_PROJECT_VERSION`. At app launch, a registered helper build mismatch
+  must block network operations while the app automatically unregisters the old
+  daemon and registers the helper bundled with the current app. Retain the
+  previously registered build until replacement registration succeeds or an
+  explicit removal occurs. This lets an interrupted update resume without
+  making an ordinary first install automatic. Manual Reinstall remains available
+  for development and recovery. Do not add a separate helper
+  installation identity, runtime helper metadata handshake, connection-probe
+  retry state, or automatic registration repair in response to refresh or a
+  normal network-operation failure.
 - The default host address is `192.168.100.2` with a fixed `/24` mask and the
   subnet `.1` address as its router (`192.168.100.1` by default). Settings may
   persist a different RFC 1918 host IPv4 address and separate Bond-member and
@@ -631,6 +635,12 @@ separate `Afcoo/ThruRNDIS_VM_Assets` repository.
   build
 ```
 
+- `CURRENT_PROJECT_VERSION` is the app, Network System Extension, and privileged
+  helper build version. Increment it for every app update, including an app-only
+  update, because the app uses it to detect and automatically replace an older
+  registered privileged helper. Never publish or install a changed app artifact
+  as the same build number.
+
 - Runtime signing checks are meaningful only after the required entitlements are
   included in the provisioning profiles for both the app and Network System
   Extension. The privileged helper shares their signing team but requires no
@@ -820,12 +830,11 @@ xcrun notarytool store-credentials "thrurndis-notary"
   stop Dummy Ethernet. Onboarding may show and manage only its privileged-helper
   permission;
   showing the current helper registration and network state at launch is allowed.
-  Initial helper registration requires the explicit Install action. Replacing
-  the app bundle requires an explicit Reinstall action, or explicit Remove and
-  Install actions, when the registered helper-specific installation identity
-  changes, but an app marketing/build version change alone must not require an
-  update. Refresh and Start/Stop/Restart must never repair registration
-  automatically.
+  Initial helper registration requires the explicit Install action. When the
+  registered helper's recorded `CFBundleVersion` differs from the current app
+  build, app launch automatically unregisters and registers the current bundled
+  helper without an additional confirmation. Manual Reinstall remains available.
+  Refresh and Start/Stop/Restart must never repair registration automatically.
   Do not remove network objects without a user's Stop/Restart action, except
   that application termination stops the managed configuration before exit and
   a confirmed Reset All Settings action removes it before unregistering the

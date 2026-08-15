@@ -16,8 +16,6 @@ enum ThruRNDISDummyEthernet {
         "ThruRNDIS.DummyEthernet.Configuration"
     static let helperExecutableName = "ThruRNDISPrivilegedHelper"
     static let helperLaunchDaemonPlistName = "ThruRNDISPrivilegedHelper.plist"
-    static let helperInstallationIdentityInfoDictionaryKey =
-        "ThruRNDISHelperInstallationIdentity"
 
     private static let helperBundleIdentifierSuffix = ".privileged-helper"
 

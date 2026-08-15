@@ -8,9 +8,8 @@ DEVELOPMENT_TEAM =
 THRURNDIS_APP_BUNDLE_IDENTIFIER = com.example.thrurndis
 THRURNDIS_WIREGUARD_EXTENSION_BUNDLE_IDENTIFIER = $(THRURNDIS_APP_BUNDLE_IDENTIFIER).network-extension
 THRURNDIS_PRIVILEGED_HELPER_BUNDLE_IDENTIFIER = $(THRURNDIS_APP_BUNDLE_IDENTIFIER).privileged-helper
-// Increment only when the installed privileged-helper implementation changes.
-// App marketing/build version changes must leave this identity unchanged.
-THRURNDIS_PRIVILEGED_HELPER_INSTALLATION_IDENTITY = 1
+// The privileged helper uses the app-shared CFBundleVersion for automatic
+// upgrades. Increment CURRENT_PROJECT_VERSION for every app update.
 THRURNDIS_WIREGUARD_APP_GROUP = $(TeamIdentifierPrefix)group.$(THRURNDIS_APP_BUNDLE_IDENTIFIER)
 THRURNDIS_WIREGUARD_MACH_SERVICE = $(THRURNDIS_WIREGUARD_APP_GROUP).network-extension
 THRURNDIS_APP_DISTRIBUTION_PROVISIONING_PROFILE =

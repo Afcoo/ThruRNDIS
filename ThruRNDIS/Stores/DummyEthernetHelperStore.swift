@@ -65,12 +65,19 @@ final class DummyEthernetHelperStore: ObservableObject {
 
     var canReinstall: Bool {
         guard !isOperationInProgress else { return false }
+        if needsAutomaticUpdate {
+            return true
+        }
         switch registrationStatus {
         case .enabled, .updateRequired:
             return true
         case .unknown, .notRegistered, .requiresApproval, .notFound:
             return false
         }
+    }
+
+    var needsAutomaticUpdate: Bool {
+        registrationService.needsAutomaticUpdate
     }
 
     var isReinstallActionPresented: Bool {
@@ -176,14 +183,16 @@ final class DummyEthernetHelperStore: ObservableObject {
         guard canReinstall else { return }
         operation = .reinstalling
         appendEventLog(
-            "Dummy Ethernet helper reinstall requested.",
+            "Dummy Ethernet helper reinstall started.",
             level: .debug
         )
 
         Task { @MainActor [weak self] in
             guard let self else { return }
             do {
-                let removalStatus = try await self.registrationService.disable()
+                let removalStatus = try await self.registrationService.disable(
+                    preservingRegisteredBuildVersion: true
+                )
                 guard removalStatus == .notRegistered
                         || removalStatus == .notFound else {
                     self.operation = nil
