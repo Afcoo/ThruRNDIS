@@ -1,13 +1,24 @@
-# ThruRNDIS: USB Tethering via VM USB Passthrough
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./images/icon-dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="./images/icon-light.png">
+    <img alt="ThruRNDIS 앱 아이콘" src="./images/icon-light.png" width="128">
+  </picture>
+</p>
 
-[English](./README.md) | [한국어](./README.ko.md)
+<h1 align="center">ThruRNDIS</h1>
+<p align="center">RNDIS 테더링을 macOS로</p>
 
+<p align="center">
+  <a href="https://github.com/Afcoo/ThruRNDIS/releases/latest"><img src="https://img.shields.io/github/v/release/Afcoo/ThruRNDIS?display_name=tag&label=latest&style=flat" alt="최신 버전"></a>
+  <a href="https://github.com/Afcoo/ThruRNDIS/releases"><img src="https://img.shields.io/github/downloads/Afcoo/ThruRNDIS/total?label=downloads&style=flat" alt="다운로드 수"></a>
+  <a href="./LICENSE.txt"><img src="https://img.shields.io/github/license/Afcoo/ThruRNDIS?style=flat" alt="라이선스"></a>
+  <a href="#요구-사항"><img src="https://img.shields.io/badge/macOS-27%2B-000000?logo=apple&logoColor=white&style=flat" alt="지원 macOS: 27 이상"></a>
+</p>
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./images/introduction-dark.png">
-  <source media="(prefers-color-scheme: light)" srcset="./images/introduction-light.png">
-  <img alt="ThruRNDIS — Bring Android USB tethering to your Mac" src="./images/introduction-light.png">
-</picture>
+<p align="center">
+  <a href="./README.md">English</a> | <a href="./README.ko.md">한국어</a>
+</p>
 
 ## 소개
 
@@ -15,9 +26,8 @@ ThruRNDIS는 macOS에서 안드로이드의 RNDIS 방식 USB 테더링을 사용
 
 ## 요구 사항
 
-- macOS 27 beta 2 이상
-- RNDIS 방식 USB 테더링을 지원하는 장치(예: 안드로이드 기기)
-- 첫 실행 시 VM Assets를 내려받기 위한 인터넷 연결
+- macOS 27 이상
+- Network Extension 및 LaunchDaemon 권한
 
 ## 설치 방법
 
