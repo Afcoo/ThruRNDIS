@@ -308,7 +308,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         let helper = store.dummyEthernet.helper
         helper.refresh()
-        guard helper.registrationStatus == .updateRequired else {
+        guard helper.needsAutomaticUpdate else {
             return
         }
 

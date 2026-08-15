@@ -349,8 +349,11 @@ Ethernet.
   shares the app build version, and every app update must increment
   `CURRENT_PROJECT_VERSION`. At app launch, a registered helper build mismatch
   must block network operations while the app automatically unregisters the old
-  daemon and registers the helper bundled with the current app. Manual Reinstall
-  remains available for development and recovery. Do not add a separate helper
+  daemon and registers the helper bundled with the current app. Retain the
+  previously registered build until replacement registration succeeds or an
+  explicit removal occurs. This lets an interrupted update resume without
+  making an ordinary first install automatic. Manual Reinstall remains available
+  for development and recovery. Do not add a separate helper
   installation identity, runtime helper metadata handshake, connection-probe
   retry state, or automatic registration repair in response to refresh or a
   normal network-operation failure.

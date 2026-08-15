@@ -36,6 +36,23 @@ struct DummyEthernetPrivilegedHelperRegistrationService {
         return .enabled
     }
 
+    var needsAutomaticUpdate: Bool {
+        switch status() {
+        case .updateRequired:
+            return true
+        case .notRegistered, .notFound:
+            guard let currentHelperBuildVersion,
+                  let registeredBuildVersion = defaults.string(
+                    forKey: Self.registeredBuildVersionKey
+                  ) else {
+                return false
+            }
+            return registeredBuildVersion != currentHelperBuildVersion
+        case .unknown, .enabled, .requiresApproval:
+            return false
+        }
+    }
+
     func enable() throws -> DummyEthernetHelperRegistrationStatus {
         let currentStatus = status()
         switch currentStatus {
@@ -55,19 +72,23 @@ struct DummyEthernetPrivilegedHelperRegistrationService {
         return status()
     }
 
-    func disable() async throws
+    func disable(preservingRegisteredBuildVersion: Bool = false) async throws
         -> DummyEthernetHelperRegistrationStatus {
         let currentStatus = status()
         switch currentStatus {
         case .notRegistered, .notFound:
-            clearRegisteredBuildVersion()
+            if !preservingRegisteredBuildVersion {
+                clearRegisteredBuildVersion()
+            }
             return currentStatus
         case .unknown, .enabled, .updateRequired, .requiresApproval:
             break
         }
 
         try await service.unregister()
-        clearRegisteredBuildVersion()
+        if !preservingRegisteredBuildVersion {
+            clearRegisteredBuildVersion()
+        }
         return status()
     }
 
