@@ -26,9 +26,9 @@ ThruRNDIS는 macOS에서 안드로이드의 RNDIS 방식 USB 테더링을 사용
 
 ## 요구 사항
 
-- macOS 27 beta 2 이상
+- macOS 27 이상
 - RNDIS 방식 USB 테더링을 지원하는 장치(예: 안드로이드 기기)
-- 첫 실행 시 VM Assets를 내려받기 위한 인터넷 연결
+- Network Extension 및 LaunchDaemon 권한
 
 ## 설치 방법
 
