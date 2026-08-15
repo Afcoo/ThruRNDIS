@@ -1,13 +1,24 @@
-# ThruRNDIS: USB Tethering via VM USB Passthrough
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./images/icon-dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="./images/icon-light.png">
+    <img alt="ThruRNDIS app icon" src="./images/icon-light.png" width="128">
+  </picture>
+</p>
 
-[English](./README.md) | [한국어](./README.ko.md)
+<h1 align="center">ThruRNDIS</h1>
+<p align="center">Bring RNDIS Tethering to macOS</p>
 
+<p align="center">
+  <a href="https://github.com/Afcoo/ThruRNDIS/releases/latest"><img src="https://img.shields.io/github/v/release/Afcoo/ThruRNDIS?display_name=tag&label=latest&style=flat" alt="Latest version"></a>
+  <a href="https://github.com/Afcoo/ThruRNDIS/releases"><img src="https://img.shields.io/github/downloads/Afcoo/ThruRNDIS/total?label=downloads&style=flat" alt="Downloads"></a>
+  <a href="./LICENSE.txt"><img src="https://img.shields.io/github/license/Afcoo/ThruRNDIS?style=flat" alt="License"></a>
+  <a href="#requirements"><img src="https://img.shields.io/badge/macOS-27%2B-000000?logo=apple&logoColor=white&style=flat" alt="Supported macOS: 27 or later"></a>
+</p>
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./images/introduction-dark.png">
-  <source media="(prefers-color-scheme: light)" srcset="./images/introduction-light.png">
-  <img alt="ThruRNDIS — Bring Android USB tethering to your Mac" src="./images/introduction-light.png">
-</picture>
+<p align="center">
+  <a href="./README.md">English</a> | <a href="./README.ko.md">한국어</a>
+</p>
 
 ## Overview
 
