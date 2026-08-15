@@ -10,7 +10,8 @@
 <p align="center">RNDIS 테더링을 macOS로</p>
 
 <p align="center">
-  <a href="https://github.com/Afcoo/ThruRNDIS/releases/latest"><img src="https://img.shields.io/github/v/release/Afcoo/ThruRNDIS?display_name=tag&label=latest&style=flat" alt="최신 버전"></a>
+  <a href="https://github.com/Afcoo/ThruRNDIS/releases/latest"><img src="https://img.shields.io/github/v/release/Afcoo/ThruRNDIS?display_name=tag&label=release&logo=github&style=flat" alt="최신 버전"></a>
+  <a href="https://github.com/Afcoo/ThruRNDIS/stargazers"><img src="https://img.shields.io/github/stars/Afcoo/ThruRNDIS?style=social" alt="GitHub stars"></a>
   <a href="https://github.com/Afcoo/ThruRNDIS/releases"><img src="https://img.shields.io/github/downloads/Afcoo/ThruRNDIS/total?label=downloads&style=flat" alt="다운로드 수"></a>
   <a href="./LICENSE.txt"><img src="https://img.shields.io/github/license/Afcoo/ThruRNDIS?style=flat" alt="라이선스"></a>
   <a href="#요구-사항"><img src="https://img.shields.io/badge/macOS-27%2B-000000?logo=apple&logoColor=white&style=flat" alt="지원 macOS: 27 이상"></a>
