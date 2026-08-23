@@ -36,8 +36,7 @@ enum EventLogCategory: String, CaseIterable, Identifiable, Sendable {
     case usb = "USB"
     case vm = "VM"
     case vmAsset = "VM Assets"
-    case wireGuard = "WireGuard"
-    case dummyEthernet = "Dummy Ethernet"
+    case network = "Network"
     case application = "Application"
 
     var id: Self { self }
@@ -48,10 +47,8 @@ enum EventLogCategory: String, CaseIterable, Identifiable, Sendable {
             String(localized: "VM")
         case .usb:
             String(localized: "USB")
-        case .wireGuard:
-            String(localized: "WireGuard")
-        case .dummyEthernet:
-            String(localized: "Dummy Ethernet")
+        case .network:
+            String(localized: "Network")
         case .vmAsset:
             String(localized: "VM Assets")
         case .application:

@@ -5,9 +5,9 @@
 #   THRURNDIS_XCODEBUILD to another xcodebuild executable.
 # - Configuration/LocalSigning.xcconfig copied from the example and configured
 #   with DEVELOPMENT_TEAM, the app bundle identifier, and the exact installed
-#   direct-distribution provisioning-profile names for both the app and the
-#   WireGuard Network System Extension. The privileged helper uses the derived
-#   app identifier suffix and the same signing team, but no provisioning profile.
+#   direct-distribution provisioning-profile name for the app. The privileged
+#   helper uses the derived app identifier suffix and the same signing team, but
+#   no provisioning profile.
 # - A Developer ID Application certificate, including its private key, for the
 #   configured team in the login Keychain.
 # - Internet access only when Xcode provisioning updates are explicitly
@@ -102,11 +102,6 @@ APP_BUILD_SETTINGS="$("$XCODEBUILD_BIN" \
   -target "$APP_NAME" \
   -configuration "$CONFIGURATION" \
   -showBuildSettings)"
-EXTENSION_BUILD_SETTINGS="$("$XCODEBUILD_BIN" \
-  -project "$PROJECT_PATH" \
-  -target ThruRNDISWireGuardNetworkExtension \
-  -configuration "$CONFIGURATION" \
-  -showBuildSettings)"
 HELPER_BUILD_SETTINGS="$("$XCODEBUILD_BIN" \
   -project "$PROJECT_PATH" \
   -target ThruRNDISPrivilegedHelper \
@@ -123,12 +118,6 @@ APP_VERSION_SETTING="$(distribution_build_setting_value \
   "$APP_BUILD_SETTINGS" MARKETING_VERSION)"
 APP_BUILD_SETTING="$(distribution_build_setting_value \
   "$APP_BUILD_SETTINGS" CURRENT_PROJECT_VERSION)"
-EXTENSION_BUNDLE_IDENTIFIER="$(distribution_build_setting_value \
-  "$EXTENSION_BUILD_SETTINGS" PRODUCT_BUNDLE_IDENTIFIER)"
-EXTENSION_PROVISIONING_PROFILE="$(distribution_build_setting_value \
-  "$EXTENSION_BUILD_SETTINGS" PROVISIONING_PROFILE_SPECIFIER)"
-EXTENSION_DEVELOPMENT_TEAM="$(distribution_build_setting_value \
-  "$EXTENSION_BUILD_SETTINGS" DEVELOPMENT_TEAM)"
 HELPER_BUNDLE_IDENTIFIER="$(distribution_build_setting_value \
   "$HELPER_BUILD_SETTINGS" PRODUCT_BUNDLE_IDENTIFIER)"
 HELPER_PROVISIONING_PROFILE="$(distribution_build_setting_value \
@@ -139,12 +128,9 @@ EXPECTED_HELPER_BUNDLE_IDENTIFIER="$APP_BUNDLE_IDENTIFIER.privileged-helper"
 
 [[ -n "$DEVELOPMENT_TEAM" ]] || distribution_fail \
   "DEVELOPMENT_TEAM is empty in LocalSigning.xcconfig"
-[[ "$EXTENSION_DEVELOPMENT_TEAM" == "$DEVELOPMENT_TEAM" ]] || distribution_fail \
-  "the app and Network System Extension use different development teams"
 [[ "$HELPER_DEVELOPMENT_TEAM" == "$DEVELOPMENT_TEAM" ]] || distribution_fail \
   "the app and privileged helper use different development teams"
-[[ -n "$APP_BUNDLE_IDENTIFIER" && -n "$EXTENSION_BUNDLE_IDENTIFIER" &&
-   -n "$HELPER_BUNDLE_IDENTIFIER" ]] || distribution_fail \
+[[ -n "$APP_BUNDLE_IDENTIFIER" && -n "$HELPER_BUNDLE_IDENTIFIER" ]] || distribution_fail \
   "Release bundle identifiers could not be resolved"
 [[ "$HELPER_BUNDLE_IDENTIFIER" == "$EXPECTED_HELPER_BUNDLE_IDENTIFIER" ]] || distribution_fail \
   "the privileged-helper bundle ID is $HELPER_BUNDLE_IDENTIFIER instead of $EXPECTED_HELPER_BUNDLE_IDENTIFIER"
@@ -161,10 +147,6 @@ OUTPUT_PARENT="$(/usr/bin/dirname "$OUTPUT_APP")"
 SIGNING_SETUP_VALID=1
 if [[ -z "$APP_PROVISIONING_PROFILE" ]]; then
   echo "error: set THRURNDIS_APP_DISTRIBUTION_PROVISIONING_PROFILE in LocalSigning.xcconfig" >&2
-  SIGNING_SETUP_VALID=0
-fi
-if [[ -z "$EXTENSION_PROVISIONING_PROFILE" ]]; then
-  echo "error: set THRURNDIS_NETWORK_EXTENSION_DISTRIBUTION_PROVISIONING_PROFILE in LocalSigning.xcconfig" >&2
   SIGNING_SETUP_VALID=0
 fi
 if [[ -n "$HELPER_PROVISIONING_PROFILE" ]]; then
@@ -199,9 +181,6 @@ VALIDATION_DIR="$WORK_DIR/validation"
 /usr/libexec/PlistBuddy -c "Add :provisioningProfiles dict" "$EXPORT_OPTIONS_PLIST"
 /usr/libexec/PlistBuddy \
   -c "Add :provisioningProfiles:$APP_BUNDLE_IDENTIFIER string $APP_PROVISIONING_PROFILE" \
-  "$EXPORT_OPTIONS_PLIST"
-/usr/libexec/PlistBuddy \
-  -c "Add :provisioningProfiles:$EXTENSION_BUNDLE_IDENTIFIER string $EXTENSION_PROVISIONING_PROFILE" \
   "$EXPORT_OPTIONS_PLIST"
 # A command-line privileged helper is nested code, not a provisioned app
 # bundle. Intentionally keep it out of the ExportOptions provisioningProfiles

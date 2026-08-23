@@ -7,9 +7,9 @@ import Foundation
 import ServiceManagement
 
 @MainActor
-struct DummyEthernetPrivilegedHelperRegistrationService {
+struct NetworkRoutePrivilegedHelperRegistrationService {
     private static let registeredBuildVersionKey =
-        "DummyEthernet.registeredHelperBuildVersion"
+        "NetworkRoute.registeredHelperBuildVersion"
 
     private let service: SMAppService
     private let defaults: UserDefaults
@@ -17,13 +17,13 @@ struct DummyEthernetPrivilegedHelperRegistrationService {
 
     init() {
         service = SMAppService.daemon(
-            plistName: ThruRNDISDummyEthernet.helperLaunchDaemonPlistName
+            plistName: ThruRNDISNetworkRoute.helperLaunchDaemonPlistName
         )
         defaults = .standard
         currentHelperBuildVersion = Self.helperBuildVersion()
     }
 
-    func status() -> DummyEthernetHelperRegistrationStatus {
+    func status() -> NetworkRouteHelperRegistrationStatus {
         let registrationStatus = Self.registrationStatus(from: service.status)
         guard registrationStatus == .enabled else {
             return registrationStatus
@@ -39,21 +39,22 @@ struct DummyEthernetPrivilegedHelperRegistrationService {
     var needsAutomaticUpdate: Bool {
         switch status() {
         case .updateRequired:
-            return true
+            true
         case .notRegistered, .notFound:
-            guard let currentHelperBuildVersion,
-                  let registeredBuildVersion = defaults.string(
-                    forKey: Self.registeredBuildVersionKey
-                  ) else {
-                return false
+            if let currentHelperBuildVersion,
+               let registeredBuildVersion = defaults.string(
+                forKey: Self.registeredBuildVersionKey
+               ) {
+                registeredBuildVersion != currentHelperBuildVersion
+            } else {
+                false
             }
-            return registeredBuildVersion != currentHelperBuildVersion
         case .unknown, .enabled, .requiresApproval:
-            return false
+            false
         }
     }
 
-    func enable() throws -> DummyEthernetHelperRegistrationStatus {
+    func enable() throws -> NetworkRouteHelperRegistrationStatus {
         let currentStatus = status()
         switch currentStatus {
         case .enabled, .updateRequired, .requiresApproval:
@@ -73,7 +74,7 @@ struct DummyEthernetPrivilegedHelperRegistrationService {
     }
 
     func disable(preservingRegisteredBuildVersion: Bool = false) async throws
-        -> DummyEthernetHelperRegistrationStatus {
+        -> NetworkRouteHelperRegistrationStatus {
         let currentStatus = status()
         switch currentStatus {
         case .notRegistered, .notFound:
@@ -103,15 +104,13 @@ struct DummyEthernetPrivilegedHelperRegistrationService {
     private static func helperBuildVersion() -> String? {
         let helperURL = Bundle.main.bundleURL
             .appendingPathComponent("Contents/MacOS", isDirectory: true)
-            .appendingPathComponent(
-                ThruRNDISDummyEthernet.helperExecutableName
-            )
+            .appendingPathComponent(ThruRNDISNetworkRoute.helperExecutableName)
         guard let infoDictionary = CFBundleCopyInfoDictionaryForURL(
             helperURL as CFURL
         ) as? [String: Any],
-            let buildVersion = infoDictionary[kCFBundleVersionKey as String]
+              let buildVersion = infoDictionary[kCFBundleVersionKey as String]
                 as? String,
-            !buildVersion.isEmpty else {
+              !buildVersion.isEmpty else {
             return nil
         }
         return buildVersion
@@ -119,7 +118,7 @@ struct DummyEthernetPrivilegedHelperRegistrationService {
 
     private static func registrationStatus(
         from status: SMAppService.Status
-    ) -> DummyEthernetHelperRegistrationStatus {
+    ) -> NetworkRouteHelperRegistrationStatus {
         switch status {
         case .notRegistered:
             .notRegistered

@@ -75,18 +75,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     lazy var usbSession = USBSessionStore()
     lazy var vmConfiguration = VMConfigurationStore()
     lazy var appPreferences = AppPreferencesStore()
-    lazy var wireGuardSession = WireGuardSessionStore(
-        configurationStore: WireGuardConfigurationStore(),
-        configurationBuilder: WireGuardConfigurationBuilder(elements: .defaults),
-        tunnelController: WireGuardTunnelController(
-            systemExtensionActivator: WireGuardSystemExtensionActivator()
-        ),
-        eventLog: eventLog,
-        shouldRefreshManagedWireGuardStatus:
-            !appPreferences.isWireGuardManualConfigurationModeEnabled
-    )
+    lazy var networkRoute = NetworkRouteStore(eventLog: eventLog)
     lazy var store: TetheringStore = {
-        let dummyEthernet = DummyEthernetStore(eventLog: eventLog)
         return TetheringStore(
             assetProvider: assetWorkflowCoordinator,
             vmCoordinator: VMCoordinator(),
@@ -97,9 +87,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             consoleSession: consoleSession,
             usbSession: usbSession,
             vmConfiguration: vmConfiguration,
-            wireGuardSession: wireGuardSession,
             appPreferences: appPreferences,
-            dummyEthernet: dummyEthernet
+            networkRoute: networkRoute
         )
     }()
 
@@ -154,36 +143,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .store(in: &cancellables)
 
-        store.wireGuardSession.$wireGuardConnectionPrompt
-            .sink { [weak self] prompt in
-                DispatchQueue.main.async { [weak self] in
-                    guard let self else {
-                        return
-                    }
-
-                    guard let prompt else {
-                        guard self.store.wireGuardConnectionPrompt == nil else {
-                            return
-                        }
-                        self.menuBarController?.dismissWireGuardConnectionPrompt()
-                        return
-                    }
-
-                    guard self.store.wireGuardConnectionPrompt?.id == prompt.id else {
-                        return
-                    }
-                    self.menuBarController?.present(prompt: prompt) {
-                        [weak self] accepted, shouldAutomaticallyConnectNextTime in
-                        self?.store.resolveWireGuardConnectionPrompt(
-                            id: prompt.id,
-                            accepted: accepted,
-                            shouldAutomaticallyConnectNextTime: shouldAutomaticallyConnectNextTime
-                        )
-                    }
-                }
-            }
-            .store(in: &cancellables)
-
         assetWorkflowCoordinator.$installState
             .sink { [weak self] _ in
                 guard let self else {
@@ -205,7 +164,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .store(in: &cancellables)
 
-        updateDummyEthernetHelperIfNeeded()
+        updateNetworkRouteHelperIfNeeded()
+        networkRoute.refresh()
         store.startAccessoryMonitoringOnLaunch()
         DispatchQueue.main.async { [weak self] in
             guard let self else {
@@ -261,10 +221,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidBecomeActive(_ notification: Notification) {
         appPreferences.refreshLaunchAtLoginStatus()
-        store.refreshWireGuardSystemExtensionStatus()
-        if !appPreferences.isWireGuardManualConfigurationModeEnabled {
-            store.dummyEthernet.refresh()
-        }
+        store.networkRoute.refresh()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -281,12 +238,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 },
                 resetAndQuit: { [weak self] in
                     self?.resetAppSettingsAndQuit()
-                },
-                quitWithWireGuardManualConfigurationMode: {
-                    [weak self] isEnabled in
-                    self?.confirmWireGuardManualConfigurationModeChange(
-                        isEnabled
-                    )
                 }
             )
         }
@@ -302,22 +253,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         consoleWindowController?.show()
     }
 
-    private func updateDummyEthernetHelperIfNeeded() {
-        guard !appPreferences.isWireGuardManualConfigurationModeEnabled else {
-            return
-        }
-        let helper = store.dummyEthernet.helper
+    private func updateNetworkRouteHelperIfNeeded() {
+        let helper = store.networkRoute.helper
         helper.refresh()
         guard helper.needsAutomaticUpdate else {
             return
         }
 
         eventLog.append(
-            "Automatically updating the Dummy Ethernet helper for the current app build.",
+            "Automatically updating the network route helper for the current app build.",
             level: .info,
             category: .application
         )
-        store.dummyEthernet.reinstallHelper()
+        helper.reinstall()
     }
 
     private func resetAppSettingsAndQuit() {
@@ -373,43 +321,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func confirmWireGuardManualConfigurationModeChange(
-        _ isEnabled: Bool
-    ) {
-        guard appPreferences.isWireGuardManualConfigurationModeEnabled
-                != isEnabled,
-              !isQuittingAfterSettingsChange,
-              !isTerminating else {
-            return
-        }
-
-        let alert = NSAlert()
-        alert.alertStyle = .warning
-        alert.messageText = String(localized: "ThruRNDIS Will Quit")
-        alert.informativeText = isEnabled
-            ? String(
-                localized: "Manual Configuration Mode will be enabled after you reopen ThruRNDIS."
-            )
-            : String(
-                localized: "Manual Configuration Mode will be disabled after you reopen ThruRNDIS."
-            )
-        alert.addButton(withTitle: String(localized: "Quit ThruRNDIS"))
-        alert.addButton(withTitle: String(localized: "Cancel"))
-        guard alert.runModal() == .alertFirstButtonReturn else {
-            return
-        }
-
-        quitApplication(
-            reason: "WireGuard manual configuration mode change",
-            afterTerminationPreparation: { [weak self] in
-                self?.appPreferences
-                    .setWireGuardManualConfigurationModeEnabledForNextLaunch(
-                        isEnabled
-                    )
-            }
-        )
-    }
-
     private func showOnboardingWindow(restart: Bool = false) {
         if restart || onboardingWindowController?.window?.isVisible != true {
             let presentationID = UUID()
@@ -456,7 +367,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = String(
-            localized: "USB and WireGuard will disconnect. Quit anyway?"
+            localized: "USB and the managed IPv4 routes will disconnect. Quit anyway?"
         )
         alert.addButton(withTitle: String(localized: "Quit ThruRNDIS"))
         alert.addButton(withTitle: String(localized: "Cancel"))

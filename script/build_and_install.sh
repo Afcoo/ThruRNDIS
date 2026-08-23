@@ -12,7 +12,6 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$SCRIPT_DIR/support/distribution_common.sh"
 PROJECT_PATH="$ROOT_DIR/$PROJECT_NAME"
 LOCAL_SIGNING_CONFIG="$ROOT_DIR/Configuration/LocalSigning.xcconfig"
-WIREGUARD_GO_BRIDGE_SCRIPT="$ROOT_DIR/script/support/build_wireguard_go_bridge.sh"
 DERIVED_DATA_PATH="${THRURNDIS_RUNTIME_DERIVED_DATA_PATH:-/tmp/ThruRNDIS-RuntimeDerivedData}"
 BUILT_APP="$DERIVED_DATA_PATH/Build/Products/$CONFIGURATION/$APP_NAME.app"
 INSTALL_APP="/Applications/$APP_NAME.app"
@@ -63,8 +62,6 @@ fi
 [[ -x "$XCODEBUILD_BIN" ]] || fail "Xcode beta xcodebuild not found at $XCODEBUILD_BIN"
 [[ -f "$LOCAL_SIGNING_CONFIG" ]] || fail \
   "missing $LOCAL_SIGNING_CONFIG; copy LocalSigning.xcconfig.example and configure local signing first"
-[[ -x "$WIREGUARD_GO_BRIDGE_SCRIPT" ]] || fail \
-  "WireGuard Go bridge build script is not executable at $WIREGUARD_GO_BRIDGE_SCRIPT"
 
 VALIDATION_DIR="$(/usr/bin/mktemp -d /tmp/ThruRNDIS-signing.XXXXXX)"
 
@@ -78,25 +75,14 @@ require_boolean_entitlement() {
     "required boolean entitlement is missing or false: $entitlement_name"
 }
 
-require_array_value() {
-  local entitlements_path="$1"
-  local entitlement_name="$2"
-  local expected_value="$3"
-  local entitlement_value
-
-  entitlement_value="$(/usr/libexec/PlistBuddy -c "Print :$entitlement_name:0" "$entitlements_path" 2>/dev/null || true)"
-  [[ "$entitlement_value" == "$expected_value" ]] || fail \
-    "required entitlement value is missing: $entitlement_name contains $expected_value"
-}
-
-require_nonempty_array_value() {
+reject_entitlement() {
   local entitlements_path="$1"
   local entitlement_name="$2"
   local entitlement_value
 
-  entitlement_value="$(/usr/libexec/PlistBuddy -c "Print :$entitlement_name:0" "$entitlements_path" 2>/dev/null || true)"
-  [[ -n "$entitlement_value" ]] || fail \
-    "required entitlement array is empty or missing: $entitlement_name"
+  entitlement_value="$(/usr/libexec/PlistBuddy -c "Print :$entitlement_name" "$entitlements_path" 2>/dev/null || true)"
+  [[ -z "$entitlement_value" ]] || fail \
+    "obsolete entitlement must not be present: $entitlement_name"
 }
 
 team_identifier() {
@@ -107,12 +93,8 @@ validate_signed_runtime_app() {
   local app_path="$1"
   local system_extensions_dir="$app_path/Contents/Library/SystemExtensions"
   local app_entitlements="$VALIDATION_DIR/app-entitlements.plist"
-  local extension_entitlements="$VALIDATION_DIR/extension-entitlements.plist"
   local app_bundle_identifier
   local app_team
-  local extension_bundle_identifier
-  local extension_team
-  local expected_extension_bundle_identifier
   local system_extensions
 
   /usr/bin/codesign --verify --deep --strict --verbose=2 "$app_path"
@@ -120,49 +102,25 @@ validate_signed_runtime_app() {
   shopt -s nullglob
   system_extensions=("$system_extensions_dir"/*.systemextension)
   shopt -u nullglob
-  [[ "${#system_extensions[@]}" -eq 1 ]] || fail \
-    "expected exactly one embedded Network System Extension in $system_extensions_dir"
+  [[ "${#system_extensions[@]}" -eq 0 ]] || fail \
+    "the app must not contain an embedded System Extension: ${system_extensions[*]}"
 
   app_bundle_identifier="$(/usr/libexec/PlistBuddy \
     -c 'Print :CFBundleIdentifier' "$app_path/Contents/Info.plist")"
-  extension_bundle_identifier="$(/usr/libexec/PlistBuddy \
-    -c 'Print :CFBundleIdentifier' "${system_extensions[0]}/Contents/Info.plist")"
-  expected_extension_bundle_identifier="$app_bundle_identifier.network-extension"
-  [[ "$extension_bundle_identifier" == "$expected_extension_bundle_identifier" ]] || fail \
-    "the Network System Extension bundle ID is $extension_bundle_identifier instead of $expected_extension_bundle_identifier"
-  [[ "${system_extensions[0]##*/}" == "$extension_bundle_identifier.systemextension" ]] || fail \
-    "the Network System Extension filename does not match its bundle ID: ${system_extensions[0]}"
-
-  /usr/bin/codesign --verify --deep --strict --verbose=2 "${system_extensions[0]}"
-
   app_team="$(team_identifier "$app_path")"
-  extension_team="$(team_identifier "${system_extensions[0]}")"
   [[ -n "$app_team" && "$app_team" != "not set" ]] || fail \
     "the app is unsigned or ad hoc signed"
-  [[ "$extension_team" == "$app_team" ]] || fail \
-    "the app and Network System Extension use different signing teams"
 
   distribution_validate_privileged_helper \
     "$app_path" "$app_bundle_identifier" "$app_team" runtime
 
   distribution_extract_entitlements "$app_path" "$app_entitlements"
   require_boolean_entitlement "$app_entitlements" "com.apple.developer.accessory-access.usb"
-  require_boolean_entitlement "$app_entitlements" "com.apple.developer.system-extension.install"
   require_boolean_entitlement "$app_entitlements" "com.apple.security.virtualization"
-  require_array_value "$app_entitlements" \
-    "com.apple.developer.networking.networkextension" "packet-tunnel-provider"
-
-  distribution_extract_entitlements "${system_extensions[0]}" "$extension_entitlements"
-  require_boolean_entitlement "$extension_entitlements" "com.apple.security.app-sandbox"
-  require_boolean_entitlement "$extension_entitlements" "com.apple.security.network.client"
-  require_boolean_entitlement "$extension_entitlements" "com.apple.security.network.server"
-  require_nonempty_array_value "$extension_entitlements" "com.apple.security.application-groups"
-  require_array_value "$extension_entitlements" \
-    "com.apple.developer.networking.networkextension" "packet-tunnel-provider"
+  reject_entitlement "$app_entitlements" "com.apple.developer.networking.networkextension"
+  reject_entitlement "$app_entitlements" "com.apple.developer.system-extension.install"
 }
 
-# The app target depends on WireGuardGoBridgemacOS, which invokes the shared
-# bridge script with the complete Xcode build environment before linking.
 "$XCODEBUILD_BIN" \
   -project "$PROJECT_PATH" \
   -scheme "$SCHEME_NAME" \

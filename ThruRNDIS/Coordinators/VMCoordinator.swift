@@ -10,7 +10,6 @@ struct VMCoordinatorStartInput {
     let kernelURL: URL
     let initialRamdiskURL: URL
     let diskImageURL: URL?
-    let wireGuardConfigurationDirectoryURL: URL
     let cpuCount: Int
     let memorySizeMiB: Int
     let bootCommandLine: String
@@ -22,6 +21,8 @@ final class VMCoordinator {
     var onStateChange: ((VMRuntimeState, String) -> Void)?
     var onEventLog: EventLogHandler?
     var onConsoleOutput: ((Data) -> Void)?
+    var onConsoleUnavailable: (() -> Void)?
+    var onNetworkDisconnect: (() -> Void)?
     var onUSBPassthroughDisconnect: ((VZUSBPassthroughDevice) -> Void)?
     var onStopped: (() -> Void)?
 
@@ -82,7 +83,6 @@ final class VMCoordinator {
                 kernelURL: input.kernelURL,
                 initialRamdiskURL: input.initialRamdiskURL,
                 diskImageURL: input.diskImageURL,
-                wireGuardConfigurationDirectoryURL: input.wireGuardConfigurationDirectoryURL,
                 cpuCount: input.cpuCount,
                 memorySizeBytes: UInt64(input.memorySizeMiB) * 1024 * 1024,
                 bootCommandLine: input.bootCommandLine,
@@ -105,7 +105,7 @@ final class VMCoordinator {
             transition(to: .starting, message: String(localized: "Starting VM."))
             reportEventLog(
                 "Starting ephemeral Alpine ThruRNDIS guest with NAT setup NIC, " +
-                    "USB RNDIS upstream, and WireGuard peer support.",
+                    "USB RNDIS upstream, and guest IPv4 forwarding.",
                 level: .debug
             )
 
@@ -353,6 +353,7 @@ final class VMCoordinator {
                         EventLogErrorFormatter.description(for: error),
                     level: .error
                 )
+                self.onNetworkDisconnect?()
             }
         }
 
@@ -427,6 +428,7 @@ final class VMCoordinator {
                             level: .warning
                         )
                     }
+                    self.onConsoleUnavailable?()
                 }
                 return
             }

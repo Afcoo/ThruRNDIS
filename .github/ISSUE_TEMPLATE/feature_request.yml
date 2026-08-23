@@ -9,12 +9,12 @@ body:
     attributes:
       value: |
         Please describe the user problem before proposing an implementation.
-        Changes to the WireGuard-over-VZNAT data path, USB passthrough lifecycle,
-        key handling, signing model, or VM Asset boundary need explicit
+        Changes to the VZNAT host-route data path, USB passthrough lifecycle,
+        privileged-helper boundary, signing model, or VM Asset boundary need explicit
         architecture discussion.
 
-        구현 방법보다 사용자 문제를 먼저 설명해 주세요. WireGuard-over-VZNAT
-        데이터 경로, USB 패스스루 수명 주기, 키 처리, 서명 모델 또는 VM Asset
+        구현 방법보다 사용자 문제를 먼저 설명해 주세요. VZNAT 호스트 라우트
+        데이터 경로, USB 패스스루 수명 주기, privileged helper, 서명 모델 또는 VM Asset
         경계를 바꾸는 제안은 별도의 아키텍처 논의가 필요합니다.
 
   - type: dropdown
@@ -25,8 +25,7 @@ body:
         - VM Asset installation or selection
         - USB approval, detection, or passthrough
         - VM boot or lifecycle
-        - WireGuard configuration or connection
-        - Network System Extension
+        - Privileged helper or IPv4 routing
         - Onboarding, Settings, or menu bar
         - Logging or diagnostics
         - Installation, signing, or distribution
@@ -62,8 +61,8 @@ body:
     attributes:
       label: Architecture impact / 아키텍처 영향
       description: |
-        Note any expected impact on USB passthrough, VM lifecycle, WireGuard,
-        Network System Extension, VM Assets, signing, security, or privacy.
+        Note any expected impact on USB passthrough, VM lifecycle, VZNAT host
+        routes, the privileged helper, VM Assets, signing, security, or privacy.
 
   - type: textarea
     id: additional-context

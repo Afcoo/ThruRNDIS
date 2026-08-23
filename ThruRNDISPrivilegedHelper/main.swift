@@ -23,7 +23,7 @@ private enum PrivilegedHelperStartupError: Error, LocalizedError {
 
 private final class PrivilegedHelperRuntime {
     private let listener: NSXPCListener
-    private let listenerDelegate: DummyEthernetPrivilegedHelperListenerDelegate
+    private let listenerDelegate: NetworkRoutePrivilegedHelperListenerDelegate
 
     init() throws {
         guard geteuid() == 0 else {
@@ -31,7 +31,7 @@ private final class PrivilegedHelperRuntime {
         }
         let helperIdentifier = try PeerCodeSigningRequirementBuilder
             .currentSigningIdentifier()
-        guard let authorizedClientIdentifier = ThruRNDISDummyEthernet
+        guard let authorizedClientIdentifier = ThruRNDISNetworkRoute
             .applicationBundleIdentifier(
                 derivedFromHelperBundleIdentifier: helperIdentifier
             ) else {
@@ -41,9 +41,9 @@ private final class PrivilegedHelperRuntime {
         }
         let clientRequirement = try PeerCodeSigningRequirementBuilder
             .requirement(forPeerIdentifier: authorizedClientIdentifier)
-        let manager = DummyEthernetBondManager()
-        listenerDelegate = DummyEthernetPrivilegedHelperListenerDelegate(
-            manager: manager
+        let controller = NetworkRouteController()
+        listenerDelegate = NetworkRoutePrivilegedHelperListenerDelegate(
+            controller: controller
         )
         listener = NSXPCListener(machServiceName: helperIdentifier)
         // Foundation rejects nonmatching clients before invoking our delegate.

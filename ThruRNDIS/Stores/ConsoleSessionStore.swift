@@ -11,13 +11,22 @@ struct ConsoleOutputState: Equatable {
     var resetSequence = 0
 }
 
+struct GuestNetworkConsoleUpdate: Equatable {
+    let guestIPv4Address: String?
+    let isRNDISRouteReady: Bool?
+
+    var isEmpty: Bool {
+        guestIPv4Address == nil && isRNDISRouteReady == nil
+    }
+}
+
 @MainActor
 final class ConsoleSessionStore: ObservableObject {
     @Published private(set) var output = ConsoleOutputState()
 
     private let maximumOutputBytes: Int
     private let maximumScanCharacters: Int
-    private var endpointScanBuffer = ""
+    private var networkMarkerScanBuffer = ""
 
     init(
         maximumOutputBytes: Int = 4_000_000,
@@ -30,14 +39,15 @@ final class ConsoleSessionStore: ObservableObject {
     }
 
     @discardableResult
-    func append(_ data: Data) -> String? {
+    func append(_ data: Data) -> GuestNetworkConsoleUpdate? {
         appendOutput(data)
-        appendToEndpointScanBuffer(data)
-        return detectedWireGuardEndpoint()
+        appendToNetworkMarkerScanBuffer(data)
+        let update = detectedGuestNetworkUpdate()
+        return update.isEmpty ? nil : update
     }
 
     func clear() {
-        endpointScanBuffer = ""
+        networkMarkerScanBuffer = ""
         output = ConsoleOutputState(
             data: Data(),
             outputSequence: 0,
@@ -58,40 +68,53 @@ final class ConsoleSessionStore: ObservableObject {
         output = next
     }
 
-    private func appendToEndpointScanBuffer(_ data: Data) {
+    private func appendToNetworkMarkerScanBuffer(_ data: Data) {
         if let text = String(data: data, encoding: .utf8) {
-            endpointScanBuffer.append(text)
+            networkMarkerScanBuffer.append(text)
         } else {
-            endpointScanBuffer.append(
+            networkMarkerScanBuffer.append(
                 data.map { String(format: "%02X", $0) }.joined(separator: " ")
             )
-            endpointScanBuffer.append("\n")
+            networkMarkerScanBuffer.append("\n")
         }
 
-        if endpointScanBuffer.count > maximumScanCharacters {
-            endpointScanBuffer.removeFirst(
-                endpointScanBuffer.count - maximumScanCharacters
+        if networkMarkerScanBuffer.count > maximumScanCharacters {
+            networkMarkerScanBuffer.removeFirst(
+                networkMarkerScanBuffer.count - maximumScanCharacters
             )
         }
     }
 
-    private func detectedWireGuardEndpoint() -> String? {
-        let marker = "THRURNDIS_WG_ENDPOINT="
-        guard let markerRange = endpointScanBuffer.range(
+    private func detectedGuestNetworkUpdate() -> GuestNetworkConsoleUpdate {
+        GuestNetworkConsoleUpdate(
+            guestIPv4Address: completedMarkerValue(
+                after: "THRURNDIS_VZNAT_IPV4="
+            ),
+            isRNDISRouteReady: completedMarkerValue(
+                after: "THRURNDIS_RNDIS_ROUTE_READY="
+            ).flatMap {
+                switch $0 {
+                case "1": true
+                case "0": false
+                default: nil
+                }
+            }
+        )
+    }
+
+    private func completedMarkerValue(after marker: String) -> String? {
+        guard let markerRange = networkMarkerScanBuffer.range(
             of: marker,
             options: [.backwards]
         ) else {
             return nil
         }
 
-        let suffix = endpointScanBuffer[markerRange.upperBound...]
-        guard let token = suffix.split(whereSeparator: \.isWhitespace).first else {
+        let suffix = networkMarkerScanBuffer[markerRange.upperBound...]
+        guard let delimiter = suffix.firstIndex(where: \.isWhitespace) else {
             return nil
         }
-
-        let endpoint = String(token).trimmingCharacters(
-            in: CharacterSet(charactersIn: "\r\n")
-        )
-        return endpoint.contains(":") ? endpoint : nil
+        let value = suffix[..<delimiter]
+        return value.isEmpty ? nil : String(value)
     }
 }

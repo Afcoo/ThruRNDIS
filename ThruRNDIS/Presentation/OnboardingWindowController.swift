@@ -139,9 +139,8 @@ final class OnboardingWindowController: NSWindowController, NSWindowDelegate {
             onStepChange: resizeBridge.scheduleUpdate
         )
             .environmentObject(store)
-            .environmentObject(store.wireGuardSession)
-            .environmentObject(store.dummyEthernet)
-            .environmentObject(store.dummyEthernet.helper)
+            .environmentObject(store.networkRoute)
+            .environmentObject(store.networkRoute.helper)
             .environmentObject(assetWorkflowCoordinator)
         let hostingController = NSHostingController(rootView: rootView)
         let window = NSWindow(contentViewController: hostingController)

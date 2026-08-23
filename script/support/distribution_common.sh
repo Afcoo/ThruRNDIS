@@ -2,13 +2,13 @@
 
 # Shared requirements for the distribution validation helpers:
 # - Run on macOS with Xcode command-line tools available through xcrun.
-# - The input app must contain exactly one Network System Extension plus the
-#   privileged helper and launchd plist at their fixed SMAppService paths. All
+# - The input app must contain the privileged helper and launchd plist at their
+#   fixed SMAppService paths and must not contain a System Extension. All
 #   executable code must be signed with a timestamped Developer ID Application
 #   identity from one team.
-# - The app and extension must carry the direct-distribution entitlements
-#   declared by this project. The helper must have a derived signing identifier,
-#   hardened runtime, and launchd metadata consistent with that identifier.
+# - The app must carry the direct-distribution entitlements declared by this
+#   project. The helper must have a derived signing identifier, hardened runtime,
+#   and launchd metadata consistent with that identifier.
 #   These helpers validate artifacts; they never sign an app or mutate one. The
 #   generic entitlement extractor and helper validator are also reused by the
 #   signed RuntimeDebug installer.
@@ -123,22 +123,6 @@ distribution_require_boolean_entitlement() {
     "required boolean entitlement is missing or false: $entitlement_name"
 }
 
-distribution_require_exact_array_value() {
-  local entitlements_path="$1"
-  local entitlement_name="$2"
-  local expected_value="$3"
-  local entitlement_json
-  local escaped_key_path
-  local expected_json
-
-  escaped_key_path="${entitlement_name//./\\.}"
-  entitlement_json="$(/usr/bin/plutil \
-    -extract "$escaped_key_path" json -o - "$entitlements_path" 2>/dev/null || true)"
-  expected_json="[\"$expected_value\"]"
-  [[ "$entitlement_json" == "$expected_json" ]] || distribution_fail \
-    "entitlement must contain exactly one value: $entitlement_name = $expected_value"
-}
-
 distribution_reject_true_entitlement() {
   local entitlements_path="$1"
   local entitlement_name="$2"
@@ -148,6 +132,17 @@ distribution_reject_true_entitlement() {
     -c "Print :$entitlement_name" "$entitlements_path" 2>/dev/null || true)"
   [[ "$entitlement_value" != "true" ]] || distribution_fail \
     "distribution app must not enable entitlement: $entitlement_name"
+}
+
+distribution_reject_entitlement() {
+  local entitlements_path="$1"
+  local entitlement_name="$2"
+  local entitlement_value
+
+  entitlement_value="$(/usr/libexec/PlistBuddy \
+    -c "Print :$entitlement_name" "$entitlements_path" 2>/dev/null || true)"
+  [[ -z "$entitlement_value" ]] || distribution_fail \
+    "obsolete entitlement must not be present: $entitlement_name"
 }
 
 distribution_team_identifier() {
@@ -323,29 +318,12 @@ distribution_validate_app() {
   local app_path="$1"
   local validation_dir="$2"
   local expected_team="${3:-}"
-  local configured_app_group="${4:-}"
   local system_extensions_dir="$app_path/Contents/Library/SystemExtensions"
   local app_entitlements="$validation_dir/app-entitlements.plist"
-  local extension_entitlements="$validation_dir/extension-entitlements.plist"
   local app_authority
   local app_bundle_identifier
-  local app_build
   local app_signing_details
   local app_team
-  local app_version
-  local application_identifier_prefix
-  local application_identifier_suffix
-  local expected_app_group
-  local expected_extension_bundle_identifier
-  local expected_mach_service
-  local extension_authority
-  local extension_application_identifier
-  local extension_bundle_identifier
-  local extension_build
-  local extension_info_plist
-  local extension_signing_details
-  local extension_team
-  local extension_version
   local system_extensions
 
   [[ -d "$app_path" ]] || distribution_fail "app bundle not found at $app_path"
@@ -356,118 +334,46 @@ distribution_validate_app() {
   shopt -s nullglob
   system_extensions=("$system_extensions_dir"/*.systemextension)
   shopt -u nullglob
-  [[ "${#system_extensions[@]}" -eq 1 ]] || distribution_fail \
-    "expected exactly one embedded Network System Extension in $system_extensions_dir"
-
-  /usr/bin/codesign --verify --deep --strict --verbose=2 "${system_extensions[0]}"
+  [[ "${#system_extensions[@]}" -eq 0 ]] || distribution_fail \
+    "the app must not contain an embedded System Extension: ${system_extensions[*]}"
 
   app_authority="$(distribution_leaf_signing_authority "$app_path")"
-  extension_authority="$(distribution_leaf_signing_authority "${system_extensions[0]}")"
   [[ "$app_authority" == "Developer ID Application:"* ]] || distribution_fail \
     "the app is not signed with Developer ID Application: $app_authority"
-  [[ "$extension_authority" == "Developer ID Application:"* ]] || distribution_fail \
-    "the Network System Extension is not signed with Developer ID Application: $extension_authority"
 
   app_team="$(distribution_team_identifier "$app_path")"
-  extension_team="$(distribution_team_identifier "${system_extensions[0]}")"
   [[ -n "$app_team" && "$app_team" != "not set" ]] || distribution_fail \
     "the app has no signing team"
-  [[ "$extension_team" == "$app_team" ]] || distribution_fail \
-    "the app and Network System Extension use different signing teams"
   if [[ -n "$expected_team" && "$app_team" != "$expected_team" ]]; then
     distribution_fail "the app is signed for team $app_team instead of $expected_team"
   fi
   distribution_validate_developer_id_requirement "$app_path" "$app_team"
-  distribution_validate_developer_id_requirement "${system_extensions[0]}" "$app_team"
 
   app_bundle_identifier="$(/usr/libexec/PlistBuddy \
     -c 'Print :CFBundleIdentifier' "$app_path/Contents/Info.plist")"
-  app_version="$(/usr/libexec/PlistBuddy \
-    -c 'Print :CFBundleShortVersionString' "$app_path/Contents/Info.plist")"
-  app_build="$(/usr/libexec/PlistBuddy \
-    -c 'Print :CFBundleVersion' "$app_path/Contents/Info.plist")"
-  extension_info_plist="${system_extensions[0]}/Contents/Info.plist"
-  extension_bundle_identifier="$(/usr/libexec/PlistBuddy \
-    -c 'Print :CFBundleIdentifier' "$extension_info_plist")"
-  extension_version="$(/usr/libexec/PlistBuddy \
-    -c 'Print :CFBundleShortVersionString' "$extension_info_plist")"
-  extension_build="$(/usr/libexec/PlistBuddy \
-    -c 'Print :CFBundleVersion' "$extension_info_plist")"
-  expected_extension_bundle_identifier="$app_bundle_identifier.network-extension"
-  [[ "$extension_bundle_identifier" == "$expected_extension_bundle_identifier" ]] || distribution_fail \
-    "the Network System Extension bundle ID is $extension_bundle_identifier instead of $expected_extension_bundle_identifier"
-  [[ "${system_extensions[0]##*/}" == "$extension_bundle_identifier.systemextension" ]] || distribution_fail \
-    "the Network System Extension filename does not match its bundle ID: ${system_extensions[0]}"
-  [[ "$extension_version" == "$app_version" && "$extension_build" == "$app_build" ]] || distribution_fail \
-    "the app and Network System Extension have different version/build values"
 
   distribution_validate_privileged_helper \
     "$app_path" "$app_bundle_identifier" "$app_team" developer-id
 
   app_signing_details="$(/usr/bin/codesign -dvvv "$app_path" 2>&1)"
-  extension_signing_details="$(/usr/bin/codesign -dvvv "${system_extensions[0]}" 2>&1)"
   /usr/bin/printf '%s\n' "$app_signing_details" | \
     /usr/bin/grep -Eq '^CodeDirectory .*\(runtime\)' || distribution_fail \
     "the app does not enable the hardened runtime"
   /usr/bin/printf '%s\n' "$app_signing_details" | \
     /usr/bin/grep -q '^Timestamp=' || distribution_fail \
     "the app signature has no secure timestamp"
-  /usr/bin/printf '%s\n' "$extension_signing_details" | \
-    /usr/bin/grep -Eq '^CodeDirectory .*\(runtime\)' || distribution_fail \
-    "the Network System Extension does not enable the hardened runtime"
-  /usr/bin/printf '%s\n' "$extension_signing_details" | \
-    /usr/bin/grep -q '^Timestamp=' || distribution_fail \
-    "the Network System Extension signature has no secure timestamp"
 
   distribution_extract_entitlements "$app_path" "$app_entitlements"
   distribution_require_boolean_entitlement \
     "$app_entitlements" "com.apple.developer.accessory-access.usb"
   distribution_require_boolean_entitlement \
-    "$app_entitlements" "com.apple.developer.system-extension.install"
-  distribution_require_boolean_entitlement \
     "$app_entitlements" "com.apple.security.virtualization"
-  distribution_require_exact_array_value \
-    "$app_entitlements" \
-    "com.apple.developer.networking.networkextension" \
-    "packet-tunnel-provider-systemextension"
+  distribution_reject_entitlement \
+    "$app_entitlements" "com.apple.developer.networking.networkextension"
+  distribution_reject_entitlement \
+    "$app_entitlements" "com.apple.developer.system-extension.install"
   distribution_reject_true_entitlement \
     "$app_entitlements" "com.apple.security.get-task-allow"
-
-  distribution_extract_entitlements "${system_extensions[0]}" "$extension_entitlements"
-  distribution_require_boolean_entitlement \
-    "$extension_entitlements" "com.apple.security.app-sandbox"
-  distribution_require_boolean_entitlement \
-    "$extension_entitlements" "com.apple.security.network.client"
-  distribution_require_boolean_entitlement \
-    "$extension_entitlements" "com.apple.security.network.server"
-  extension_application_identifier="$(/usr/libexec/PlistBuddy \
-    -c 'Print :com.apple.application-identifier' "$extension_entitlements" 2>/dev/null || true)"
-  application_identifier_suffix=".$extension_bundle_identifier"
-  [[ "$extension_application_identifier" == *"$application_identifier_suffix" ]] || distribution_fail \
-    "the Network System Extension application identifier does not match its bundle ID"
-  application_identifier_prefix="${extension_application_identifier%"$application_identifier_suffix"}"
-  [[ -n "$application_identifier_prefix" ]] || distribution_fail \
-    "the Network System Extension application identifier has no prefix"
-  expected_app_group="$application_identifier_prefix.group.$app_bundle_identifier"
-  if [[ -n "$configured_app_group" && "$configured_app_group" != "$expected_app_group" ]]; then
-    distribution_fail \
-      "the signed WireGuard application group $expected_app_group does not match artifact metadata $configured_app_group"
-  fi
-  distribution_require_exact_array_value \
-    "$extension_entitlements" \
-    "com.apple.security.application-groups" \
-    "$expected_app_group"
-  distribution_require_exact_array_value \
-    "$extension_entitlements" \
-    "com.apple.developer.networking.networkextension" \
-    "packet-tunnel-provider-systemextension"
-  distribution_reject_true_entitlement \
-    "$extension_entitlements" "com.apple.security.get-task-allow"
-
-  expected_mach_service="$expected_app_group.network-extension"
-  [[ "$(/usr/libexec/PlistBuddy \
-    -c 'Print :NetworkExtension:NEMachServiceName' "$extension_info_plist")" == "$expected_mach_service" ]] || distribution_fail \
-    "the Network System Extension NEMachServiceName does not match its application group"
 }
 
 distribution_run_notary_submission_preflight() {
@@ -510,10 +416,9 @@ distribution_validate_notarized_app() {
   local app_path="$1"
   local validation_dir="$2"
   local expected_team="${3:-}"
-  local expected_app_group="${4:-}"
 
   distribution_validate_app \
-    "$app_path" "$validation_dir" "$expected_team" "$expected_app_group"
+    "$app_path" "$validation_dir" "$expected_team"
   /usr/bin/xcrun stapler validate -v "$app_path"
   /usr/bin/syspolicy_check distribution "$app_path" --verbose
 }

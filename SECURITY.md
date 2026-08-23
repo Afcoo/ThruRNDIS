@@ -1,9 +1,8 @@
 # Security Policy
 
-ThruRNDIS handles USB passthrough, a privileged macOS Network System Extension,
-a Virtualization framework VM, and WireGuard private keys. Please report
-suspected vulnerabilities privately and avoid exposing sensitive material in a
-public issue.
+ThruRNDIS handles USB passthrough, a privileged macOS route helper, and a
+Virtualization framework VM. Please report suspected vulnerabilities privately
+and avoid exposing sensitive material in a public issue.
 
 ## Supported versions
 
@@ -23,13 +22,13 @@ Include only the information needed to reproduce and assess the report:
 - macOS version and hardware;
 - affected component and security impact;
 - reproducible steps or a minimal proof of concept;
-- whether exploitation requires USB access, user approval, signing, or an
-  installed System Extension;
+- whether exploitation requires USB access, administrator approval, helper
+  registration, or signing;
 - suggested mitigations, if known.
 
-Do not submit real WireGuard private keys, complete client configurations,
-Apple signing credentials, notary credentials, provisioning profiles, or
-unrelated personal data. Replace secrets with clearly marked test values.
+Do not submit Apple signing credentials, notary credentials, provisioning
+profiles, or unrelated personal data. Replace secrets with clearly marked test
+values.
 
 Reports involving the published guest kernel, initramfs, or VM Asset release
 pipeline should be submitted privately to
@@ -44,8 +43,8 @@ Please allow reasonable time for a fix before publishing details.
 
 Reports are especially useful when they involve:
 
-- WireGuard private-key generation, storage, sharing, or tunnel startup;
-- Network System Extension activation or provider configuration;
+- privileged-helper authentication, authorization, route ownership, or cleanup;
+- unintended persistence or replacement of the two managed IPv4 `/1` routes;
 - USB AccessoryAccess approval and passthrough lifecycle;
 - VM Asset download, checksum validation, archive extraction, or promotion;
 - signing, entitlements, notarization, release artifacts, or update metadata;

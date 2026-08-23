@@ -7,7 +7,7 @@
 #   command-line/resource tools, hdiutil, internet access, and Apple notary
 #   credentials stored as `thrurndis-notary` by default.
 # - Configuration/LocalSigning.xcconfig must contain the local team, bundle ID,
-#   and exact app/System Extension direct-distribution provisioning profiles.
+#   and exact app direct-distribution provisioning profile.
 #
 # This is the one-command release orchestrator:
 #   build app -> notarize app -> build DMG -> notarize DMG

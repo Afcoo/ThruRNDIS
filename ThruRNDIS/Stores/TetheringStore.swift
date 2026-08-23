@@ -9,7 +9,6 @@ struct OnboardingPresentationRequest {
     let sequence: Int
     let restart: Bool
 }
-
 private enum TetheringApplicationState: Equatable {
     case active
     case resetting
@@ -25,7 +24,6 @@ private enum TetheringVMRestartState: Equatable {
 private enum AccessoryMonitoringConfigurationBlocker {
     case onboardingIncomplete
     case vmAssetsUnavailable
-    case networkExtensionInactive
     case privilegedHelperUnavailable
 
     var statusMessage: String {
@@ -34,10 +32,8 @@ private enum AccessoryMonitoringConfigurationBlocker {
             String(localized: "Complete onboarding before starting the USB listener.")
         case .vmAssetsUnavailable:
             String(localized: "Install or select valid VM assets before starting the USB listener.")
-        case .networkExtensionInactive:
-            String(localized: "Enable the Network Extension before starting the USB listener.")
         case .privilegedHelperUnavailable:
-            String(localized: "Install and enable the Dummy Ethernet helper before starting the USB listener.")
+            String(localized: "Install and enable the network route helper before starting the USB listener.")
         }
     }
 
@@ -47,10 +43,8 @@ private enum AccessoryMonitoringConfigurationBlocker {
             "onboarding is incomplete"
         case .vmAssetsUnavailable:
             "no valid VM assets are selected"
-        case .networkExtensionInactive:
-            "the Network Extension is not active"
         case .privilegedHelperUnavailable:
-            "the Dummy Ethernet helper is not enabled"
+            "the network route helper is not enabled"
         }
     }
 }
@@ -59,14 +53,13 @@ private enum AccessoryMonitoringConfigurationBlocker {
 final class TetheringStore: ObservableObject {
     @Published private(set) var runtimeState: VMRuntimeState = .idle
     @Published private var vmRestartState: TetheringVMRestartState = .idle
-    @Published private(set) var statusMessage = String(localized: "Install or select VM assets to begin.")
+    @Published private(set) var statusMessage =
+        String(localized: "Install or select VM assets to begin.")
     @Published private(set) var runtimeEntitlements: RuntimeEntitlementSnapshot
     @Published private var applicationState: TetheringApplicationState = .active
     @Published private(set) var isOnboardingPresented = false
-    @Published private(set) var onboardingPresentationRequest = OnboardingPresentationRequest(
-        sequence: 0,
-        restart: false
-    )
+    @Published private(set) var onboardingPresentationRequest =
+        OnboardingPresentationRequest(sequence: 0, restart: false)
     @Published private(set) var resetStatusMessage = ""
 
     let guestMACAddress = "02:00:5E:10:00:02"
@@ -74,76 +67,74 @@ final class TetheringStore: ObservableObject {
     let consoleSession: ConsoleSessionStore
     let usbSession: USBSessionStore
     let vmConfiguration: VMConfigurationStore
-    let wireGuardSession: WireGuardSessionStore
     let appPreferences: AppPreferencesStore
-    lazy var dummyEthernet = managedDummyEthernet
-        ?? DummyEthernetStore(eventLog: eventLog)
+    let networkRoute: NetworkRouteStore
 
     private let vmCoordinator: VMCoordinator
     private let usbCoordinator: USBAccessoryCoordinator
     private let assetProvider: VMAssetProviding
-    private let managedDummyEthernet: DummyEthernetStore?
-    private let prepareDummyEthernetForWireGuardConnection:
-        (@MainActor () async -> Bool)?
-    private let deactivateDummyEthernetAfterWireGuardConnection:
-        (@MainActor () async -> Void)?
     private let runtimeEntitlementSnapshotProvider: () -> RuntimeEntitlementSnapshot
     private var didRequestLaunchAccessoryMonitoring = false
     private var shouldRunAccessoryMonitoring = false
     private var accessoryMonitoringStartCancellables: Set<AnyCancellable> = []
 
-    private lazy var managedWireGuardConnectionCoordinator =
-        ManagedWireGuardConnectionCoordinator(
-            wireGuardSession: wireGuardSession,
-            dummyEthernet: managedDummyEthernet,
-            eventLog: eventLog,
-            prepareDummyEthernet: prepareDummyEthernetForWireGuardConnection,
-            deactivateDummyEthernet:
-                deactivateDummyEthernetAfterWireGuardConnection,
-            actions: ManagedWireGuardConnectionCoordinator.Actions(
-                refreshRuntimeEntitlements: { [weak self] in
-                    self?.refreshRuntimeEntitlements()
-                },
-                canConnectWireGuardTunnel: { [weak self] in
-                    self?.canConnectWireGuardTunnel == true
-                },
-                connectWireGuardTunnel: { [weak self] in
-                    self?.connectWireGuardTunnel() == true
-                }
-            )
-        )
-
     private lazy var workflowCoordinator = TetheringWorkflowCoordinator(
-            assetProvider: assetProvider,
-            vmCoordinator: vmCoordinator,
-            usbCoordinator: usbCoordinator,
-            eventLog: eventLog,
-            usbSession: usbSession,
-            wireGuardSession: wireGuardSession,
-            appPreferences: appPreferences,
-            managedWireGuardConnection: managedWireGuardConnectionCoordinator,
-            actions: TetheringWorkflowCoordinator.Actions(
-                canPresentUSBAttachmentPrompt: { [weak self] in
-                    guard let self else { return false }
-                    return self.acceptsNewWork
-                        && !self.isResettingAppSettings
-                        && !self.isOnboardingPresented
-                        && !self.restartWillStartVM
-                },
-                startVirtualMachine: { [weak self] in
-                    self?.startVirtualMachine() == true
-                },
-                canConnectWireGuardTunnel: { [weak self] in
-                    self?.canConnectWireGuardTunnel == true
-                },
-                updateStatusMessage: { [weak self] message in
-                    self?.statusMessage = message
-                },
-                workflowStateDidChange: { [weak self] in
-                    self?.objectWillChange.send()
-                }
-            )
+        assetProvider: assetProvider,
+        vmCoordinator: vmCoordinator,
+        usbCoordinator: usbCoordinator,
+        eventLog: eventLog,
+        usbSession: usbSession,
+        actions: TetheringWorkflowCoordinator.Actions(
+            canPresentUSBAttachmentPrompt: { [weak self] in
+                guard let self else { return false }
+                return self.acceptsNewWork
+                    && !self.isResettingAppSettings
+                    && !self.isOnboardingPresented
+                    && !self.restartWillStartVM
+            },
+            startVirtualMachine: { [weak self] in
+                self?.startVirtualMachine() == true
+            },
+            updateStatusMessage: { [weak self] message in
+                self?.statusMessage = message
+            },
+            workflowStateDidChange: { [weak self] in
+                self?.objectWillChange.send()
+            }
         )
+    )
+
+    init(
+        assetProvider: VMAssetProviding,
+        vmCoordinator: VMCoordinator,
+        usbCoordinator: USBAccessoryCoordinator,
+        eventLog: EventLogStore,
+        consoleSession: ConsoleSessionStore,
+        usbSession: USBSessionStore,
+        vmConfiguration: VMConfigurationStore,
+        appPreferences: AppPreferencesStore,
+        networkRoute: NetworkRouteStore,
+        runtimeEntitlementSnapshotProvider: @escaping () -> RuntimeEntitlementSnapshot = {
+            .current
+        }
+    ) {
+        self.assetProvider = assetProvider
+        self.vmCoordinator = vmCoordinator
+        self.usbCoordinator = usbCoordinator
+        self.eventLog = eventLog
+        self.consoleSession = consoleSession
+        self.usbSession = usbSession
+        self.vmConfiguration = vmConfiguration
+        self.appPreferences = appPreferences
+        self.networkRoute = networkRoute
+        self.runtimeEntitlementSnapshotProvider = runtimeEntitlementSnapshotProvider
+        runtimeEntitlements = runtimeEntitlementSnapshotProvider()
+
+        configureCoordinators()
+        configureAccessoryMonitoringStartObservation()
+        appendRuntimeEntitlementSummary()
+        appendScratchDiskSelectionSummaryIfNeeded()
+    }
 
     var isRestartingVirtualMachine: Bool {
         vmRestartState != .idle
@@ -165,44 +156,22 @@ final class TetheringStore: ObservableObject {
         vmRestartState == .stopping
     }
 
-    var accessories: [USBAccessoryRecord] {
-        usbSession.accessories
-    }
-
-    var isAccessoryMonitoring: Bool {
-        usbSession.isAccessoryMonitoring
-    }
-
-    var selectedAccessoryID: UInt64? {
-        usbSession.selectedAccessoryID
-    }
-
-    var attachedAccessoryID: UInt64? {
-        usbSession.attachedAccessoryID
-    }
-
-    var vmSessionAccessoryID: UInt64? {
-        usbSession.vmSessionAccessoryID
-    }
-
-    var usbAttachmentPrompt: USBAttachmentPrompt? {
-        usbSession.attachmentPrompt
-    }
-
-    var wireGuardConnectionPrompt: WireGuardConnectionPrompt? {
-        wireGuardSession.wireGuardConnectionPrompt
-    }
+    var accessories: [USBAccessoryRecord] { usbSession.accessories }
+    var isAccessoryMonitoring: Bool { usbSession.isAccessoryMonitoring }
+    var selectedAccessoryID: UInt64? { usbSession.selectedAccessoryID }
+    var attachedAccessoryID: UInt64? { usbSession.attachedAccessoryID }
+    var vmSessionAccessoryID: UInt64? { usbSession.vmSessionAccessoryID }
+    var usbAttachmentPrompt: USBAttachmentPrompt? { usbSession.attachmentPrompt }
 
     var vmDisplayState: VMDisplayState {
         if isRestartingVirtualMachine {
             return .restarting
         }
-
-        switch runtimeState {
+        return switch runtimeState {
         case .starting, .running:
-            return .running
+            .running
         case .idle, .stopping, .stopped, .failed:
-            return .stopped
+            .stopped
         }
     }
 
@@ -210,7 +179,6 @@ final class TetheringStore: ObservableObject {
         acceptsNewWork
             && hasConfiguredVMAssets
             && !assetProvider.isBusy
-            && wireGuardSession.hasKeyMaterial
             && vmCoordinator.canStart
     }
 
@@ -225,20 +193,18 @@ final class TetheringStore: ObservableObject {
     var canEditVMConfiguration: Bool {
         acceptsNewWork
             && !vmCoordinator.hasVirtualMachine
-            && (runtimeState == .idle || runtimeState == .stopped || runtimeState == .failed)
+            && (runtimeState == .idle
+                || runtimeState == .stopped
+                || runtimeState == .failed)
     }
 
     var canResetAppSettings: Bool {
         acceptsNewWork
             && !assetProvider.isBusy
-            && managedDummyEthernet?.isAnyOperationInProgress
-                != true
+            && !networkRoute.isOperationInProgress
     }
 
-    var hasConfiguredVMAssets: Bool {
-        assetProvider.hasConfiguredAssets
-    }
-
+    var hasConfiguredVMAssets: Bool { assetProvider.hasConfiguredAssets }
     var shouldPresentOnboardingOnLaunch: Bool {
         !appPreferences.hasCompletedOnboarding
     }
@@ -246,8 +212,7 @@ final class TetheringStore: ObservableObject {
     var isApplicationConfigured: Bool {
         appPreferences.hasCompletedOnboarding
             && hasConfiguredVMAssets
-            && wireGuardSession.systemExtensionStatus.isActive
-            && isDummyEthernetHelperReady
+            && isNetworkRouteHelperReady
     }
 
     var canStartAccessoryMonitoring: Bool {
@@ -283,6 +248,7 @@ final class TetheringStore: ObservableObject {
         guard acceptsNewWork,
               !isOnboardingPresented,
               hasConfiguredVMAssets,
+              isNetworkRouteHelperReady,
               !assetProvider.isBusy,
               !workflowCoordinator.hasPendingAttachment,
               vmSessionAccessoryID == nil,
@@ -290,7 +256,6 @@ final class TetheringStore: ObservableObject {
               let selectedAccessoryID else {
             return false
         }
-
         return usbCoordinator.canRequestAttachment(for: selectedAccessoryID)
     }
 
@@ -301,6 +266,7 @@ final class TetheringStore: ObservableObject {
 
     func canChooseAccessoryForAttachment(_ accessoryID: UInt64) -> Bool {
         acceptsNewWork
+            && isNetworkRouteHelperReady
             && !workflowCoordinator.hasPendingAttachment
             && usbAttachmentPrompt == nil
             && vmSessionAccessoryID == nil
@@ -309,156 +275,32 @@ final class TetheringStore: ObservableObject {
             && usbCoordinator.canRequestAttachment(for: accessoryID)
     }
 
-    var canConnectWireGuardTunnel: Bool {
-        acceptsNewWork
-            && runtimeState == .running
-            && vmCoordinator.canSendConsoleInput
-            && wireGuardSession.canExportConfiguration
-            && runtimeEntitlements.packetTunnelProvider
-            && runtimeEntitlements.systemExtensionInstall
-            && wireGuardSession.systemExtensionStatus.isActive
-            && !wireGuardSession.tunnelStatus.isTransitioning
-    }
-
-    var canRequestWireGuardSystemExtensionActivation: Bool {
-        acceptsNewWork
-            && runtimeEntitlements.systemExtensionInstall
-            && wireGuardSession.canRequestSystemExtensionActivation
-    }
-
-    var canDisconnectWireGuardTunnel: Bool {
-        acceptsNewWork && wireGuardSession.canDisconnectTunnel
-    }
-
-    var canRefreshWireGuardTunnelStatus: Bool {
-        acceptsNewWork
-            && (!wireGuardSession.tunnelStatus.isTransitioning
-                || wireGuardSession.tunnelFailure != nil)
-    }
-
     var shouldConfirmApplicationTermination: Bool {
         attachedAccessoryID != nil
-            && wireGuardSession.tunnelStatus.isConnectingOrConnected
+            || networkRoute.snapshot?.state == .active
+            || networkRoute.snapshot?.state == .degraded
     }
 
     private var accessoryMonitoringConfigurationBlocker:
         AccessoryMonitoringConfigurationBlocker? {
-        guard !appPreferences.isDebugModeEnabled else {
-            return nil
-        }
         guard appPreferences.hasCompletedOnboarding else {
             return .onboardingIncomplete
         }
         guard hasConfiguredVMAssets else {
             return .vmAssetsUnavailable
         }
-        guard !appPreferences.isWireGuardManualConfigurationModeEnabled else {
-            return nil
-        }
-        guard wireGuardSession.systemExtensionStatus.isActive else {
-            return .networkExtensionInactive
-        }
-        guard isDummyEthernetHelperReady else {
+        guard isNetworkRouteHelperReady else {
             return .privilegedHelperUnavailable
         }
         return nil
     }
 
-    private var isDummyEthernetHelperReady: Bool {
-        guard let helper = managedDummyEthernet?.helper else {
-            return false
-        }
-        return helper.isAvailable && !helper.isOperationInProgress
-    }
-
-    init(
-        assetProvider: VMAssetProviding,
-        vmCoordinator: VMCoordinator,
-        usbCoordinator: USBAccessoryCoordinator,
-        eventLog: EventLogStore,
-        consoleSession: ConsoleSessionStore,
-        usbSession: USBSessionStore,
-        vmConfiguration: VMConfigurationStore,
-        wireGuardSession: WireGuardSessionStore,
-        appPreferences: AppPreferencesStore,
-        dummyEthernet: DummyEthernetStore? = nil,
-        prepareDummyEthernetForWireGuardConnection:
-            (@MainActor () async -> Bool)? = nil,
-        deactivateDummyEthernetAfterWireGuardConnection:
-            (@MainActor () async -> Void)? = nil,
-        runtimeEntitlementSnapshotProvider: @escaping () -> RuntimeEntitlementSnapshot = {
-            .current
-        }
-    ) {
-        self.assetProvider = assetProvider
-        self.vmCoordinator = vmCoordinator
-        self.usbCoordinator = usbCoordinator
-        self.managedDummyEthernet = dummyEthernet
-        self.prepareDummyEthernetForWireGuardConnection =
-            prepareDummyEthernetForWireGuardConnection
-        self.deactivateDummyEthernetAfterWireGuardConnection =
-            deactivateDummyEthernetAfterWireGuardConnection
-        self.runtimeEntitlementSnapshotProvider = runtimeEntitlementSnapshotProvider
-        self.eventLog = eventLog
-        self.consoleSession = consoleSession
-        self.usbSession = usbSession
-        self.vmConfiguration = vmConfiguration
-        self.wireGuardSession = wireGuardSession
-        self.appPreferences = appPreferences
-        self.runtimeEntitlements = runtimeEntitlementSnapshotProvider()
-
-        configureCoordinators()
-        configureAccessoryMonitoringStartObservation()
-        appendRuntimeEntitlementSummary()
-        appendScratchDiskSelectionSummaryIfNeeded()
-    }
-
-    convenience init(
-        assetProvider: VMAssetProviding,
-        vmCoordinator: VMCoordinator,
-        usbCoordinator: USBAccessoryCoordinator,
-        wireGuardConfigurationStore: WireGuardConfigurationStore,
-        wireGuardConfigurationBuilder: WireGuardConfigurationBuilder,
-        eventLog: EventLogStore,
-        consoleSession: ConsoleSessionStore,
-        usbSession: USBSessionStore,
-        vmConfiguration: VMConfigurationStore,
-        wireGuardTunnelController: WireGuardTunnelController,
-        runtimeEntitlementSnapshotProvider: @escaping () -> RuntimeEntitlementSnapshot = {
-            .current
-        },
-        systemExtensionSettingsOpener: @escaping @MainActor () -> Bool = {
-            NetworkExtensionSettingsOpener.open()
-        },
-        launchAtLoginService: LaunchAtLoginService = LaunchAtLoginService(),
-        defaults: UserDefaults = .standard
-    ) {
-        let appPreferences = AppPreferencesStore(
-            launchAtLoginService: launchAtLoginService,
-            defaults: defaults
-        )
-        let wireGuardSession = WireGuardSessionStore(
-            configurationStore: wireGuardConfigurationStore,
-            configurationBuilder: wireGuardConfigurationBuilder,
-            tunnelController: wireGuardTunnelController,
-            eventLog: eventLog,
-            systemExtensionSettingsOpener: systemExtensionSettingsOpener,
-            defaults: defaults,
-            shouldRefreshManagedWireGuardStatus:
-                !appPreferences.isWireGuardManualConfigurationModeEnabled
-        )
-        self.init(
-            assetProvider: assetProvider,
-            vmCoordinator: vmCoordinator,
-            usbCoordinator: usbCoordinator,
-            eventLog: eventLog,
-            consoleSession: consoleSession,
-            usbSession: usbSession,
-            vmConfiguration: vmConfiguration,
-            wireGuardSession: wireGuardSession,
-            appPreferences: appPreferences,
-            runtimeEntitlementSnapshotProvider: runtimeEntitlementSnapshotProvider
-        )
+    private var isNetworkRouteHelperReady: Bool {
+        networkRoute.helper.isAvailable
+            && !networkRoute.helper.isOperationInProgress
+            && networkRoute.operation == nil
+            && networkRoute.snapshot != nil
+            && networkRoute.lastErrorMessage == nil
     }
 
     func startAccessoryMonitoring() {
@@ -472,11 +314,7 @@ final class TetheringStore: ObservableObject {
     }
 
     func startAccessoryMonitoringOnLaunch() {
-        guard acceptsNewWork else { return }
-        guard !didRequestLaunchAccessoryMonitoring else {
-            return
-        }
-
+        guard acceptsNewWork, !didRequestLaunchAccessoryMonitoring else { return }
         didRequestLaunchAccessoryMonitoring = true
         shouldRunAccessoryMonitoring = true
         if let blocker = accessoryMonitoringConfigurationBlocker {
@@ -491,18 +329,11 @@ final class TetheringStore: ObservableObject {
     }
 
     func onboardingPresentationDidBegin() {
-        guard !isOnboardingPresented else {
-            return
-        }
-
         isOnboardingPresented = true
     }
 
     func onboardingPresentationDidEnd() {
-        guard isOnboardingPresented else {
-            return
-        }
-
+        guard isOnboardingPresented else { return }
         isOnboardingPresented = false
         startAccessoryMonitoringIfRequested(reason: "onboarding closed")
         workflowCoordinator.presentNextUSBAttachmentPromptIfPossible()
@@ -511,11 +342,8 @@ final class TetheringStore: ObservableObject {
     func stopAccessoryMonitoring() {
         guard acceptsNewWork else { return }
         guard !workflowCoordinator.hasPendingAttachment else {
-            statusMessage = String(localized: "Wait for the current USB attachment workflow before stopping the listener.")
-            appendEventLog(
-                "USB listener stop rejected: a USB attachment workflow is active.",
-                level: .debug,
-                category: .usb
+            statusMessage = String(
+                localized: "Wait for the current USB attachment workflow before stopping the listener."
             )
             return
         }
@@ -529,7 +357,6 @@ final class TetheringStore: ObservableObject {
     func reloadAccessoryMonitoring() {
         guard acceptsNewWork else { return }
         refreshRuntimeEntitlements()
-
         guard runtimeEntitlements.accessoryAccessUSB else {
             reportMissingEntitlement(
                 .accessoryAccessUSB,
@@ -538,22 +365,11 @@ final class TetheringStore: ObservableObject {
             )
             return
         }
-
         if let blocker = accessoryMonitoringConfigurationBlocker {
             reportAccessoryMonitoringBlocked(blocker, action: "reload")
             return
         }
-
-        guard !workflowCoordinator.hasPendingAttachment else {
-            statusMessage = String(localized: "Wait for the current USB attachment workflow before reloading the listener.")
-            appendEventLog(
-                "USB listener reload rejected: a USB attachment workflow is active.",
-                level: .debug,
-                category: .usb
-            )
-            return
-        }
-
+        guard !workflowCoordinator.hasPendingAttachment else { return }
         usbCoordinator.reloadMonitoring(reason: "user request")
     }
 
@@ -561,13 +377,9 @@ final class TetheringStore: ObservableObject {
     func startVirtualMachine() -> Bool {
         guard acceptsNewWork else { return false }
         refreshRuntimeEntitlements()
-
         guard !assetProvider.isBusy else {
-            statusMessage = String(localized: "Wait for VM asset installation to finish before starting the VM.")
-            appendEventLog(
-                "VM start rejected: a VM asset operation is active.",
-                level: .debug,
-                category: .vm
+            statusMessage = String(
+                localized: "Wait for VM asset installation to finish before starting the VM."
             )
             return false
         }
@@ -586,50 +398,18 @@ final class TetheringStore: ObservableObject {
             return false
         }
 
-        guard wireGuardSession.hasKeyMaterial else {
-            statusMessage = String(localized: "Fix the WireGuard configuration error before starting the VM.")
-            appendEventLog(
-                "VM start rejected: WireGuard key material is unavailable.",
-                level: .debug,
-                category: .wireGuard
-            )
-            return false
-        }
-
         guard vmCoordinator.canStart else {
-            statusMessage = String(localized: "Wait for the current VM transition to finish.")
-            appendEventLog(
-                "VM start rejected while VM state is \(runtimeState.rawValue); " +
-                    "hasVirtualMachine=\(vmCoordinator.hasVirtualMachine).",
-                level: .debug,
-                category: .vm
+            statusMessage = String(
+                localized: "Wait for the current VM transition to finish."
             )
             return false
         }
-
         guard runtimeEntitlements.virtualization else {
-            reportMissingEntitlement(
-                .virtualization,
-                action: "VM start",
-                category: .vm
-            )
+            reportMissingEntitlement(.virtualization, action: "VM start", category: .vm)
             return false
         }
 
-        guard wireGuardSession.reloadConfiguration(
-            reason: "VM starting",
-            requireExisting: true
-        ) else {
-            statusMessage = String(localized: "Fix the WireGuard configuration error before starting the VM.")
-            appendEventLog(
-                "VM start rejected: existing WireGuard configuration could not be regenerated.",
-                level: .debug,
-                category: .wireGuard
-            )
-            return false
-        }
-
-        wireGuardSession.clearDiscoveredEndpoint(reason: "VM starting")
+        networkRoute.resetForVMStart()
         clearConsoleForVMStart()
         usbCoordinator.resetForVMStart()
         syncUSBState()
@@ -648,28 +428,12 @@ final class TetheringStore: ObservableObject {
             kernelURL: bootAssets.kernelURL,
             initialRamdiskURL: bootAssets.initialRamdiskURL,
             diskImageURL: vmConfiguration.diskImageURL,
-            wireGuardConfigurationDirectoryURL: wireGuardSession.sharedConfigurationDirectoryURL,
             cpuCount: vmConfiguration.cpuCount,
             memorySizeMiB: vmConfiguration.memorySizeMiB,
             bootCommandLine: bootCommandLine,
             guestMACAddress: guestMACAddress
         )
 
-        appendEventLog(
-            "Kernel asset: \(bootAssets.kernelURL.path)",
-            level: .debug,
-            category: .vm
-        )
-        appendEventLog(
-            "Initramfs asset: \(bootAssets.initialRamdiskURL.path)",
-            level: .debug,
-            category: .vm
-        )
-        appendEventLog(
-            "Kernel arguments: \(bootCommandLine)",
-            level: .debug,
-            category: .vm
-        )
         appendEventLog(
             "VM start parameters: cpuCount=\(vmConfiguration.cpuCount), " +
                 "memoryMiB=\(vmConfiguration.memorySizeMiB), " +
@@ -690,29 +454,26 @@ final class TetheringStore: ObservableObject {
     private func stopVirtualMachine(reason: String) {
         vmRestartState = .idle
         workflowCoordinator.cancelWorkflow(reason: reason)
+        networkRoute.stop(reason: reason)
         usbCoordinator.prepareForIntentionalVMStop()
         vmCoordinator.stop()
     }
 
     func restartVirtualMachine() {
-        guard canRestartVirtualMachine else {
-            return
-        }
-
+        guard canRestartVirtualMachine else { return }
         workflowCoordinator.prepareForManualVMRestart(
             attachedAccessoryID: attachedAccessoryID
         )
+        networkRoute.stop(reason: "VM restart")
         usbCoordinator.prepareForIntentionalVMStop()
         vmRestartState = .stopping
         vmCoordinator.restart(reason: "manual request") { [weak self] in
             guard let self else { return }
             self.vmRestartState = .starting
-
             guard self.workflowCoordinator.canStartVMForManualRestart() else {
                 self.vmRestartState = .idle
                 return
             }
-
             if self.startVirtualMachine() {
                 if self.workflowCoordinator.hasPendingAttachment,
                    self.runtimeState == .starting {
@@ -731,14 +492,8 @@ final class TetheringStore: ObservableObject {
         guard acceptsNewWork else { return }
         guard let selectedAccessoryID else {
             statusMessage = String(localized: "Select a USB accessory.")
-            appendEventLog(
-                "USB attach request rejected: no USB accessory is selected.",
-                level: .debug,
-                category: .usb
-            )
             return
         }
-
         requestAttachAccessory(id: selectedAccessoryID)
     }
 
@@ -750,7 +505,6 @@ final class TetheringStore: ObservableObject {
     func requestAttachAccessory(id accessoryID: UInt64) {
         guard acceptsNewWork else { return }
         refreshRuntimeEntitlements()
-
         guard runtimeEntitlements.accessoryAccessUSB else {
             reportMissingEntitlement(
                 .accessoryAccessUSB,
@@ -759,202 +513,23 @@ final class TetheringStore: ObservableObject {
             )
             return
         }
-
+        guard isNetworkRouteHelperReady else {
+            statusMessage = String(
+                localized: "Install and enable the network route helper before attaching USB."
+            )
+            return
+        }
         workflowCoordinator.requestAttachAccessory(id: accessoryID)
     }
 
     func detachAccessory() {
-        guard acceptsNewWork else { return }
-        guard attachedAccessoryID != nil else {
-            appendEventLog(
-                "USB detach request ignored: no accessory is attached.",
-                level: .debug,
-                category: .usb
-            )
-            return
-        }
-
+        guard acceptsNewWork, attachedAccessoryID != nil else { return }
         stopVirtualMachine(reason: "USB detach requested by user")
     }
 
     func resolveUSBAttachmentPrompt(accepted: Bool) {
         guard acceptsNewWork else { return }
         workflowCoordinator.resolveUSBAttachmentPrompt(accepted: accepted)
-    }
-
-    func resolveWireGuardConnectionPrompt(
-        id promptID: UUID,
-        accepted: Bool,
-        shouldAutomaticallyConnectNextTime: Bool
-    ) {
-        guard acceptsNewWork else { return }
-        workflowCoordinator.resolveWireGuardConnectionPrompt(
-            id: promptID,
-            accepted: accepted,
-            shouldAutomaticallyConnectNextTime:
-                shouldAutomaticallyConnectNextTime
-        )
-    }
-
-    func prepareForApplicationTermination() async {
-        guard applicationState != .terminating else { return }
-        applicationState = .terminating
-        appendEventLog(
-            "Application terminating.",
-            level: .debug,
-            category: .application
-        )
-        workflowCoordinator.cancelPendingWireGuardConnection(
-            reason: "application termination"
-        )
-        if !appPreferences.isWireGuardManualConfigurationModeEnabled {
-            async let wireGuardStop =
-                wireGuardSession.stopForApplicationTermination()
-            async let dummyEthernetStop = if let managedDummyEthernet {
-                await managedDummyEthernet
-                    .stopForApplicationTerminationIfNeeded()
-            } else {
-                true
-            }
-            let (didStopWireGuard, didStopDummyEthernet) = await (
-                wireGuardStop,
-                dummyEthernetStop
-            )
-            if !didStopWireGuard || !didStopDummyEthernet {
-                appendEventLog(
-                    "Application termination will continue after managed network service cleanup failed: WireGuard=\(didStopWireGuard), DummyEthernet=\(didStopDummyEthernet).",
-                    level: .error,
-                    category: .application
-                )
-            }
-        }
-        shouldRunAccessoryMonitoring = false
-        usbCoordinator.prepareForIntentionalVMStop()
-        vmCoordinator.invalidate()
-        usbCoordinator.stopMonitoring(reason: "Application terminating.")
-    }
-
-    func refreshWireGuardTunnelStatus() {
-        guard !appPreferences.isWireGuardManualConfigurationModeEnabled,
-              canRefreshWireGuardTunnelStatus else { return }
-        refreshRuntimeEntitlements()
-        wireGuardSession.refreshSystemExtensionStatus()
-        guard runtimeEntitlements.packetTunnelProvider else {
-            wireGuardSession.updateTunnelFailure(.missingPacketTunnelEntitlement)
-            appendEventLog(
-                "WireGuard status not refreshed: missing NetworkExtension entitlement.",
-                level: .error,
-                category: .wireGuard
-            )
-            return
-        }
-        wireGuardSession.refreshTunnelStatus()
-    }
-
-    func refreshWireGuardSystemExtensionStatus() {
-        guard acceptsNewWork,
-              !appPreferences.isWireGuardManualConfigurationModeEnabled else {
-            return
-        }
-        refreshRuntimeEntitlements()
-        wireGuardSession.refreshSystemExtensionStatus()
-    }
-
-    @discardableResult
-    func requestWireGuardSystemExtensionActivation() -> Bool {
-        guard acceptsNewWork,
-              !appPreferences.isWireGuardManualConfigurationModeEnabled else {
-            return false
-        }
-        refreshRuntimeEntitlements()
-
-        guard runtimeEntitlements.systemExtensionInstall else {
-            reportMissingEntitlement(
-                .systemExtensionInstall,
-                action: "network extension activation",
-                category: .wireGuard
-            )
-            wireGuardSession.updateSystemExtensionStatus(
-                .unknown("System Extension installation entitlement is missing.")
-            )
-            return false
-        }
-        guard canRequestWireGuardSystemExtensionActivation else {
-            appendEventLog(
-                "Network extension activation request rejected: status=" +
-                    "\(wireGuardSession.systemExtensionStatus.eventLogDescription), " +
-                    "activationInProgress=" +
-                    "\(wireGuardSession.isSystemExtensionActivationInProgress).",
-                level: .debug,
-                category: .wireGuard
-            )
-            return false
-        }
-
-        return wireGuardSession.requestSystemExtensionActivation()
-    }
-
-    func openWireGuardSystemExtensionSettings() {
-        guard acceptsNewWork,
-              !appPreferences.isWireGuardManualConfigurationModeEnabled else {
-            return
-        }
-        wireGuardSession.openSystemExtensionSettings()
-    }
-
-    @discardableResult
-    func connectWireGuardTunnel() -> Bool {
-        guard acceptsNewWork,
-              !appPreferences.isWireGuardManualConfigurationModeEnabled else { return false }
-        refreshRuntimeEntitlements()
-
-        guard runtimeState == .running, vmCoordinator.canSendConsoleInput else {
-            wireGuardSession.updateTunnelStatus(.unconfigured)
-            appendEventLog(
-                "WireGuard tunnel not started: VM is not running.",
-                level: .warning,
-                category: .wireGuard
-            )
-            return false
-        }
-        guard runtimeEntitlements.packetTunnelProvider else {
-            reportMissingEntitlement(
-                .packetTunnelProvider,
-                action: "WireGuard tunnel start",
-                category: .wireGuard
-            )
-            wireGuardSession.updateTunnelFailure(.missingPacketTunnelEntitlement)
-            return false
-        }
-        guard runtimeEntitlements.systemExtensionInstall else {
-            reportMissingEntitlement(
-                .systemExtensionInstall,
-                action: "WireGuard tunnel start",
-                category: .wireGuard
-            )
-            wireGuardSession.updateTunnelFailure(
-                .missingSystemExtensionInstallEntitlement
-            )
-            return false
-        }
-
-        return wireGuardSession.connect()
-    }
-
-    func connectWireGuardTunnelWithAutomaticDummyEthernet() {
-        guard acceptsNewWork,
-              !appPreferences.isWireGuardManualConfigurationModeEnabled,
-              canConnectWireGuardTunnel else { return }
-        managedWireGuardConnectionCoordinator.connect()
-    }
-
-    func disconnectWireGuardTunnel() {
-        guard !appPreferences.isWireGuardManualConfigurationModeEnabled,
-              canDisconnectWireGuardTunnel else { return }
-        workflowCoordinator.cancelPendingWireGuardConnection(
-            reason: "manual WireGuard disconnect"
-        )
-        wireGuardSession.disconnect()
     }
 
     @discardableResult
@@ -970,42 +545,48 @@ final class TetheringStore: ObservableObject {
     }
 
     func completeOnboarding() {
-        guard hasConfiguredVMAssets, !assetProvider.isBusy else {
-            statusMessage = String(localized: "Install or select valid VM assets before finishing onboarding.")
+        guard hasConfiguredVMAssets,
+              !assetProvider.isBusy,
+              (!networkRoute.helper.isSignedBuild
+                || isNetworkRouteHelperReady) else {
+            statusMessage = String(
+                localized: "Install valid VM assets and enable the network route helper before finishing onboarding."
+            )
             return
         }
-
         appPreferences.completeOnboarding()
-        appendEventLog(
-            "Onboarding completed.",
-            level: .info,
-            category: .application
-        )
-
+        appendEventLog("Onboarding completed.", level: .info, category: .application)
         workflowCoordinator.assetsDidBecomeAvailable()
         startAccessoryMonitoringIfRequested(reason: "onboarding completed")
+    }
+
+    func prepareForApplicationTermination() async {
+        guard applicationState != .terminating else { return }
+        applicationState = .terminating
+        appendEventLog(
+            "Application terminating.",
+            level: .debug,
+            category: .application
+        )
+        let routesRemoved = await networkRoute.stopForApplicationTermination()
+        if !routesRemoved {
+            appendEventLog(
+                "Application termination will continue after managed route cleanup failed.",
+                level: .error,
+                category: .application
+            )
+        }
+        shouldRunAccessoryMonitoring = false
+        usbCoordinator.prepareForIntentionalVMStop()
+        vmCoordinator.invalidate()
+        usbCoordinator.stopMonitoring(reason: "Application terminating.")
     }
 
     @discardableResult
     func resetAppSettings() async -> Bool {
         guard canResetAppSettings else {
-            if assetProvider.isBusy {
-                resetStatusMessage = String(
-                    localized: "Wait for the current VM asset operation to finish."
-                )
-            } else if managedDummyEthernet?
-                .isAnyOperationInProgress == true {
-                resetStatusMessage = String(
-                    localized: "Wait for the current Dummy Ethernet operation to finish."
-                )
-            }
-            appendEventLog(
-                "App settings reset rejected: resetInProgress=\(isResettingAppSettings), " +
-                    "vmAssetOperationActive=\(assetProvider.isBusy), " +
-                    "dummyEthernetOperationActive=" +
-                    "\(managedDummyEthernet?.isAnyOperationInProgress == true).",
-                level: .debug,
-                category: .application
+            resetStatusMessage = String(
+                localized: "Wait for the current operation to finish."
             )
             return false
         }
@@ -1016,22 +597,6 @@ final class TetheringStore: ObservableObject {
                 applicationState = .active
             }
         }
-
-        workflowCoordinator.cancelManagedWireGuardConnection(
-            reason: "app settings reset"
-        )
-        guard await wireGuardSession.stopForApplicationTermination() else {
-            resetStatusMessage = String(
-                localized: "Could not stop the WireGuard tunnel before resetting app settings."
-            )
-            appendEventLog(
-                "App settings reset cancelled: WireGuard tunnel could not be stopped.",
-                level: .error,
-                category: .wireGuard
-            )
-            return false
-        }
-
         workflowCoordinator.cancelPendingWorkForReset()
 
         if vmCoordinator.hasVirtualMachine {
@@ -1040,73 +605,35 @@ final class TetheringStore: ObservableObject {
                 resetStatusMessage = String(
                     localized: "Could not stop the VM before resetting app settings."
                 )
-                appendEventLog(
-                    "App settings reset cancelled: VM could not be stopped.",
-                    level: .error,
-                    category: .vm
-                )
                 return false
             }
         }
 
-        guard await wireGuardSession.removeSavedTunnelIfNeeded() else {
-            resetStatusMessage = String(
-                localized: "Could not remove the saved WireGuard tunnel profile."
-            )
-            appendEventLog(
-                "App settings reset cancelled: Saved WireGuard tunnel profile could not be removed.",
-                level: .error,
-                category: .wireGuard
-            )
-            return false
-        }
-
         do {
-            try wireGuardSession.removeConfigurationDirectory()
+            try await networkRoute.resetForAppSettings()
         } catch {
-            resetStatusMessage = String(localized: "Could not remove WireGuard configuration: \(error.localizedDescription)")
-            appendEventLog(
-                "App settings reset cancelled: Could not remove WireGuard configuration: " +
-                    EventLogErrorFormatter.description(for: error),
-                level: .error,
-                category: .wireGuard
+            resetStatusMessage = String(
+                localized: "Could not reset network routes: \(error.localizedDescription)"
             )
             return false
         }
 
         workflowCoordinator.clearDeferredWorkForReset()
-
         vmConfiguration.reset()
-        wireGuardSession.resetPersistedValues()
-        statusMessage = String(localized: "App settings reset. Install or select VM assets to continue.")
-
-        if let managedDummyEthernet {
-            do {
-                try await managedDummyEthernet
-                    .resetForAppSettings()
-            } catch {
-                resetStatusMessage = String(
-                    localized: "Could not reset Dummy Ethernet: \(error.localizedDescription)"
-                )
-                return false
-            }
-        }
+        statusMessage = String(
+            localized: "App settings reset. Install or select VM assets to continue."
+        )
 
         do {
             try appPreferences.resetPersistedValues()
             resetStatusMessage = String(localized: "App settings were reset.")
         } catch {
-            resetStatusMessage = String(localized: "Settings reset, but Launch at Login could not be disabled: \(error.localizedDescription)")
-            appendEventLog(
-                "Launch at Login could not be disabled during app settings reset: " +
-                    EventLogErrorFormatter.description(for: error),
-                level: .warning,
-                category: .application
+            resetStatusMessage = String(
+                localized: "Settings reset, but Launch at Login could not be disabled: \(error.localizedDescription)"
             )
         }
-
         appendEventLog(
-            "App settings and WireGuard configuration were reset; VM asset files were not deleted.",
+            "App settings were reset; VM asset files were not deleted.",
             level: .info,
             category: .application
         )
@@ -1122,15 +649,6 @@ final class TetheringStore: ObservableObject {
     }
 
     private func configureCoordinators() {
-        wireGuardSession.onReadinessChange = { [weak self] in
-            guard let self else { return }
-            self.objectWillChange.send()
-            self.workflowCoordinator.wireGuardReadinessDidChange()
-            self.startAccessoryMonitoringIfRequested(
-                reason: "Network Extension status changed"
-            )
-        }
-
         vmCoordinator.onStateChange = { [weak self] state, message in
             guard let self else { return }
             if state == .running || state == .failed {
@@ -1138,6 +656,9 @@ final class TetheringStore: ObservableObject {
             }
             self.runtimeState = state
             self.statusMessage = message
+            if state == .failed {
+                self.networkRoute.vmDidStop()
+            }
             self.workflowCoordinator.vmStateDidChange(state)
         }
         vmCoordinator.onEventLog = { [weak self] message, level in
@@ -1146,11 +667,22 @@ final class TetheringStore: ObservableObject {
         vmCoordinator.onConsoleOutput = { [weak self] data in
             self?.appendConsole(data)
         }
+        vmCoordinator.onConsoleUnavailable = { [weak self] in
+            self?.networkRoute.guestControlPathDidFail(
+                reason: "VM console became unavailable"
+            )
+        }
+        vmCoordinator.onNetworkDisconnect = { [weak self] in
+            self?.networkRoute.guestControlPathDidFail(
+                reason: "VZNAT network attachment disconnected"
+            )
+        }
         vmCoordinator.onUSBPassthroughDisconnect = { [weak self] device in
             self?.usbCoordinator.handlePassthroughDisconnect(device: device)
         }
         vmCoordinator.onStopped = { [weak self] in
             guard let self else { return }
+            self.networkRoute.vmDidStop()
             self.workflowCoordinator.vmDidStop(
                 restartWillStartVM: self.restartWillStartVM
             )
@@ -1170,6 +702,9 @@ final class TetheringStore: ObservableObject {
         }
         usbCoordinator.onAccessoryAvailable = { [weak self] record in
             guard let self else { return }
+            guard self.appPreferences.shouldAskToAttachDetectedUSBDevices else {
+                return
+            }
             guard !self.isOnboardingPresented else {
                 self.appendEventLog(
                     "USB attach prompt deferred while onboarding is presented.",
@@ -1201,36 +736,56 @@ final class TetheringStore: ObservableObject {
     }
 
     private func configureAccessoryMonitoringStartObservation() {
-        appPreferences.$isDebugModeEnabled
+        networkRoute.helper.$registrationStatus
             .dropFirst()
             .sink { [weak self] _ in
                 self?.scheduleAccessoryMonitoringStartIfRequested(
-                    reason: "debug mode changed"
+                    reason: "network route helper status changed"
                 )
             }
             .store(in: &accessoryMonitoringStartCancellables)
 
-        guard let helper = managedDummyEthernet?.helper else {
+        networkRoute.helper.$operation
+            .dropFirst()
+            .sink { [weak self] _ in
+                self?.scheduleAccessoryMonitoringStartIfRequested(
+                    reason: "network route helper operation changed"
+                )
+            }
+            .store(in: &accessoryMonitoringStartCancellables)
+
+        Publishers.CombineLatest3(
+            networkRoute.$snapshot,
+            networkRoute.$operation,
+            networkRoute.$lastErrorMessage
+        )
+        .dropFirst()
+        .sink { [weak self] _, _, _ in
+            self?.networkRouteHealthDidChange()
+        }
+        .store(in: &accessoryMonitoringStartCancellables)
+    }
+
+    private func networkRouteHealthDidChange() {
+        objectWillChange.send()
+
+        let hasHealthFailure = networkRoute.lastErrorMessage != nil
+            || (!networkRoute.helper.isAvailable
+                && !networkRoute.helper.isOperationInProgress)
+        if hasHealthFailure,
+           usbCoordinator.isAccessoryMonitoring,
+           attachedAccessoryID == nil,
+           !workflowCoordinator.hasPendingAttachment {
+            usbCoordinator.stopMonitoring(
+                reason: "Network route helper health check failed.",
+                completion: nil
+            )
             return
         }
 
-        helper.$registrationStatus
-            .dropFirst()
-            .sink { [weak self] _ in
-                self?.scheduleAccessoryMonitoringStartIfRequested(
-                    reason: "Dummy Ethernet helper status changed"
-                )
-            }
-            .store(in: &accessoryMonitoringStartCancellables)
-
-        helper.$operation
-            .dropFirst()
-            .sink { [weak self] _ in
-                self?.scheduleAccessoryMonitoringStartIfRequested(
-                    reason: "Dummy Ethernet helper operation changed"
-                )
-            }
-            .store(in: &accessoryMonitoringStartCancellables)
+        scheduleAccessoryMonitoringStartIfRequested(
+            reason: "network route helper health changed"
+        )
     }
 
     private func startAccessoryMonitoring(reason: String) {
@@ -1243,7 +798,6 @@ final class TetheringStore: ObservableObject {
             )
             return
         }
-
         refreshRuntimeEntitlements()
         guard runtimeEntitlements.accessoryAccessUSB else {
             reportMissingEntitlement(
@@ -1253,9 +807,7 @@ final class TetheringStore: ObservableObject {
             )
             return
         }
-        guard usbCoordinator.canStartMonitoring else {
-            return
-        }
+        guard usbCoordinator.canStartMonitoring else { return }
         usbCoordinator.startMonitoring(reason: reason, completion: nil)
     }
 
@@ -1272,7 +824,6 @@ final class TetheringStore: ObservableObject {
               usbCoordinator.canStartMonitoring else {
             return
         }
-
         startAccessoryMonitoring(reason: reason)
     }
 
@@ -1312,11 +863,6 @@ final class TetheringStore: ObservableObject {
     private func appendScratchDiskSelectionSummaryIfNeeded() {
         if let diskImageURL = vmConfiguration.diskImageURL {
             appendEventLog(
-                "Restored optional scratch disk selection.",
-                level: .debug,
-                category: .vm
-            )
-            appendEventLog(
                 "Restored scratch disk path: \(diskImageURL.path).",
                 level: .debug,
                 category: .vm
@@ -1348,11 +894,11 @@ final class TetheringStore: ObservableObject {
         action: String,
         category: EventLogCategory
     ) {
-        statusMessage = String(localized: "\(entitlement.label) entitlement missing.")
+        statusMessage = String(
+            localized: "\(entitlement.label) entitlement missing."
+        )
         appendEventLog(
-            "\(action) not started: missing \(entitlement.rawValue). The default " +
-                "ThruRNDIS scheme is for local UI builds; run the ThruRNDIS Runtime " +
-                "scheme with an approved provisioning profile to exercise this runtime path.",
+            "\(action) not started: missing \(entitlement.rawValue).",
             level: .error,
             category: category
         )
@@ -1363,8 +909,12 @@ final class TetheringStore: ObservableObject {
     }
 
     private func appendConsole(_ data: Data) {
-        if let endpoint = consoleSession.append(data) {
-            wireGuardSession.updateDiscoveredEndpoint(endpoint)
+        guard let update = consoleSession.append(data) else { return }
+        if let guestIPv4Address = update.guestIPv4Address {
+            networkRoute.updateGuestIPv4Address(guestIPv4Address)
+        }
+        if let isRNDISRouteReady = update.isRNDISRouteReady {
+            networkRoute.updateRNDISRouteReady(isRNDISRouteReady)
         }
     }
 
@@ -1375,5 +925,4 @@ final class TetheringStore: ObservableObject {
     ) {
         eventLog.append(message, level: level, category: category)
     }
-
 }

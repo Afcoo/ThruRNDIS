@@ -17,7 +17,7 @@
 - [ ] `./script/build_and_run.sh --verify`
 - [ ] Checks run and unverified runtime paths are documented
 - [ ] Signed Runtime validation with `./script/build_and_install.sh`
-- [ ] Real USB/WireGuard validation
+- [ ] Real USB/VZNAT route validation
 - [ ] Not applicable; explanation:
 
 ## User-facing impact
@@ -26,7 +26,7 @@
 
 ## Security and architecture
 
-<!-- Describe changes to USB, VM lifecycle, WireGuard, Network System Extension, VM Assets, signing, privacy, or key handling. Write "None" when there is no impact. -->
+<!-- Describe changes to USB, VM lifecycle, VZNAT host routes, the privileged helper, VM Assets, signing, security, or privacy. Write "None" when there is no impact. -->
 
 ## Checklist
 
@@ -35,5 +35,5 @@
 - [ ] Behavior changes include appropriate build or runtime validation, with unavailable paths explained.
 - [ ] User-facing behavior and operational changes are documented.
 - [ ] New, moved, renamed, or deleted Swift files are reflected in Xcode groups, target membership, and build phases.
-- [ ] No private keys, complete WireGuard client configurations, credentials, provisioning profiles, personal signing values, or local build artifacts are included.
+- [ ] No credentials, provisioning profiles, personal signing values, or local build artifacts are included.
 - [ ] Guest VM scripts and VM Asset build tooling remain in `Afcoo/ThruRNDIS_VM_Assets`.
