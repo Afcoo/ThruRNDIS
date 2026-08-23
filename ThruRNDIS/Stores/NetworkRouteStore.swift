@@ -32,7 +32,7 @@ final class NetworkRouteStore: ObservableObject {
     @Published private(set) var vznatGatewayIPv4Address: String?
     @Published private(set) var isRNDISRouteReady = false
     @Published private(set) var lastErrorMessage: String?
-    @Published private var isReconciliationQueued = false
+    @Published private var isStopQueued = false
 
     private let client: NetworkRoutePrivilegedHelperClient
     private let eventLog: EventLogStore
@@ -67,14 +67,10 @@ final class NetworkRouteStore: ObservableObject {
     var isOperationInProgress: Bool {
         (operation != nil && operation != .refreshing)
             || helper.isOperationInProgress
-            || isReconciliationQueued
+            || isStopQueued
     }
 
-    var isActive: Bool {
-        snapshot?.state == .active
-    }
-
-    var isReadyToRoute: Bool {
+    private var isReadyToRoute: Bool {
         helper.isAvailable
             && guestIPv4Address != nil
             && vznatGatewayIPv4Address != nil
@@ -212,25 +208,20 @@ final class NetworkRouteStore: ObservableObject {
         stop(reason: reason)
     }
 
-    func stop(reason: String) {
+    private func stop(reason: String) {
         clearDesiredNetworkState()
-        guard operation != nil || snapshot?.state != .inactive else { return }
-        guard !isReconciliationQueued else { return }
-        isReconciliationQueued = true
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            _ = await self.performStop(reason: reason)
-            self.isReconciliationQueued = false
-        }
+        queueStop(reason: reason)
     }
 
     @discardableResult
     func stopAndWait(reason: String) async -> Bool {
+        cancelStatusRefreshIfNeeded()
         clearDesiredNetworkState()
         return await performStop(reason: reason)
     }
 
     func stopForApplicationTermination() async -> Bool {
+        cancelStatusRefreshIfNeeded()
         clearDesiredNetworkState()
         while operation != nil || helper.isOperationInProgress {
             do {
@@ -287,12 +278,18 @@ final class NetworkRouteStore: ObservableObject {
     }
 
     private func stopPreservingDesiredState(reason: String) {
-        guard !isReconciliationQueued else { return }
-        isReconciliationQueued = true
+        queueStop(reason: reason)
+    }
+
+    private func queueStop(reason: String) {
+        cancelStatusRefreshIfNeeded()
+        guard operation != nil || snapshot?.state != .inactive else { return }
+        guard !isStopQueued else { return }
+        isStopQueued = true
         Task { @MainActor [weak self] in
             guard let self else { return }
             _ = await self.performStop(reason: reason)
-            self.isReconciliationQueued = false
+            self.isStopQueued = false
         }
     }
 

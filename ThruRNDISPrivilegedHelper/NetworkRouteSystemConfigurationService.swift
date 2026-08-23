@@ -9,7 +9,6 @@ import SystemConfiguration
 struct NetworkRouteSystemConfigurationSnapshot: Sendable {
     let configuration: NetworkRouteConfiguration?
     let bondInterfaceName: String?
-    let hasConfiguration: Bool
     let hasBond: Bool
     let hasNetworkService: Bool
     let isNetworkServiceEnabled: Bool
@@ -74,10 +73,7 @@ struct NetworkRouteSystemConfigurationService: Sendable {
                 throw lastError("create the ThruRNDIS Network Service")
             }
 
-            try configureProtocols(
-                for: service,
-                configuration: configuration
-            )
+            try configureProtocols(for: service)
             guard SCNetworkServiceSetEnabled(service, false),
                   let networkSet = SCNetworkSetCopyCurrent(preferences),
                   SCNetworkSetAddService(networkSet, service) else {
@@ -178,10 +174,7 @@ struct NetworkRouteSystemConfigurationService: Sendable {
         )
     }
 
-    private func configureProtocols(
-        for service: SCNetworkService,
-        configuration: NetworkRouteConfiguration
-    ) throws {
+    private func configureProtocols(for service: SCNetworkService) throws {
         guard let ipv4 = SCNetworkServiceCopyProtocol(
             service,
             kSCNetworkProtocolTypeIPv4
@@ -192,11 +185,11 @@ struct NetworkRouteSystemConfigurationService: Sendable {
             kSCPropNetIPv4ConfigMethod as String:
                 kSCValNetIPv4ConfigMethodManual,
             kSCPropNetIPv4Addresses as String:
-                [configuration.hostIPv4Address],
+                [ThruRNDISNetworkRoute.hostIPv4Address],
             kSCPropNetIPv4SubnetMasks as String:
                 [ThruRNDISNetworkRoute.subnetMask],
             kSCPropNetIPv4Router as String:
-                configuration.routerIPv4Address,
+                ThruRNDISNetworkRoute.routerIPv4Address,
         ]
         guard SCNetworkProtocolSetConfiguration(
             ipv4,
@@ -230,7 +223,7 @@ struct NetworkRouteSystemConfigurationService: Sendable {
         }
         let dnsConfiguration: [String: Any] = [
             kSCPropNetDNSServerAddresses as String:
-                [configuration.routerIPv4Address],
+                [ThruRNDISNetworkRoute.routerIPv4Address],
         ]
         guard SCNetworkProtocolSetConfiguration(
             dns,
@@ -247,7 +240,6 @@ struct NetworkRouteSystemConfigurationService: Sendable {
         return NetworkRouteSystemConfigurationSnapshot(
             configuration: objects.metadata?.configuration,
             bondInterfaceName: objects.metadata?.bondInterfaceName,
-            hasConfiguration: objects.metadata != nil,
             hasBond: objects.bond != nil,
             hasNetworkService: objects.service != nil,
             isNetworkServiceEnabled: objects.service.map(
@@ -324,11 +316,7 @@ struct NetworkRouteSystemConfigurationService: Sendable {
               let vznatGatewayIPv4Address = values[
                 MetadataKey.vznatGatewayIPv4Address
               ],
-              let bridgeInterfaceName = values[MetadataKey.bridgeInterfaceName],
-              let hostIPv4Address = values[MetadataKey.hostIPv4Address],
-              let routerIPv4Address = values[MetadataKey.routerIPv4Address],
-              let memberInterfaceName = values[MetadataKey.memberInterfaceName],
-              let peerInterfaceName = values[MetadataKey.peerInterfaceName]
+              let bridgeInterfaceName = values[MetadataKey.bridgeInterfaceName]
         else {
             throw NetworkRouteSystemConfigurationError.conflict(
                 "The stored network ownership metadata is malformed."
@@ -339,11 +327,7 @@ struct NetworkRouteSystemConfigurationService: Sendable {
               !networkServiceID.isEmpty,
               isCanonicalIPv4Address(guestIPv4Address),
               isCanonicalIPv4Address(vznatGatewayIPv4Address),
-              guestIPv4Address != vznatGatewayIPv4Address,
-              hostIPv4Address == ThruRNDISNetworkRoute.hostIPv4Address,
-              routerIPv4Address == ThruRNDISNetworkRoute.routerIPv4Address,
-              memberInterfaceName == ThruRNDISNetworkRoute.memberInterfaceName,
-              peerInterfaceName == ThruRNDISNetworkRoute.peerInterfaceName else {
+              guestIPv4Address != vznatGatewayIPv4Address else {
             throw NetworkRouteSystemConfigurationError.conflict(
                 "The stored network ownership metadata contains invalid values."
             )
@@ -354,11 +338,7 @@ struct NetworkRouteSystemConfigurationService: Sendable {
             configuration: NetworkRouteConfiguration(
                 guestIPv4Address: guestIPv4Address,
                 vznatGatewayIPv4Address: vznatGatewayIPv4Address,
-                bridgeInterfaceName: bridgeInterfaceName,
-                hostIPv4Address: hostIPv4Address,
-                routerIPv4Address: routerIPv4Address,
-                memberInterfaceName: memberInterfaceName,
-                peerInterfaceName: peerInterfaceName
+                bridgeInterfaceName: bridgeInterfaceName
             )
         )
     }
@@ -377,11 +357,6 @@ struct NetworkRouteSystemConfigurationService: Sendable {
                 configuration.vznatGatewayIPv4Address,
             MetadataKey.bridgeInterfaceName:
                 configuration.bridgeInterfaceName,
-            MetadataKey.hostIPv4Address: configuration.hostIPv4Address,
-            MetadataKey.routerIPv4Address: configuration.routerIPv4Address,
-            MetadataKey.memberInterfaceName:
-                configuration.memberInterfaceName,
-            MetadataKey.peerInterfaceName: configuration.peerInterfaceName,
         ]
         guard SCPreferencesSetValue(
             preferences,
@@ -416,8 +391,7 @@ struct NetworkRouteSystemConfigurationService: Sendable {
         _ name: String,
         prefix: String
     ) -> Bool {
-        guard name.utf8.count
-                <= ThruRNDISNetworkRoute.maximumInterfaceNameUTF8ByteCount,
+        guard name.utf8.count < Int(IFNAMSIZ),
               name.hasPrefix(prefix) else {
             return false
         }
@@ -491,10 +465,6 @@ struct NetworkRouteSystemConfigurationService: Sendable {
         static let guestIPv4Address = "GuestIPv4Address"
         static let vznatGatewayIPv4Address = "VZNATGatewayIPv4Address"
         static let bridgeInterfaceName = "BridgeInterfaceName"
-        static let hostIPv4Address = "HostIPv4Address"
-        static let routerIPv4Address = "RouterIPv4Address"
-        static let memberInterfaceName = "MemberInterfaceName"
-        static let peerInterfaceName = "PeerInterfaceName"
     }
 
     private struct ManagedObjects {

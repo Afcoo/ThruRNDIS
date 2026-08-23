@@ -22,10 +22,6 @@ struct NetworkRouteConfiguration: Equatable, Sendable {
     let guestIPv4Address: String
     let vznatGatewayIPv4Address: String
     let bridgeInterfaceName: String
-    let hostIPv4Address: String
-    let routerIPv4Address: String
-    let memberInterfaceName: String
-    let peerInterfaceName: String
 }
 
 struct NetworkRouteSnapshot: Codable, Equatable, Sendable {
@@ -34,15 +30,7 @@ struct NetworkRouteSnapshot: Codable, Equatable, Sendable {
     let vznatGatewayIPv4Address: String?
     let bridgeInterfaceName: String?
     let bondInterfaceName: String?
-    let memberInterfaceName: String?
-    let peerInterfaceName: String?
-    let hostIPv4Address: String?
-    let routerIPv4Address: String?
     let installedPrefixes: [String]
-
-    // Preserve the existing view-facing name while the UI is updated
-    // independently. Host traffic now leaves through the managed Bond.
-    var interfaceName: String? { bondInterfaceName }
 
     static let inactive = Self(
         state: .inactive,
@@ -50,10 +38,6 @@ struct NetworkRouteSnapshot: Codable, Equatable, Sendable {
         vznatGatewayIPv4Address: nil,
         bridgeInterfaceName: nil,
         bondInterfaceName: nil,
-        memberInterfaceName: nil,
-        peerInterfaceName: nil,
-        hostIPv4Address: nil,
-        routerIPv4Address: nil,
         installedPrefixes: []
     )
 }

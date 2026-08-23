@@ -48,39 +48,17 @@ struct NetworkInterfaceCommandRunner: Sendable {
         let output = try execute(["-b", interfaceName])
         var mode: String?
         var members: Set<String> = []
-        var isReadingMembers = false
 
         for line in output.split(separator: "\n") {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             if trimmed.hasPrefix("bond mode: ") {
                 mode = String(trimmed.dropFirst("bond mode: ".count))
-                isReadingMembers = false
-                continue
-            }
-            if trimmed == "bond interfaces: <none>" {
-                isReadingMembers = false
-                continue
-            }
-            if trimmed.hasPrefix("bond interfaces:") {
-                isReadingMembers = true
-                let remainder = trimmed.dropFirst("bond interfaces:".count)
-                    .trimmingCharacters(in: .whitespaces)
-                if !remainder.isEmpty, remainder != "<none>" {
-                    members.formUnion(Self.interfaceNames(in: remainder))
-                }
                 continue
             }
             if trimmed.hasPrefix("bond interface: ") {
                 let remainder = trimmed.dropFirst("bond interface: ".count)
-                members.formUnion(Self.interfaceNames(in: String(remainder)))
-                continue
-            }
-            if isReadingMembers {
-                let names = Self.interfaceNames(in: trimmed)
-                if names.isEmpty {
-                    isReadingMembers = false
-                } else {
-                    members.formUnion(names)
+                if let member = Self.interfaceName(in: String(remainder)) {
+                    members.insert(member)
                 }
             }
         }
@@ -98,18 +76,20 @@ struct NetworkInterfaceCommandRunner: Sendable {
         return nil
     }
 
-    private static func interfaceNames(in value: String) -> Set<String> {
-        Set(value.split(whereSeparator: {
-            $0.isWhitespace || $0 == ","
-        }).compactMap { field in
-            let name = String(field)
-            guard name.hasPrefix("feth"),
-                  !name.dropFirst("feth".count).isEmpty,
-                  name.dropFirst("feth".count).allSatisfy(\.isNumber) else {
-                return nil
-            }
-            return name
-        })
+    private static func interfaceName(in value: String) -> String? {
+        guard let field = value.split(
+            whereSeparator: \.isWhitespace
+        ).first else {
+            return nil
+        }
+        let name = String(field)
+        let unit = name.dropFirst("feth".count)
+        guard name.hasPrefix("feth"),
+              !unit.isEmpty,
+              unit.allSatisfy(\.isNumber) else {
+            return nil
+        }
+        return name
     }
 
     private func execute(_ arguments: [String]) throws -> String {
@@ -156,7 +136,7 @@ struct NetworkInterfaceCommandRunner: Sendable {
     }
 }
 
-struct BondRuntimeSnapshot: Equatable, Sendable {
+struct BondRuntimeSnapshot: Sendable {
     let mode: String?
     let members: Set<String>
 }

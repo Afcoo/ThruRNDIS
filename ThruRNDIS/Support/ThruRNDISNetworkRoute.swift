@@ -15,7 +15,6 @@ enum ThruRNDISNetworkRoute {
     static let subnetMask = "255.255.255.0"
     static let memberInterfaceName = "feth0"
     static let peerInterfaceName = "feth1"
-    static let maximumInterfaceNameUTF8ByteCount = 15
     static let bondHardwarePortName = "ThruRNDIS Network Bond"
     static let networkServiceName = "ThruRNDIS Network"
     static let systemConfigurationMetadataKey =

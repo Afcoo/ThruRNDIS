@@ -77,7 +77,6 @@ final class TetheringStore: ObservableObject {
     private let runtimeEntitlementSnapshotProvider: () -> RuntimeEntitlementSnapshot
     private var didRequestLaunchAccessoryMonitoring = false
     private var shouldRunAccessoryMonitoring = false
-    private var observedAttachedAccessoryID: UInt64?
     private var accessoryMonitoringStartCancellables: Set<AnyCancellable> = []
 
     private lazy var workflowCoordinator = TetheringWorkflowCoordinator(
@@ -536,7 +535,6 @@ final class TetheringStore: ObservableObject {
         }
 
         isVMStopPreparationInProgress = true
-        vmRestartState = .idle
         workflowCoordinator.cancelWorkflow(reason: reason)
         statusMessage = String(
             localized: "Stopping the VM network before stopping the VM."
@@ -843,10 +841,9 @@ final class TetheringStore: ObservableObject {
 
         usbCoordinator.onStateChange = { [weak self] in
             guard let self else { return }
-            let previousAttachedAccessoryID = self.observedAttachedAccessoryID
-            let attachedAccessoryID = self.usbCoordinator.attachedAccessoryID
-            self.observedAttachedAccessoryID = attachedAccessoryID
+            let previousAttachedAccessoryID = self.usbSession.attachedAccessoryID
             self.syncUSBState()
+            let attachedAccessoryID = self.usbSession.attachedAccessoryID
             if attachedAccessoryID != previousAttachedAccessoryID {
                 if attachedAccessoryID != nil {
                     self.networkRoute.usbDidAttach()
@@ -897,7 +894,6 @@ final class TetheringStore: ObservableObject {
             self?.runtimeState ?? .idle
         }
 
-        observedAttachedAccessoryID = usbCoordinator.attachedAccessoryID
         syncUSBState()
     }
 

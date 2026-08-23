@@ -73,25 +73,6 @@ struct NetworkRouteView: View {
                             ?? String(localized: "Unknown")
                     )
                     LabeledContent(
-                        "Bond feth",
-                        value: snapshot.memberInterfaceName
-                            ?? String(localized: "Unknown")
-                    )
-                    LabeledContent(
-                        "Bridge feth",
-                        value: snapshot.peerInterfaceName
-                            ?? String(localized: "Unknown")
-                    )
-                    LabeledContent(
-                        "Host Address",
-                        value: snapshot.hostIPv4Address ?? String(localized: "Unknown")
-                    )
-                    LabeledContent(
-                        "Router",
-                        value: snapshot.routerIPv4Address
-                            ?? String(localized: "Unknown")
-                    )
-                    LabeledContent(
                         "Routes",
                         value: snapshot.installedPrefixes.isEmpty
                             ? String(localized: "None")

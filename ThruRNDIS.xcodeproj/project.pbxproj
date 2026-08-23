@@ -86,7 +86,6 @@
 		NR1000000000000000000017 /* VZNATInterfaceResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR100000000000000000011D /* VZNATInterfaceResolver.swift */; };
 		NR1000000000000000000018 /* NetworkInterfaceCommandRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR100000000000000000011E /* NetworkInterfaceCommandRunner.swift */; };
 		NR1000000000000000000019 /* NetworkRouteSystemConfigurationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR100000000000000000011F /* NetworkRouteSystemConfigurationService.swift */; };
-		NR100000000000000000001A /* NetworkRouteNetworkPathMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR1000000000000000000120 /* NetworkRouteNetworkPathMonitor.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -219,7 +218,6 @@
 		NR100000000000000000011D /* VZNATInterfaceResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VZNATInterfaceResolver.swift; sourceTree = "<group>"; };
 		NR100000000000000000011E /* NetworkInterfaceCommandRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkInterfaceCommandRunner.swift; sourceTree = "<group>"; };
 		NR100000000000000000011F /* NetworkRouteSystemConfigurationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkRouteSystemConfigurationService.swift; sourceTree = "<group>"; };
-		NR1000000000000000000120 /* NetworkRouteNetworkPathMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkRouteNetworkPathMonitor.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -436,7 +434,6 @@
 				NR100000000000000000011A /* NetworkRouteController.swift */,
 				NR100000000000000000011B /* NetworkRoutePrivilegedHelperService.swift */,
 				NR100000000000000000011E /* NetworkInterfaceCommandRunner.swift */,
-				NR1000000000000000000120 /* NetworkRouteNetworkPathMonitor.swift */,
 				NR100000000000000000011F /* NetworkRouteSystemConfigurationService.swift */,
 				NR100000000000000000011C /* RouteCommandRunner.swift */,
 				NR100000000000000000011D /* VZNATInterfaceResolver.swift */,
@@ -659,7 +656,6 @@
 				NR1000000000000000000017 /* VZNATInterfaceResolver.swift in Sources */,
 				NR1000000000000000000018 /* NetworkInterfaceCommandRunner.swift in Sources */,
 				NR1000000000000000000019 /* NetworkRouteSystemConfigurationService.swift in Sources */,
-				NR100000000000000000001A /* NetworkRouteNetworkPathMonitor.swift in Sources */,
 				F40000000000000000000019 /* main.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

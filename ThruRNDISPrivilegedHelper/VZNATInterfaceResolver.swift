@@ -5,12 +5,6 @@ Copyright (C) 2026 Afcoo.
 import Darwin
 import Foundation
 
-struct VZNATInterfaceSnapshot: Equatable, Sendable {
-    let name: String
-    let hostIPv4Address: String
-    let prefixLength: Int
-}
-
 enum VZNATInterfaceResolverError: LocalizedError {
     case invalidGuestIPv4Address
     case guestIPv4AddressNotPrivate
@@ -44,22 +38,15 @@ enum VZNATInterfaceResolverError: LocalizedError {
 }
 
 struct VZNATInterfaceResolver: Sendable {
-    func validateGuestIPv4Address(_ guestIPv4Address: String) throws {
+    func resolve(
+        guestIPv4Address: String,
+        vznatGatewayIPv4Address: String
+    ) throws -> String {
         guard let guest = IPv4Value(guestIPv4Address) else {
             throw VZNATInterfaceResolverError.invalidGuestIPv4Address
         }
         guard guest.isRFC1918 else {
             throw VZNATInterfaceResolverError.guestIPv4AddressNotPrivate
-        }
-    }
-
-    func resolve(
-        guestIPv4Address: String,
-        vznatGatewayIPv4Address: String
-    ) throws -> VZNATInterfaceSnapshot {
-        try validateGuestIPv4Address(guestIPv4Address)
-        guard let guest = IPv4Value(guestIPv4Address) else {
-            throw VZNATInterfaceResolverError.invalidGuestIPv4Address
         }
         guard let gateway = IPv4Value(vznatGatewayIPv4Address) else {
             throw VZNATInterfaceResolverError.invalidGatewayIPv4Address
@@ -92,7 +79,7 @@ struct VZNATInterfaceResolver: Sendable {
             bridgeInterfaceNames.insert(String(cString: entry.ifa_name))
         }
 
-        var candidates: [VZNATInterfaceSnapshot] = []
+        var candidates: Set<Candidate> = []
         var cursor = interfaceList
         while let current = cursor {
             defer { cursor = current.pointee.ifa_next }
@@ -145,8 +132,8 @@ struct VZNATInterfaceResolver: Sendable {
                 broadcast: broadcast
             )
 
-            candidates.append(
-                VZNATInterfaceSnapshot(
+            candidates.insert(
+                Candidate(
                     name: name,
                     hostIPv4Address: host.description,
                     prefixLength: prefixLength
@@ -154,32 +141,18 @@ struct VZNATInterfaceResolver: Sendable {
             )
         }
 
-        let uniqueCandidates = Array(Set(candidates.map {
-            CandidateKey(
-                name: $0.name,
-                hostIPv4Address: $0.hostIPv4Address,
-                prefixLength: $0.prefixLength
-            )
-        })).map {
-            VZNATInterfaceSnapshot(
-                name: $0.name,
-                hostIPv4Address: $0.hostIPv4Address,
-                prefixLength: $0.prefixLength
-            )
-        }
-
-        guard !uniqueCandidates.isEmpty else {
+        guard let candidate = candidates.first else {
             throw VZNATInterfaceResolverError.noDirectlyConnectedInterface
         }
-        guard uniqueCandidates.count == 1 else {
+        guard candidates.count == 1 else {
             throw VZNATInterfaceResolverError
                 .ambiguousDirectlyConnectedInterfaces(
-                    uniqueCandidates
+                    candidates
                         .map { "\($0.name) (\($0.hostIPv4Address)/\($0.prefixLength))" }
                         .sorted()
                 )
         }
-        return uniqueCandidates[0]
+        return candidate.name
     }
 
     private static func rejectManagedSubnetOverlap(
@@ -223,7 +196,7 @@ struct VZNATInterfaceResolver: Sendable {
         return mask.nonzeroBitCount
     }
 
-    private struct CandidateKey: Hashable {
+    private struct Candidate: Hashable {
         let name: String
         let hostIPv4Address: String
         let prefixLength: Int

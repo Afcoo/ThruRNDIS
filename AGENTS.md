@@ -123,9 +123,11 @@ macOS 0.0.0.0/1 and 128.0.0.0/1 routes
   global rediscovery anchor until the scoped entries are gone. Partial
   installation rolls back only entries added by that invocation.
 - Do not add an external ownership file. Store the allocated Bond, Network
-  Service, feth pair, and VM bridge in one SystemConfiguration ownership value.
-  After restart, remove only those exact recorded objects and routes carrying
-  the private ownership flags; never scan for or adopt same-named objects.
+  Service, and dynamic VZNAT bridge/guest values in one SystemConfiguration
+  ownership value. The feth names and managed addresses are fixed constants
+  and are not duplicated in metadata. After restart, remove only those exact
+  recorded objects and routes carrying the private ownership flags; never scan
+  for or adopt same-named objects.
 - Cleanup withdraws the `/1` routes first, removes `feth1` from the recorded
   bridge when that bridge still exists, detaches and destroys the owned feth
   pair, and finally removes the recorded SystemConfiguration objects. A VM
