@@ -2,8 +2,8 @@
 
 This repository is a macOS 27+ USB RNDIS tethering VM project. Read this file
 before changing the app. The current baseline sends macOS IPv4 traffic to the
-Linux guest with two privileged host routes through the guest's dynamically
-assigned VZNAT address.
+Linux guest with global and VZNAT-interface-scoped route entries for two `/1`
+prefixes through the guest's dynamically assigned VZNAT address.
 
 ## Project Shape
 
@@ -56,9 +56,12 @@ macOS 0.0.0.0/1 and 128.0.0.0/1 routes
   install routes only when the helper is current, the guest address is known,
   and RNDIS is ready. It removes routes when readiness is lost, the VM stops,
   app settings are reset, or the app terminates.
-- The helper installs exactly `0.0.0.0/1` and `128.0.0.0/1`. These routes are
-  more specific than the existing default route, so the original macOS default
-  remains available for reaching the directly connected VZNAT network.
+- The helper installs global and VZNAT-interface-scoped entries for exactly
+  `0.0.0.0/1` and `128.0.0.0/1`. The global entries select the VZNAT interface;
+  the scoped companions keep macOS protocol-cloned destinations routed through
+  the guest instead of VZNAT's interface-scoped direct default. These prefixes
+  remain more specific than the original macOS default route, which stays
+  available for reaching the directly connected VZNAT network.
 - IPv6 routing is out of scope. Do not claim that this PoC captures or blocks
   IPv6 traffic.
 
@@ -85,23 +88,30 @@ macOS 0.0.0.0/1 and 128.0.0.0/1 routes
   enumerates active, non-loopback, non-point-to-point host IPv4 interfaces and
   requires exactly one directly connected interface whose subnet contains the
   guest address. Ambiguous or missing matches fail closed.
-- `RouteCommandRunner` invokes only `/sbin/route` with an argument array and a
-  fixed environment. Never add a shell API or arbitrary-command XPC method.
-- Route creation is global and unscoped so ordinary macOS route lookups select
-  it. It uses the discovered guest address as gateway and both `PROTO1` and
-  `PROTO2` flags as the private ownership signature. The resolved VZNAT
-  interface is used for validation, and status/removal require the exact
-  destination, netmask, gateway, returned interface, and ownership flags to
-  match. Do not add `-ifscope` to the managed `/1` routes.
-- An unrelated or partially conflicting `/1` route is blocking. Never replace
-  or delete a route that does not have the exact ThruRNDIS ownership signature.
-- Starting is idempotent for the same exact pair. A changed guest address first
-  removes the owned prior pair. Partial installation rolls back only routes
-  added by that invocation.
+- `RouteCommandRunner` invokes only `/sbin/route` for mutation and fixed,
+  read-only `/usr/sbin/netstat -rn -f inet` for exact global/scoped entry
+  inspection, each with an argument array and fixed environment. Never add a
+  shell API or arbitrary-command XPC method.
+- Each managed prefix has one global entry and one entry scoped to the resolved
+  VZNAT interface. The global entry lets ordinary macOS lookups select VZNAT;
+  the scoped entry must use `-ifscope` so the second, interface-scoped lookup
+  outranks VZNAT's direct scoped default and retains the guest as gateway. Both
+  entries use the discovered guest address as gateway and both `PROTO1` and
+  `PROTO2` flags as the private ownership signature. Status/removal require the
+  exact scope, destination, netmask, gateway, returned interface, and ownership
+  flags to match. Never scope the global companion or omit the scope from the
+  interface-scoped companion.
+- An unrelated or partially conflicting global or scoped `/1` entry is
+  blocking. Never replace or delete a route entry that does not have the exact
+  ThruRNDIS ownership signature.
+- Starting is idempotent for the same exact four-entry set. A changed guest
+  address first removes the owned prior set. Installation and removal retain a
+  global rediscovery anchor until the scoped entries are gone. Partial
+  installation rolls back only entries added by that invocation.
 - Do not add an external ownership file. The helper caches the current
-  configuration in memory and may rediscover only the exact two routes carrying
-  both ownership flags with one consistent gateway/interface after a restart;
-  it must not adopt or delete arbitrary routes.
+  configuration in memory and may rediscover only the exact four entries
+  carrying both ownership flags with one consistent gateway/interface after a
+  restart; it must not adopt or delete arbitrary routes.
 - The helper authenticates the connecting app's signing identifier and team;
   the app authenticates the helper using the corresponding derived identifier
   and team. Keep `PeerCodeSigningRequirementBuilder` shared by both targets.

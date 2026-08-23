@@ -47,8 +47,9 @@ Keep these boundaries intact:
 - The VM uses `VZNATNetworkDeviceAttachment`; do not substitute vmnet or
   bridged networking as part of an unrelated change.
 - The app and helper do not inspect or relay packet payloads.
-- The helper manages only the two exact `/1` IPv4 routes for the current guest
-  and removes them when forwarding readiness is lost or the VM stops.
+- The helper manages only the global and VZNAT-interface-scoped IPv4 entries
+  for the two exact `/1` prefixes and removes all four entries when forwarding
+  readiness is lost or the VM stops.
 - IPv6 routing is out of scope for this proof of concept.
 - Guest VM scripts, dependency locking, and VM Asset release tooling belong in
   `Afcoo/ThruRNDIS_VM_Assets`, not this repository.

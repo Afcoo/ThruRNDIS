@@ -44,7 +44,8 @@ Please allow reasonable time for a fix before publishing details.
 Reports are especially useful when they involve:
 
 - privileged-helper authentication, authorization, route ownership, or cleanup;
-- unintended persistence or replacement of the two managed IPv4 `/1` routes;
+- unintended persistence or replacement of the four managed IPv4 route entries
+  for the two `/1` prefixes;
 - USB AccessoryAccess approval and passthrough lifecycle;
 - VM Asset download, checksum validation, archive extraction, or promotion;
 - signing, entitlements, notarization, release artifacts, or update metadata;

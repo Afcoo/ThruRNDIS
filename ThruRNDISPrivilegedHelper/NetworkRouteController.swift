@@ -7,7 +7,7 @@ import Foundation
 enum NetworkRouteControllerError: LocalizedError {
     case couldNotRemoveRoutes([String])
     case routeLeaseOwnedByAnotherConnection
-    case routeVerificationFailed
+    case routeVerificationFailed([String])
 
     var errorDescription: String? {
         switch self {
@@ -15,8 +15,8 @@ enum NetworkRouteControllerError: LocalizedError {
             "Could not remove all managed IPv4 routes: \(failures.joined(separator: "; "))"
         case .routeLeaseOwnedByAnotherConnection:
             "The managed IPv4 routes are leased by another live app connection."
-        case .routeVerificationFailed:
-            "The managed IPv4 routes did not match the expected configuration after installation."
+        case .routeVerificationFailed(let failures):
+            "The managed IPv4 routes did not match the expected configuration after installation: \(failures.joined(separator: "; "))"
         }
     }
 }
@@ -95,12 +95,15 @@ final class NetworkRouteController: @unchecked Sendable {
         }
         if inspections.contains(where: { $0.value == .conflicting }) {
             let route = inspections.first { $0.value == .conflicting }!.key
-            throw RouteCommandRunnerError.conflictingRoute(route.prefix)
+            throw RouteCommandRunnerError.conflictingRoute(
+                route.diagnosticName(interfaceName: requested.interfaceName)
+            )
         }
 
         // Recover an interrupted earlier invocation only when its route bears
         // both private ownership flags and matches the exact gateway/interface.
-        for (route, inspection) in inspections where inspection == .owned {
+        for route in ManagedIPv4Route.removalOrder
+        where inspections[route] == .owned {
             try runner.delete(
                 route,
                 gateway: requested.guestIPv4Address,
@@ -110,7 +113,7 @@ final class NetworkRouteController: @unchecked Sendable {
 
         var added: [ManagedIPv4Route] = []
         do {
-            for route in ManagedIPv4Route.all {
+            for route in ManagedIPv4Route.installationOrder {
                 try runner.add(
                     route,
                     gateway: requested.guestIPv4Address,
@@ -130,7 +133,21 @@ final class NetworkRouteController: @unchecked Sendable {
         do {
             installed = try inspectRoutes(for: requested)
             guard installed.allSatisfy({ $0.value == .owned }) else {
-                throw NetworkRouteControllerError.routeVerificationFailed
+                let failures = ManagedIPv4Route.installationOrder.compactMap {
+                    route -> String? in
+                    guard let inspection = installed[route],
+                          inspection != .owned else {
+                        return nil
+                    }
+                    let output = runner.diagnosticOutput(
+                        of: route,
+                        interfaceName: requested.interfaceName
+                    )
+                    return "\(route.diagnosticName(interfaceName: requested.interfaceName)) is \(inspection.diagnosticName) [\(output)]"
+                }
+                throw NetworkRouteControllerError.routeVerificationFailed(
+                    failures
+                )
             }
         } catch {
             try failAfterRollingBack(
@@ -160,7 +177,8 @@ final class NetworkRouteController: @unchecked Sendable {
                 )
             } catch {
                 rollbackFailures.append(
-                    "rollback \(route.prefix): \(error.localizedDescription)"
+                    "rollback \(route.diagnosticName(interfaceName: configuration.interfaceName)): "
+                        + error.localizedDescription
                 )
             }
         }
@@ -199,7 +217,7 @@ final class NetworkRouteController: @unchecked Sendable {
         }
 
         var failures: [String] = []
-        for route in ManagedIPv4Route.all {
+        for route in ManagedIPv4Route.removalOrder {
             do {
                 switch try runner.inspection(
                     of: route,
@@ -216,11 +234,15 @@ final class NetworkRouteController: @unchecked Sendable {
                     )
                 case .conflicting:
                     failures.append(
-                        "\(route.prefix) no longer has the ThruRNDIS ownership signature"
+                        route.diagnosticName(
+                            interfaceName: configuration.interfaceName
+                        ) + " no longer has the ThruRNDIS ownership signature"
                     )
                 }
             } catch {
-                failures.append("\(route.prefix): \(error.localizedDescription)")
+                failures.append(
+                    "\(route.diagnosticName(interfaceName: configuration.interfaceName)): \(error.localizedDescription)"
+                )
             }
         }
 
@@ -263,11 +285,14 @@ final class NetworkRouteController: @unchecked Sendable {
         for configuration: OwnedConfiguration,
         inspections: [ManagedIPv4Route: ManagedRouteInspection]
     ) -> NetworkRouteSnapshot {
-        let installedPrefixes = ManagedIPv4Route.all.compactMap { route in
-            inspections[route] == .owned ? route.prefix : nil
+        let installedPrefixes = ManagedIPv4Route.prefixes.filter { prefix in
+            ManagedIPv4Route.entries(for: prefix).allSatisfy { route in
+                inspections[route] == .owned
+            }
         }
         return NetworkRouteSnapshot(
-            state: installedPrefixes.count == ManagedIPv4Route.all.count
+            state: inspections.count == ManagedIPv4Route.all.count
+                && inspections.allSatisfy { $0.value == .owned }
                 ? .active : .degraded,
             guestIPv4Address: configuration.guestIPv4Address,
             hostIPv4Address: configuration.hostIPv4Address,
@@ -277,8 +302,15 @@ final class NetworkRouteController: @unchecked Sendable {
     }
 
     private func discoverOwnedConfiguration() throws -> OwnedConfiguration? {
-        let records = try ManagedIPv4Route.all.compactMap { route -> RouteLookupRecord? in
-            guard let record = try runner.lookup(route), record.isOwned else {
+        // Installation and removal keep a global entry present until all
+        // interface-scoped entries are gone, so a restarted helper can first
+        // recover the interface and gateway from this unscoped anchor.
+        let records = try ManagedIPv4Route.global.compactMap {
+            route -> RouteLookupRecord? in
+            guard let record = try runner.lookup(
+                route,
+                interfaceName: nil
+            ), record.isOwned else {
                 return nil
             }
             return record

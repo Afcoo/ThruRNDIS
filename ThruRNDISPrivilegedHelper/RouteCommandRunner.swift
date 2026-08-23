@@ -4,28 +4,91 @@ Copyright (C) 2026 Afcoo.
 
 import Foundation
 
+enum ManagedIPv4RouteScope: Hashable, Sendable {
+    case global
+    case interfaceScoped
+}
+
 struct ManagedIPv4Route: Hashable, Sendable {
     let prefix: String
     let destination: String
     let mask: String
+    let scope: ManagedIPv4RouteScope
 
-    static let all = [
-        Self(
-            prefix: "0.0.0.0/1",
-            destination: "0.0.0.0",
-            mask: "128.0.0.0"
-        ),
-        Self(
-            prefix: "128.0.0.0/1",
-            destination: "128.0.0.0",
-            mask: "128.0.0.0"
-        ),
+    static let prefixes = [
+        "0.0.0.0/1",
+        "128.0.0.0/1",
     ]
+
+    private static let globalLower = Self(
+        prefix: prefixes[0],
+        destination: "0.0.0.0",
+        mask: "128.0.0.0",
+        scope: .global
+    )
+    private static let scopedLower = Self(
+        prefix: prefixes[0],
+        destination: "0.0.0.0",
+        mask: "128.0.0.0",
+        scope: .interfaceScoped
+    )
+    private static let scopedUpper = Self(
+        prefix: prefixes[1],
+        destination: "128.0.0.0",
+        mask: "128.0.0.0",
+        scope: .interfaceScoped
+    )
+    private static let globalUpper = Self(
+        prefix: prefixes[1],
+        destination: "128.0.0.0",
+        mask: "128.0.0.0",
+        scope: .global
+    )
+
+    // Keep one global entry as a rediscovery anchor while the scoped entries
+    // are added or removed. This prevents a helper restart from leaving only
+    // interface-scoped entries that cannot be found without a known interface.
+    static let installationOrder = [
+        globalLower,
+        scopedLower,
+        scopedUpper,
+        globalUpper,
+    ]
+    static let removalOrder = Array(installationOrder.reversed())
+    static let all = installationOrder
+    static let global = [globalLower, globalUpper]
+
+    static func entries(for prefix: String) -> [Self] {
+        all.filter { $0.prefix == prefix }
+    }
+
+    func diagnosticName(interfaceName: String) -> String {
+        switch scope {
+        case .global:
+            "global \(prefix)"
+        case .interfaceScoped:
+            "\(interfaceName)-scoped \(prefix)"
+        }
+    }
+
+    var netstatDestinations: Set<String> {
+        switch prefix {
+        case "0.0.0.0/1":
+            ["0/1", "0.0.0.0/1"]
+        case "128.0.0.0/1":
+            ["128.0/1", "128.0.0.0/1"]
+        default:
+            []
+        }
+    }
 }
 
 enum RouteCommandRunnerError: LocalizedError {
     case commandFailed(arguments: [String], status: Int32, output: String)
     case conflictingRoute(String)
+    case routeTableInspectionFailed(status: Int32, output: String)
+    case ambiguousRouteTableEntries(String)
+    case missingInterfaceName
 
     var errorDescription: String? {
         switch self {
@@ -34,6 +97,13 @@ enum RouteCommandRunnerError: LocalizedError {
             return "route \(arguments.joined(separator: " ")) failed with status \(status): \(detail)"
         case .conflictingRoute(let prefix):
             return "An existing \(prefix) route is not owned by ThruRNDIS."
+        case .routeTableInspectionFailed(let status, let output):
+            let detail = output.isEmpty ? "no diagnostic output" : output
+            return "netstat -rn -f inet failed with status \(status): \(detail)"
+        case .ambiguousRouteTableEntries(let description):
+            return "More than one matching managed route entry was found: \(description)"
+        case .missingInterfaceName:
+            return "An interface name is required for an interface-scoped route."
         }
     }
 }
@@ -44,11 +114,16 @@ struct RouteCommandRunner: Sendable {
         gateway: String,
         interfaceName: String
     ) throws {
-        _ = try run([
-            "-n", "add", "-net",
-            "-static", "-proto1", "-proto2",
-            route.prefix, gateway,
+        var arguments = ["-n", "add", "-net"]
+        try appendScopeArguments(
+            for: route,
+            interfaceName: interfaceName,
+            to: &arguments
+        )
+        arguments.append(contentsOf: [
+            "-static", "-proto1", "-proto2", route.prefix, gateway,
         ])
+        _ = try run(arguments)
     }
 
     func delete(
@@ -56,10 +131,14 @@ struct RouteCommandRunner: Sendable {
         gateway: String,
         interfaceName: String
     ) throws {
-        _ = try run([
-            "-n", "delete", "-net",
-            route.prefix, gateway,
-        ])
+        var arguments = ["-n", "delete", "-net"]
+        try appendScopeArguments(
+            for: route,
+            interfaceName: interfaceName,
+            to: &arguments
+        )
+        arguments.append(contentsOf: [route.prefix, gateway])
+        _ = try run(arguments)
     }
 
     func inspection(
@@ -67,7 +146,10 @@ struct RouteCommandRunner: Sendable {
         gateway: String,
         interfaceName: String
     ) throws -> ManagedRouteInspection {
-        guard let record = try lookup(route) else {
+        guard let record = try lookup(
+            route,
+            interfaceName: interfaceName
+        ) else {
             return .absent
         }
         guard record.gateway == gateway,
@@ -77,44 +159,117 @@ struct RouteCommandRunner: Sendable {
         return record.isOwned ? .owned : .conflicting
     }
 
-    func lookup(_ route: ManagedIPv4Route) throws -> RouteLookupRecord? {
-        let result: CommandResult
-        do {
-            result = try run(["-n", "get", "-net", route.prefix])
-        } catch let error as RouteCommandRunnerError {
-            if case .commandFailed(_, _, let output) = error,
-               Self.isAbsentRouteDiagnostic(output) {
-                return nil
-            }
-            throw error
+    func lookup(
+        _ route: ManagedIPv4Route,
+        interfaceName: String?
+    ) throws -> RouteLookupRecord? {
+        if route.scope == .interfaceScoped,
+           interfaceName?.isEmpty != false {
+            throw RouteCommandRunnerError.missingInterfaceName
         }
 
-        let fields = Self.fields(from: result.output)
-        guard Self.isExactRoute(fields, expected: route),
-              let gateway = fields["gateway"],
-              let interfaceName = fields["interface"] else {
-            return nil
+        let expectedScope = route.scope == .interfaceScoped
+        let records = try routeTableRecords(for: route).filter { record in
+            guard record.isInterfaceScoped == expectedScope else {
+                return false
+            }
+            if expectedScope {
+                return record.interfaceName == interfaceName
+            }
+            return true
         }
-        let flags = fields["flags"]?.uppercased() ?? ""
-        return RouteLookupRecord(
-            gateway: gateway,
-            interfaceName: interfaceName,
-            isOwned: flags.contains("PROTO1") && flags.contains("PROTO2")
-        )
+        guard records.count <= 1 else {
+            let description = records.map {
+                "\($0.gateway) on \($0.interfaceName)"
+            }.joined(separator: ", ")
+            throw RouteCommandRunnerError.ambiguousRouteTableEntries(
+                description
+            )
+        }
+        return records.first
     }
 
-    private static func isAbsentRouteDiagnostic(_ output: String) -> Bool {
-        // `run` forces the C locale. Keep this allowlist exact so permission,
-        // routing-socket, syntax, and other command failures never look absent.
-        switch output {
-        case "route: writing to routing socket: not in table",
-             "route: not in table",
-             "route: route has not been found",
-             "route: not found":
-            true
-        default:
-            false
+    func diagnosticOutput(
+        of route: ManagedIPv4Route,
+        interfaceName: String
+    ) -> String {
+        do {
+            let records = try routeTableRecords(for: route)
+            let descriptions = records.map { record in
+                let scope = record.isInterfaceScoped
+                    ? "scoped" : "global"
+                let ownership = record.isOwned ? "owned" : "unowned"
+                return "\(scope) \(record.gateway) on "
+                    + "\(record.interfaceName) \(ownership)"
+            }
+            return descriptions.isEmpty
+                ? "no diagnostic output"
+                : descriptions.joined(separator: " | ")
+        } catch {
+            return error.localizedDescription
         }
+    }
+
+    private func appendScopeArguments(
+        for route: ManagedIPv4Route,
+        interfaceName: String?,
+        to arguments: inout [String]
+    ) throws {
+        guard route.scope == .interfaceScoped else { return }
+        guard let interfaceName, !interfaceName.isEmpty else {
+            throw RouteCommandRunnerError.missingInterfaceName
+        }
+        arguments.append(contentsOf: ["-ifscope", interfaceName])
+    }
+
+    private func routeTableRecords(
+        for route: ManagedIPv4Route
+    ) throws -> [RouteLookupRecord] {
+        let output = try readIPv4RouteTable()
+        return output.split(separator: "\n").compactMap { line in
+            let columns = line.split(whereSeparator: { $0.isWhitespace })
+            guard columns.count >= 4,
+                  route.netstatDestinations.contains(String(columns[0])) else {
+                return nil
+            }
+
+            let flags = String(columns[2])
+            return RouteLookupRecord(
+                gateway: String(columns[1]),
+                interfaceName: String(columns[3]),
+                isOwned: flags.contains("1") && flags.contains("2"),
+                isInterfaceScoped: flags.contains("I")
+            )
+        }
+    }
+
+    private func readIPv4RouteTable() throws -> String {
+        let process = Process()
+        let outputPipe = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/usr/sbin/netstat")
+        process.arguments = ["-rn", "-f", "inet"]
+        process.environment = [
+            "LC_ALL": "C",
+            "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+        ]
+        process.standardOutput = outputPipe
+        process.standardError = outputPipe
+
+        try process.run()
+        let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        let output = String(
+            data: outputData,
+            encoding: .utf8
+        )?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard process.terminationReason == .exit,
+              process.terminationStatus == 0 else {
+            throw RouteCommandRunnerError.routeTableInspectionFailed(
+                status: process.terminationStatus,
+                output: output
+            )
+        }
+        return output
     }
 
     private func run(_ arguments: [String]) throws -> CommandResult {
@@ -130,9 +285,10 @@ struct RouteCommandRunner: Sendable {
         process.standardError = outputPipe
 
         try process.run()
+        let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
         let output = String(
-            data: outputPipe.fileHandleForReading.readDataToEndOfFile(),
+            data: outputData,
             encoding: .utf8
         )?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         guard process.terminationReason == .exit,
@@ -146,31 +302,6 @@ struct RouteCommandRunner: Sendable {
         return CommandResult(output: output)
     }
 
-    private static func fields(from output: String) -> [String: String] {
-        var fields: [String: String] = [:]
-        for line in output.split(separator: "\n") {
-            guard let colon = line.firstIndex(of: ":") else { continue }
-            let key = line[..<colon]
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-                .lowercased()
-            let value = line[line.index(after: colon)...]
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !key.isEmpty, !value.isEmpty else { continue }
-            fields[key] = value
-        }
-        return fields
-    }
-
-    private static func isExactRoute(
-        _ fields: [String: String],
-        expected route: ManagedIPv4Route
-    ) -> Bool {
-        let destination = fields["destination"]
-        let destinationMatches = destination == route.destination
-            || (route.destination == "0.0.0.0" && destination == "default")
-        return destinationMatches && fields["mask"] == route.mask
-    }
-
     private struct CommandResult {
         let output: String
     }
@@ -180,10 +311,22 @@ enum ManagedRouteInspection: Equatable {
     case absent
     case owned
     case conflicting
+
+    var diagnosticName: String {
+        switch self {
+        case .absent:
+            "absent"
+        case .owned:
+            "owned"
+        case .conflicting:
+            "conflicting"
+        }
+    }
 }
 
 struct RouteLookupRecord: Equatable, Sendable {
     let gateway: String
     let interfaceName: String
     let isOwned: Bool
+    let isInterfaceScoped: Bool
 }

@@ -290,7 +290,9 @@ final class NetworkRouteStore: ObservableObject {
         let generation = beginOperation(.starting)
         lastErrorMessage = nil
         appendEventLog(
-            "Installing 0.0.0.0/1 and 128.0.0.0/1 through guest \(guestIPv4Address): \(reason).",
+            "Installing global and interface-scoped entries for "
+                + "0.0.0.0/1 and 128.0.0.0/1 through guest "
+                + "\(guestIPv4Address): \(reason).",
             level: .debug
         )
         Task { @MainActor [weak self] in

@@ -206,7 +206,7 @@ struct OnboardingView: View {
                 image: "checkmark.shield"
             )
         } footer: {
-            Text("The helper installs and removes the two managed IPv4 routes.")
+            Text("The helper installs and removes managed IPv4 route entries for two prefixes.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
