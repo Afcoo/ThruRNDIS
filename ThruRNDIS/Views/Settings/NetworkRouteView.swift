@@ -13,7 +13,7 @@ struct NetworkRouteView: View {
             if !helper.isSignedBuild {
                 Section {
                     Label(
-                        "The network route helper is unavailable in this unsigned build.",
+                        "The VM network helper is unavailable in this unsigned build.",
                         systemImage: "exclamationmark.triangle"
                     )
                     .foregroundStyle(.orange)
@@ -24,20 +24,38 @@ struct NetworkRouteView: View {
                 NetworkRouteHelperPermissionView()
             }
 
-            Section("IPv4 Route") {
+            Section("VM Network") {
                 LabeledContent("Status") {
                     SettingsStatusLabel(
                         title: routeStatus.title,
                         appearance: routeStatus.appearance
                     )
                 }
+                HStack {
+                    Button("Start") {
+                        networkRoute.startManually()
+                    }
+                    .disabled(!networkRoute.canStart)
+
+                    Button("Stop") {
+                        networkRoute.stopManually()
+                    }
+                    .disabled(!networkRoute.canStop)
+
+                    Spacer()
+                }
                 LabeledContent(
-                    "Guest",
+                    "Guest VZNAT Address",
                     value: networkRoute.guestIPv4Address
                         ?? String(localized: "Waiting")
                 )
                 LabeledContent(
-                    "RNDIS",
+                    "VZNAT Gateway",
+                    value: networkRoute.vznatGatewayIPv4Address
+                        ?? String(localized: "Waiting")
+                )
+                LabeledContent(
+                    "RNDIS Forwarding",
                     value: networkRoute.isRNDISRouteReady
                         ? String(localized: "Ready")
                         : String(localized: "Waiting")
@@ -45,16 +63,39 @@ struct NetworkRouteView: View {
                 if let snapshot = networkRoute.snapshot,
                    snapshot.state != .inactive {
                     LabeledContent(
-                        "Host Interface",
-                        value: snapshot.interfaceName ?? String(localized: "Unknown")
+                        "VM Bridge",
+                        value: snapshot.bridgeInterfaceName
+                            ?? String(localized: "Unknown")
+                    )
+                    LabeledContent(
+                        "Ethernet Bond",
+                        value: snapshot.bondInterfaceName
+                            ?? String(localized: "Unknown")
+                    )
+                    LabeledContent(
+                        "Bond feth",
+                        value: snapshot.memberInterfaceName
+                            ?? String(localized: "Unknown")
+                    )
+                    LabeledContent(
+                        "Bridge feth",
+                        value: snapshot.peerInterfaceName
+                            ?? String(localized: "Unknown")
                     )
                     LabeledContent(
                         "Host Address",
                         value: snapshot.hostIPv4Address ?? String(localized: "Unknown")
                     )
                     LabeledContent(
+                        "Router",
+                        value: snapshot.routerIPv4Address
+                            ?? String(localized: "Unknown")
+                    )
+                    LabeledContent(
                         "Routes",
-                        value: snapshot.installedPrefixes.joined(separator: ", ")
+                        value: snapshot.installedPrefixes.isEmpty
+                            ? String(localized: "None")
+                            : snapshot.installedPrefixes.joined(separator: ", ")
                     )
                 }
                 if let lastErrorMessage = networkRoute.lastErrorMessage {

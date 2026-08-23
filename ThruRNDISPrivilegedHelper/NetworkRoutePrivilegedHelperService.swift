@@ -22,10 +22,12 @@ final class NetworkRoutePrivilegedHelperService: NSObject,
 
     func start(
         guestIPv4Address: String,
+        vznatGatewayIPv4Address: String,
         withReply reply: @escaping NetworkRoutePrivilegedHelperReply
     ) {
         controller.start(
             guestIPv4Address: guestIPv4Address,
+            vznatGatewayIPv4Address: vznatGatewayIPv4Address,
             leaseOwnerIdentifier: leaseState.identifier
         ) { [self] result in
             if case .success = result,

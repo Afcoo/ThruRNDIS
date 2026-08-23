@@ -1,6 +1,6 @@
 # Security Policy
 
-ThruRNDIS handles USB passthrough, a privileged macOS route helper, and a
+ThruRNDIS handles USB passthrough, a privileged macOS network helper, and a
 Virtualization framework VM. Please report suspected vulnerabilities privately
 and avoid exposing sensitive material in a public issue.
 
@@ -43,9 +43,12 @@ Please allow reasonable time for a fix before publishing details.
 
 Reports are especially useful when they involve:
 
-- privileged-helper authentication, authorization, route ownership, or cleanup;
+- privileged-helper authentication, authorization, Bond/feth/bridge ownership,
+  route ownership, or cleanup;
 - unintended persistence or replacement of the four managed IPv4 route entries
   for the two `/1` prefixes;
+- adding an unowned interface to a bridge or removing an unrelated Bond, feth
+  pair, bridge member, or SystemConfiguration service;
 - USB AccessoryAccess approval and passthrough lifecycle;
 - VM Asset download, checksum validation, archive extraction, or promotion;
 - signing, entitlements, notarization, release artifacts, or update metadata;

@@ -1,9 +1,9 @@
 # AGENTS.md
 
 This repository is a macOS 27+ USB RNDIS tethering VM project. Read this file
-before changing the app. The current baseline sends macOS IPv4 traffic to the
-Linux guest with global and VZNAT-interface-scoped route entries for two `/1`
-prefixes through the guest's dynamically assigned VZNAT address.
+before changing the app. This proof-of-concept sends macOS IPv4 traffic through
+an owned Ethernet Bond and feth pair whose peer is added to the bridge created
+for the VM's VZNAT attachment.
 
 ## Project Shape
 
@@ -21,7 +21,7 @@ prefixes through the guest's dynamically assigned VZNAT address.
   into `/Library/PrivilegedHelperTools`, add a versioned system copy, or add a
   DriverKit target.
 - There is no Network Extension or System Extension target. Do not add an
-  app-local packet tunnel, packet relay, synthetic feth pair, bond, or bridge.
+  app-local packet tunnel or packet relay.
 - Linux VM assets are not bundled or built here. Published assets come from
   [Afcoo/ThruRNDIS_VM_Assets](https://github.com/Afcoo/ThruRNDIS_VM_Assets).
 
@@ -31,8 +31,10 @@ The IPv4 proof-of-concept data path is:
 
 ```text
 macOS 0.0.0.0/1 and 128.0.0.0/1 routes
--> dynamically discovered VZNAT guest IPv4 address
--> Linux guest eth0
+-> Ethernet Bond at 192.168.100.2/24
+-> owned feth0 <-> feth1 pair
+-> VM-created VZNAT bridge containing feth1
+-> Linux guest eth0 at 192.168.100.1/24
 -> IPv4 forwarding and nftables masquerade
 -> Linux guest usb0
 -> USB RNDIS upstream
@@ -48,24 +50,32 @@ macOS 0.0.0.0/1 and 128.0.0.0/1 routes
   - `THRURNDIS_VZNAT_GATEWAY=<vznat-gateway>`
   - `THRURNDIS_RNDIS_ROUTE_READY=1` only after `usb0` forwarding and NAT are
     ready, and `THRURNDIS_RNDIS_ROUTE_READY=0` when they are not ready.
+- The guest also assigns `192.168.100.1/24` to `eth0`. The host Bond owns
+  `192.168.100.2/24`; `feth1` remains unaddressed and carries Ethernet frames
+  only after the helper adds it to the resolved VM bridge.
 - The host must not install its `/1` routes from the address marker alone. It
-  waits for both a valid guest address and the ready marker.
+  waits for a valid guest VZNAT address, the matching VZNAT gateway marker,
+  and the ready marker.
 - `ConsoleSessionStore` parses console markers and `VMCoordinator` forwards the
   address/readiness changes into `NetworkRouteStore`.
-- `NetworkRouteStore` reconciles desired routing state. It asks the helper to
-  install routes only when the helper is current, the guest address is known,
-  and RNDIS is ready. It removes routes when readiness is lost, the VM stops,
+- `NetworkRouteStore` reconciles desired networking state. It asks the helper
+  to create the Bond/feth/bridge path and routes only when the helper is
+  current, the guest VZNAT address and gateway are known, and RNDIS is ready.
+  It removes routes and owned interfaces when readiness is lost, the VM stops,
   app settings are reset, or the app terminates.
-- The helper installs global and VZNAT-interface-scoped entries for exactly
-  `0.0.0.0/1` and `128.0.0.0/1`. The global entries select the VZNAT interface;
-  the scoped companions keep macOS protocol-cloned destinations routed through
-  the guest instead of VZNAT's interface-scoped direct default. These prefixes
-  remain more specific than the original macOS default route, which stays
-  available for reaching the directly connected VZNAT network.
+- A successful USB passthrough attachment arms one automatic managed-network
+  start. Status refreshes from Settings, app activation, helper health, or the
+  menu bar are read-only and must not retry a failed start. A new USB attach or
+  an explicit Start action may arm another attempt; Stop preserves current
+  guest inputs so the user can start again without restarting the VM.
+- The helper installs global and Bond-interface-scoped entries for exactly
+  `0.0.0.0/1` and `128.0.0.0/1`, both through guest `192.168.100.1` on the
+  allocated Bond. These prefixes remain more specific than the original macOS
+  default route.
 - IPv6 routing is out of scope. Do not claim that this PoC captures or blocks
   IPv6 traffic.
 
-## Host Route Helper Contract
+## Host Network Helper Contract
 
 - All host network mutation belongs to `ThruRNDISPrivilegedHelper`. The
   unprivileged app must not execute `route`, `ifconfig`, `networksetup`, or
@@ -73,7 +83,7 @@ macOS 0.0.0.0/1 and 128.0.0.0/1 routes
 - `NetworkRoutePrivilegedHelperRegistrationService` owns `SMAppService`
   registration. `NetworkRoutePrivilegedHelperClient` owns authenticated NSXPC.
   `NetworkRouteHelperStore` owns helper registration state and actions, while
-  `NetworkRouteStore` owns route state and reconciliation.
+  `NetworkRouteStore` owns Bond/feth/bridge/route state and reconciliation.
 - A successful `start` keeps that XPC connection alive as the route lease. The
   helper binds cleanup to that connection only after start succeeds, scopes
   invalidation cleanup to its controller lease token, and handles a disconnect
@@ -81,22 +91,26 @@ macOS 0.0.0.0/1 and 128.0.0.0/1 routes
   transient. If the active lease breaks, the app clears its guest control path
   and makes one fresh authenticated stop attempt so a restarted helper can
   rediscover and remove the exactly owned routes.
-- The shared XPC surface contains only `status`, `start(guestIPv4Address:)`, and
-  `stop`. Keep values Foundation/XPC-safe and validate every value again in the
-  helper.
-- `VZNATInterfaceResolver` accepts only a canonical RFC 1918 IPv4 address. It
-  enumerates active, non-loopback, non-point-to-point host IPv4 interfaces and
-  requires exactly one directly connected interface whose subnet contains the
-  guest address. Ambiguous or missing matches fail closed.
+- The shared XPC surface contains only `status`,
+  `start(guestIPv4Address:vznatGatewayIPv4Address:)`, and `stop`. Keep values
+  Foundation/XPC-safe and validate every value again in the helper.
+- `VZNATInterfaceResolver` accepts only canonical RFC 1918 guest and gateway
+  addresses. It enumerates active host IPv4 interfaces and requires exactly
+  one canonical `bridge<number>` whose link type is `IFT_BRIDGE`, whose address
+  equals the reported gateway, and whose subnet contains the guest. Ambiguous
+  or missing matches fail closed.
+- The helper creates only the validated `feth0`/`feth1` pair, leaves `feth1`
+  unaddressed, creates its recorded SCBond and Network Service, adds `feth1`
+  to the resolved VM bridge with `/sbin/ifconfig`, and assigns the Bond
+  `192.168.100.2/24` with router and DNS `192.168.100.1`.
+- Runtime Bond inspection uses `ifconfig -b <bond>` so both the static mode and
+  exact feth member are verified before the helper grants the network lease.
 - `RouteCommandRunner` invokes only `/sbin/route` for mutation and fixed,
   read-only `/usr/sbin/netstat -rn -f inet` for exact global/scoped entry
   inspection, each with an argument array and fixed environment. Never add a
   shell API or arbitrary-command XPC method.
-- Each managed prefix has one global entry and one entry scoped to the resolved
-  VZNAT interface. The global entry lets ordinary macOS lookups select VZNAT;
-  the scoped entry must use `-ifscope` so the second, interface-scoped lookup
-  outranks VZNAT's direct scoped default and retains the guest as gateway. Both
-  entries use the discovered guest address as gateway and both `PROTO1` and
+- Each managed prefix has one global entry and one entry scoped to the allocated
+  Bond. Both entries use `192.168.100.1` as gateway and both `PROTO1` and
   `PROTO2` flags as the private ownership signature. Status/removal require the
   exact scope, destination, netmask, gateway, returned interface, and ownership
   flags to match. Never scope the global companion or omit the scope from the
@@ -108,10 +122,15 @@ macOS 0.0.0.0/1 and 128.0.0.0/1 routes
   address first removes the owned prior set. Installation and removal retain a
   global rediscovery anchor until the scoped entries are gone. Partial
   installation rolls back only entries added by that invocation.
-- Do not add an external ownership file. The helper caches the current
-  configuration in memory and may rediscover only the exact four entries
-  carrying both ownership flags with one consistent gateway/interface after a
-  restart; it must not adopt or delete arbitrary routes.
+- Do not add an external ownership file. Store the allocated Bond, Network
+  Service, feth pair, and VM bridge in one SystemConfiguration ownership value.
+  After restart, remove only those exact recorded objects and routes carrying
+  the private ownership flags; never scan for or adopt same-named objects.
+- Cleanup withdraws the `/1` routes first, removes `feth1` from the recorded
+  bridge when that bridge still exists, detaches and destroys the owned feth
+  pair, and finally removes the recorded SystemConfiguration objects. A VM
+  bridge that already disappeared is treated as an absent membership, not as
+  authority to touch another bridge.
 - The helper authenticates the connecting app's signing identifier and team;
   the app authenticates the helper using the corresponding derived identifier
   and team. Keep `PeerCodeSigningRequirementBuilder` shared by both targets.
@@ -119,13 +138,13 @@ macOS 0.0.0.0/1 and 128.0.0.0/1 routes
 ## App Architecture
 
 - `AppDelegate` is the composition root. It constructs the VM, USB, VM Asset,
-  event-log, and route-helper dependencies and injects them into one shared
+  event-log, and network-helper dependencies and injects them into one shared
   `TetheringStore`.
 - `TetheringStore` is the app-facing facade for reset ordering, listener
   prerequisites, and cross-feature commands. Independently observable state
   remains in child stores.
 - `TetheringWorkflowCoordinator` serializes USB approval, VM preparation, and
-  passthrough. It does not create host routes directly.
+  passthrough. It does not create host networking directly.
 - `VMCoordinator` owns Virtualization lifecycle and current-console generation
   safety. `USBAccessoryCoordinator` owns AccessoryAccess selection and USB
   passthrough policy.
@@ -137,12 +156,12 @@ macOS 0.0.0.0/1 and 128.0.0.0/1 routes
   de-duplication, and VM-asset deferral. `VMConfigurationStore` owns persisted
   VM settings and the optional scratch disk.
 - Normal operation requires completed onboarding, valid VM Assets, and the
-  current enabled route helper before AccessoryAccess monitoring starts or
+  current enabled network helper before AccessoryAccess monitoring starts or
   reloads. Debug mode may expose controls, but it does not bypass USB
   entitlement or listener-transition safety.
-- App reset stops managed routes before unregistering the helper. If route
-  removal fails, do not unregister the helper or claim reset success.
-- Application termination performs bounded best-effort route cleanup. Explicit
+- App reset stops the managed network before unregistering the helper. If
+  cleanup fails, do not unregister the helper or claim reset success.
+- Application termination performs bounded best-effort network cleanup. Explicit
   user operations still surface failures normally.
 
 ## USB and VM Lifecycle
@@ -155,7 +174,7 @@ macOS 0.0.0.0/1 and 128.0.0.0/1 routes
   detach, physical disconnect, or passthrough disconnect stops that VM session.
 - Preserve VM-generation and USB-operation tokens so callbacks from old
   sessions cannot mutate current state.
-- Reset route input state before each VM start. Ignore structured console
+- Reset network input state before each VM start. Ignore structured console
   markers from a stale VM generation.
 - Do not wait for `usb0` before booting the VM. The guest watcher is responsible
   for late USB attach, detach, and reconnect, and drives the readiness marker.
@@ -212,7 +231,7 @@ Normal unsigned development:
 ```
 
 Signed Runtime build and installation for USB, Virtualization, helper, and real
-route validation:
+Bond/feth/bridge validation:
 
 ```sh
 ./script/build_and_install.sh
@@ -255,8 +274,9 @@ updates.
   and NSXPC.
 - `ThruRNDIS/Models`: shared values and the narrow helper protocol.
 - `ThruRNDIS/Support`: small stateless helpers and platform edges.
-- `ThruRNDISPrivilegedHelper`: route controller, resolver, fixed command
-  runner, authenticated XPC service, and executable entrypoint only.
+- `ThruRNDISPrivilegedHelper`: network controller, SystemConfiguration owner,
+  resolver, fixed command runners, authenticated XPC service, and executable
+  entrypoint only.
 - `Configuration`: shared build settings and local-signing template.
 - `script`: developer, signing, notarization, and packaging automation only.
 
@@ -290,8 +310,10 @@ After relevant changes:
 - for signed entitlement/helper changes, run `./script/build_and_install.sh`;
 - for public release changes, run the full `./script/package_app.sh` workflow.
 
-Real end-to-end route validation additionally requires macOS 27 beta, approved
+Real end-to-end network validation additionally requires macOS 27 beta, approved
 AccessoryAccess and Virtualization entitlements, the signed app installed in
 `/Applications`, administrator approval for the helper, a real RNDIS device,
-and packet/route inspection on both host and guest. Signing availability must
-not block compile, UI, or documentation work.
+and Bond/feth/bridge/route inspection on both host and guest. This POC mutates
+the implementation bridge created by VZNAT; that bridge identity and lifetime
+are not a stable Virtualization framework API contract. Signing availability
+must not block compile, UI, or documentation work.

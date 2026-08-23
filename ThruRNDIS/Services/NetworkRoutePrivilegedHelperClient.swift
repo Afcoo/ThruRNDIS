@@ -17,14 +17,14 @@ enum NetworkRoutePrivilegedHelperClientError: Error, Equatable, LocalizedError {
             String(localized: "The ThruRNDIS bundle identifier is unavailable.")
         case .remoteObjectUnavailable(let message):
             if let message, !message.isEmpty {
-                String(localized: "The network route helper is unavailable. \(message)")
+                String(localized: "The VM network helper is unavailable. \(message)")
             } else {
-                String(localized: "The network route helper is unavailable.")
+                String(localized: "The VM network helper is unavailable.")
             }
         case .malformedResponse:
-            String(localized: "The network route helper returned an incomplete response.")
+            String(localized: "The VM network helper returned an incomplete response.")
         case .requestTimedOut:
-            String(localized: "The network route helper did not respond before the request timed out.")
+            String(localized: "The VM network helper did not respond before the request timed out.")
         case .helperFailure(let message):
             message
         }
@@ -38,8 +38,8 @@ enum NetworkRoutePrivilegedHelperClientError: Error, Equatable, LocalizedError {
 @MainActor
 final class NetworkRoutePrivilegedHelperClient {
     private static let statusRequestTimeout: DispatchTimeInterval = .seconds(5)
-    private static let startRequestTimeout: DispatchTimeInterval = .seconds(10)
-    private static let stopRequestTimeout: DispatchTimeInterval = .seconds(10)
+    private static let startRequestTimeout: DispatchTimeInterval = .seconds(30)
+    private static let stopRequestTimeout: DispatchTimeInterval = .seconds(15)
     private static let terminationStopRequestTimeout: DispatchTimeInterval =
         .seconds(5)
 
@@ -56,7 +56,10 @@ final class NetworkRoutePrivilegedHelperClient {
         }
     }
 
-    func start(guestIPv4Address: String) async throws -> NetworkRouteSnapshot {
+    func start(
+        guestIPv4Address: String,
+        vznatGatewayIPv4Address: String
+    ) async throws -> NetworkRouteSnapshot {
         let hadActiveLease = isLeaseActive
         let connection: NSXPCConnection
         let shouldActivate: Bool
@@ -80,6 +83,7 @@ final class NetworkRoutePrivilegedHelperClient {
             ) { proxy, reply in
                 proxy.start(
                     guestIPv4Address: guestIPv4Address,
+                    vznatGatewayIPv4Address: vznatGatewayIPv4Address,
                     withReply: reply
                 )
             }

@@ -13,10 +13,13 @@ struct ConsoleOutputState: Equatable {
 
 struct GuestNetworkConsoleUpdate: Equatable {
     let guestIPv4Address: String?
+    let vznatGatewayIPv4Address: String?
     let isRNDISRouteReady: Bool?
 
     var isEmpty: Bool {
-        guestIPv4Address == nil && isRNDISRouteReady == nil
+        guestIPv4Address == nil
+            && vznatGatewayIPv4Address == nil
+            && isRNDISRouteReady == nil
     }
 }
 
@@ -89,6 +92,9 @@ final class ConsoleSessionStore: ObservableObject {
         GuestNetworkConsoleUpdate(
             guestIPv4Address: completedMarkerValue(
                 after: "THRURNDIS_VZNAT_IPV4="
+            ),
+            vznatGatewayIPv4Address: completedMarkerValue(
+                after: "THRURNDIS_VZNAT_GATEWAY="
             ),
             isRNDISRouteReady: completedMarkerValue(
                 after: "THRURNDIS_RNDIS_ROUTE_READY="

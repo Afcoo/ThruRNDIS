@@ -164,7 +164,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .store(in: &cancellables)
 
-        updateNetworkRouteHelperIfNeeded()
+        updateNetworkHelperIfNeeded()
         networkRoute.refresh()
         store.startAccessoryMonitoringOnLaunch()
         DispatchQueue.main.async { [weak self] in
@@ -253,7 +253,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         consoleWindowController?.show()
     }
 
-    private func updateNetworkRouteHelperIfNeeded() {
+    private func updateNetworkHelperIfNeeded() {
         let helper = store.networkRoute.helper
         helper.refresh()
         guard helper.needsAutomaticUpdate else {
@@ -261,7 +261,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         eventLog.append(
-            "Automatically updating the network route helper for the current app build.",
+            "Automatically updating the VM network helper for the current app build.",
             level: .info,
             category: .application
         )
@@ -367,7 +367,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = String(
-            localized: "USB and the managed IPv4 routes will disconnect. Quit anyway?"
+            localized: "USB and the managed VM network will disconnect. Quit anyway?"
         )
         alert.addButton(withTitle: String(localized: "Quit ThruRNDIS"))
         alert.addButton(withTitle: String(localized: "Cancel"))

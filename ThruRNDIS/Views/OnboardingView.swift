@@ -132,7 +132,7 @@ struct OnboardingView: View {
         Section {
             onboardingPoint("Install the VM Assets.", image: "arrow.down.circle")
             onboardingPoint(
-                "Grant the network route helper permission.",
+                "Grant the VM network helper permission.",
                 image: "checkmark.shield"
             )
             onboardingPoint(
@@ -201,12 +201,12 @@ struct OnboardingView: View {
             NetworkRouteHelperPermissionView()
         } header: {
             onboardingStepHeader(
-                "Enable the network helper",
-                detail: "The helper routes macOS IPv4 traffic through the VM after RNDIS is ready.",
+                "Enable the VM Network Helper",
+                detail: "The helper connects macOS to the VM after RNDIS is ready.",
                 image: "checkmark.shield"
             )
         } footer: {
-            Text("The helper installs and removes managed IPv4 route entries for two prefixes.")
+            Text("The helper manages the VM bridge, Ethernet Bond, feth pair, and host routes.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

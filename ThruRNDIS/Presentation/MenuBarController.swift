@@ -260,7 +260,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             assetWorkflowCoordinator.hasConfiguredAssets
                 ? nil : String(localized: "Configure VM Assets in Settings"),
             networkRoute.helper.registrationStatus == .enabled
-                ? nil : String(localized: "Configure the network helper in Settings"),
+                ? nil : String(localized: "Configure VM Network in Settings"),
         ].compactMap { $0 }
     }
 
@@ -270,6 +270,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             isUSBAttached: store.usbSession.attachedAccessoryID != nil,
             isNetworkHelperAvailable: networkRoute.helper.isAvailable,
             guestIPv4Address: networkRoute.guestIPv4Address,
+            vznatGatewayIPv4Address:
+                networkRoute.vznatGatewayIPv4Address,
             isRNDISRouteReady: networkRoute.isRNDISRouteReady,
             networkRouteSnapshot: networkRoute.snapshot
         )
@@ -309,7 +311,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
                     : String(localized: "Helper Problem")
             }
         }
-        return String(localized: "Network Route: \(title)")
+        return String(localized: "VM Network: \(title)")
     }
 
     private var vmStatusColor: NSColor {

@@ -28,7 +28,7 @@ ThruRNDIS is a Swift app based on the Virtualization framework that enables Andr
 ## Requirements
 
 - macOS 27 or later
-- Network Extension and LaunchDaemon permissions
+- AccessoryAccess and LaunchDaemon permissions
 
 ## Installation
 
@@ -50,15 +50,20 @@ brew install --cask afcoo/tap/thrurndis
    ![Passing a USB device to ThruRNDIS from Virtual Machine Accessories](./images/accessory-access-onboarding.gif)
 
 3. **Confirm the USB device connection:** Approve the connection in the USB device connection pop-up.
-4. **Confirm the WireGuard connection:** Approve the connection in the WireGuard connection pop-up.
 
 ## How It Works
 
+> This POC requires VM Assets built from the matching
+> `poc/feth-vm-networking` branch; the latest published VM Assets may still use
+> the previous network contract.
+
 ```text
-ThruRNDIS WireGuard Network System Extension
--> VZNAT guest endpoint UDP/<ListenPort>
--> Linux VM wg0
--> nftables masquerade
+macOS managed IPv4 routes and DNS
+-> Ethernet Bond (192.168.100.2)
+-> feth0 <-> feth1
+-> VM-created VZNAT bridge
+-> Linux VM eth0 (192.168.100.1)
+-> policy routing and nftables masquerade
 -> Linux VM usb0
 -> RNDIS USB tethering device
 ```
@@ -67,9 +72,9 @@ ThruRNDIS WireGuard Network System Extension
 
 ThruRNDIS runs a lightweight Linux VM and passes the RNDIS device connected to macOS through to the VM using USB passthrough.
 
-macOS and the VM are connected by a WireGuard tunnel over VZNAT, and the VM forwards macOS traffic received through WireGuard to the recognized RNDIS device.
+For this proof of concept, the privileged helper creates an Ethernet Bond and a paired `feth0`/`feth1` link. After the VM reports its VZNAT address, the helper resolves the bridge created for that VM, adds `feth1` as a bridge member, and installs the two managed `/1` IPv4 routes through the guest.
 
-ThruRNDIS uses a [modified `wireguard-apple` fork](https://github.com/Afcoo/wireguard-apple/tree/thrurndis-vznat-bind) to establish the WireGuard tunnel over VZNAT.
+The guest owns `192.168.100.1`, forwards traffic arriving from the Bond through the USB RNDIS interface, and provides DNS forwarding using the live RNDIS lease. WireGuardKit and the Network System Extension are not part of this path.
 
 ## License
 

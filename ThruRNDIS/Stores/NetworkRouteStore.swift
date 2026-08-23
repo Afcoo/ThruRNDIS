@@ -29,12 +29,15 @@ final class NetworkRouteStore: ObservableObject {
     @Published private(set) var snapshot: NetworkRouteSnapshot?
     @Published private(set) var operation: NetworkRouteOperation?
     @Published private(set) var guestIPv4Address: String?
+    @Published private(set) var vznatGatewayIPv4Address: String?
     @Published private(set) var isRNDISRouteReady = false
     @Published private(set) var lastErrorMessage: String?
+    @Published private var isReconciliationQueued = false
 
     private let client: NetworkRoutePrivilegedHelperClient
     private let eventLog: EventLogStore
     private var reconciliationGeneration: UInt64 = 0
+    private var shouldRunManagedNetwork = false
     private var helperCancellables: Set<AnyCancellable> = []
 
     init(
@@ -62,7 +65,9 @@ final class NetworkRouteStore: ObservableObject {
     }
 
     var isOperationInProgress: Bool {
-        operation != nil || helper.isOperationInProgress
+        (operation != nil && operation != .refreshing)
+            || helper.isOperationInProgress
+            || isReconciliationQueued
     }
 
     var isActive: Bool {
@@ -70,7 +75,21 @@ final class NetworkRouteStore: ObservableObject {
     }
 
     var isReadyToRoute: Bool {
-        helper.isAvailable && guestIPv4Address != nil && isRNDISRouteReady
+        helper.isAvailable
+            && guestIPv4Address != nil
+            && vznatGatewayIPv4Address != nil
+            && isRNDISRouteReady
+    }
+
+    var canStart: Bool {
+        isReadyToRoute
+            && !isOperationInProgress
+            && snapshot?.state != .active
+    }
+
+    var canStop: Bool {
+        !isOperationInProgress
+            && (snapshot?.state == .active || snapshot?.state == .degraded)
     }
 
     func refresh() {
@@ -93,31 +112,43 @@ final class NetworkRouteStore: ObservableObject {
                 let snapshot = try await self.client.status()
                 guard self.finishOperation(generation) else { return }
                 self.apply(snapshot)
-                self.reconcileIfNeeded(reason: "status refreshed")
             } catch {
                 guard self.finishOperation(generation) else { return }
-                self.report(error, context: "Network route status refresh failed")
+                self.report(error, context: "VM network status refresh failed")
             }
         }
     }
 
-    func updateGuestIPv4Address(_ address: String) {
-        guard guestIPv4Address != address else { return }
-        guestIPv4Address = address
+    func updateVZNATNetwork(
+        guestIPv4Address: String,
+        vznatGatewayIPv4Address: String
+    ) {
+        guard self.guestIPv4Address != guestIPv4Address
+                || self.vznatGatewayIPv4Address
+                    != vznatGatewayIPv4Address else {
+            return
+        }
+        self.guestIPv4Address = guestIPv4Address
+        self.vznatGatewayIPv4Address = vznatGatewayIPv4Address
         appendEventLog(
-            "Guest VZNAT IPv4 address discovered: \(address).",
+            "Guest VZNAT network discovered: guest=\(guestIPv4Address), gateway=\(vznatGatewayIPv4Address).",
             level: .info
         )
         if operation == .starting {
-            stop(reason: "guest VZNAT address changed during route start")
+            stopPreservingDesiredState(
+                reason: "guest VZNAT network changed during network start"
+            )
             return
         }
-        reconcileIfNeeded(reason: "guest VZNAT address discovered")
+        reconcileIfNeeded(reason: "guest VZNAT network discovered")
     }
 
     func updateRNDISRouteReady(_ isReady: Bool) {
         guard isRNDISRouteReady != isReady else { return }
         isRNDISRouteReady = isReady
+        if !isReady {
+            shouldRunManagedNetwork = false
+        }
         appendEventLog(
             isReady
                 ? "Guest RNDIS route reported ready."
@@ -125,89 +156,123 @@ final class NetworkRouteStore: ObservableObject {
             level: isReady ? .info : .warning
         )
         if !isReady, operation == .starting {
-            stop(reason: "guest RNDIS route became unavailable during route start")
+            stopPreservingDesiredState(
+                reason: "guest RNDIS route became unavailable during network start"
+            )
             return
         }
         reconcileIfNeeded(reason: "guest RNDIS readiness changed")
     }
 
-    func resetForVMStart() {
-        guestIPv4Address = nil
-        isRNDISRouteReady = false
-        stop(reason: "VM session starting")
+    func usbDidAttach() {
+        cancelStatusRefreshIfNeeded()
+        shouldRunManagedNetwork = true
+        lastErrorMessage = nil
+        reconcileIfNeeded(reason: "USB accessory attached")
+    }
+
+    func usbDidDetach() {
+        shouldRunManagedNetwork = false
+    }
+
+    func startManually() {
+        guard canStart else { return }
+        cancelStatusRefreshIfNeeded()
+        shouldRunManagedNetwork = true
+        lastErrorMessage = nil
+        reconcileIfNeeded(reason: "manual start requested")
+    }
+
+    func stopManually() {
+        guard canStop else { return }
+        shouldRunManagedNetwork = false
+        stopPreservingDesiredState(reason: "manual stop requested")
+    }
+
+    @discardableResult
+    func resetForVMStart() -> Bool {
+        cancelStatusRefreshIfNeeded()
+        clearDesiredNetworkState()
+        guard operation == nil,
+              !helper.isOperationInProgress,
+              snapshot?.state == .inactive else {
+            stop(reason: "VM session starting")
+            return false
+        }
+        return true
     }
 
     func vmDidStop() {
-        guestIPv4Address = nil
-        isRNDISRouteReady = false
+        clearDesiredNetworkState()
         stop(reason: "VM stopped")
     }
 
     func guestControlPathDidFail(reason: String) {
-        guestIPv4Address = nil
-        isRNDISRouteReady = false
+        clearDesiredNetworkState()
         stop(reason: reason)
     }
 
     func stop(reason: String) {
-        guard operation != .stopping else { return }
-        guard helper.isAvailable else {
-            reconciliationGeneration &+= 1
-            operation = nil
-            snapshot = nil
-            return
-        }
-
-        let generation = beginOperation(.stopping)
-        appendEventLog("Removing managed IPv4 routes: \(reason).", level: .debug)
+        clearDesiredNetworkState()
+        guard operation != nil || snapshot?.state != .inactive else { return }
+        guard !isReconciliationQueued else { return }
+        isReconciliationQueued = true
         Task { @MainActor [weak self] in
             guard let self else { return }
-            do {
-                let snapshot = try await self.client.stop()
-                guard self.finishOperation(generation) else { return }
-                self.apply(snapshot)
-                self.appendEventLog("Managed IPv4 routes removed.", level: .info)
-                self.reconcileIfNeeded(reason: "route stop completed")
-            } catch {
-                guard self.finishOperation(generation) else { return }
-                self.report(error, context: "Could not remove managed IPv4 routes")
-            }
+            _ = await self.performStop(reason: reason)
+            self.isReconciliationQueued = false
         }
     }
 
+    @discardableResult
+    func stopAndWait(reason: String) async -> Bool {
+        clearDesiredNetworkState()
+        return await performStop(reason: reason)
+    }
+
     func stopForApplicationTermination() async -> Bool {
+        clearDesiredNetworkState()
+        while operation != nil || helper.isOperationInProgress {
+            do {
+                try await Task.sleep(for: .milliseconds(50))
+            } catch {
+                return false
+            }
+        }
+        if snapshot?.state == .inactive { return true }
         reconciliationGeneration &+= 1
+        let generation = reconciliationGeneration
         operation = .stopping
-        defer { operation = nil }
         guard helper.isAvailable else {
+            operation = nil
             appendEventLog(
-                "Managed route cleanup could not be verified because the network route helper is unavailable.",
+                "Managed network cleanup could not be verified because the network helper is unavailable.",
                 level: .error
             )
             return false
         }
 
         do {
-            apply(try await client.stopForApplicationTermination())
+            let stopped = try await client.stopForApplicationTermination()
+            guard finishOperation(generation) else { return false }
+            apply(stopped)
             return snapshot?.state == .inactive
         } catch {
+            guard finishOperation(generation) else { return false }
             report(
                 error,
-                context: "Could not remove managed IPv4 routes during application termination"
+                context: "Could not remove the managed network during application termination"
             )
             return false
         }
     }
 
     func resetForAppSettings() async throws {
-        reconciliationGeneration &+= 1
-        guestIPv4Address = nil
-        isRNDISRouteReady = false
+        clearDesiredNetworkState()
 
         helper.refresh()
         if helper.isAvailable {
-            apply(try await client.stop())
-            guard snapshot?.state == .inactive else {
+            guard await performStop(reason: "app settings reset") else {
                 throw NetworkRouteSettingsResetError.routeRemovalIncomplete
             }
         }
@@ -216,7 +281,79 @@ final class NetworkRouteStore: ObservableObject {
         guard status == .notRegistered || status == .notFound else {
             throw NetworkRouteSettingsResetError.helperRemovalIncomplete
         }
-        snapshot = nil
+        // Preserve the proven cleanup result. App reset subsequently runs the
+        // normal termination preparation after unregistering the helper.
+        snapshot = .inactive
+    }
+
+    private func stopPreservingDesiredState(reason: String) {
+        guard !isReconciliationQueued else { return }
+        isReconciliationQueued = true
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            _ = await self.performStop(reason: reason)
+            self.isReconciliationQueued = false
+        }
+    }
+
+    private func performStop(reason: String) async -> Bool {
+        while operation != nil || helper.isOperationInProgress {
+            do {
+                try await Task.sleep(for: .milliseconds(50))
+            } catch {
+                return false
+            }
+        }
+        if snapshot?.state == .inactive { return true }
+
+        guard helper.isAvailable else {
+            reconciliationGeneration &+= 1
+            operation = nil
+            snapshot = nil
+            appendEventLog(
+                "Managed network cleanup could not be verified because the network helper is unavailable: \(reason).",
+                level: .error
+            )
+            return false
+        }
+
+        let generation = beginOperation(.stopping)
+        appendEventLog(
+            "Removing the managed routes, VM bridge member, Bond, and feth pair: \(reason).",
+            level: .debug
+        )
+        do {
+            let stopped = try await client.stop()
+            guard finishOperation(generation) else { return false }
+            apply(stopped)
+            let didStop = stopped.state == .inactive
+            if didStop {
+                appendEventLog("Managed host network removed.", level: .info)
+            } else {
+                lastErrorMessage = String(
+                    localized: "The managed host network did not become inactive."
+                )
+            }
+            reconcileIfNeeded(reason: "managed network stop completed")
+            return didStop
+        } catch {
+            guard finishOperation(generation) else { return false }
+            report(error, context: "Could not remove the managed host network")
+            return false
+        }
+    }
+
+    private func clearDesiredNetworkState() {
+        shouldRunManagedNetwork = false
+        guestIPv4Address = nil
+        vznatGatewayIPv4Address = nil
+        isRNDISRouteReady = false
+    }
+
+    private func cancelStatusRefreshIfNeeded() {
+        guard operation == .refreshing else { return }
+        reconciliationGeneration &+= 1
+        operation = nil
     }
 
     private func helperStatusDidChange() {
@@ -234,15 +371,17 @@ final class NetworkRouteStore: ObservableObject {
         operation = nil
         snapshot = nil
         guestIPv4Address = nil
+        vznatGatewayIPv4Address = nil
         isRNDISRouteReady = false
+        shouldRunManagedNetwork = false
         appendEventLog(
-            "The privileged helper route lease was interrupted; clearing the guest route control path and attempting fail-safe cleanup.",
+            "The privileged helper VM network lease was interrupted; clearing the guest control path and attempting fail-safe cleanup.",
             level: .error
         )
 
         guard helper.isAvailable else {
             lastErrorMessage = String(
-                localized: "The managed route lease ended while the network route helper was unavailable."
+                localized: "The managed VM network lease ended while the VM network helper was unavailable."
             )
             return
         }
@@ -255,14 +394,14 @@ final class NetworkRouteStore: ObservableObject {
                 guard self.finishOperation(generation) else { return }
                 self.apply(snapshot)
                 self.appendEventLog(
-                    "Managed IPv4 routes were removed after the helper lease interruption.",
+                    "The managed VM network was removed after the helper lease interruption.",
                     level: .info
                 )
             } catch {
                 guard self.finishOperation(generation) else { return }
                 self.report(
                     error,
-                    context: "Could not remove managed IPv4 routes after the helper lease interruption"
+                    context: "Could not remove the managed VM network after the helper lease interruption"
                 )
             }
         }
@@ -271,60 +410,72 @@ final class NetworkRouteStore: ObservableObject {
     private func reconcileIfNeeded(reason: String) {
         guard operation == nil else { return }
         guard helper.isAvailable else { return }
-        guard let guestIPv4Address, isRNDISRouteReady else {
+        guard let guestIPv4Address,
+              let vznatGatewayIPv4Address,
+              isRNDISRouteReady else {
             if snapshot?.state == .active || snapshot?.state == .degraded {
-                stop(reason: reason)
+                stopPreservingDesiredState(reason: reason)
             }
             return
         }
+        guard shouldRunManagedNetwork else { return }
         guard snapshot?.state != .active
-                || snapshot?.guestIPv4Address != guestIPv4Address else {
+                || snapshot?.guestIPv4Address != guestIPv4Address
+                || snapshot?.vznatGatewayIPv4Address
+                    != vznatGatewayIPv4Address else {
             return
         }
 
         if snapshot?.state == .active {
-            stop(reason: "guest VZNAT address changed")
+            stopPreservingDesiredState(reason: "guest VZNAT network changed")
             return
         }
 
         let generation = beginOperation(.starting)
         lastErrorMessage = nil
         appendEventLog(
-            "Installing global and interface-scoped entries for "
-                + "0.0.0.0/1 and 128.0.0.0/1 through guest "
-                + "\(guestIPv4Address): \(reason).",
+            "Creating the feth bridge network and installing global and "
+                + "interface-scoped /1 routes through "
+                + "\(ThruRNDISNetworkRoute.routerIPv4Address): \(reason).",
             level: .debug
         )
         Task { @MainActor [weak self] in
             guard let self else { return }
             do {
                 let snapshot = try await self.client.start(
-                    guestIPv4Address: guestIPv4Address
+                    guestIPv4Address: guestIPv4Address,
+                    vznatGatewayIPv4Address: vznatGatewayIPv4Address
                 )
                 guard self.finishOperation(generation) else {
-                    _ = try? await self.client.stop()
-                    self.reconcileIfNeeded(
-                        reason: "stale route start was cleaned up"
+                    _ = await self.performStop(
+                        reason: "stale network start completed"
                     )
-                    return
-                }
-                guard self.guestIPv4Address == guestIPv4Address,
-                      self.isRNDISRouteReady else {
-                    _ = try? await self.client.stop()
-                    self.apply(.inactive)
                     self.reconcileIfNeeded(
-                        reason: "route start completed after desired state changed"
+                        reason: "stale network start was cleaned up"
                     )
                     return
                 }
                 self.apply(snapshot)
+                guard self.guestIPv4Address == guestIPv4Address,
+                      self.vznatGatewayIPv4Address
+                        == vznatGatewayIPv4Address,
+                      self.isRNDISRouteReady else {
+                    _ = await self.performStop(
+                        reason: "network start completed after desired state changed"
+                    )
+                    self.reconcileIfNeeded(
+                        reason: "stale network start cleanup completed"
+                    )
+                    return
+                }
                 self.appendEventLog(
-                    "IPv4 traffic is routed through VZNAT guest \(guestIPv4Address) on \(snapshot.interfaceName ?? "unknown interface").",
+                    "IPv4 traffic is routed through \(snapshot.bondInterfaceName ?? "unknown Bond") and \(snapshot.bridgeInterfaceName ?? "unknown bridge") to guest \(guestIPv4Address).",
                     level: .info
                 )
             } catch {
                 guard self.finishOperation(generation) else { return }
-                self.report(error, context: "Could not install managed IPv4 routes")
+                self.shouldRunManagedNetwork = false
+                self.report(error, context: "Could not create the managed VM network")
             }
         }
     }
@@ -378,9 +529,9 @@ enum NetworkRouteSettingsResetError: LocalizedError {
         case .operationInProgress:
             String(localized: "Wait for the current network helper operation to finish.")
         case .routeRemovalIncomplete:
-            String(localized: "The managed IPv4 routes could not be removed.")
+            String(localized: "The managed VM network could not be removed.")
         case .helperRemovalIncomplete:
-            String(localized: "The network route helper remained registered.")
+            String(localized: "The VM network helper remained registered.")
         }
     }
 }

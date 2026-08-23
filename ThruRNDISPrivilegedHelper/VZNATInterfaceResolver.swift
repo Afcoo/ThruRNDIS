@@ -14,6 +14,9 @@ struct VZNATInterfaceSnapshot: Equatable, Sendable {
 enum VZNATInterfaceResolverError: LocalizedError {
     case invalidGuestIPv4Address
     case guestIPv4AddressNotPrivate
+    case invalidGatewayIPv4Address
+    case gatewayIPv4AddressNotPrivate
+    case managedSubnetOverlap
     case interfaceEnumerationFailed(Int32)
     case noDirectlyConnectedInterface
     case ambiguousDirectlyConnectedInterfaces([String])
@@ -24,10 +27,16 @@ enum VZNATInterfaceResolverError: LocalizedError {
             "The guest VZNAT address is not a valid IPv4 address."
         case .guestIPv4AddressNotPrivate:
             "The guest VZNAT address must be in an RFC 1918 private network."
+        case .invalidGatewayIPv4Address:
+            "The VZNAT gateway is not a valid IPv4 address."
+        case .gatewayIPv4AddressNotPrivate:
+            "The VZNAT gateway must be in an RFC 1918 private network."
+        case .managedSubnetOverlap:
+            "The VZNAT network overlaps the managed 192.168.100.0/24 network."
         case .interfaceEnumerationFailed(let code):
             "Could not enumerate host network interfaces (errno \(code))."
         case .noDirectlyConnectedInterface:
-            "No active, directly connected host interface contains the guest VZNAT address."
+            "No active VZNAT bridge has the reported gateway and contains the guest address."
         case .ambiguousDirectlyConnectedInterfaces(let names):
             "The guest VZNAT address matches more than one directly connected host interface: \(names.joined(separator: ", "))."
         }
@@ -44,10 +53,19 @@ struct VZNATInterfaceResolver: Sendable {
         }
     }
 
-    func resolve(guestIPv4Address: String) throws -> VZNATInterfaceSnapshot {
+    func resolve(
+        guestIPv4Address: String,
+        vznatGatewayIPv4Address: String
+    ) throws -> VZNATInterfaceSnapshot {
         try validateGuestIPv4Address(guestIPv4Address)
         guard let guest = IPv4Value(guestIPv4Address) else {
             throw VZNATInterfaceResolverError.invalidGuestIPv4Address
+        }
+        guard let gateway = IPv4Value(vznatGatewayIPv4Address) else {
+            throw VZNATInterfaceResolverError.invalidGatewayIPv4Address
+        }
+        guard gateway.isRFC1918 else {
+            throw VZNATInterfaceResolverError.gatewayIPv4AddressNotPrivate
         }
 
         var interfaceList: UnsafeMutablePointer<ifaddrs>?
@@ -55,6 +73,24 @@ struct VZNATInterfaceResolver: Sendable {
             throw VZNATInterfaceResolverError.interfaceEnumerationFailed(errno)
         }
         defer { freeifaddrs(interfaceList) }
+
+        // Darwin exposes if_data on the AF_LINK entry. The IPv4 entry for the
+        // same interface normally has no ifa_data, so resolve type separately.
+        var bridgeInterfaceNames: Set<String> = []
+        var typeCursor = interfaceList
+        while let current = typeCursor {
+            defer { typeCursor = current.pointee.ifa_next }
+            let entry = current.pointee
+            guard let addressPointer = entry.ifa_addr,
+                  addressPointer.pointee.sa_family == UInt8(AF_LINK),
+                  let interfaceData = entry.ifa_data,
+                  interfaceData.assumingMemoryBound(
+                    to: if_data.self
+                  ).pointee.ifi_type == UInt8(IFT_BRIDGE) else {
+                continue
+            }
+            bridgeInterfaceNames.insert(String(cString: entry.ifa_name))
+        }
 
         var candidates: [VZNATInterfaceSnapshot] = []
         var cursor = interfaceList
@@ -77,7 +113,8 @@ struct VZNATInterfaceResolver: Sendable {
             }
 
             let name = String(cString: entry.ifa_name)
-            guard !name.isEmpty,
+            guard Self.isCanonicalBridgeInterfaceName(name),
+                  bridgeInterfaceNames.contains(name),
                   name.utf8.count < Int(IFNAMSIZ),
                   if_nametoindex(name) != 0 else {
                 continue
@@ -87,6 +124,7 @@ struct VZNATInterfaceResolver: Sendable {
             let mask = Self.ipv4Value(from: netmaskPointer)
             guard let prefixLength = Self.prefixLength(for: mask.rawValue),
                   prefixLength <= 30,
+                  host == gateway,
                   (host.rawValue & mask.rawValue)
                     == (guest.rawValue & mask.rawValue),
                   host != guest else {
@@ -97,9 +135,15 @@ struct VZNATInterfaceResolver: Sendable {
             let network = guest.rawValue & mask.rawValue
             let broadcast = network | hostBits
             guard guest.rawValue != network,
-                  guest.rawValue != broadcast else {
+                  guest.rawValue != broadcast,
+                  gateway.rawValue != network,
+                  gateway.rawValue != broadcast else {
                 continue
             }
+            try Self.rejectManagedSubnetOverlap(
+                network: network,
+                broadcast: broadcast
+            )
 
             candidates.append(
                 VZNATInterfaceSnapshot(
@@ -136,6 +180,30 @@ struct VZNATInterfaceResolver: Sendable {
                 )
         }
         return uniqueCandidates[0]
+    }
+
+    private static func rejectManagedSubnetOverlap(
+        network: UInt32,
+        broadcast: UInt32
+    ) throws {
+        guard let managedAddress = IPv4Value(
+            ThruRNDISNetworkRoute.hostIPv4Address
+        ), let managedMask = IPv4Value(ThruRNDISNetworkRoute.subnetMask) else {
+            preconditionFailure("The managed network constants must be IPv4 values.")
+        }
+        let managedNetwork = managedAddress.rawValue & managedMask.rawValue
+        let managedBroadcast = managedNetwork | ~managedMask.rawValue
+        guard broadcast < managedNetwork || network > managedBroadcast else {
+            throw VZNATInterfaceResolverError.managedSubnetOverlap
+        }
+    }
+
+    private static func isCanonicalBridgeInterfaceName(_ name: String) -> Bool {
+        guard name.hasPrefix("bridge") else { return false }
+        let unit = name.dropFirst("bridge".count)
+        return !unit.isEmpty
+            && unit.utf8.allSatisfy { (48 ... 57).contains($0) }
+            && UInt(unit).map { String($0) == unit } == true
     }
 
     private static func ipv4Value(

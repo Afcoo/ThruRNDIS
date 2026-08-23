@@ -14,10 +14,10 @@ struct MenuBarCombinedStatus: Equatable {
     enum Stage: Equatable {
         case inactive
         case usbNotAttached
-        case waitingForGuestAddress
+        case waitingForGuestNetwork
         case waitingForRNDIS
         case networkHelperProblem
-        case networkRouteNeedsAttention
+        case vmNetworkNeedsAttention
         case active
     }
 
@@ -29,12 +29,13 @@ struct MenuBarCombinedStatus: Equatable {
         isUSBAttached: Bool,
         isNetworkHelperAvailable: Bool,
         guestIPv4Address: String?,
+        vznatGatewayIPv4Address: String?,
         isRNDISRouteReady: Bool,
         networkRouteSnapshot: NetworkRouteSnapshot?
     ) {
         let isVMRunning = vmRuntimeState == .running
-        let isRouteActive = networkRouteSnapshot?.state == .active
-        let components = [isVMRunning, isUSBAttached, isRouteActive]
+        let isVMNetworkActive = networkRouteSnapshot?.state == .active
+        let components = [isVMRunning, isUSBAttached, isVMNetworkActive]
         switch components.filter({ $0 }).count {
         case 0:
             activity = .inactive
@@ -50,12 +51,13 @@ struct MenuBarCombinedStatus: Equatable {
             stage = .inactive
         } else if !isUSBAttached {
             stage = .usbNotAttached
-        } else if guestIPv4Address == nil {
-            stage = .waitingForGuestAddress
+        } else if guestIPv4Address == nil
+            || vznatGatewayIPv4Address == nil {
+            stage = .waitingForGuestNetwork
         } else if !isRNDISRouteReady {
             stage = .waitingForRNDIS
-        } else if !isRouteActive {
-            stage = .networkRouteNeedsAttention
+        } else if !isVMNetworkActive {
+            stage = .vmNetworkNeedsAttention
         } else {
             stage = .active
         }
@@ -67,14 +69,14 @@ struct MenuBarCombinedStatus: Equatable {
             String(localized: "menuBar.combinedStatus.notRunning", defaultValue: "Not Running")
         case .usbNotAttached:
             String(localized: "USB Not Attached")
-        case .waitingForGuestAddress:
+        case .waitingForGuestNetwork:
             String(localized: "Waiting for Guest Network")
         case .waitingForRNDIS:
-            String(localized: "Waiting for RNDIS Route")
+            String(localized: "Waiting for RNDIS")
         case .networkHelperProblem:
             String(localized: "Network helper problem")
-        case .networkRouteNeedsAttention:
-            String(localized: "Network route needs attention")
+        case .vmNetworkNeedsAttention:
+            String(localized: "VM network needs attention")
         case .active:
             String(localized: "menuBar.combinedStatus.running", defaultValue: "Running")
         }

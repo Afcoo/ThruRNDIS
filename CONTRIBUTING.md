@@ -2,7 +2,8 @@
 
 Thank you for helping improve ThruRNDIS. The project is a macOS 27+ menu-bar
 app that uses a Virtualization framework Linux VM, public AccessoryAccess USB
-passthrough APIs, and a narrowly scoped privileged helper for host IPv4 routes.
+passthrough APIs, and a narrowly scoped privileged helper for the host-side
+Bond, feth pair, VZNAT bridge membership, and IPv4 routes.
 
 Before making a substantial change, read [AGENTS.md](AGENTS.md). It documents
 the current architecture, ownership boundaries, build paths, signing
@@ -30,26 +31,30 @@ The proof-of-concept IPv4 data path is:
 
 ```text
 macOS routes 0.0.0.0/1 and 128.0.0.0/1
--> dynamically discovered VZNAT guest IPv4 address
+-> Ethernet Bond 192.168.100.2
+-> feth0 <-> feth1
+-> VM-created VZNAT bridge
+-> guest eth0 192.168.100.1
 -> guest eth0 forwarding and nftables masquerade
 -> USB RNDIS upstream on guest usb0
 ```
 
 The app obtains the guest address and RNDIS readiness from serial-console
-markers. Only the authenticated privileged helper may install or remove host
-routes. The unprivileged app must not execute `route`, `ifconfig`,
-`networksetup`, or another administrative networking command itself.
+markers. Only the authenticated privileged helper may create or remove the
+host network configuration, mutate bridge membership, or install routes. The
+unprivileged app must not execute `route`, `ifconfig`, `networksetup`, or
+another administrative networking command itself.
 
 Keep these boundaries intact:
 
 - USB passthrough uses an AccessoryAccess `AAUSBAccessory` with the public
   `VZUSBPassthroughDeviceConfiguration(device:)` API.
-- The VM uses `VZNATNetworkDeviceAttachment`; do not substitute vmnet or
-  bridged networking as part of an unrelated change.
+- The VM uses `VZNATNetworkDeviceAttachment`. The POC helper discovers the
+  implementation bridge after VM start and adds only its owned `feth1` peer.
 - The app and helper do not inspect or relay packet payloads.
-- The helper manages only the global and VZNAT-interface-scoped IPv4 entries
-  for the two exact `/1` prefixes and removes all four entries when forwarding
-  readiness is lost or the VM stops.
+- The helper manages only its recorded Bond, feth pair, bridge membership, and
+  global/Bond-scoped entries for the two exact `/1` prefixes. Cleanup withdraws
+  routes before detaching and destroying the owned interfaces.
 - IPv6 routing is out of scope for this proof of concept.
 - Guest VM scripts, dependency locking, and VM Asset release tooling belong in
   `Afcoo/ThruRNDIS_VM_Assets`, not this repository.
@@ -126,7 +131,7 @@ larger designs should link one with `Closes #123` when applicable.
 Pull request titles use Conventional Commits syntax:
 
 ```text
-feat(route): direct IPv4 traffic through the guest
+feat(network): bridge the feth peer into the VM network
 fix(usb): serialize detach handling
 docs: clarify Runtime signing
 ```

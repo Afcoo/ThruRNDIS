@@ -33,7 +33,7 @@ private enum AccessoryMonitoringConfigurationBlocker {
         case .vmAssetsUnavailable:
             String(localized: "Install or select valid VM assets before starting the USB listener.")
         case .privilegedHelperUnavailable:
-            String(localized: "Install and enable the network route helper before starting the USB listener.")
+            String(localized: "Install and enable the VM network helper before starting the USB listener.")
         }
     }
 
@@ -44,7 +44,7 @@ private enum AccessoryMonitoringConfigurationBlocker {
         case .vmAssetsUnavailable:
             "no valid VM assets are selected"
         case .privilegedHelperUnavailable:
-            "the network route helper is not enabled"
+            "the VM network helper is not enabled"
         }
     }
 }
@@ -53,6 +53,7 @@ private enum AccessoryMonitoringConfigurationBlocker {
 final class TetheringStore: ObservableObject {
     @Published private(set) var runtimeState: VMRuntimeState = .idle
     @Published private var vmRestartState: TetheringVMRestartState = .idle
+    @Published private var isVMStopPreparationInProgress = false
     @Published private(set) var statusMessage =
         String(localized: "Install or select VM assets to begin.")
     @Published private(set) var runtimeEntitlements: RuntimeEntitlementSnapshot
@@ -76,6 +77,7 @@ final class TetheringStore: ObservableObject {
     private let runtimeEntitlementSnapshotProvider: () -> RuntimeEntitlementSnapshot
     private var didRequestLaunchAccessoryMonitoring = false
     private var shouldRunAccessoryMonitoring = false
+    private var observedAttachedAccessoryID: UInt64?
     private var accessoryMonitoringStartCancellables: Set<AnyCancellable> = []
 
     private lazy var workflowCoordinator = TetheringWorkflowCoordinator(
@@ -179,6 +181,10 @@ final class TetheringStore: ObservableObject {
         acceptsNewWork
             && hasConfiguredVMAssets
             && !assetProvider.isBusy
+            && !isVMStopPreparationInProgress
+            && vmRestartState == .idle
+            && !networkRoute.isOperationInProgress
+            && networkRoute.snapshot?.state == .inactive
             && vmCoordinator.canStart
     }
 
@@ -186,12 +192,15 @@ final class TetheringStore: ObservableObject {
         acceptsNewWork
             && hasConfiguredVMAssets
             && !assetProvider.isBusy
+            && !isVMStopPreparationInProgress
+            && vmRestartState == .idle
             && !workflowCoordinator.hasPendingAttachment
             && vmCoordinator.canRestart
     }
 
     var canEditVMConfiguration: Bool {
         acceptsNewWork
+            && !isVMStopPreparationInProgress
             && !vmCoordinator.hasVirtualMachine
             && (runtimeState == .idle
                 || runtimeState == .stopped
@@ -201,6 +210,8 @@ final class TetheringStore: ObservableObject {
     var canResetAppSettings: Bool {
         acceptsNewWork
             && !assetProvider.isBusy
+            && !isVMStopPreparationInProgress
+            && vmRestartState == .idle
             && !networkRoute.isOperationInProgress
     }
 
@@ -237,7 +248,10 @@ final class TetheringStore: ObservableObject {
     }
 
     var canStopVirtualMachine: Bool {
-        acceptsNewWork && vmCoordinator.canStop
+        acceptsNewWork
+            && !isVMStopPreparationInProgress
+            && vmRestartState == .idle
+            && vmCoordinator.canStop
     }
 
     var canSendConsoleInput: Bool {
@@ -247,6 +261,8 @@ final class TetheringStore: ObservableObject {
     var canAttachSelectedAccessory: Bool {
         guard acceptsNewWork,
               !isOnboardingPresented,
+              !isVMStopPreparationInProgress,
+              vmRestartState == .idle,
               hasConfiguredVMAssets,
               isNetworkRouteHelperReady,
               !assetProvider.isBusy,
@@ -261,11 +277,15 @@ final class TetheringStore: ObservableObject {
 
     var canDetachAccessory: Bool {
         acceptsNewWork
+            && !isVMStopPreparationInProgress
+            && vmRestartState == .idle
             && usbCoordinator.canDetachAccessory(runtimeState: runtimeState)
     }
 
     func canChooseAccessoryForAttachment(_ accessoryID: UInt64) -> Bool {
         acceptsNewWork
+            && !isVMStopPreparationInProgress
+            && vmRestartState == .idle
             && isNetworkRouteHelperReady
             && !workflowCoordinator.hasPendingAttachment
             && usbAttachmentPrompt == nil
@@ -376,6 +396,43 @@ final class TetheringStore: ObservableObject {
     @discardableResult
     func startVirtualMachine() -> Bool {
         guard acceptsNewWork else { return false }
+        guard !isVMStopPreparationInProgress,
+              !networkRoute.isOperationInProgress,
+              vmRestartState == .idle || vmRestartState == .starting else {
+            statusMessage = String(
+                localized: "Wait for VM network cleanup to finish before starting the VM."
+            )
+            appendEventLog(
+                "VM start rejected while VM network cleanup or another VM lifecycle transition is active.",
+                level: .debug,
+                category: .network
+            )
+            return false
+        }
+        guard networkRoute.snapshot?.state == .inactive else {
+            if networkRoute.snapshot == nil {
+                networkRoute.refresh()
+                statusMessage = String(
+                    localized: "Wait for the VM network status before starting the VM."
+                )
+                appendEventLog(
+                    "VM start deferred until the VM network status is available.",
+                    level: .debug,
+                    category: .network
+                )
+            } else {
+                networkRoute.resetForVMStart()
+                statusMessage = String(
+                    localized: "Wait for VM network cleanup to finish before starting the VM."
+                )
+                appendEventLog(
+                    "VM start deferred while a previous managed VM network is cleaned up.",
+                    level: .debug,
+                    category: .network
+                )
+            }
+            return false
+        }
         refreshRuntimeEntitlements()
         guard !assetProvider.isBusy else {
             statusMessage = String(
@@ -409,7 +466,17 @@ final class TetheringStore: ObservableObject {
             return false
         }
 
-        networkRoute.resetForVMStart()
+        guard networkRoute.resetForVMStart() else {
+            statusMessage = String(
+                localized: "Wait for VM network cleanup to finish before starting the VM."
+            )
+            appendEventLog(
+                "VM start deferred until the previous VM network is inactive.",
+                level: .debug,
+                category: .network
+            )
+            return false
+        }
         clearConsoleForVMStart()
         usbCoordinator.resetForVMStart()
         syncUSBState()
@@ -447,43 +514,114 @@ final class TetheringStore: ObservableObject {
     }
 
     func stopVirtualMachine() {
-        guard acceptsNewWork else { return }
-        stopVirtualMachine(reason: "VM stop requested by user")
+        guard canStopVirtualMachine else { return }
+        requestVirtualMachineStop(reason: "VM stop requested by user")
     }
 
-    private func stopVirtualMachine(reason: String) {
+    private func requestVirtualMachineStop(reason: String) {
+        requestVirtualMachineStop(
+            reason: reason,
+            continueAfterNetworkFailure: false
+        )
+    }
+
+    private func requestVirtualMachineStop(
+        reason: String,
+        continueAfterNetworkFailure: Bool
+    ) {
+        guard acceptsNewWork,
+              !isVMStopPreparationInProgress,
+              vmRestartState == .idle else {
+            return
+        }
+
+        isVMStopPreparationInProgress = true
         vmRestartState = .idle
         workflowCoordinator.cancelWorkflow(reason: reason)
-        networkRoute.stop(reason: reason)
-        usbCoordinator.prepareForIntentionalVMStop()
-        vmCoordinator.stop()
+        statusMessage = String(
+            localized: "Stopping the VM network before stopping the VM."
+        )
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let didStopVMNetwork = await self.networkRoute.stopAndWait(
+                reason: reason
+            )
+            if !didStopVMNetwork {
+                self.appendEventLog(
+                    continueAfterNetworkFailure
+                        ? "VM stop will continue after VM network cleanup failed because the USB passthrough lifecycle ended."
+                        : "VM stop was cancelled because VM network cleanup failed.",
+                    level: .error,
+                    category: .network
+                )
+                guard continueAfterNetworkFailure else {
+                    self.statusMessage = String(
+                        localized: "Could not stop the VM network. Retry Stop before stopping the VM."
+                    )
+                    self.isVMStopPreparationInProgress = false
+                    return
+                }
+            }
+            self.usbCoordinator.prepareForIntentionalVMStop()
+            self.vmCoordinator.stop()
+            self.isVMStopPreparationInProgress = false
+        }
     }
 
     func restartVirtualMachine() {
         guard canRestartVirtualMachine else { return }
-        workflowCoordinator.prepareForManualVMRestart(
-            attachedAccessoryID: attachedAccessoryID
-        )
-        networkRoute.stop(reason: "VM restart")
-        usbCoordinator.prepareForIntentionalVMStop()
         vmRestartState = .stopping
-        vmCoordinator.restart(reason: "manual request") { [weak self] in
+        statusMessage = String(
+            localized: "Stopping the VM network before restarting the VM."
+        )
+
+        Task { @MainActor [weak self] in
             guard let self else { return }
-            self.vmRestartState = .starting
-            guard self.workflowCoordinator.canStartVMForManualRestart() else {
+            let didStopVMNetwork = await self.networkRoute.stopAndWait(
+                reason: "VM restart"
+            )
+            guard didStopVMNetwork else {
+                self.appendEventLog(
+                    "VM restart was cancelled because VM network cleanup failed.",
+                    level: .error,
+                    category: .network
+                )
+                self.statusMessage = String(
+                    localized: "Could not stop the VM network. Retry Restart after resolving the network error."
+                )
                 self.vmRestartState = .idle
                 return
             }
-            if self.startVirtualMachine() {
-                if self.workflowCoordinator.hasPendingAttachment,
-                   self.runtimeState == .starting {
-                    self.workflowCoordinator.markVMStartedForPendingAttachment()
-                }
-            } else {
+            guard self.acceptsNewWork,
+                  self.vmRestartState == .stopping,
+                  self.vmCoordinator.canRestart else {
                 self.vmRestartState = .idle
-                self.workflowCoordinator.cancelWorkflow(
-                    reason: "VM preflight failed after restart"
-                )
+                return
+            }
+
+            self.workflowCoordinator.prepareForManualVMRestart(
+                attachedAccessoryID: self.attachedAccessoryID
+            )
+            self.usbCoordinator.prepareForIntentionalVMStop()
+            self.vmCoordinator.restart(reason: "manual request") { [weak self] in
+                guard let self else { return }
+                self.vmRestartState = .starting
+                guard self.workflowCoordinator.canStartVMForManualRestart() else {
+                    self.vmRestartState = .idle
+                    return
+                }
+                if self.startVirtualMachine() {
+                    if self.workflowCoordinator.hasPendingAttachment,
+                       self.runtimeState == .starting {
+                        self.workflowCoordinator.markVMStartedForPendingAttachment()
+                    }
+                } else {
+                    self.vmRestartState = .idle
+                    self.workflowCoordinator.cancelWorkflow(
+                        reason: "VM preflight failed after restart"
+                    )
+                }
             }
         }
     }
@@ -503,7 +641,11 @@ final class TetheringStore: ObservableObject {
     }
 
     func requestAttachAccessory(id accessoryID: UInt64) {
-        guard acceptsNewWork else { return }
+        guard acceptsNewWork,
+              !isVMStopPreparationInProgress,
+              vmRestartState == .idle else {
+            return
+        }
         refreshRuntimeEntitlements()
         guard runtimeEntitlements.accessoryAccessUSB else {
             reportMissingEntitlement(
@@ -515,7 +657,7 @@ final class TetheringStore: ObservableObject {
         }
         guard isNetworkRouteHelperReady else {
             statusMessage = String(
-                localized: "Install and enable the network route helper before attaching USB."
+                localized: "Install and enable the VM network helper before attaching USB."
             )
             return
         }
@@ -523,8 +665,8 @@ final class TetheringStore: ObservableObject {
     }
 
     func detachAccessory() {
-        guard acceptsNewWork, attachedAccessoryID != nil else { return }
-        stopVirtualMachine(reason: "USB detach requested by user")
+        guard canDetachAccessory, attachedAccessoryID != nil else { return }
+        requestVirtualMachineStop(reason: "USB detach requested by user")
     }
 
     func resolveUSBAttachmentPrompt(accepted: Bool) {
@@ -550,7 +692,7 @@ final class TetheringStore: ObservableObject {
               (!networkRoute.helper.isSignedBuild
                 || isNetworkRouteHelperReady) else {
             statusMessage = String(
-                localized: "Install valid VM assets and enable the network route helper before finishing onboarding."
+                localized: "Install valid VM assets and enable the VM network helper before finishing onboarding."
             )
             return
         }
@@ -568,10 +710,11 @@ final class TetheringStore: ObservableObject {
             level: .debug,
             category: .application
         )
-        let routesRemoved = await networkRoute.stopForApplicationTermination()
-        if !routesRemoved {
+        let didStopVMNetwork = await networkRoute
+            .stopForApplicationTermination()
+        if !didStopVMNetwork {
             appendEventLog(
-                "Application termination will continue after managed route cleanup failed.",
+                "Application termination will continue after VM network cleanup failed.",
                 level: .error,
                 category: .application
             )
@@ -599,6 +742,15 @@ final class TetheringStore: ObservableObject {
         }
         workflowCoordinator.cancelPendingWorkForReset()
 
+        guard await networkRoute.stopAndWait(
+            reason: "app settings reset"
+        ) else {
+            resetStatusMessage = String(
+                localized: "Could not stop the VM network before resetting app settings."
+            )
+            return false
+        }
+
         if vmCoordinator.hasVirtualMachine {
             usbCoordinator.prepareForIntentionalVMStop()
             guard await vmCoordinator.stopAndWaitUntilStopped() else {
@@ -613,7 +765,7 @@ final class TetheringStore: ObservableObject {
             try await networkRoute.resetForAppSettings()
         } catch {
             resetStatusMessage = String(
-                localized: "Could not reset network routes: \(error.localizedDescription)"
+                localized: "Could not reset the VM network: \(error.localizedDescription)"
             )
             return false
         }
@@ -691,7 +843,17 @@ final class TetheringStore: ObservableObject {
 
         usbCoordinator.onStateChange = { [weak self] in
             guard let self else { return }
+            let previousAttachedAccessoryID = self.observedAttachedAccessoryID
+            let attachedAccessoryID = self.usbCoordinator.attachedAccessoryID
+            self.observedAttachedAccessoryID = attachedAccessoryID
             self.syncUSBState()
+            if attachedAccessoryID != previousAttachedAccessoryID {
+                if attachedAccessoryID != nil {
+                    self.networkRoute.usbDidAttach()
+                } else {
+                    self.networkRoute.usbDidDetach()
+                }
+            }
             self.workflowCoordinator.usbStateDidChange()
         }
         usbCoordinator.onStatusMessage = { [weak self] message in
@@ -726,12 +888,16 @@ final class TetheringStore: ObservableObject {
                   ) else {
                 return
             }
-            self.stopVirtualMachine(reason: "USB passthrough lifecycle ended")
+            self.requestVirtualMachineStop(
+                reason: "USB passthrough lifecycle ended",
+                continueAfterNetworkFailure: true
+            )
         }
         usbCoordinator.runtimeStateProvider = { [weak self] in
             self?.runtimeState ?? .idle
         }
 
+        observedAttachedAccessoryID = usbCoordinator.attachedAccessoryID
         syncUSBState()
     }
 
@@ -740,7 +906,7 @@ final class TetheringStore: ObservableObject {
             .dropFirst()
             .sink { [weak self] _ in
                 self?.scheduleAccessoryMonitoringStartIfRequested(
-                    reason: "network route helper status changed"
+                    reason: "VM network helper status changed"
                 )
             }
             .store(in: &accessoryMonitoringStartCancellables)
@@ -749,7 +915,7 @@ final class TetheringStore: ObservableObject {
             .dropFirst()
             .sink { [weak self] _ in
                 self?.scheduleAccessoryMonitoringStartIfRequested(
-                    reason: "network route helper operation changed"
+                    reason: "VM network helper operation changed"
                 )
             }
             .store(in: &accessoryMonitoringStartCancellables)
@@ -777,14 +943,14 @@ final class TetheringStore: ObservableObject {
            attachedAccessoryID == nil,
            !workflowCoordinator.hasPendingAttachment {
             usbCoordinator.stopMonitoring(
-                reason: "Network route helper health check failed.",
+                reason: "VM network helper health check failed.",
                 completion: nil
             )
             return
         }
 
         scheduleAccessoryMonitoringStartIfRequested(
-            reason: "network route helper health changed"
+            reason: "VM network helper health changed"
         )
     }
 
@@ -910,8 +1076,12 @@ final class TetheringStore: ObservableObject {
 
     private func appendConsole(_ data: Data) {
         guard let update = consoleSession.append(data) else { return }
-        if let guestIPv4Address = update.guestIPv4Address {
-            networkRoute.updateGuestIPv4Address(guestIPv4Address)
+        if let guestIPv4Address = update.guestIPv4Address,
+           let vznatGatewayIPv4Address = update.vznatGatewayIPv4Address {
+            networkRoute.updateVZNATNetwork(
+                guestIPv4Address: guestIPv4Address,
+                vznatGatewayIPv4Address: vznatGatewayIPv4Address
+            )
         }
         if let isRNDISRouteReady = update.isRNDISRouteReady {
             networkRoute.updateRNDISRouteReady(isRNDISRouteReady)
