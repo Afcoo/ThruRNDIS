@@ -339,7 +339,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         case .active:
             return .systemGreen
         case .degraded:
-            return .systemOrange
+            return .systemRed
         case .inactive:
             return .systemRed
         case nil:
