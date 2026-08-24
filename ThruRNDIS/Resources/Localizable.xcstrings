@@ -1455,6 +1455,16 @@
         }
       }
     },
+    "Preparing Network" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 준비 중"
+          }
+        }
+      }
+    },
     "Preparing video…" : {
       "localizations" : {
         "ko" : {

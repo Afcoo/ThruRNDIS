@@ -268,7 +268,6 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         MenuBarCombinedStatus(
             vmRuntimeState: store.runtimeState,
             isUSBAttached: store.usbSession.attachedAccessoryID != nil,
-            isNetworkHelperAvailable: networkRoute.helper.isAvailable,
             guestIPv4Address: networkRoute.guestIPv4Address,
             vznatGatewayIPv4Address:
                 networkRoute.vznatGatewayIPv4Address,
