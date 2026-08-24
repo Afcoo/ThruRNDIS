@@ -202,11 +202,11 @@ struct OnboardingView: View {
         } header: {
             onboardingStepHeader(
                 "Enable the Network Helper",
-                detail: "The helper connects macOS to the VM after RNDIS is ready.",
+                detail: "The Network Helper configures the network between the VM and Mac.",
                 image: "checkmark.shield"
             )
         } footer: {
-            Text("The helper manages the VM bridge, Ethernet Bond, feth pair, and host routes.")
+            Text("The helper configures IPv4 routes from the Mac to the VM.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

@@ -3515,22 +3515,22 @@
         }
       }
     },
-    "The helper connects macOS to the VM after RNDIS is ready." : {
+    "The Network Helper configures the network between the VM and Mac." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "RNDIS가 준비되면 헬퍼가 macOS와 VM을 연결합니다."
+            "value" : "네트워크 헬퍼는 VM과 Mac 간의 네트워크를 구성합니다."
           }
         }
       }
     },
-    "The helper manages the VM bridge, Ethernet Bond, feth pair, and host routes." : {
+    "The helper configures IPv4 routes from the Mac to the VM." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "헬퍼는 VM 브리지, Ethernet Bond, feth 쌍과 호스트 경로를 관리합니다."
+            "value" : "헬퍼는 Mac의 IPv4 트래픽이 VM으로 전달되도록 라우팅을 구성합니다."
           }
         }
       }
