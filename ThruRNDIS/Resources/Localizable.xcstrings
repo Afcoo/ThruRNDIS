@@ -3195,6 +3195,16 @@
         }
       }
     },
+    "Listening on %@" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@에서 수신 중"
+          }
+        }
+      }
+    },
     "Saved" : {
       "localizations" : {
         "ko" : {

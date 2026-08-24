@@ -30,6 +30,7 @@ final class NetworkRouteStore: ObservableObject {
     @Published private(set) var operation: NetworkRouteOperation?
     @Published private(set) var guestIPv4Address: String?
     @Published private(set) var vznatGatewayIPv4Address: String?
+    @Published private(set) var rndisIPv4Address: String?
     @Published private(set) var isRNDISRouteReady = false
     @Published private(set) var lastErrorMessage: String?
     @Published private var isStopQueued = false
@@ -139,7 +140,23 @@ final class NetworkRouteStore: ObservableObject {
         reconcileIfNeeded(reason: "guest VZNAT network discovered")
     }
 
+    func updateRNDISIPv4Address(_ address: String) {
+        guard isRNDISRouteReady, rndisIPv4Address != address else { return }
+        rndisIPv4Address = address
+        appendEventLog(
+            "Guest RNDIS IPv4 address discovered: \(address).",
+            level: .info
+        )
+    }
+
+    func clearRNDISIPv4Address() {
+        rndisIPv4Address = nil
+    }
+
     func updateRNDISRouteReady(_ isReady: Bool) {
+        if !isReady {
+            rndisIPv4Address = nil
+        }
         guard isRNDISRouteReady != isReady else { return }
         isRNDISRouteReady = isReady
         if !isReady {
@@ -344,6 +361,7 @@ final class NetworkRouteStore: ObservableObject {
         shouldRunManagedNetwork = false
         guestIPv4Address = nil
         vznatGatewayIPv4Address = nil
+        rndisIPv4Address = nil
         isRNDISRouteReady = false
     }
 
@@ -369,6 +387,7 @@ final class NetworkRouteStore: ObservableObject {
         snapshot = nil
         guestIPv4Address = nil
         vznatGatewayIPv4Address = nil
+        rndisIPv4Address = nil
         isRNDISRouteReady = false
         shouldRunManagedNetwork = false
         appendEventLog(

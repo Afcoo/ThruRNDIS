@@ -53,7 +53,9 @@ brew install --cask afcoo/tap/thrurndis
 4. **Optional TCP and UDP port forwarding:** In **Settings → Network**,
    turn on **Enable Port Forwarding**, then enter comma-separated ports and
    hyphenated ranges such as `80,443,47980-48000`. TCP and UDP always use the same
-   ports, with no port-number translation. Stop the VM to change the set.
+   ports, with no port-number translation. Once forwarding and the managed
+   network are active, the Status row shows the RNDIS IPv4 address listening
+   for forwarded traffic. Stop the VM to change the set.
 
 ## How It Works
 

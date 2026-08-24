@@ -1105,6 +1105,16 @@ final class TetheringStore: ObservableObject {
         if let isRNDISRouteReady = update.isRNDISRouteReady {
             networkRoute.updateRNDISRouteReady(isRNDISRouteReady)
         }
+        if let addressUpdate = update.rndisIPv4AddressUpdate {
+            switch addressUpdate {
+            case .available(let address):
+                if update.isRNDISRouteReady == true {
+                    networkRoute.updateRNDISIPv4Address(address)
+                }
+            case .unavailable:
+                networkRoute.clearRNDISIPv4Address()
+            }
+        }
         if let portForwardingState = update.portForwardingState {
             portForwarding.apply(portForwardingState)
         }

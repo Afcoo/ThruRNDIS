@@ -154,6 +154,17 @@ struct NetworkRouteView: View {
         .onAppear { networkRoute.refresh() }
     }
 
+    private var activeRNDISIPv4Address: String? {
+        guard portForwarding.isEnabled,
+              portForwarding.runtimeState == .active,
+              networkRoute.lastErrorMessage == nil,
+              networkRoute.operation != .stopping,
+              networkRoute.snapshot?.state == .active else {
+            return nil
+        }
+        return networkRoute.rndisIPv4Address
+    }
+
     private var portForwardingStatus: (
         title: String,
         appearance: SettingsStatusAppearance
@@ -169,6 +180,14 @@ struct NetworkRouteView: View {
         case .pending:
             return (String(localized: "Pending"), .attention)
         case .active:
+            if let activeRNDISIPv4Address {
+                return (
+                    String(
+                        localized: "Listening on \(activeRNDISIPv4Address)"
+                    ),
+                    .active
+                )
+            }
             return (String(localized: "Active"), .active)
         case .failed:
             return (String(localized: "Needs Attention"), .failed)

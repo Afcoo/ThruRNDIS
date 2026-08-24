@@ -49,6 +49,9 @@ macOS 0.0.0.0/1 and 128.0.0.0/1 routes
   - `THRURNDIS_VZNAT_IPV4=<guest-ipv4>`
   - `THRURNDIS_VZNAT_CIDR=<connected-cidr>`
   - `THRURNDIS_VZNAT_GATEWAY=<vznat-gateway>`
+  - `THRURNDIS_RNDIS_IPV4=<rndis-ipv4>` reports the canonical IPv4 address
+    assigned to `usb0` immediately before readiness. An empty value clears a
+    previously reported address during rebuild or teardown.
   - `THRURNDIS_RNDIS_ROUTE_READY=1` only after `usb0` forwarding and NAT are
     ready, and `THRURNDIS_RNDIS_ROUTE_READY=0` when they are not ready.
   - `THRURNDIS_PORT_FORWARD_STATE=inactive`,
@@ -76,9 +79,11 @@ macOS 0.0.0.0/1 and 128.0.0.0/1 routes
 - The host must not install its `/1` routes from the address marker alone. It
   waits for a valid guest VZNAT address, the matching VZNAT gateway marker,
   and the ready marker.
-- `ConsoleSessionStore` parses console markers. `VMCoordinator` forwards the
-  address/readiness changes into `NetworkRouteStore`, while `TetheringStore`
-  forwards paired TCP/UDP port-forwarding markers into `PortForwardingStore`.
+- `ConsoleSessionStore` parses console markers. `TetheringStore` forwards the
+  VZNAT and RNDIS address/readiness changes into `NetworkRouteStore` and paired
+  TCP/UDP port-forwarding markers into `PortForwardingStore`. Settings includes
+  the RNDIS IPv4 address in the port forwarding status only while both the
+  matching guest rules and managed host network are active.
 - `NetworkRouteStore` reconciles desired networking state. It asks the helper
   to create the Bond/feth/bridge path and routes only when the helper is
   current, the guest VZNAT address and gateway are known, and RNDIS is ready.
