@@ -24,6 +24,7 @@ final class SettingsWindowController: NSWindowController {
             .environmentObject(store.appPreferences)
             .environmentObject(store.networkRoute)
             .environmentObject(store.networkRoute.helper)
+            .environmentObject(store.portForwarding)
             .environmentObject(assetWorkflowCoordinator)
         let hostingController = NSHostingController(rootView: rootView)
         let window = NSWindow(contentViewController: hostingController)

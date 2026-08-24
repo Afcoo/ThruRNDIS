@@ -135,16 +135,16 @@ final class VMCoordinator {
                         self.reportEventLog("VM started.", level: .info)
                         self.scheduleConsoleOutputWatchdog(generation: generation)
                     case .failure(let error):
-                        self.transition(to: .failed, message: error.localizedDescription)
-                        self.reportEventLog(
-                            "VM start failed: " + EventLogErrorFormatter.description(for: error),
-                            level: .error
-                        )
                         self.generation &+= 1
                         self.virtualMachine = nil
                         self.vmDelegate = nil
                         self.usbDelegate = nil
                         self.releaseRuntimeResources()
+                        self.transition(to: .failed, message: error.localizedDescription)
+                        self.reportEventLog(
+                            "VM start failed: " + EventLogErrorFormatter.description(for: error),
+                            level: .error
+                        )
                     }
                 }
             }

@@ -15,11 +15,13 @@ struct GuestNetworkConsoleUpdate: Equatable {
     let guestIPv4Address: String?
     let vznatGatewayIPv4Address: String?
     let isRNDISRouteReady: Bool?
+    let portForwardingState: GuestPortForwardingState?
 
     var isEmpty: Bool {
         guestIPv4Address == nil
             && vznatGatewayIPv4Address == nil
             && isRNDISRouteReady == nil
+            && portForwardingState == nil
     }
 }
 
@@ -104,8 +106,18 @@ final class ConsoleSessionStore: ObservableObject {
                 case "0": false
                 default: nil
                 }
-            }
+            },
+            portForwardingState: detectedPortForwardingState()
         )
+    }
+
+    private func detectedPortForwardingState() -> GuestPortForwardingState? {
+        guard let markerValue = completedMarkerValue(
+            after: "THRURNDIS_PORT_FORWARD_STATE="
+        ) else {
+            return nil
+        }
+        return GuestPortForwardingState(markerValue: markerValue)
     }
 
     private func completedMarkerValue(after marker: String) -> String? {

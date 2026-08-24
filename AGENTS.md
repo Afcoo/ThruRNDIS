@@ -41,8 +41,9 @@ macOS 0.0.0.0/1 and 128.0.0.0/1 routes
 ```
 
 - `VMConfigurationFactory` uses `VZNATNetworkDeviceAttachment`, an XHCI USB
-  controller, and optional user-managed raw scratch storage. It does not create
-  a VirtioFS networking configuration share.
+  controller, optional user-managed raw scratch storage, and the interactive
+  `hvc0` serial console. It does not create a second Virtio control port or a
+  VirtioFS networking configuration share.
 - The guest obtains `eth0` configuration from VZNAT DHCP. It prints these
   machine-readable serial-console markers:
   - `THRURNDIS_VZNAT_IPV4=<guest-ipv4>`
@@ -50,14 +51,34 @@ macOS 0.0.0.0/1 and 128.0.0.0/1 routes
   - `THRURNDIS_VZNAT_GATEWAY=<vznat-gateway>`
   - `THRURNDIS_RNDIS_ROUTE_READY=1` only after `usb0` forwarding and NAT are
     ready, and `THRURNDIS_RNDIS_ROUTE_READY=0` when they are not ready.
+  - `THRURNDIS_PORT_FORWARD_STATE=inactive`,
+    `pending:<ports>`, or `active:<ports>` reports the optional paired TCP/UDP
+    DNAT state. `error:<code>` reports a rejected or failed boot configuration.
+- `PortForwardingStore` persists one optional port set shared by TCP and UDP.
+  The Settings field accepts comma-separated ports and inclusive hyphenated
+  ranges such as `5050,6550-6557`, validates every port in `1...65535`, and
+  canonicalizes sorted, overlapping, adjacent, and duplicate entries. Before
+  VM construction,
+  `VMConfigurationStore` removes any user-supplied value for the reserved
+  setting and `PortForwardingStore` appends exactly one
+  `thrurndis.port_forward=<ports>` kernel argument when the
+  feature is enabled. The guest's sourced `port-forwarding` module parses that
+  immutable boot value and validates the canonical port set again; the gateway
+  remains the sole nftables mutator.
+- When enabled and RNDIS forwarding is ready, the guest always DNATs matching
+  TCP and UDP ingress on `usb0` to macOS `192.168.100.2` without translating
+  the destination port. Both protocols reference one owned nftables interval
+  set, are admitted toward `eth0`, and are SNATed to guest `192.168.100.1`.
+  This is guest nftables state, not a new privileged-helper XPC operation.
 - The guest also assigns `192.168.100.1/24` to `eth0`. The host Bond owns
   `192.168.100.2/24`; `feth1` remains unaddressed and carries Ethernet frames
   only after the helper adds it to the resolved VM bridge.
 - The host must not install its `/1` routes from the address marker alone. It
   waits for a valid guest VZNAT address, the matching VZNAT gateway marker,
   and the ready marker.
-- `ConsoleSessionStore` parses console markers and `VMCoordinator` forwards the
-  address/readiness changes into `NetworkRouteStore`.
+- `ConsoleSessionStore` parses console markers. `VMCoordinator` forwards the
+  address/readiness changes into `NetworkRouteStore`, while `TetheringStore`
+  forwards paired TCP/UDP port-forwarding markers into `PortForwardingStore`.
 - `NetworkRouteStore` reconciles desired networking state. It asks the helper
   to create the Bond/feth/bridge path and routes only when the helper is
   current, the guest VZNAT address and gateway are known, and RNDIS is ready.
@@ -178,6 +199,11 @@ macOS 0.0.0.0/1 and 128.0.0.0/1 routes
   sessions cannot mutate current state.
 - Reset network input state before each VM start. Ignore structured console
   markers from a stale VM generation.
+- Freeze the persisted paired TCP/UDP port set before each VM start and encode
+  its canonical comma/range expression into the boot command line. The controls
+  remain read-only for the entire VM lifetime; changing the set requires
+  stopping and starting the VM. Invalid input blocks VM start. A stopped VM
+  retains the preference but never claims the mapping is active.
 - Do not wait for `usb0` before booting the VM. The guest watcher is responsible
   for late USB attach, detach, and reconnect, and drives the readiness marker.
 

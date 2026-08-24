@@ -50,6 +50,10 @@ brew install --cask afcoo/tap/thrurndis
    ![Passing a USB device to ThruRNDIS from Virtual Machine Accessories](./images/accessory-access-onboarding.gif)
 
 3. **Confirm the USB device connection:** Approve the connection in the USB device connection pop-up.
+4. **Optional TCP and UDP port forwarding:** In **Settings → VM Network**,
+   turn on **Enable Port Forwarding**, then enter comma-separated ports and
+   hyphenated ranges such as `80,443,47980-48000`. TCP and UDP always use the same
+   ports, with no port-number translation. Stop the VM to change the set.
 
 ## How It Works
 
@@ -75,6 +79,13 @@ ThruRNDIS runs a lightweight Linux VM and passes the RNDIS device connected to m
 For this proof of concept, the privileged helper creates an Ethernet Bond and a paired `feth0`/`feth1` link. After the VM reports its VZNAT address, the helper resolves the bridge created for that VM, adds `feth1` as a bridge member, and installs the two managed `/1` IPv4 routes through the guest.
 
 The guest owns `192.168.100.1`, forwards traffic arriving from the Bond through the USB RNDIS interface, and provides DNS forwarding using the live RNDIS lease. WireGuardKit and the Network System Extension are not part of this path.
+
+Optional port forwarding is fixed before each VM start. The app passes one
+validated `thrurndis.port_forward=<ports>` kernel argument. The guest creates
+one nftables interval set and uses it for matching TCP and UDP DNAT, forward,
+and source-NAT rules. DNAT changes only the destination address to
+`192.168.100.2`, preserving each original destination port. Changing or
+disabling the set takes effect on the next VM start.
 
 ## License
 

@@ -70,6 +70,7 @@ final class TetheringStore: ObservableObject {
     let vmConfiguration: VMConfigurationStore
     let appPreferences: AppPreferencesStore
     let networkRoute: NetworkRouteStore
+    let portForwarding: PortForwardingStore
 
     private let vmCoordinator: VMCoordinator
     private let usbCoordinator: USBAccessoryCoordinator
@@ -115,6 +116,7 @@ final class TetheringStore: ObservableObject {
         vmConfiguration: VMConfigurationStore,
         appPreferences: AppPreferencesStore,
         networkRoute: NetworkRouteStore,
+        portForwarding: PortForwardingStore,
         runtimeEntitlementSnapshotProvider: @escaping () -> RuntimeEntitlementSnapshot = {
             .current
         }
@@ -128,6 +130,7 @@ final class TetheringStore: ObservableObject {
         self.vmConfiguration = vmConfiguration
         self.appPreferences = appPreferences
         self.networkRoute = networkRoute
+        self.portForwarding = portForwarding
         self.runtimeEntitlementSnapshotProvider = runtimeEntitlementSnapshotProvider
         runtimeEntitlements = runtimeEntitlementSnapshotProvider()
 
@@ -184,6 +187,7 @@ final class TetheringStore: ObservableObject {
             && vmRestartState == .idle
             && !networkRoute.isOperationInProgress
             && networkRoute.snapshot?.state == .inactive
+            && portForwarding.isReadyForVMStart
             && vmCoordinator.canStart
     }
 
@@ -395,6 +399,17 @@ final class TetheringStore: ObservableObject {
     @discardableResult
     func startVirtualMachine() -> Bool {
         guard acceptsNewWork else { return false }
+        guard portForwarding.isReadyForVMStart else {
+            let message = portForwarding.validationErrorMessage
+                ?? String(localized: "Invalid Input")
+            statusMessage = message
+            appendEventLog(
+                "VM start rejected by port forwarding configuration: \(message)",
+                level: .warning,
+                category: .network
+            )
+            return false
+        }
         guard !isVMStopPreparationInProgress,
               !networkRoute.isOperationInProgress,
               vmRestartState == .idle || vmRestartState == .starting else {
@@ -480,15 +495,18 @@ final class TetheringStore: ObservableObject {
         usbCoordinator.resetForVMStart()
         syncUSBState()
 
-        let bootCommandLine = vmConfiguration.normalizedBootCommandLine()
-        if bootCommandLine != vmConfiguration.kernelCommandLine {
-            vmConfiguration.kernelCommandLine = bootCommandLine
+        let normalizedBootCommandLine = vmConfiguration.normalizedBootCommandLine()
+        if normalizedBootCommandLine != vmConfiguration.kernelCommandLine {
+            vmConfiguration.kernelCommandLine = normalizedBootCommandLine
             appendEventLog(
                 "Adjusted kernel arguments for initramfs-only boot.",
                 level: .debug,
                 category: .vm
             )
         }
+        let bootCommandLine = portForwarding.prepareBootCommandLine(
+            applyingTo: normalizedBootCommandLine
+        )
 
         let input = VMCoordinatorStartInput(
             kernelURL: bootAssets.kernelURL,
@@ -770,6 +788,7 @@ final class TetheringStore: ObservableObject {
 
         workflowCoordinator.clearDeferredWorkForReset()
         vmConfiguration.reset()
+        portForwarding.reset()
         statusMessage = String(
             localized: "App settings reset. Install or select VM assets to continue."
         )
@@ -808,6 +827,9 @@ final class TetheringStore: ObservableObject {
             self.statusMessage = message
             if state == .failed {
                 self.networkRoute.vmDidStop()
+                if !self.vmCoordinator.hasVirtualMachine {
+                    self.portForwarding.vmDidStop()
+                }
             }
             self.workflowCoordinator.vmStateDidChange(state)
         }
@@ -833,6 +855,7 @@ final class TetheringStore: ObservableObject {
         vmCoordinator.onStopped = { [weak self] in
             guard let self else { return }
             self.networkRoute.vmDidStop()
+            self.portForwarding.vmDidStop()
             self.workflowCoordinator.vmDidStop(
                 restartWillStartVM: self.restartWillStartVM
             )
@@ -1081,6 +1104,9 @@ final class TetheringStore: ObservableObject {
         }
         if let isRNDISRouteReady = update.isRNDISRouteReady {
             networkRoute.updateRNDISRouteReady(isRNDISRouteReady)
+        }
+        if let portForwardingState = update.portForwardingState {
+            portForwarding.apply(portForwardingState)
         }
     }
 

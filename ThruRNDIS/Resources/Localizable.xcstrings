@@ -3095,6 +3095,146 @@
         }
       }
     },
+    "The input format is invalid." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "입력 형식이 올바르지 않습니다."
+          }
+        }
+      }
+    },
+    "Enable Port Forwarding" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "포트포워딩 활성화"
+          }
+        }
+      }
+    },
+    "Invalid Input" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "잘못된 입력"
+          }
+        }
+      }
+    },
+    "Off" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "꺼짐"
+          }
+        }
+      }
+    },
+    "Pending" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "대기 중"
+          }
+        }
+      }
+    },
+    "A value is outside the allowed range." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "허용 범위를 벗어난 값이 있습니다."
+          }
+        }
+      }
+    },
+    "The range order is invalid." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "범위 순서가 올바르지 않습니다."
+          }
+        }
+      }
+    },
+    "Ports" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "포트"
+          }
+        }
+      }
+    },
+    "Saved" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "저장됨"
+          }
+        }
+      }
+    },
+    "Separate entries with commas and ranges with hyphens." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "쉼표로 항목을 구분하고 하이픈으로 범위를 지정하세요."
+          }
+        }
+      }
+    },
+    "TCP/UDP Port Forwarding" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TCP/UDP 포트포워딩"
+          }
+        }
+      }
+    },
+    "The VM did not enable the configured TCP and UDP port forwarding ports." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VM에서 구성된 TCP/UDP 포트포워딩 포트를 활성화하지 못했습니다."
+          }
+        }
+      }
+    },
+    "The VM rejected the configured TCP and UDP port forwarding ports (%@)." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VM이 구성된 TCP/UDP 포트포워딩 포트를 거부했습니다(%@)."
+          }
+        }
+      }
+    },
+    "The VM reported unexpected TCP and UDP port forwarding ports: %@." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VM이 예상하지 않은 TCP/UDP 포트포워딩 포트를 보고했습니다: %@."
+          }
+        }
+      }
+    },
     "VM" : {
     }
   },

@@ -86,6 +86,7 @@
 		NR1000000000000000000017 /* VZNATInterfaceResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR100000000000000000011D /* VZNATInterfaceResolver.swift */; };
 		NR1000000000000000000018 /* NetworkInterfaceCommandRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR100000000000000000011E /* NetworkInterfaceCommandRunner.swift */; };
 		NR1000000000000000000019 /* NetworkRouteSystemConfigurationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR100000000000000000011F /* NetworkRouteSystemConfigurationService.swift */; };
+		PF1000000000000000000001 /* PortForwardingStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = PF1000000000000000000101 /* PortForwardingStore.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -218,6 +219,7 @@
 		NR100000000000000000011D /* VZNATInterfaceResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VZNATInterfaceResolver.swift; sourceTree = "<group>"; };
 		NR100000000000000000011E /* NetworkInterfaceCommandRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkInterfaceCommandRunner.swift; sourceTree = "<group>"; };
 		NR100000000000000000011F /* NetworkRouteSystemConfigurationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkRouteSystemConfigurationService.swift; sourceTree = "<group>"; };
+		PF1000000000000000000101 /* PortForwardingStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortForwardingStore.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -343,6 +345,7 @@
 			isa = PBXGroup;
 			children = (
 				8B0000000000000000000108 /* TetheringStore.swift */,
+				PF1000000000000000000101 /* PortForwardingStore.swift */,
 				NR1000000000000000000105 /* NetworkRouteHelperStore.swift */,
 				NR1000000000000000000106 /* NetworkRouteStore.swift */,
 				DE1000000000000000000101 /* AppPreferencesStore.swift */,
@@ -588,6 +591,7 @@
 				NR1000000000000000000007 /* ThruRNDISNetworkRoute.swift in Sources */,
 				NR1000000000000000000008 /* NetworkRouteHelperPermissionView.swift in Sources */,
 				NR1000000000000000000009 /* NetworkRouteView.swift in Sources */,
+				PF1000000000000000000001 /* PortForwardingStore.swift in Sources */,
 				DE1000000000000000000001 /* AppPreferencesStore.swift in Sources */,
 				8B0000000000000000000003 /* USBAccessoryRecord.swift in Sources */,
 				8B0000000000000000000004 /* VMRuntimeState.swift in Sources */,

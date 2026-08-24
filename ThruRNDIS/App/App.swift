@@ -76,6 +76,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     lazy var vmConfiguration = VMConfigurationStore()
     lazy var appPreferences = AppPreferencesStore()
     lazy var networkRoute = NetworkRouteStore(eventLog: eventLog)
+    lazy var portForwarding = PortForwardingStore(eventLog: eventLog)
     lazy var store: TetheringStore = {
         return TetheringStore(
             assetProvider: assetWorkflowCoordinator,
@@ -88,7 +89,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             usbSession: usbSession,
             vmConfiguration: vmConfiguration,
             appPreferences: appPreferences,
-            networkRoute: networkRoute
+            networkRoute: networkRoute,
+            portForwarding: portForwarding
         )
     }()
 
