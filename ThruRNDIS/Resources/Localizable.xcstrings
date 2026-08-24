@@ -323,12 +323,12 @@
         }
       }
     },
-    "Check & Install Latest" : {
+    "Check & Install Latest Compatible" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "최신 버전 확인 및 설치"
+            "value" : "최신 호환 버전 확인 및 설치"
           }
         }
       }
@@ -343,12 +343,12 @@
         }
       }
     },
-    "Checking the latest VM asset release…" : {
+    "Checking the latest compatible VM asset release…" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "최신 VM 에셋 릴리스를 확인하는 중…"
+            "value" : "최신 호환 VM 에셋 릴리스를 확인하는 중…"
           }
         }
       }
@@ -753,12 +753,12 @@
         }
       }
     },
-    "Download & Install Latest" : {
+    "Download & Install Latest Compatible" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "최신 버전 다운로드 및 설치"
+            "value" : "최신 호환 버전 다운로드 및 설치"
           }
         }
       }
@@ -935,12 +935,12 @@
         }
       }
     },
-    "GitHub did not return a published VM asset release." : {
+    "GitHub did not return a compatible published VM asset release." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "GitHub에서 게시된 VM 에셋 릴리스를 찾을 수 없습니다."
+            "value" : "GitHub에서 게시된 호환 VM 에셋 릴리스를 찾을 수 없습니다."
           }
         }
       }
@@ -2025,42 +2025,42 @@
         }
       }
     },
-    "The latest VM asset release contains an invalid download URL for %@." : {
+    "The latest compatible VM asset release contains an invalid download URL for %@." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "최신 VM 에셋 릴리스에 포함된 %@의 다운로드 URL이 잘못되었습니다."
+            "value" : "최신 호환 VM 에셋 릴리스에 포함된 %@의 다운로드 URL이 잘못되었습니다."
           }
         }
       }
     },
-    "The latest VM asset release contains an invalid SHA-256 digest for %@." : {
+    "The latest compatible VM asset release contains an invalid SHA-256 digest for %@." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "최신 VM 에셋 릴리스에 포함된 %@의 SHA-256 다이제스트가 잘못되었습니다."
+            "value" : "최신 호환 VM 에셋 릴리스에 포함된 %@의 SHA-256 다이제스트가 잘못되었습니다."
           }
         }
       }
     },
-    "The latest VM asset release contains more than one %@ attachment." : {
+    "The latest compatible VM asset release contains more than one %@ attachment." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "최신 VM 에셋 릴리스에 %@ 첨부 파일이 두 개 이상 있습니다."
+            "value" : "최신 호환 VM 에셋 릴리스에 %@ 첨부 파일이 두 개 이상 있습니다."
           }
         }
       }
     },
-    "The latest VM asset release does not contain %@." : {
+    "The latest compatible VM asset release does not contain %@." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "최신 VM 에셋 릴리스에 %@ 첨부 파일이 없습니다."
+            "value" : "최신 호환 VM 에셋 릴리스에 %@ 첨부 파일이 없습니다."
           }
         }
       }

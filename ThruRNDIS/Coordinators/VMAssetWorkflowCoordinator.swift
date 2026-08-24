@@ -180,7 +180,7 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
         operationTask = task
         installState = .checking
         reportEventLog(
-            "Checking the latest VM asset release.",
+            "Checking the latest compatible VM asset release.",
             level: .debug
         )
     }
@@ -276,11 +276,11 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
         }
 
         do {
-            let release = try await releaseService.fetchLatestRelease()
+            let release = try await releaseService.fetchLatestCompatibleRelease()
             try requireCurrentOperation(operationID)
             let releaseName = displayName(for: release)
             reportEventLog(
-                "Latest VM asset release found: \(releaseName).",
+                "Latest compatible VM asset release found: \(releaseName).",
                 level: .debug
             )
 

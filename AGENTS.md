@@ -215,10 +215,13 @@ macOS 0.0.0.0/1 and 128.0.0.0/1 routes
 ## VM Asset Installation
 
 - App launch restores and validates local selection without a network request.
-  Latest-release lookup begins only after explicit user action.
-- The app downloads exactly `vm_assets.zip` and `SHA256SUMS` from the latest
-  published VM Assets release, validates reported size and SHA-256, inspects ZIP
-  entries, extracts to staging, and promotes atomically.
+  Release-list lookup begins only after explicit user action.
+- The app follows the VM Assets Release list pagination and selects the newest
+  `created_at` value among published, non-prerelease Releases whose tag begins
+  with `vm-assets-v1-`. It never falls back to `/releases/latest` or a legacy
+  tag. From the selected Release it downloads exactly `vm_assets.zip` and
+  `SHA256SUMS`, validates reported size and SHA-256, inspects ZIP entries,
+  extracts to staging, and promotes atomically.
 - ZIP contents must remain under `vm_assets/`; reject absolute paths,
   traversal, duplicates, unexpected roots, and symbolic links.
 - Managed assets require regular `vm_assets/Image-lts` and
