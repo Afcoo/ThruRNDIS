@@ -273,7 +273,7 @@ final class NetworkRouteStore: ObservableObject {
         guard helper.isAvailable else {
             operation = nil
             appendEventLog(
-                "Managed network cleanup could not be verified because the Network Helper is unavailable.",
+                "Network Routing cleanup could not be verified because the Network Helper is unavailable.",
                 level: .error
             )
             return false
@@ -288,7 +288,7 @@ final class NetworkRouteStore: ObservableObject {
             guard finishOperation(generation) else { return false }
             report(
                 error,
-                context: "Could not remove the managed network during application termination"
+                context: "Could not stop Network Routing during application termination"
             )
             return false
         }
@@ -344,7 +344,7 @@ final class NetworkRouteStore: ObservableObject {
             operation = nil
             snapshot = nil
             appendEventLog(
-                "Managed network cleanup could not be verified because the Network Helper is unavailable: \(reason).",
+                "Network Routing cleanup could not be verified because the Network Helper is unavailable: \(reason).",
                 level: .error
             )
             return false
@@ -361,17 +361,17 @@ final class NetworkRouteStore: ObservableObject {
             apply(stopped)
             let didStop = stopped.state == .inactive
             if didStop {
-                appendEventLog("Managed host network removed.", level: .info)
+                appendEventLog("Network Routing stopped.", level: .info)
             } else {
                 lastErrorMessage = String(
-                    localized: "The managed host network did not become inactive."
+                    localized: "Network Routing did not become inactive."
                 )
             }
-            reconcileIfNeeded(reason: "managed network stop completed")
+            reconcileIfNeeded(reason: "Network Routing stop completed")
             return didStop
         } catch {
             guard finishOperation(generation) else { return false }
-            report(error, context: "Could not remove the managed host network")
+            report(error, context: "Could not stop Network Routing")
             return false
         }
     }
@@ -420,7 +420,7 @@ final class NetworkRouteStore: ObservableObject {
 
         guard helper.isAvailable else {
             lastErrorMessage = String(
-                localized: "The Network lease ended while the Network Helper was unavailable."
+                localized: "The Network Routing lease ended while the Network Helper was unavailable."
             )
             return
         }
@@ -433,14 +433,14 @@ final class NetworkRouteStore: ObservableObject {
                 guard self.finishOperation(generation) else { return }
                 self.apply(snapshot)
                 self.appendEventLog(
-                    "Network was removed after the helper lease interruption.",
+                    "Network Routing was removed after the helper lease interruption.",
                     level: .info
                 )
             } catch {
                 guard self.finishOperation(generation) else { return }
                 self.report(
                     error,
-                    context: "Could not remove Network after the helper lease interruption"
+                    context: "Could not remove Network Routing after the helper lease interruption"
                 )
             }
         }
@@ -519,7 +519,7 @@ final class NetworkRouteStore: ObservableObject {
             } catch {
                 guard self.finishOperation(generation) else { return }
                 self.shouldRunManagedNetwork = false
-                self.report(error, context: "Could not start Network")
+                self.report(error, context: "Could not start Network Routing")
             }
         }
     }
@@ -579,7 +579,7 @@ enum NetworkRouteSettingsResetError: LocalizedError {
         case .operationInProgress:
             String(localized: "Wait for the current Network Helper operation to finish.")
         case .routeRemovalIncomplete:
-            String(localized: "Network could not be removed.")
+            String(localized: "Network Routing could not be removed.")
         case .helperRemovalIncomplete:
             String(localized: "The Network Helper remained registered.")
         }

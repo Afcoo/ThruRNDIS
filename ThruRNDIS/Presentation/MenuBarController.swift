@@ -260,7 +260,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             assetWorkflowCoordinator.hasConfiguredAssets
                 ? nil : String(localized: "Configure VM Assets in Settings"),
             networkRoute.helper.registrationStatus == .enabled
-                ? nil : String(localized: "Configure Network in Settings"),
+                ? nil : String(localized: "Configure Network Routing in Settings"),
         ].compactMap { $0 }
     }
 
@@ -311,7 +311,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
                     : String(localized: "Helper Problem")
             }
         }
-        return String(localized: "Network: \(title)")
+        return String(localized: "Network Routing: \(title)")
     }
 
     private var vmStatusColor: NSColor {

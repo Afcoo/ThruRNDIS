@@ -414,10 +414,10 @@ final class TetheringStore: ObservableObject {
               !networkRoute.isOperationInProgress,
               vmRestartState == .idle || vmRestartState == .starting else {
             statusMessage = String(
-                localized: "Wait for Network cleanup to finish before starting the VM."
+                localized: "Wait for Network Routing cleanup to finish before starting the VM."
             )
             appendEventLog(
-                "VM start rejected while Network cleanup or another VM lifecycle transition is active.",
+                "VM start rejected while Network Routing cleanup or another VM lifecycle transition is active.",
                 level: .debug,
                 category: .network
             )
@@ -427,20 +427,20 @@ final class TetheringStore: ObservableObject {
             if networkRoute.snapshot == nil {
                 networkRoute.refresh()
                 statusMessage = String(
-                    localized: "Wait for Network status before starting the VM."
+                    localized: "Wait for Network Routing status before starting the VM."
                 )
                 appendEventLog(
-                    "VM start deferred until Network status is available.",
+                    "VM start deferred until Network Routing status is available.",
                     level: .debug,
                     category: .network
                 )
             } else {
                 networkRoute.resetForVMStart()
                 statusMessage = String(
-                    localized: "Wait for Network cleanup to finish before starting the VM."
+                    localized: "Wait for Network Routing cleanup to finish before starting the VM."
                 )
                 appendEventLog(
-                    "VM start deferred while previous Network state is cleaned up.",
+                    "VM start deferred while previous Network Routing state is cleaned up.",
                     level: .debug,
                     category: .network
                 )
@@ -482,10 +482,10 @@ final class TetheringStore: ObservableObject {
 
         guard networkRoute.resetForVMStart() else {
             statusMessage = String(
-                localized: "Wait for Network cleanup to finish before starting the VM."
+                localized: "Wait for Network Routing cleanup to finish before starting the VM."
             )
             appendEventLog(
-                "VM start deferred until previous Network state is inactive.",
+                "VM start deferred until previous Network Routing state is inactive.",
                 level: .debug,
                 category: .network
             )
@@ -555,7 +555,7 @@ final class TetheringStore: ObservableObject {
         isVMStopPreparationInProgress = true
         workflowCoordinator.cancelWorkflow(reason: reason)
         statusMessage = String(
-            localized: "Stopping Network before stopping the VM."
+            localized: "Stopping Network Routing before stopping the VM."
         )
 
         Task { @MainActor [weak self] in
@@ -566,14 +566,14 @@ final class TetheringStore: ObservableObject {
             if !didStopVMNetwork {
                 self.appendEventLog(
                     continueAfterNetworkFailure
-                        ? "VM stop will continue after Network cleanup failed because the USB passthrough lifecycle ended."
-                        : "VM stop was cancelled because Network cleanup failed.",
+                        ? "VM stop will continue after Network Routing cleanup failed because the USB passthrough lifecycle ended."
+                        : "VM stop was cancelled because Network Routing cleanup failed.",
                     level: .error,
                     category: .network
                 )
                 guard continueAfterNetworkFailure else {
                     self.statusMessage = String(
-                        localized: "Could not stop Network. Retry Stop before stopping the VM."
+                        localized: "Could not stop Network Routing. Retry Stop before stopping the VM."
                     )
                     self.isVMStopPreparationInProgress = false
                     return
@@ -589,7 +589,7 @@ final class TetheringStore: ObservableObject {
         guard canRestartVirtualMachine else { return }
         vmRestartState = .stopping
         statusMessage = String(
-            localized: "Stopping Network before restarting the VM."
+            localized: "Stopping Network Routing before restarting the VM."
         )
 
         Task { @MainActor [weak self] in
@@ -599,12 +599,12 @@ final class TetheringStore: ObservableObject {
             )
             guard didStopVMNetwork else {
                 self.appendEventLog(
-                    "VM restart was cancelled because Network cleanup failed.",
+                    "VM restart was cancelled because Network Routing cleanup failed.",
                     level: .error,
                     category: .network
                 )
                 self.statusMessage = String(
-                    localized: "Could not stop Network. Retry Restart after resolving the network error."
+                    localized: "Could not stop Network Routing. Retry Restart after resolving the Network Routing error."
                 )
                 self.vmRestartState = .idle
                 return
@@ -730,7 +730,7 @@ final class TetheringStore: ObservableObject {
             .stopForApplicationTermination()
         if !didStopVMNetwork {
             appendEventLog(
-                "Application termination will continue after Network cleanup failed.",
+                "Application termination will continue after Network Routing cleanup failed.",
                 level: .error,
                 category: .application
             )
@@ -762,7 +762,7 @@ final class TetheringStore: ObservableObject {
             reason: "app settings reset"
         ) else {
             resetStatusMessage = String(
-                localized: "Could not stop Network before resetting app settings."
+                localized: "Could not stop Network Routing before resetting app settings."
             )
             return false
         }
@@ -781,7 +781,7 @@ final class TetheringStore: ObservableObject {
             try await networkRoute.resetForAppSettings()
         } catch {
             resetStatusMessage = String(
-                localized: "Could not reset Network: \(error.localizedDescription)"
+                localized: "Could not reset Network Routing: \(error.localizedDescription)"
             )
             return false
         }

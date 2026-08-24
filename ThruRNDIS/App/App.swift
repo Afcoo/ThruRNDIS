@@ -369,7 +369,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = String(
-            localized: "USB and Network will be disconnected. Quit anyway?"
+            localized: "USB will disconnect and Network Routing will stop. Quit anyway?"
         )
         alert.addButton(withTitle: String(localized: "Quit ThruRNDIS"))
         alert.addButton(withTitle: String(localized: "Cancel"))

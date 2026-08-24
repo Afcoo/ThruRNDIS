@@ -27,7 +27,7 @@ struct NetworkRouteView: View {
                 NetworkRouteHelperPermissionView()
             }
 
-            Section("Network") {
+            Section("Network Routing") {
                 LabeledContent("Status") {
                     SettingsStatusLabel(
                         title: routeStatus.title,

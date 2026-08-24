@@ -67,7 +67,7 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
         case .usbDevices:
             "USB Devices"
         case .networkRoute:
-            "Network"
+            "Network Routing"
         case .info:
             "Info"
         }

@@ -523,12 +523,12 @@
         }
       }
     },
-    "Configure Network in Settings" : {
+    "Configure Network Routing in Settings" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "설정에서 네트워크를 구성하세요"
+            "value" : "설정에서 네트워크 라우팅을 구성하세요"
           }
         }
       }
@@ -2985,16 +2985,6 @@
         }
       }
     },
-    "Network Configuration" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "네트워크 구성"
-          }
-        }
-      }
-    },
     "Not Enabled" : {
       "localizations" : {
         "ko" : {
@@ -3415,32 +3405,22 @@
         }
       }
     },
-    "The managed host network did not become inactive." : {
+    "Could not stop Network Routing. Retry Restart after resolving the Network Routing error." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "관리형 호스트 네트워크가 비활성 상태로 전환되지 않았습니다."
+            "value" : "네트워크 라우팅을 중지할 수 없습니다. 네트워크 라우팅 오류를 해결한 후 VM 다시 시작을 시도하세요."
           }
         }
       }
     },
-    "Could not stop Network. Retry Restart after resolving the network error." : {
+    "Could not stop Network Routing. Retry Stop before stopping the VM." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "네트워크를 중지할 수 없습니다. 네트워크 오류를 해결한 후 VM 다시 시작을 시도하세요."
-          }
-        }
-      }
-    },
-    "Could not stop Network. Retry Stop before stopping the VM." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "네트워크를 중지할 수 없습니다. VM 중지를 다시 시도하세요."
+            "value" : "네트워크 라우팅을 중지할 수 없습니다. VM 중지를 다시 시도하세요."
           }
         }
       }
@@ -3495,22 +3475,22 @@
         }
       }
     },
-    "Stopping Network before restarting the VM." : {
+    "Stopping Network Routing before restarting the VM." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "VM을 다시 시작하기 위해 네트워크를 먼저 중지하는 중입니다."
+            "value" : "VM을 다시 시작하기 위해 네트워크 라우팅을 먼저 중지하는 중입니다."
           }
         }
       }
     },
-    "Stopping Network before stopping the VM." : {
+    "Stopping Network Routing before stopping the VM." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "VM을 중지하기 위해 네트워크를 먼저 중지하는 중입니다."
+            "value" : "VM을 중지하기 위해 네트워크 라우팅을 먼저 중지하는 중입니다."
           }
         }
       }
@@ -3535,32 +3515,32 @@
         }
       }
     },
-    "USB and Network will be disconnected. Quit anyway?" : {
+    "USB will disconnect and Network Routing will stop. Quit anyway?" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "USB와 네트워크 연결이 해제됩니다. 그래도 종료하시겠습니까?"
+            "value" : "USB 연결이 해제되고 네트워크 라우팅이 중지됩니다. 그래도 종료하시겠습니까?"
           }
         }
       }
     },
-    "Wait for Network cleanup to finish before starting the VM." : {
+    "Wait for Network Routing cleanup to finish before starting the VM." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "VM을 시작하기 전에 네트워크 정리가 끝날 때까지 기다리세요."
+            "value" : "VM을 시작하기 전에 네트워크 라우팅 정리가 끝날 때까지 기다리세요."
           }
         }
       }
     },
-    "Wait for Network status before starting the VM." : {
+    "Wait for Network Routing status before starting the VM." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "VM을 시작하기 전에 네트워크 상태 확인이 끝날 때까지 기다리세요."
+            "value" : "VM을 시작하기 전에 네트워크 라우팅 상태 확인이 끝날 때까지 기다리세요."
           }
         }
       }
