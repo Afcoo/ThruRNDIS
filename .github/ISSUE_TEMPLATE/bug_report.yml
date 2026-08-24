@@ -10,13 +10,13 @@ body:
       value: |
         Thank you for helping improve ThruRNDIS.
 
-        Do not include provisioning profiles, signing credentials, or other
-        secrets. Report
+        Do not include WireGuard private keys, complete client configurations,
+        provisioning profiles, signing credentials, or other secrets. Report
         vulnerabilities through [GitHub's private security advisory form](https://github.com/Afcoo/ThruRNDIS/security/advisories/new),
         not through a public issue.
 
-        ThruRNDIS 개선에 도움을 주셔서 감사합니다. 프로비저닝 프로파일,
-        서명 자격 증명 등 비밀 정보는
+        ThruRNDIS 개선에 도움을 주셔서 감사합니다. WireGuard 개인 키, 전체
+        클라이언트 설정, 프로비저닝 프로파일, 서명 자격 증명 등 비밀 정보는
         첨부하지 마세요. 보안 취약점은 공개 Issue가 아닌 [GitHub 비공개 보안
         신고 양식](https://github.com/Afcoo/ThruRNDIS/security/advisories/new)을
         이용해 주세요.
@@ -29,7 +29,8 @@ body:
         - VM Asset installation or selection
         - USB approval, detection, or passthrough
         - VM boot or lifecycle
-        - Privileged helper registration or IPv4 routing
+        - WireGuard configuration or connection
+        - Network System Extension
         - Onboarding, Settings, or menu bar
         - Installation, signing, or distribution
         - Other
@@ -119,7 +120,8 @@ body:
       description: |
         Attach exported app event logs or paste relevant serial-console excerpts.
         Wrap pasted text in fenced code blocks when practical.
-        Redact signing credentials, personal paths, and device identifiers.
+        Redact private keys, complete WireGuard client configurations, signing
+        credentials, personal paths, and device identifiers.
 
   - type: textarea
     id: additional-context
