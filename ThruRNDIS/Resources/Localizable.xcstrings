@@ -3425,12 +3425,142 @@
         }
       }
     },
-    "The managed VM network lease ended while the Network Helper was unavailable." : {
+    "Could not stop Network. Retry Restart after resolving the network error." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "네트워크 헬퍼를 사용할 수 없는 동안 관리형 VM 네트워크 연결이 종료되었습니다."
+            "value" : "네트워크를 중지할 수 없습니다. 네트워크 오류를 해결한 후 VM 다시 시작을 시도하세요."
+          }
+        }
+      }
+    },
+    "Could not stop Network. Retry Stop before stopping the VM." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크를 중지할 수 없습니다. VM 중지를 다시 시도하세요."
+          }
+        }
+      }
+    },
+    "Enable the Network Helper" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 헬퍼 활성화"
+          }
+        }
+      }
+    },
+    "Grant the Network Helper permission." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 헬퍼를 허용하세요."
+          }
+        }
+      }
+    },
+    "Install and enable the Network Helper before attaching USB." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "USB를 연결하기 전에 네트워크 헬퍼를 설치하고 활성화하세요."
+          }
+        }
+      }
+    },
+    "Install and enable the Network Helper before starting the USB listener." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "USB 리스너를 시작하기 전에 네트워크 헬퍼를 설치하고 활성화하세요."
+          }
+        }
+      }
+    },
+    "Install valid VM assets and enable the Network Helper before finishing onboarding." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "온보딩을 완료하려면 유효한 VM 에셋을 설치하고 네트워크 헬퍼를 활성화하세요."
+          }
+        }
+      }
+    },
+    "Stopping Network before restarting the VM." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VM을 다시 시작하기 위해 네트워크를 먼저 중지하는 중입니다."
+          }
+        }
+      }
+    },
+    "Stopping Network before stopping the VM." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VM을 중지하기 위해 네트워크를 먼저 중지하는 중입니다."
+          }
+        }
+      }
+    },
+    "The helper connects macOS to the VM after RNDIS is ready." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RNDIS가 준비되면 헬퍼가 macOS와 VM을 연결합니다."
+          }
+        }
+      }
+    },
+    "The helper manages the VM bridge, Ethernet Bond, feth pair, and host routes." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "헬퍼는 VM 브리지, Ethernet Bond, feth 쌍과 호스트 경로를 관리합니다."
+          }
+        }
+      }
+    },
+    "USB and Network will be disconnected. Quit anyway?" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "USB와 네트워크 연결이 해제됩니다. 그래도 종료하시겠습니까?"
+          }
+        }
+      }
+    },
+    "Wait for Network cleanup to finish before starting the VM." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VM을 시작하기 전에 네트워크 정리가 끝날 때까지 기다리세요."
+          }
+        }
+      }
+    },
+    "Wait for Network status before starting the VM." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VM을 시작하기 전에 네트워크 상태 확인이 끝날 때까지 기다리세요."
           }
         }
       }

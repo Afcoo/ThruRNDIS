@@ -115,7 +115,7 @@ final class NetworkRouteStore: ObservableObject {
                 self.apply(snapshot)
             } catch {
                 guard self.finishOperation(generation) else { return }
-                self.report(error, context: "VM network status refresh failed")
+                self.report(error, context: "Network status refresh failed")
             }
         }
     }
@@ -408,7 +408,7 @@ final class NetworkRouteStore: ObservableObject {
 
         guard helper.isAvailable else {
             lastErrorMessage = String(
-                localized: "The managed VM network lease ended while the Network Helper was unavailable."
+                localized: "The Network lease ended while the Network Helper was unavailable."
             )
             return
         }
@@ -421,14 +421,14 @@ final class NetworkRouteStore: ObservableObject {
                 guard self.finishOperation(generation) else { return }
                 self.apply(snapshot)
                 self.appendEventLog(
-                    "The managed VM network was removed after the helper lease interruption.",
+                    "Network was removed after the helper lease interruption.",
                     level: .info
                 )
             } catch {
                 guard self.finishOperation(generation) else { return }
                 self.report(
                     error,
-                    context: "Could not remove the managed VM network after the helper lease interruption"
+                    context: "Could not remove Network after the helper lease interruption"
                 )
             }
         }
@@ -502,7 +502,7 @@ final class NetworkRouteStore: ObservableObject {
             } catch {
                 guard self.finishOperation(generation) else { return }
                 self.shouldRunManagedNetwork = false
-                self.report(error, context: "Could not create the managed VM network")
+                self.report(error, context: "Could not start Network")
             }
         }
     }
@@ -556,7 +556,7 @@ enum NetworkRouteSettingsResetError: LocalizedError {
         case .operationInProgress:
             String(localized: "Wait for the current Network Helper operation to finish.")
         case .routeRemovalIncomplete:
-            String(localized: "The managed VM network could not be removed.")
+            String(localized: "Network could not be removed.")
         case .helperRemovalIncomplete:
             String(localized: "The Network Helper remained registered.")
         }
