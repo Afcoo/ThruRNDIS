@@ -121,6 +121,7 @@ private final class OnboardingWindowResizeBridge {
 
 @MainActor
 final class OnboardingWindowController: NSWindowController, NSWindowDelegate {
+    private let onUserCloseRequest: () -> Void
     private let onClose: () -> Void
     private let resizeBridge: OnboardingWindowResizeBridge
 
@@ -128,8 +129,10 @@ final class OnboardingWindowController: NSWindowController, NSWindowDelegate {
         store: TetheringStore,
         assetWorkflowCoordinator: VMAssetWorkflowCoordinator,
         onFinish: @escaping () -> Void,
+        onUserCloseRequest: @escaping () -> Void,
         onClose: @escaping () -> Void
     ) {
+        self.onUserCloseRequest = onUserCloseRequest
         self.onClose = onClose
         let resizeBridge = OnboardingWindowResizeBridge()
         self.resizeBridge = resizeBridge
@@ -191,6 +194,11 @@ final class OnboardingWindowController: NSWindowController, NSWindowDelegate {
         showWindow(nil)
         window?.makeKeyAndOrderFront(nil)
         resizeBridge.scheduleInitialUpdate()
+    }
+
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        onUserCloseRequest()
+        return false
     }
 
     func windowWillClose(_ notification: Notification) {

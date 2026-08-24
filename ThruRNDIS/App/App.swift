@@ -421,6 +421,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 onFinish: { [weak self] in
                     self?.closeOnboardingWindow(presentationID: presentationID)
                 },
+                onUserCloseRequest: {
+                    NSApp.terminate(nil)
+                },
                 onClose: { [weak self] in
                     self?.onboardingWindowDidClose(presentationID: presentationID)
                 }
