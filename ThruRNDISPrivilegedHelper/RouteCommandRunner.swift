@@ -189,6 +189,12 @@ struct RouteCommandRunner: Sendable {
         return records.first
     }
 
+    func records(
+        matching route: ManagedIPv4Route
+    ) throws -> [RouteLookupRecord] {
+        try routeTableRecords(for: route)
+    }
+
     func diagnosticOutput(
         of route: ManagedIPv4Route,
         interfaceName: String

@@ -122,7 +122,7 @@ final class NetworkRouteController: @unchecked Sendable {
             ownedConfiguration = nil
             self.leaseOwnerIdentifier = nil
         }
-        try rejectExistingGlobalRoutesWithoutOwnershipMetadata()
+        try rejectExistingRoutesWithoutOwnershipMetadata()
 
         for name in [
             ThruRNDISNetworkRoute.memberInterfaceName,
@@ -610,16 +610,14 @@ final class NetworkRouteController: @unchecked Sendable {
         }
     }
 
-    private func rejectExistingGlobalRoutesWithoutOwnershipMetadata() throws {
+    private func rejectExistingRoutesWithoutOwnershipMetadata() throws {
         for route in ManagedIPv4Route.global {
-            guard try routeRunner.lookup(
-                route,
-                interfaceName: nil
-            ) != nil else {
+            let records = try routeRunner.records(matching: route)
+            guard !records.isEmpty else {
                 continue
             }
             throw RouteCommandRunnerError.conflictingRoute(
-                "global \(route.prefix) without SystemConfiguration ownership metadata"
+                "\(route.prefix) without SystemConfiguration ownership metadata"
             )
         }
     }
@@ -634,6 +632,18 @@ final class NetworkRouteController: @unchecked Sendable {
                 gateway: anchor.gateway,
                 interfaceName: anchor.interfaceName
             )
+        }
+        for route in ManagedIPv4Route.all
+        where route.scope == .interfaceScoped {
+            let hasUnexpectedScope = try routeRunner
+                .records(matching: route)
+                .contains {
+                    $0.isInterfaceScoped
+                        && $0.interfaceName != anchor.interfaceName
+                }
+            if hasUnexpectedScope {
+                result[route] = .conflicting
+            }
         }
         return result
     }
