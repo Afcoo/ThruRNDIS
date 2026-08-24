@@ -118,6 +118,14 @@ final class NetworkRoutePrivilegedHelperClient {
         try await stop(timeout: Self.terminationStopRequestTimeout)
     }
 
+    func stopRegisteredHelperBeforeReplacement() async throws {
+        _ = try await sendTransientDataRequest(
+            timeout: Self.stopRequestTimeout
+        ) { proxy, reply in
+            proxy.stop(withReply: reply)
+        }
+    }
+
     private func stop(
         timeout: DispatchTimeInterval
     ) async throws -> NetworkRouteSnapshot {
@@ -169,8 +177,22 @@ final class NetworkRoutePrivilegedHelperClient {
             @escaping NetworkRoutePrivilegedHelperReply
         ) -> Void
     ) async throws -> NetworkRouteSnapshot {
+        let data = try await sendTransientDataRequest(
+            timeout: timeout,
+            request
+        )
+        return try decodeSnapshot(data)
+    }
+
+    private func sendTransientDataRequest(
+        timeout: DispatchTimeInterval,
+        _ request: @escaping (
+            NetworkRoutePrivilegedHelperProtocol,
+            @escaping NetworkRoutePrivilegedHelperReply
+        ) -> Void
+    ) async throws -> Data {
         let connection = try makeConnection()
-        return try await sendRequest(
+        return try await sendDataRequest(
             over: connection,
             timeout: timeout,
             invalidateOnReply: true,
@@ -191,6 +213,28 @@ final class NetworkRoutePrivilegedHelperClient {
             @escaping NetworkRoutePrivilegedHelperReply
         ) -> Void
     ) async throws -> NetworkRouteSnapshot {
+        let data = try await sendDataRequest(
+            over: connection,
+            timeout: timeout,
+            invalidateOnReply: invalidateOnReply,
+            monitorLease: monitorLease,
+            activateConnection: activateConnection,
+            request
+        )
+        return try decodeSnapshot(data)
+    }
+
+    private func sendDataRequest(
+        over connection: NSXPCConnection,
+        timeout: DispatchTimeInterval,
+        invalidateOnReply: Bool,
+        monitorLease: Bool,
+        activateConnection: Bool,
+        _ request: @escaping (
+            NetworkRoutePrivilegedHelperProtocol,
+            @escaping NetworkRoutePrivilegedHelperReply
+        ) -> Void
+    ) async throws -> Data {
         let data: Data = try await withCheckedThrowingContinuation {
             continuation in
             let reply = NetworkRouteXPCReply(
@@ -282,6 +326,10 @@ final class NetworkRoutePrivilegedHelperClient {
             }
         }
 
+        return data
+    }
+
+    private func decodeSnapshot(_ data: Data) throws -> NetworkRouteSnapshot {
         do {
             return try JSONDecoder().decode(NetworkRouteSnapshot.self, from: data)
         } catch {

@@ -151,6 +151,16 @@ final class NetworkRouteHelperStore: ObservableObject {
         Task { @MainActor [weak self] in
             guard let self else { return }
             do {
+                if self.registrationStatus == .enabled
+                    || self.registrationStatus == .updateRequired {
+                    self.appendEventLog(
+                        "Stopping managed network state before Network Helper replacement.",
+                        level: .debug
+                    )
+                    let replacementClient = NetworkRoutePrivilegedHelperClient()
+                    try await replacementClient
+                        .stopRegisteredHelperBeforeReplacement()
+                }
                 let removalStatus = try await self.registrationService.disable(
                     preservingRegisteredBuildVersion: true
                 )
