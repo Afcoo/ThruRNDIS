@@ -6,6 +6,7 @@ import SwiftUI
 
 struct NetworkRouteView: View {
     @EnvironmentObject private var store: TetheringStore
+    @EnvironmentObject private var appPreferences: AppPreferencesStore
     @EnvironmentObject private var networkRoute: NetworkRouteStore
     @EnvironmentObject private var helper: NetworkRouteHelperStore
     @EnvironmentObject private var portForwarding: PortForwardingStore
@@ -26,7 +27,7 @@ struct NetworkRouteView: View {
                 NetworkRouteHelperPermissionView()
             }
 
-            Section("VM Network") {
+            Section("Networking") {
                 LabeledContent("Status") {
                     SettingsStatusLabel(
                         title: routeStatus.title,
@@ -46,46 +47,48 @@ struct NetworkRouteView: View {
 
                     Spacer()
                 }
-                LabeledContent(
-                    "Guest VZNAT Address",
-                    value: networkRoute.guestIPv4Address
-                        ?? String(localized: "Waiting")
-                )
-                LabeledContent(
-                    "VZNAT Gateway",
-                    value: networkRoute.vznatGatewayIPv4Address
-                        ?? String(localized: "Waiting")
-                )
-                LabeledContent(
-                    "RNDIS Forwarding",
-                    value: networkRoute.isRNDISRouteReady
-                        ? String(localized: "Ready")
-                        : String(localized: "Waiting")
-                )
-                if let snapshot = networkRoute.snapshot,
-                   snapshot.state != .inactive {
+                if appPreferences.isDebugModeEnabled {
                     LabeledContent(
-                        "VM Bridge",
-                        value: snapshot.bridgeInterfaceName
-                            ?? String(localized: "Unknown")
+                        "Guest VZNAT Address",
+                        value: networkRoute.guestIPv4Address
+                            ?? String(localized: "Waiting")
                     )
                     LabeledContent(
-                        "Ethernet Bond",
-                        value: snapshot.bondInterfaceName
-                            ?? String(localized: "Unknown")
+                        "VZNAT Gateway",
+                        value: networkRoute.vznatGatewayIPv4Address
+                            ?? String(localized: "Waiting")
                     )
                     LabeledContent(
-                        "Routes",
-                        value: snapshot.installedPrefixes.isEmpty
-                            ? String(localized: "None")
-                            : snapshot.installedPrefixes.joined(separator: ", ")
+                        "RNDIS Forwarding",
+                        value: networkRoute.isRNDISRouteReady
+                            ? String(localized: "Ready")
+                            : String(localized: "Waiting")
                     )
-                }
-                if let lastErrorMessage = networkRoute.lastErrorMessage {
-                    Text(lastErrorMessage)
-                        .font(.caption)
-                        .foregroundStyle(.red)
-                        .fixedSize(horizontal: false, vertical: true)
+                    if let snapshot = networkRoute.snapshot,
+                       snapshot.state != .inactive {
+                        LabeledContent(
+                            "VM Bridge",
+                            value: snapshot.bridgeInterfaceName
+                                ?? String(localized: "Unknown")
+                        )
+                        LabeledContent(
+                            "Ethernet Bond",
+                            value: snapshot.bondInterfaceName
+                                ?? String(localized: "Unknown")
+                        )
+                        LabeledContent(
+                            "Routes",
+                            value: snapshot.installedPrefixes.isEmpty
+                                ? String(localized: "None")
+                                : snapshot.installedPrefixes.joined(separator: ", ")
+                        )
+                    }
+                    if let lastErrorMessage = networkRoute.lastErrorMessage {
+                        Text(lastErrorMessage)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
             }
 
