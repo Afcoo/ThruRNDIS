@@ -1465,12 +1465,12 @@
         }
       }
     },
-    "Preparing Network" : {
+    "Preparing Network Routing" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "네트워크 준비 중"
+            "value" : "네트워크 라우팅 준비 중"
           }
         }
       }
@@ -3275,12 +3275,12 @@
         }
       }
     },
-    "Network" : {
+    "Network Routing" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "네트워크"
+            "value" : "네트워크 라우팅"
           }
         }
       }

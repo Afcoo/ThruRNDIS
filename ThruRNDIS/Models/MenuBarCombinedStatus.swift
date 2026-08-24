@@ -16,6 +16,7 @@ struct MenuBarCombinedStatus: Equatable {
         case usbNotAttached
         case waitingForGuestNetwork
         case waitingForRNDIS
+        case preparingNetworkRouting
         case vmNetworkNeedsAttention
         case active
     }
@@ -29,6 +30,7 @@ struct MenuBarCombinedStatus: Equatable {
         guestIPv4Address: String?,
         vznatGatewayIPv4Address: String?,
         isRNDISRouteReady: Bool,
+        isNetworkRouteTransitioning: Bool,
         networkRouteSnapshot: NetworkRouteSnapshot?
     ) {
         let isVMRunning = vmRuntimeState == .running
@@ -52,6 +54,8 @@ struct MenuBarCombinedStatus: Equatable {
             stage = .waitingForGuestNetwork
         } else if !isRNDISRouteReady {
             stage = .waitingForRNDIS
+        } else if !isVMNetworkActive && isNetworkRouteTransitioning {
+            stage = .preparingNetworkRouting
         } else if !isVMNetworkActive {
             stage = .vmNetworkNeedsAttention
         } else {
@@ -65,8 +69,12 @@ struct MenuBarCombinedStatus: Equatable {
             String(localized: "menuBar.combinedStatus.notRunning", defaultValue: "Not Running")
         case .usbNotAttached:
             String(localized: "USB Not Attached")
-        case .waitingForGuestNetwork, .waitingForRNDIS, .vmNetworkNeedsAttention:
-            String(localized: "Preparing Network")
+        case .waitingForGuestNetwork, .waitingForRNDIS,
+             .preparingNetworkRouting:
+            String(localized: "Preparing Network Routing")
+        case .vmNetworkNeedsAttention:
+            String(localized: "Network Routing") + ": "
+                + String(localized: "Needs Attention")
         case .active:
             String(localized: "menuBar.combinedStatus.running", defaultValue: "Running")
         }

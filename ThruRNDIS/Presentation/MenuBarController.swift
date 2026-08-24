@@ -272,6 +272,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             vznatGatewayIPv4Address:
                 networkRoute.vznatGatewayIPv4Address,
             isRNDISRouteReady: networkRoute.isRNDISRouteReady,
+            isNetworkRouteTransitioning: networkRoute.operation != nil,
             networkRouteSnapshot: networkRoute.snapshot
         )
     }
