@@ -36,7 +36,8 @@ final class NetworkRoutePrivilegedHelperService: NSObject,
                 // serialized controller call runs after start and is keyed to
                 // this lease, so it cannot remove a newer owner's routes.
                 controller.stop(
-                    leaseOwnerIdentifier: leaseState.identifier
+                    leaseOwnerIdentifier: leaseState.identifier,
+                    releaseLeaseAfterAttempt: true
                 ) { _ in }
             }
             Self.send(result, to: reply)
@@ -45,7 +46,8 @@ final class NetworkRoutePrivilegedHelperService: NSObject,
 
     func stop(withReply reply: @escaping NetworkRoutePrivilegedHelperReply) {
         controller.stop(
-            leaseOwnerIdentifier: leaseState.ownerIdentifierForStop()
+            leaseOwnerIdentifier: leaseState.ownerIdentifierForStop(),
+            releaseLeaseAfterAttempt: false
         ) { [self] result in
             if case .success = result {
                 leaseState.markStopSucceeded()
@@ -56,7 +58,10 @@ final class NetworkRoutePrivilegedHelperService: NSObject,
 
     func connectionDidTerminate() {
         guard leaseState.markConnectionTerminated() else { return }
-        controller.stop(leaseOwnerIdentifier: leaseState.identifier) { _ in }
+        controller.stop(
+            leaseOwnerIdentifier: leaseState.identifier,
+            releaseLeaseAfterAttempt: true
+        ) { _ in }
     }
 
     private static func send(

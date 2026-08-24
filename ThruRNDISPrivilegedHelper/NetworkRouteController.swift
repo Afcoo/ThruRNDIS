@@ -64,12 +64,19 @@ final class NetworkRouteController: @unchecked Sendable {
 
     func stop(
         leaseOwnerIdentifier: UUID?,
+        releaseLeaseAfterAttempt: Bool,
         completion: @escaping Completion
     ) {
         queue.async { [self] in
-            completion(Result {
+            let result = Result {
                 try stopNow(leaseOwnerIdentifier: leaseOwnerIdentifier)
-            })
+            }
+            if releaseLeaseAfterAttempt,
+               let leaseOwnerIdentifier,
+               self.leaseOwnerIdentifier == leaseOwnerIdentifier {
+                self.leaseOwnerIdentifier = nil
+            }
+            completion(result)
         }
     }
 
@@ -220,8 +227,6 @@ final class NetworkRouteController: @unchecked Sendable {
 
         if let ownedConfiguration {
             try removeManagedConfiguration(ownedConfiguration)
-        } else {
-            return .inactive
         }
 
         ownedConfiguration = nil
