@@ -39,6 +39,7 @@ final class NetworkRouteStore: ObservableObject {
     private let eventLog: EventLogStore
     private var reconciliationGeneration: UInt64 = 0
     private var shouldRunManagedNetwork = false
+    private var needsReconciliationAfterRefresh = false
     private var helperCancellables: Set<AnyCancellable> = []
 
     init(
@@ -106,6 +107,7 @@ final class NetworkRouteStore: ObservableObject {
             return
         }
 
+        needsReconciliationAfterRefresh = false
         let generation = beginOperation(.refreshing)
         Task { @MainActor [weak self] in
             guard let self else { return }
@@ -113,9 +115,15 @@ final class NetworkRouteStore: ObservableObject {
                 let snapshot = try await self.client.status()
                 guard self.finishOperation(generation) else { return }
                 self.apply(snapshot)
+                self.reconcileAfterStatusRefreshIfNeeded(
+                    reason: "Network Routing status refresh completed"
+                )
             } catch {
                 guard self.finishOperation(generation) else { return }
-                self.report(error, context: "Network status refresh failed")
+                self.report(error, context: "Network Routing status refresh failed")
+                self.reconcileAfterStatusRefreshIfNeeded(
+                    reason: "Network Routing status refresh failed"
+                )
             }
         }
     }
@@ -369,6 +377,7 @@ final class NetworkRouteStore: ObservableObject {
     }
 
     private func clearDesiredNetworkState() {
+        needsReconciliationAfterRefresh = false
         shouldRunManagedNetwork = false
         guestIPv4Address = nil
         vznatGatewayIPv4Address = nil
@@ -379,6 +388,7 @@ final class NetworkRouteStore: ObservableObject {
     private func cancelStatusRefreshIfNeeded() {
         guard operation == .refreshing else { return }
         reconciliationGeneration &+= 1
+        needsReconciliationAfterRefresh = false
         operation = nil
     }
 
@@ -387,6 +397,7 @@ final class NetworkRouteStore: ObservableObject {
             requestRouteStatusRefresh()
         } else if !helper.isOperationInProgress {
             reconciliationGeneration &+= 1
+            needsReconciliationAfterRefresh = false
             snapshot = nil
             operation = nil
         }
@@ -394,6 +405,7 @@ final class NetworkRouteStore: ObservableObject {
 
     private func routeLeaseDidInvalidate() {
         reconciliationGeneration &+= 1
+        needsReconciliationAfterRefresh = false
         operation = nil
         snapshot = nil
         guestIPv4Address = nil
@@ -435,7 +447,12 @@ final class NetworkRouteStore: ObservableObject {
     }
 
     private func reconcileIfNeeded(reason: String) {
-        guard operation == nil else { return }
+        guard operation == nil else {
+            if operation == .refreshing {
+                needsReconciliationAfterRefresh = true
+            }
+            return
+        }
         guard helper.isAvailable else { return }
         guard let guestIPv4Address,
               let vznatGatewayIPv4Address,
@@ -505,6 +522,12 @@ final class NetworkRouteStore: ObservableObject {
                 self.report(error, context: "Could not start Network")
             }
         }
+    }
+
+    private func reconcileAfterStatusRefreshIfNeeded(reason: String) {
+        guard needsReconciliationAfterRefresh else { return }
+        needsReconciliationAfterRefresh = false
+        reconcileIfNeeded(reason: reason)
     }
 
     private func beginOperation(_ operation: NetworkRouteOperation) -> UInt64 {
