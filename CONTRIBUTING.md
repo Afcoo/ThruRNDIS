@@ -1,8 +1,9 @@
 # Contributing to ThruRNDIS
 
 Thank you for helping improve ThruRNDIS. The project is a macOS 27+ menu-bar
-app that uses a WireGuard Network System Extension, a Virtualization framework
-Linux VM, and public AccessoryAccess USB passthrough APIs.
+app that uses a Virtualization framework Linux VM, public AccessoryAccess USB
+passthrough APIs, and a narrowly scoped privileged helper for the host-side
+Bond, feth pair, VZNAT bridge membership, and IPv4 routes.
 
 Before making a substantial change, read [AGENTS.md](AGENTS.md). It documents
 the current architecture, ownership boundaries, build paths, signing
@@ -20,34 +21,41 @@ requirements, and verification expectations.
 - Report suspected security vulnerabilities privately according to
   [SECURITY.md](SECURITY.md). Do not open a public issue.
 
-Never attach WireGuard private keys, complete client configurations,
-provisioning profiles, signing credentials, notary credentials, or other
-secrets. Redact personal paths and device identifiers from logs when they are
-not needed to reproduce a problem.
+Never attach provisioning profiles, signing credentials, notary credentials,
+or other secrets. Redact personal paths and device identifiers from logs when
+they are not needed to reproduce a problem.
 
 ## Architecture boundaries
 
-The supported data path is:
+The proof-of-concept IPv4 data path is:
 
 ```text
-ThruRNDIS WireGuardKit Network System Extension
--> VZNAT guest endpoint
--> guest WireGuard interface
--> guest nftables masquerade
--> USB RNDIS upstream
+macOS routes 0.0.0.0/1 and 128.0.0.0/1
+-> Ethernet Bond 192.168.100.2
+-> feth0 <-> feth1
+-> VM-created VZNAT bridge
+-> guest eth0 192.168.100.1
+-> guest eth0 forwarding and nftables masquerade
+-> USB RNDIS upstream on guest usb0
 ```
 
-Changes that replace this path with an app-local packet relay, vmnet, bridged
-networking, or route-command UI are outside the current architecture. Propose
-an architecture change in an issue before implementing it.
+The app obtains the guest address and RNDIS readiness from serial-console
+markers. Only the authenticated privileged helper may create or remove the
+host network configuration, mutate bridge membership, or install routes. The
+unprivileged app must not execute `route`, `ifconfig`, `networksetup`, or
+another administrative networking command itself.
 
 Keep these boundaries intact:
 
 - USB passthrough uses an AccessoryAccess `AAUSBAccessory` with the public
   `VZUSBPassthroughDeviceConfiguration(device:)` API.
-- The app does not inspect or relay packet payloads.
-- Client private keys are not persisted in tunnel-provider configuration or
-  shared with the guest.
+- The VM uses `VZNATNetworkDeviceAttachment`. The POC helper discovers the
+  implementation bridge after VM start and adds only its owned `feth1` peer.
+- The app and helper do not inspect or relay packet payloads.
+- The helper manages only its recorded Bond, feth pair, bridge membership, and
+  global/Bond-scoped entries for the two exact `/1` prefixes. Cleanup withdraws
+  routes before detaching and destroying the owned interfaces.
+- IPv6 routing is out of scope for this proof of concept.
 - Guest VM scripts, dependency locking, and VM Asset release tooling belong in
   `Afcoo/ThruRNDIS_VM_Assets`, not this repository.
 - Personal signing values and `Configuration/LocalSigning.xcconfig` must not be
@@ -69,9 +77,9 @@ The normal minimum verification after a code change is:
 
 The repository currently has no automated test target. Do not add test code or
 test-only production abstractions without a separately defined test plan. Real
-USB passthrough, Virtualization, Network System Extension activation, and
-WireGuard runtime validation require the signed Runtime build, approved
-entitlements, and appropriate hardware:
+USB passthrough, Virtualization, privileged-helper registration, and route
+runtime validation require the signed Runtime build, administrator approval,
+and appropriate hardware:
 
 ```sh
 ./script/build_and_install.sh
@@ -123,7 +131,7 @@ larger designs should link one with `Closes #123` when applicable.
 Pull request titles use Conventional Commits syntax:
 
 ```text
-feat(wireguard): validate endpoint overrides
+feat(network): bridge the feth peer into the VM network
 fix(usb): serialize detach handling
 docs: clarify Runtime signing
 ```
