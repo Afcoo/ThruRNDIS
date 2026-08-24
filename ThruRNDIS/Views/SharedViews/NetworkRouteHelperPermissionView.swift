@@ -62,7 +62,7 @@ struct NetworkRouteHelperPermissionView: View {
         if let operation = helper.operation {
             return (
                 operation.title,
-                "The Network Helper registration is being updated.",
+                "The Network Helper is being updated.",
                 .transitioning
             )
         }
@@ -70,11 +70,11 @@ struct NetworkRouteHelperPermissionView: View {
         case .unknown:
             (String(localized: "Unknown"), "Refresh the helper status.", .unknown)
         case .notRegistered:
-            (String(localized: "Not Enabled"), "Install the bundled Network Helper.", .inactive)
+            (String(localized: "Not Enabled"), "Install the Network Helper.", .inactive)
         case .enabled:
             (String(localized: "Enabled"), "The Network Helper is ready.", .active)
         case .updateRequired:
-            (String(localized: "Update Required"), "Reinstall the bundled Network Helper.", .attention)
+            (String(localized: "Update Required"), "Reinstall the Network Helper.", .attention)
         case .requiresApproval:
             (String(localized: "Approval Required"), "Allow the helper in System Settings > General > Login Items, then refresh.", .attention)
         case .notFound:

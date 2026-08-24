@@ -3235,6 +3235,166 @@
         }
       }
     },
+    "Network" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크"
+          }
+        }
+      }
+    },
+    "Network Helper" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 헬퍼"
+          }
+        }
+      }
+    },
+    "The Network Helper is unavailable in this unsigned build." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "서명되지 않은 이 빌드에서는 네트워크 헬퍼를 사용할 수 없습니다."
+          }
+        }
+      }
+    },
+    "Checking" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "확인 중"
+          }
+        }
+      }
+    },
+    "Installing Network Helper…" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 헬퍼 설치 중…"
+          }
+        }
+      }
+    },
+    "Reinstalling Network Helper…" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 헬퍼 재설치 중…"
+          }
+        }
+      }
+    },
+    "Removing Network Helper…" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 헬퍼 제거 중…"
+          }
+        }
+      }
+    },
+    "The Network Helper is being updated." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 헬퍼를 업데이트하고 있습니다."
+          }
+        }
+      }
+    },
+    "Refresh the helper status." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "헬퍼 상태를 새로고침하세요."
+          }
+        }
+      }
+    },
+    "Install the Network Helper." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 헬퍼를 설치하세요."
+          }
+        }
+      }
+    },
+    "The Network Helper is ready." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 헬퍼가 준비되었습니다."
+          }
+        }
+      }
+    },
+    "Reinstall the Network Helper." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 헬퍼를 재설치하세요."
+          }
+        }
+      }
+    },
+    "Allow the helper in System Settings > General > Login Items, then refresh." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "시스템 설정 > 일반 > 로그인 항목 및 확장 프로그램에서 헬퍼를 허용한 다음 새로고침하세요."
+          }
+        }
+      }
+    },
+    "Use a signed installed ThruRNDIS app." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "서명되어 설치된 ThruRNDIS 앱을 사용하세요."
+          }
+        }
+      }
+    },
+    "The managed host network did not become inactive." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "관리형 호스트 네트워크가 비활성 상태로 전환되지 않았습니다."
+          }
+        }
+      }
+    },
+    "The managed VM network lease ended while the Network Helper was unavailable." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 헬퍼를 사용할 수 없는 동안 관리형 VM 네트워크 연결이 종료되었습니다."
+          }
+        }
+      }
+    },
     "VM" : {
     }
   },
