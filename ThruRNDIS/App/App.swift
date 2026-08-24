@@ -263,7 +263,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         eventLog.append(
-            "Automatically updating the VM network helper for the current app build.",
+            "Automatically updating the Network Helper for the current app build.",
             level: .info,
             category: .application
         )

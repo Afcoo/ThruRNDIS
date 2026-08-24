@@ -33,7 +33,7 @@ private enum AccessoryMonitoringConfigurationBlocker {
         case .vmAssetsUnavailable:
             String(localized: "Install or select valid VM assets before starting the USB listener.")
         case .privilegedHelperUnavailable:
-            String(localized: "Install and enable the VM network helper before starting the USB listener.")
+            String(localized: "Install and enable the Network Helper before starting the USB listener.")
         }
     }
 
@@ -44,7 +44,7 @@ private enum AccessoryMonitoringConfigurationBlocker {
         case .vmAssetsUnavailable:
             "no valid VM assets are selected"
         case .privilegedHelperUnavailable:
-            "the VM network helper is not enabled"
+            "the Network Helper is not enabled"
         }
     }
 }
@@ -673,7 +673,7 @@ final class TetheringStore: ObservableObject {
         }
         guard isNetworkRouteHelperReady else {
             statusMessage = String(
-                localized: "Install and enable the VM network helper before attaching USB."
+                localized: "Install and enable the Network Helper before attaching USB."
             )
             return
         }
@@ -708,7 +708,7 @@ final class TetheringStore: ObservableObject {
               (!networkRoute.helper.isSignedBuild
                 || isNetworkRouteHelperReady) else {
             statusMessage = String(
-                localized: "Install valid VM assets and enable the VM network helper before finishing onboarding."
+                localized: "Install valid VM assets and enable the Network Helper before finishing onboarding."
             )
             return
         }
@@ -925,7 +925,7 @@ final class TetheringStore: ObservableObject {
             .dropFirst()
             .sink { [weak self] _ in
                 self?.scheduleAccessoryMonitoringStartIfRequested(
-                    reason: "VM network helper status changed"
+                    reason: "Network Helper status changed"
                 )
             }
             .store(in: &accessoryMonitoringStartCancellables)
@@ -934,7 +934,7 @@ final class TetheringStore: ObservableObject {
             .dropFirst()
             .sink { [weak self] _ in
                 self?.scheduleAccessoryMonitoringStartIfRequested(
-                    reason: "VM network helper operation changed"
+                    reason: "Network Helper operation changed"
                 )
             }
             .store(in: &accessoryMonitoringStartCancellables)
@@ -962,14 +962,14 @@ final class TetheringStore: ObservableObject {
            attachedAccessoryID == nil,
            !workflowCoordinator.hasPendingAttachment {
             usbCoordinator.stopMonitoring(
-                reason: "VM network helper health check failed.",
+                reason: "Network Helper health check failed.",
                 completion: nil
             )
             return
         }
 
         scheduleAccessoryMonitoringStartIfRequested(
-            reason: "VM network helper health changed"
+            reason: "Network Helper health changed"
         )
     }
 

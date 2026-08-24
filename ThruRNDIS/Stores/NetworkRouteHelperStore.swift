@@ -12,11 +12,11 @@ enum NetworkRouteHelperOperation: Equatable {
     var title: String {
         switch self {
         case .installing:
-            String(localized: "Installing network helper…")
+            String(localized: "Installing Network Helper…")
         case .reinstalling:
-            String(localized: "Reinstalling network helper…")
+            String(localized: "Reinstalling Network Helper…")
         case .removing:
-            String(localized: "Removing network helper…")
+            String(localized: "Removing Network Helper…")
         }
     }
 }
@@ -88,7 +88,7 @@ final class NetworkRouteHelperStore: ObservableObject {
     func enable() {
         guard canEnable else { return }
         operation = .installing
-        appendEventLog("Network route helper enable requested.", level: .debug)
+        appendEventLog("Network Helper enable requested.", level: .debug)
 
         Task { @MainActor [weak self] in
             guard let self else { return }
@@ -98,14 +98,14 @@ final class NetworkRouteHelperStore: ObservableObject {
                 self.registrationStatus = status
                 self.reportRegistrationResult(
                     status,
-                    successMessage: "Network route helper is enabled for the current app build."
+                    successMessage: "Network Helper is enabled for the current app build."
                 )
             } catch {
                 self.operation = nil
                 self.refresh()
                 if self.registrationStatus != .requiresApproval {
                     self.reportError(
-                        "Could not enable the network route helper: \(error.localizedDescription)"
+                        "Could not enable the Network Helper: \(error.localizedDescription)"
                     )
                 }
             }
@@ -115,7 +115,7 @@ final class NetworkRouteHelperStore: ObservableObject {
     func disable() {
         guard canDisable else { return }
         operation = .removing
-        appendEventLog("Network route helper disable requested.", level: .debug)
+        appendEventLog("Network Helper disable requested.", level: .debug)
 
         Task { @MainActor [weak self] in
             guard let self else { return }
@@ -125,19 +125,19 @@ final class NetworkRouteHelperStore: ObservableObject {
                 self.registrationStatus = status
                 if status == .notRegistered || status == .notFound {
                     self.appendEventLog(
-                        "Network route helper is disabled.",
+                        "Network Helper is disabled.",
                         level: .info
                     )
                 } else {
                     self.reportError(
-                        "Network route helper registration did not become disabled."
+                        "Network Helper registration did not become disabled."
                     )
                 }
             } catch {
                 self.operation = nil
                 self.refresh()
                 self.reportError(
-                    "Could not disable the network route helper: \(error.localizedDescription)"
+                    "Could not disable the Network Helper: \(error.localizedDescription)"
                 )
             }
         }
@@ -146,7 +146,7 @@ final class NetworkRouteHelperStore: ObservableObject {
     func reinstall() {
         guard canReinstall else { return }
         operation = .reinstalling
-        appendEventLog("Network route helper reinstall started.", level: .debug)
+        appendEventLog("Network Helper reinstall started.", level: .debug)
 
         Task { @MainActor [weak self] in
             guard let self else { return }
@@ -159,7 +159,7 @@ final class NetworkRouteHelperStore: ObservableObject {
                     self.operation = nil
                     self.registrationStatus = removalStatus
                     self.reportError(
-                        "Network route helper did not become disabled for reinstall."
+                        "Network Helper did not become disabled for reinstall."
                     )
                     return
                 }
@@ -170,14 +170,14 @@ final class NetworkRouteHelperStore: ObservableObject {
                 self.registrationStatus = status
                 self.reportRegistrationResult(
                     status,
-                    successMessage: "Network route helper was reinstalled for the current app build."
+                    successMessage: "Network Helper was reinstalled for the current app build."
                 )
             } catch {
                 self.operation = nil
                 self.refresh()
                 if self.registrationStatus != .requiresApproval {
                     self.reportError(
-                        "Could not reinstall the network route helper: \(error.localizedDescription)"
+                        "Could not reinstall the Network Helper: \(error.localizedDescription)"
                     )
                 }
             }
@@ -195,7 +195,7 @@ final class NetworkRouteHelperStore: ObservableObject {
     func openSystemSettings() {
         registrationService.openSystemSettings()
         appendEventLog(
-            "Opened Login Items settings for network helper approval.",
+            "Opened Login Items settings for Network Helper approval.",
             level: .debug
         )
     }
@@ -222,12 +222,12 @@ final class NetworkRouteHelperStore: ObservableObject {
             appendEventLog(successMessage, level: .info)
         case .requiresApproval:
             appendEventLog(
-                "Network route helper requires user approval.",
+                "Network Helper requires user approval.",
                 level: .warning
             )
         default:
             reportError(
-                "Network route helper registration did not become enabled."
+                "Network Helper registration did not become enabled."
             )
         }
     }

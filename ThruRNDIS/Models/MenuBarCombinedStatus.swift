@@ -74,9 +74,9 @@ struct MenuBarCombinedStatus: Equatable {
         case .waitingForRNDIS:
             String(localized: "Waiting for RNDIS")
         case .networkHelperProblem:
-            String(localized: "Network helper problem")
+            String(localized: "Network Helper problem")
         case .vmNetworkNeedsAttention:
-            String(localized: "VM network needs attention")
+            String(localized: "Network needs attention")
         case .active:
             String(localized: "menuBar.combinedStatus.running", defaultValue: "Running")
         }

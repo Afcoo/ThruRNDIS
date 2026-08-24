@@ -17,14 +17,14 @@ enum NetworkRoutePrivilegedHelperClientError: Error, Equatable, LocalizedError {
             String(localized: "The ThruRNDIS bundle identifier is unavailable.")
         case .remoteObjectUnavailable(let message):
             if let message, !message.isEmpty {
-                String(localized: "The VM network helper is unavailable. \(message)")
+                String(localized: "The Network Helper is unavailable. \(message)")
             } else {
-                String(localized: "The VM network helper is unavailable.")
+                String(localized: "The Network Helper is unavailable.")
             }
         case .malformedResponse:
-            String(localized: "The VM network helper returned an incomplete response.")
+            String(localized: "The Network Helper returned an incomplete response.")
         case .requestTimedOut:
-            String(localized: "The VM network helper did not respond before the request timed out.")
+            String(localized: "The Network Helper did not respond before the request timed out.")
         case .helperFailure(let message):
             message
         }

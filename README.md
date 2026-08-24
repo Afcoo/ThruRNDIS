@@ -50,7 +50,7 @@ brew install --cask afcoo/tap/thrurndis
    ![Passing a USB device to ThruRNDIS from Virtual Machine Accessories](./images/accessory-access-onboarding.gif)
 
 3. **Confirm the USB device connection:** Approve the connection in the USB device connection pop-up.
-4. **Optional TCP and UDP port forwarding:** In **Settings → VM Network**,
+4. **Optional TCP and UDP port forwarding:** In **Settings → Network**,
    turn on **Enable Port Forwarding**, then enter comma-separated ports and
    hyphenated ranges such as `80,443,47980-48000`. TCP and UDP always use the same
    ports, with no port-number translation. Stop the VM to change the set.

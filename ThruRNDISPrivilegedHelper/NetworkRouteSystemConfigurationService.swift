@@ -27,7 +27,7 @@ enum NetworkRouteSystemConfigurationError: Error, LocalizedError {
         case .unavailable(let detail):
             "System network configuration is unavailable: \(detail)"
         case .conflict(let detail):
-            "The network helper did not modify an ambiguous configuration: \(detail)"
+            "The Network Helper did not modify an ambiguous configuration: \(detail)"
         case .operationFailed(let detail):
             "Could not update System network configuration: \(detail)"
         }

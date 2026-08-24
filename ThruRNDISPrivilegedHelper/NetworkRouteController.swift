@@ -14,7 +14,7 @@ enum NetworkRouteControllerError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .configurationConflict(let detail):
-            "The network helper did not modify an ambiguous configuration: \(detail)"
+            "The Network Helper did not modify an ambiguous configuration: \(detail)"
         case .couldNotRemoveConfiguration(let failures):
             "Could not remove the managed network configuration: \(failures.joined(separator: "; "))"
         case .routeLeaseOwnedByAnotherConnection:

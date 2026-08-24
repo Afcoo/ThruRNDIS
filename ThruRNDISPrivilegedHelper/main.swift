@@ -16,7 +16,7 @@ private enum PrivilegedHelperStartupError: Error, LocalizedError {
         case .invalidHelperIdentifier(let identifier):
             "The helper signing identifier does not use the required privileged-helper suffix: \(identifier)."
         case .notRunningAsRoot:
-            "The privileged helper launch daemon is not running as root."
+            "The Network Helper launch daemon is not running as root."
         }
     }
 }
@@ -68,6 +68,6 @@ private let logger = Logger(
 do {
     try PrivilegedHelperRuntime().run()
 } catch {
-    logger.fault("Privileged helper startup failed: \(error.localizedDescription, privacy: .public)")
+    logger.fault("Network Helper startup failed: \(error.localizedDescription, privacy: .public)")
     exit(EXIT_FAILURE)
 }

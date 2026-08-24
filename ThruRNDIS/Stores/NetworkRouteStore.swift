@@ -237,7 +237,7 @@ final class NetworkRouteStore: ObservableObject {
         guard helper.isAvailable else {
             operation = nil
             appendEventLog(
-                "Managed network cleanup could not be verified because the network helper is unavailable.",
+                "Managed network cleanup could not be verified because the Network Helper is unavailable.",
                 level: .error
             )
             return false
@@ -308,7 +308,7 @@ final class NetworkRouteStore: ObservableObject {
             operation = nil
             snapshot = nil
             appendEventLog(
-                "Managed network cleanup could not be verified because the network helper is unavailable: \(reason).",
+                "Managed network cleanup could not be verified because the Network Helper is unavailable: \(reason).",
                 level: .error
             )
             return false
@@ -372,13 +372,13 @@ final class NetworkRouteStore: ObservableObject {
         isRNDISRouteReady = false
         shouldRunManagedNetwork = false
         appendEventLog(
-            "The privileged helper VM network lease was interrupted; clearing the guest control path and attempting fail-safe cleanup.",
+            "The Network Helper lease was interrupted; clearing the guest control path and attempting fail-safe cleanup.",
             level: .error
         )
 
         guard helper.isAvailable else {
             lastErrorMessage = String(
-                localized: "The managed VM network lease ended while the VM network helper was unavailable."
+                localized: "The managed VM network lease ended while the Network Helper was unavailable."
             )
             return
         }
@@ -524,11 +524,11 @@ enum NetworkRouteSettingsResetError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .operationInProgress:
-            String(localized: "Wait for the current network helper operation to finish.")
+            String(localized: "Wait for the current Network Helper operation to finish.")
         case .routeRemovalIncomplete:
             String(localized: "The managed VM network could not be removed.")
         case .helperRemovalIncomplete:
-            String(localized: "The VM network helper remained registered.")
+            String(localized: "The Network Helper remained registered.")
         }
     }
 }

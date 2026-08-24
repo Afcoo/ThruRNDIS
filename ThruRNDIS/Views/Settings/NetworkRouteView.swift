@@ -16,18 +16,18 @@ struct NetworkRouteView: View {
             if !helper.isSignedBuild {
                 Section {
                     Label(
-                        "The VM network helper is unavailable in this unsigned build.",
+                        "The Network Helper is unavailable in this unsigned build.",
                         systemImage: "exclamationmark.triangle"
                     )
                     .foregroundStyle(.orange)
                 }
             }
 
-            Section("Privileged Helper") {
+            Section("Network Helper") {
                 NetworkRouteHelperPermissionView()
             }
 
-            Section("Networking") {
+            Section("Network") {
                 LabeledContent("Status") {
                     SettingsStatusLabel(
                         title: routeStatus.title,
