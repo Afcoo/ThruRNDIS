@@ -35,10 +35,17 @@ struct NetworkRouteView: View {
                     )
                 }
                 HStack {
-                    Button("Start") {
-                        networkRoute.startManually()
+                    if networkRoute.snapshot?.state == .active {
+                        Button("Restart") {
+                            networkRoute.restartManually()
+                        }
+                        .disabled(!networkRoute.canRestart)
+                    } else {
+                        Button("Start") {
+                            networkRoute.startManually()
+                        }
+                        .disabled(!networkRoute.canStart)
                     }
-                    .disabled(!networkRoute.canStart)
 
                     Button("Stop") {
                         networkRoute.stopManually()

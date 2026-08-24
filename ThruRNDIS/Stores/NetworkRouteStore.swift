@@ -84,6 +84,10 @@ final class NetworkRouteStore: ObservableObject {
             && snapshot?.state != .active
     }
 
+    var canRestart: Bool {
+        !isOperationInProgress && snapshot?.state == .active
+    }
+
     var canStop: Bool {
         !isOperationInProgress
             && (snapshot?.state == .active || snapshot?.state == .degraded)
@@ -194,6 +198,13 @@ final class NetworkRouteStore: ObservableObject {
         shouldRunManagedNetwork = true
         lastErrorMessage = nil
         reconcileIfNeeded(reason: "manual start requested")
+    }
+
+    func restartManually() {
+        guard canRestart else { return }
+        shouldRunManagedNetwork = true
+        lastErrorMessage = nil
+        stopPreservingDesiredState(reason: "manual restart requested")
     }
 
     func stopManually() {
