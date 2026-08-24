@@ -1015,6 +1015,16 @@
         }
       }
     },
+    "Incompatible VM asset version" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "호환되지 않는 에셋 버전입니다"
+          }
+        }
+      }
+    },
     "Info" : {
       "localizations" : {
         "ko" : {

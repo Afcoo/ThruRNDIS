@@ -11,6 +11,7 @@ struct VMAssetFolderContents: Equatable {
 
 enum VMAssetFolderError: LocalizedError {
     case notDirectory(URL)
+    case unsupportedAssetVersion
     case missingKernel(URL)
     case missingInitramfs(URL)
     case notRegularFile(label: String, url: URL)
@@ -19,6 +20,8 @@ enum VMAssetFolderError: LocalizedError {
         switch self {
         case .notDirectory(let url):
             return String(localized: "Selected VM asset path is not a folder: \(url.path)")
+        case .unsupportedAssetVersion:
+            return String(localized: "Incompatible VM asset version")
         case .missingKernel(let url):
             return String(localized: "No Image-* kernel was found in the VM asset folder: \(url.path)")
         case .missingInitramfs(let url):
@@ -30,6 +33,8 @@ enum VMAssetFolderError: LocalizedError {
 }
 
 struct VMAssetFolderResolver {
+    private static let supportedAssetVersion = 1
+
     private let fileManager: FileManager
 
     init(fileManager: FileManager = .default) {
@@ -38,11 +43,7 @@ struct VMAssetFolderResolver {
 
     func resolve(_ directoryURL: URL) throws -> VMAssetFolderContents {
         let directory = directoryURL.standardizedFileURL
-        var isDirectory: ObjCBool = false
-        guard fileManager.fileExists(atPath: directory.path, isDirectory: &isDirectory),
-              isDirectory.boolValue else {
-            throw VMAssetFolderError.notDirectory(directory)
-        }
+        try validateAssetVersion(in: directory)
 
         let searchDirectories = [
             directory,
@@ -69,6 +70,24 @@ struct VMAssetFolderResolver {
             kernelURL: kernelURL,
             initialRamdiskURL: initialRamdiskURL
         )
+    }
+
+    func validateAssetVersion(in directoryURL: URL) throws {
+        let directory = directoryURL.standardizedFileURL
+        var isDirectory: ObjCBool = false
+        guard fileManager.fileExists(atPath: directory.path, isDirectory: &isDirectory),
+              isDirectory.boolValue else {
+            throw VMAssetFolderError.notDirectory(directory)
+        }
+
+        let manifestURL = directory
+            .appendingPathComponent("manifest.json", isDirectory: false)
+        guard isRegularFile(manifestURL),
+              let data = try? Data(contentsOf: manifestURL),
+              let manifest = try? JSONDecoder().decode(VMAssetManifest.self, from: data),
+              manifest.assetVersion == Self.supportedAssetVersion else {
+            throw VMAssetFolderError.unsupportedAssetVersion
+        }
     }
 
     func validateRegularFile(_ url: URL, label: String) throws {
@@ -133,4 +152,8 @@ struct VMAssetFolderResolver {
 
         return nil
     }
+}
+
+private struct VMAssetManifest: Decodable {
+    let assetVersion: Int
 }
