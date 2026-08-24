@@ -28,7 +28,7 @@ ThruRNDIS is a Swift app based on the Virtualization framework that enables Andr
 ## Requirements
 
 - macOS 27 or later
-- Network Extension and LaunchDaemon permissions
+- AccessoryAccess, Virtualization, and LaunchDaemon permissions
 
 ## Installation
 
@@ -44,20 +44,20 @@ brew install --cask afcoo/tap/thrurndis
 
 ## How to Use
 
-1. **Install VM Assets:** Install the latest VM Assets during onboarding or in Settings.
+1. **Install VM Assets:** Install the latest compatible VM Assets during onboarding or in Settings.
 2. **Pass through the USB device:** In **Virtual Machine Accessories** in the menu bar, connect the USB device to **ThruRNDIS**.
 
    ![Passing a USB device to ThruRNDIS from Virtual Machine Accessories](./images/accessory-access-onboarding.gif)
 
-3. **Confirm the USB device connection:** Approve the connection in the USB device connection pop-up.
-4. **Confirm the WireGuard connection:** Approve the connection in the WireGuard connection pop-up.
+3. **(Optional) Port forwarding:** Before connecting the device, configure the TCP/UDP ports to expose through the RNDIS device in **Settings → Network Routing**.
+4. **Confirm the USB device connection:** Approve the connection in the USB device connection pop-up.
 
 ## How It Works
 
 ```text
-ThruRNDIS WireGuard Network System Extension
--> VZNAT guest endpoint UDP/<ListenPort>
--> Linux VM wg0
+macOS
+-> Ethernet Bond and feth pair
+-> Linux VM through the VZNAT bridge
 -> nftables masquerade
 -> Linux VM usb0
 -> RNDIS USB tethering device
@@ -67,9 +67,9 @@ ThruRNDIS WireGuard Network System Extension
 
 ThruRNDIS runs a lightweight Linux VM and passes the RNDIS device connected to macOS through to the VM using USB passthrough.
 
-macOS and the VM are connected by a WireGuard tunnel over VZNAT, and the VM forwards macOS traffic received through WireGuard to the recognized RNDIS device.
+macOS connects to the VM through an Ethernet Bond and feth pair attached to the VM's VZNAT bridge. The VM forwards IPv4 traffic through the USB RNDIS interface.
 
-ThruRNDIS uses a [modified `wireguard-apple` fork](https://github.com/Afcoo/wireguard-apple/tree/thrurndis-vznat-bind) to establish the WireGuard tunnel over VZNAT.
+TCP/UDP port forwarding is handled by nftables DNAT/SNAT rules in the Linux VM, which forward matching RNDIS traffic to macOS without changing the destination port.
 
 ## License
 

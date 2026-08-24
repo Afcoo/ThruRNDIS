@@ -28,7 +28,7 @@ ThruRNDIS는 macOS에서 안드로이드의 RNDIS 방식 USB 테더링을 사용
 ## 요구 사항
 
 - macOS 27 이상
-- Network Extension 및 LaunchDaemon 권한
+- AccessoryAccess, Virtualization 및 LaunchDaemon 권한
 
 ## 설치 방법
 
@@ -44,20 +44,20 @@ brew install --cask afcoo/tap/thrurndis
 
 ## 사용 방법
 
-1. **VM Assets 설치:** 온보딩 또는 설정에서 최신 VM Assets를 설치합니다.
+1. **VM Assets 설치:** 온보딩 또는 설정에서 최신 호환 VM Assets를 설치합니다.
 2. **USB 장치 전달:** 메뉴 막대의 **가상 머신 액세서리**에서 USB 장치를 **ThruRNDIS**로 전달합니다.
 
    ![가상 머신 액세서리에서 USB 장치를 ThruRNDIS로 전달하는 과정](./images/accessory-access-onboarding.gif)
 
-3. **USB 기기 연결 확인:** USB 기기 연결 팝업에서 연결을 승인합니다.
-4. **WireGuard 연결 확인:** WireGuard 연결 팝업에서 연결을 승인합니다.
+3. **(선택 사항) 포트 포워딩:** 기기를 연결하기 전에 **설정 → 네트워크 라우팅**에서 RNDIS 장치로 공유할 TCP/UDP 포트를 설정합니다.
+4. **USB 기기 연결 확인:** USB 기기 연결 팝업에서 연결을 승인합니다.
 
 ## 작동 원리
 
 ```text
-ThruRNDIS WireGuard Network System Extension
--> VZNAT guest endpoint UDP/<ListenPort>
--> Linux VM wg0
+macOS
+-> Ethernet Bond 및 feth pair
+-> VZNAT bridge를 통한 Linux VM
 -> nftables masquerade
 -> Linux VM usb0
 -> RNDIS USB tethering device
@@ -67,9 +67,9 @@ ThruRNDIS WireGuard Network System Extension
 
 ThruRNDIS는 경량 Linux VM을 실행하고 macOS에 연결된 RNDIS 장치를 USB passthrough로 VM에 전달합니다.
 
-macOS와 VM은 VZNAT을 통해 WireGuard 터널로 연결되며, VM은 WireGuard를 통해 전달된 macOS의 트래픽을 인식된 RNDIS 장치에 전달합니다.
+macOS는 VM의 VZNAT bridge에 연결된 Ethernet Bond와 feth pair를 통해 VM과 통신합니다. VM은 IPv4 트래픽을 USB RNDIS 인터페이스로 전달합니다.
 
-ThruRNDIS는 VZNAT을 통한 WireGuard 터널 연결을 위해 [`변형된 wireguard-apple 포크`](https://github.com/Afcoo/wireguard-apple/tree/thrurndis-vznat-bind)를 사용합니다.
+TCP/UDP 포트 포워딩은 Linux VM의 nftables DNAT/SNAT 규칙으로 처리하며, 일치하는 RNDIS 트래픽을 목적지 포트 변경 없이 macOS로 전달합니다.
 
 ## 라이선스
 
