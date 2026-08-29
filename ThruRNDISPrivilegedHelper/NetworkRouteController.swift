@@ -178,8 +178,9 @@ final class NetworkRouteController: @unchecked Sendable {
                 network: requested,
                 bondInterfaceName: bondName
             )
-            try waitForIPv4Address(
+            try waitForIPv4Configuration(
                 ThruRNDISNetworkRoute.hostIPv4Address,
+                subnetMask: ThruRNDISNetworkRoute.subnetMask,
                 on: bondName,
                 timeout: 3
             )
@@ -281,6 +282,11 @@ final class NetworkRouteController: @unchecked Sendable {
         )
         let bondRuntimeReady = bondRuntime?.mode == "static"
             && bondRuntime?.members == Set([member])
+        let bondIPv4Ready = interfaceHasIPv4Configuration(
+            owned.bondInterfaceName,
+            address: ThruRNDISNetworkRoute.hostIPv4Address,
+            subnetMask: ThruRNDISNetworkRoute.subnetMask
+        )
         let memberPeer = try? interfaceRunner.fethPeer(
             interfaceName: member
         )
@@ -296,6 +302,8 @@ final class NetworkRouteController: @unchecked Sendable {
             && systemSnapshot.isNetworkServiceEnabled
             && systemSnapshot.configuredHostIPv4Address
                 == ThruRNDISNetworkRoute.hostIPv4Address
+            && systemSnapshot.configuredHostIPv4SubnetMask
+                == ThruRNDISNetworkRoute.subnetMask
             && systemSnapshot.configuredRouterIPv4Address
                 == ThruRNDISNetworkRoute.routerIPv4Address
             && systemSnapshot.configuredDNSServerAddresses
@@ -327,6 +335,11 @@ final class NetworkRouteController: @unchecked Sendable {
                 "Bond runtime mode=\(mode), members=[\(members)]"
             )
         }
+        if !bondIPv4Ready {
+            readinessFailures.append(
+                "Bond runtime host=\(ThruRNDISNetworkRoute.hostIPv4Address), mask=\(ThruRNDISNetworkRoute.subnetMask) is unavailable"
+            )
+        }
         if !fethPairReady {
             readinessFailures.append(
                 "feth peers \(member)->\(memberPeer ?? "unavailable"), \(peer)->\(peerPeer ?? "unavailable")"
@@ -334,7 +347,7 @@ final class NetworkRouteController: @unchecked Sendable {
         }
         if !systemConfigurationReady {
             readinessFailures.append(
-                "SystemConfiguration bond=\(systemSnapshot.hasBond), service=\(systemSnapshot.hasNetworkService), enabled=\(systemSnapshot.isNetworkServiceEnabled), host=\(systemSnapshot.configuredHostIPv4Address ?? "missing"), router=\(systemSnapshot.configuredRouterIPv4Address ?? "missing"), DNS=\(systemSnapshot.configuredDNSServerAddresses.joined(separator: ","))"
+                "SystemConfiguration bond=\(systemSnapshot.hasBond), service=\(systemSnapshot.hasNetworkService), enabled=\(systemSnapshot.isNetworkServiceEnabled), host=\(systemSnapshot.configuredHostIPv4Address ?? "missing"), mask=\(systemSnapshot.configuredHostIPv4SubnetMask ?? "missing"), router=\(systemSnapshot.configuredRouterIPv4Address ?? "missing"), DNS=\(systemSnapshot.configuredDNSServerAddresses.joined(separator: ","))"
             )
         }
         if !routesReady {
@@ -352,6 +365,7 @@ final class NetworkRouteController: @unchecked Sendable {
                 && bridgeIdentityReady
                 && bridgeMembershipReady
                 && bondRuntimeReady
+                && bondIPv4Ready
                 && fethPairReady
                 && routesReady ? .active : .degraded,
             guestIPv4Address: network.guestIPv4Address,
@@ -698,29 +712,41 @@ final class NetworkRouteController: @unchecked Sendable {
         )
     }
 
-    private func waitForIPv4Address(
+    private func waitForIPv4Configuration(
         _ address: String,
+        subnetMask: String,
         on interfaceName: String,
         timeout: TimeInterval
     ) throws {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
-            if interfaceHasIPv4Address(interfaceName, address: address) {
+            if interfaceHasIPv4Configuration(
+                interfaceName,
+                address: address,
+                subnetMask: subnetMask
+            ) {
                 return
             }
             Thread.sleep(forTimeInterval: 0.05)
         }
         throw NetworkRouteControllerError.configurationConflict(
-            "\(interfaceName) did not acquire \(address) after enabling its Network Service."
+            "\(interfaceName) did not acquire \(address) with netmask \(subnetMask) after enabling its Network Service."
         )
     }
 
-    private func interfaceHasIPv4Address(
+    private func interfaceHasIPv4Configuration(
         _ interfaceName: String,
-        address: String
+        address: String,
+        subnetMask: String
     ) -> Bool {
-        var expected = in_addr()
-        guard address.withCString({ inet_pton(AF_INET, $0, &expected) }) == 1
+        var expectedAddress = in_addr()
+        var expectedSubnetMask = in_addr()
+        guard address.withCString({
+            inet_pton(AF_INET, $0, &expectedAddress)
+        }) == 1,
+        subnetMask.withCString({
+            inet_pton(AF_INET, $0, &expectedSubnetMask)
+        }) == 1
         else {
             return false
         }
@@ -732,15 +758,23 @@ final class NetworkRouteController: @unchecked Sendable {
         while let current = cursor {
             defer { cursor = current.pointee.ifa_next }
             let entry = current.pointee
-            guard String(cString: entry.ifa_name) == interfaceName,
+            let flags = Int32(entry.ifa_flags)
+            guard flags & IFF_UP != 0,
+                  String(cString: entry.ifa_name) == interfaceName,
                   let addressPointer = entry.ifa_addr,
-                  addressPointer.pointee.sa_family == UInt8(AF_INET) else {
+                  let subnetMaskPointer = entry.ifa_netmask,
+                  addressPointer.pointee.sa_family == UInt8(AF_INET),
+                  subnetMaskPointer.pointee.sa_family == UInt8(AF_INET) else {
                 continue
             }
             let currentAddress = UnsafeRawPointer(addressPointer)
                 .assumingMemoryBound(to: sockaddr_in.self)
                 .pointee.sin_addr
-            if currentAddress.s_addr == expected.s_addr {
+            let currentSubnetMask = UnsafeRawPointer(subnetMaskPointer)
+                .assumingMemoryBound(to: sockaddr_in.self)
+                .pointee.sin_addr
+            if currentAddress.s_addr == expectedAddress.s_addr,
+               currentSubnetMask.s_addr == expectedSubnetMask.s_addr {
                 return true
             }
         }

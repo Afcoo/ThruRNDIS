@@ -13,6 +13,7 @@ struct NetworkRouteSystemConfigurationSnapshot: Sendable {
     let hasNetworkService: Bool
     let isNetworkServiceEnabled: Bool
     let configuredHostIPv4Address: String?
+    let configuredHostIPv4SubnetMask: String?
     let configuredRouterIPv4Address: String?
     let configuredDNSServerAddresses: [String]
 }
@@ -293,6 +294,7 @@ struct NetworkRouteSystemConfigurationService: Sendable {
                 SCNetworkServiceGetEnabled
             ) ?? false,
             configuredHostIPv4Address: protocols?.hostIPv4Address,
+            configuredHostIPv4SubnetMask: protocols?.hostIPv4SubnetMask,
             configuredRouterIPv4Address: protocols?.routerIPv4Address,
             configuredDNSServerAddresses:
                 protocols?.dnsServerAddresses ?? []
@@ -313,6 +315,9 @@ struct NetworkRouteSystemConfigurationService: Sendable {
         return ProtocolSnapshot(
             hostIPv4Address: (ipv4Configuration?[
                 kSCPropNetIPv4Addresses as String
+            ] as? [String])?.first,
+            hostIPv4SubnetMask: (ipv4Configuration?[
+                kSCPropNetIPv4SubnetMasks as String
             ] as? [String])?.first,
             routerIPv4Address: ipv4Configuration?[
                 kSCPropNetIPv4Router as String
@@ -528,6 +533,7 @@ struct NetworkRouteSystemConfigurationService: Sendable {
 
     private struct ProtocolSnapshot {
         let hostIPv4Address: String?
+        let hostIPv4SubnetMask: String?
         let routerIPv4Address: String?
         let dnsServerAddresses: [String]
     }
