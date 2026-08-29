@@ -83,6 +83,28 @@ ThruRNDIS's Network Helper configures an Ethernet Bond and feth pair and attache
 
 TCP/UDP port forwarding is handled by nftables DNAT/SNAT rules in the Linux VM, which forward matching RNDIS traffic to macOS without changing the destination port.
 
+<details>
+<summary><em>(Legacy) Before v0.4.0</em></summary>
+
+```text
+ThruRNDIS WireGuard Network System Extension
+-> VZNAT guest endpoint UDP/<ListenPort>
+-> Linux VM wg0
+-> nftables masquerade
+-> Linux VM usb0
+-> RNDIS USB tethering device
+```
+
+*Reference: [`Virtualization Framework: VZUSBPassthroughDevice`](https://developer.apple.com/documentation/virtualization/vzusbpassthroughdevice)*
+
+ThruRNDIS runs a lightweight Linux VM and passes the RNDIS device connected to macOS through to the VM using USB passthrough.
+
+macOS and the VM are connected by a WireGuard tunnel over VZNAT, and the VM forwards macOS traffic received through WireGuard to the recognized RNDIS device.
+
+ThruRNDIS uses a [modified `wireguard-apple` fork](https://github.com/Afcoo/wireguard-apple/tree/thrurndis-vznat-bind) to establish the WireGuard tunnel over VZNAT.
+
+</details>
+
 ## License
 
 ThruRNDIS source code is distributed under the [MIT License](./LICENSE.txt).

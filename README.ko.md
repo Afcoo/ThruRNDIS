@@ -83,6 +83,28 @@ ThruRNDIS의 네트워크 헬퍼는 Ethernet Bond와 feth pair를 구성하고 f
 
 TCP/UDP 포트 포워딩은 Linux VM의 nftables DNAT/SNAT 규칙으로 처리하며, 일치하는 RNDIS 트래픽을 목적지 포트 변경 없이 macOS로 전달합니다.
 
+<details>
+<summary><em>(Legacy) 버전 v0.4.0 이전</em></summary>
+
+```text
+ThruRNDIS WireGuard Network System Extension
+-> VZNAT guest endpoint UDP/<ListenPort>
+-> Linux VM wg0
+-> nftables masquerade
+-> Linux VM usb0
+-> RNDIS USB tethering device
+```
+
+*참조: [`Virtualization Framework: VZUSBPassthroughDevice`](https://developer.apple.com/documentation/virtualization/vzusbpassthroughdevice)*
+
+ThruRNDIS는 경량 Linux VM을 실행하고 macOS에 연결된 RNDIS 장치를 USB passthrough로 VM에 전달합니다.
+
+macOS와 VM은 VZNAT을 통해 WireGuard 터널로 연결되며, VM은 WireGuard를 통해 전달된 macOS의 트래픽을 인식된 RNDIS 장치에 전달합니다.
+
+ThruRNDIS는 VZNAT을 통한 WireGuard 터널 연결을 위해 [`변형된 wireguard-apple 포크`](https://github.com/Afcoo/wireguard-apple/tree/thrurndis-vznat-bind)를 사용합니다.
+
+</details>
+
 ## 라이선스
 
 ThruRNDIS 소스 코드는 [MIT License](./LICENSE.txt)에 따라 배포됩니다.
