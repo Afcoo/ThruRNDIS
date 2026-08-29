@@ -88,7 +88,17 @@ struct LegacyDummyEthernetCleanupService: Sendable {
             preferences,
             metadata.networkServiceID as CFString
         )
-        if let service {
+        if bond != nil, service == nil {
+            throw LegacyDummyEthernetCleanupError.conflict(
+                "The recorded Network Service is missing, so the Ethernet Bond using its former BSD name cannot be proven to be legacy-owned."
+            )
+        }
+        if bond == nil, service != nil {
+            throw LegacyDummyEthernetCleanupError.conflict(
+                "The recorded Network Service remains without its exact legacy Ethernet Bond."
+            )
+        }
+        if let bond, let service {
             guard let serviceInterface = SCNetworkServiceGetInterface(service),
                   interfaceName(of: serviceInterface)
                     == metadata.bondInterfaceName,
@@ -96,7 +106,7 @@ struct LegacyDummyEthernetCleanupService: Sendable {
                     serviceInterface
                   ),
                   CFEqual(interfaceType, kSCNetworkInterfaceTypeBond),
-                  bond.map({ CFEqual(serviceInterface, $0) }) ?? true else {
+                  CFEqual(serviceInterface, bond) else {
                 throw LegacyDummyEthernetCleanupError.conflict(
                     "The recorded Network Service no longer identifies its legacy Ethernet Bond."
                 )
@@ -111,7 +121,17 @@ struct LegacyDummyEthernetCleanupService: Sendable {
     ) throws -> Bool {
         let memberExists = interfaceExists(metadata.memberInterfaceName)
         let peerExists = interfaceExists(metadata.peerInterfaceName)
-        let hasSystemOwnership = objects.bond != nil || objects.service != nil
+        let hasCompleteSystemOwnership = objects.bond != nil
+            && objects.service != nil
+
+        guard hasCompleteSystemOwnership else {
+            guard !memberExists, !peerExists else {
+                throw LegacyDummyEthernetCleanupError.conflict(
+                    "Recorded feth interfaces remain without their exact Network Service and Ethernet Bond."
+                )
+            }
+            return false
+        }
 
         let memberPeer = try memberExists
             ? interfaceRunner.fethPeer(
@@ -123,27 +143,24 @@ struct LegacyDummyEthernetCleanupService: Sendable {
                 interfaceName: metadata.peerInterfaceName
             )
             : nil
-        if memberExists && peerExists {
-            guard memberPeer == metadata.peerInterfaceName,
-                  peerMember == metadata.memberInterfaceName else {
-                throw LegacyDummyEthernetCleanupError.conflict(
-                    "The recorded feth interfaces are not each other's peers."
-                )
-            }
-        } else if memberExists || peerExists {
-            guard hasSystemOwnership,
-                  memberPeer == nil
-                    || memberPeer == metadata.peerInterfaceName,
-                  peerMember == nil
-                    || peerMember == metadata.memberInterfaceName else {
-                throw LegacyDummyEthernetCleanupError.conflict(
-                    "A lone recorded feth interface cannot be proven to be legacy-owned."
-                )
-            }
+        guard !memberExists
+                || memberPeer == metadata.peerInterfaceName,
+              !peerExists
+                || peerMember == metadata.memberInterfaceName else {
+            throw LegacyDummyEthernetCleanupError.conflict(
+                "The recorded feth interfaces do not report their recorded peers."
+            )
         }
 
-        guard objects.bond != nil,
-              interfaceExists(metadata.bondInterfaceName) else {
+        guard objects.bond != nil else {
+            return false
+        }
+        guard interfaceExists(metadata.bondInterfaceName) else {
+            guard !memberExists, !peerExists else {
+                throw LegacyDummyEthernetCleanupError.conflict(
+                    "Recorded feth interfaces remain while the exact legacy Ethernet Bond has no runtime interface."
+                )
+            }
             return false
         }
         let runtime = try interfaceRunner.bondRuntime(
@@ -154,6 +171,12 @@ struct LegacyDummyEthernetCleanupService: Sendable {
                 || runtime.members == Set([metadata.memberInterfaceName]) else {
             throw LegacyDummyEthernetCleanupError.conflict(
                 "The recorded Ethernet Bond has unexpected runtime members."
+            )
+        }
+        if memberExists || peerExists,
+           runtime.members != Set([metadata.memberInterfaceName]) {
+            throw LegacyDummyEthernetCleanupError.conflict(
+                "Recorded feth interfaces remain without the recorded member as the Ethernet Bond's sole runtime member."
             )
         }
         return memberExists
