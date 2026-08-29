@@ -626,7 +626,9 @@ final class TetheringStore: ObservableObject {
     func replaceAttachedAccessory(with accessoryID: UInt64) {
         refreshRuntimeEntitlements()
         guard canReplaceAttachedAccessory(with: accessoryID) else {
-            statusMessage = String(localized: "Wait for the current operation to finish.")
+            statusMessage = String(
+                localized: "USB accessory replacement is no longer available."
+            )
             appendEventLog(
                 "USB accessory replacement rejected for registry 0x" +
                     String(accessoryID, radix: 16, uppercase: true) +
