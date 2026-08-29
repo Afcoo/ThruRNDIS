@@ -8,12 +8,14 @@ import Foundation
 
 private enum USBPassthroughPolicy {
     static let attachFailureSuppressionInterval: TimeInterval = 10
+    static let intentionalDisconnectExpectationInterval: TimeInterval = 10
     static let intentionalReenumerationInterval: TimeInterval = 3
 }
 
 private struct ExpectedAccessoryReenumeration {
     let registryID: UInt64
     let descriptorIdentityKey: String
+    let disconnectDeadline: Date
     var reconnectDeadline: Date?
 }
 
@@ -282,7 +284,10 @@ final class USBAccessoryCoordinator {
            let record = accessories.first(where: { $0.id == attachedAccessoryID }) {
             expectedAccessoryReenumeration = ExpectedAccessoryReenumeration(
                 registryID: attachedAccessoryID,
-                descriptorIdentityKey: record.descriptorIdentityKey
+                descriptorIdentityKey: record.descriptorIdentityKey,
+                disconnectDeadline: Date().addingTimeInterval(
+                    USBPassthroughPolicy.intentionalDisconnectExpectationInterval
+                )
             )
         }
         isIntentionalVMStopInProgress = true
@@ -647,10 +652,16 @@ final class USBAccessoryCoordinator {
         let wasAttached = attachedAccessoryID == accessory.registryID
         let wasPendingAttach = pendingAttachAccessoryID == accessory.registryID
 
-        if expectedAccessoryReenumeration?.registryID == accessory.registryID {
-            expectedAccessoryReenumeration?.reconnectDeadline = Date().addingTimeInterval(
-                USBPassthroughPolicy.intentionalReenumerationInterval
-            )
+        if let expectedAccessoryReenumeration,
+           expectedAccessoryReenumeration.registryID == accessory.registryID {
+            let now = Date()
+            if expectedAccessoryReenumeration.disconnectDeadline > now {
+                self.expectedAccessoryReenumeration?.reconnectDeadline = now.addingTimeInterval(
+                    USBPassthroughPolicy.intentionalReenumerationInterval
+                )
+            } else {
+                self.expectedAccessoryReenumeration = nil
+            }
         }
 
         accessoryObjects[accessory.registryID] = nil
@@ -722,11 +733,15 @@ final class USBAccessoryCoordinator {
             return false
         }
 
+        let now = Date()
         guard let reconnectDeadline = expectedAccessoryReenumeration.reconnectDeadline else {
+            if expectedAccessoryReenumeration.disconnectDeadline <= now {
+                self.expectedAccessoryReenumeration = nil
+            }
             return false
         }
 
-        guard reconnectDeadline > Date() else {
+        guard reconnectDeadline > now else {
             self.expectedAccessoryReenumeration = nil
             return false
         }
