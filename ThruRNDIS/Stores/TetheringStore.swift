@@ -619,7 +619,9 @@ final class TetheringStore: ObservableObject {
             self.workflowCoordinator.prepareForManualVMRestart(
                 attachedAccessoryID: self.attachedAccessoryID
             )
-            self.usbCoordinator.prepareForIntentionalVMStop()
+            self.usbCoordinator.prepareForIntentionalVMStop(
+                suppressReenumerationPrompt: false
+            )
             self.vmCoordinator.restart(reason: "manual request") { [weak self] in
                 guard let self else { return }
                 self.vmRestartState = .starting

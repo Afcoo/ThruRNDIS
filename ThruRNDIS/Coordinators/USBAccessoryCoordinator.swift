@@ -279,8 +279,11 @@ final class USBAccessoryCoordinator {
         }
     }
 
-    func prepareForIntentionalVMStop() {
-        if let attachedAccessoryID,
+    func prepareForIntentionalVMStop(
+        suppressReenumerationPrompt: Bool = true
+    ) {
+        if suppressReenumerationPrompt,
+           let attachedAccessoryID,
            let record = accessories.first(where: { $0.id == attachedAccessoryID }) {
             expectedAccessoryReenumeration = ExpectedAccessoryReenumeration(
                 registryID: attachedAccessoryID,
@@ -289,6 +292,8 @@ final class USBAccessoryCoordinator {
                     USBPassthroughPolicy.intentionalDisconnectExpectationInterval
                 )
             )
+        } else if !suppressReenumerationPrompt {
+            expectedAccessoryReenumeration = nil
         }
         isIntentionalVMStopInProgress = true
         reportEventLog(
