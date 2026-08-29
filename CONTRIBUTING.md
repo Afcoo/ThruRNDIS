@@ -78,8 +78,9 @@ The normal minimum verification after a code change is:
 The repository currently has no automated test target. Do not add test code or
 test-only production abstractions without a separately defined test plan. Real
 USB passthrough, Virtualization, privileged-helper registration, and route
-runtime validation require the signed Runtime build, administrator approval,
-and appropriate hardware:
+runtime validation require the signed Runtime build with approved
+AccessoryAccess and Virtualization entitlements, administrator approval, and
+appropriate hardware:
 
 ```sh
 ./script/build_and_install.sh
