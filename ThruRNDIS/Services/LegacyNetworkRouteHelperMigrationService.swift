@@ -101,8 +101,12 @@ struct LegacyNetworkRouteHelperMigrationService {
     }
 
     private func removeLegacyNetworkUsingCurrentHelper() async throws {
+        let client = NetworkRoutePrivilegedHelperClient()
         do {
-            _ = try await NetworkRoutePrivilegedHelperClient().stop()
+            // The first stop may remove a current managed configuration. The
+            // second reaches the legacy cleanup path once the helper is idle.
+            _ = try await client.stop()
+            _ = try await client.stop()
         } catch {
             invalidateCurrentRegistrationRecord()
             throw error
