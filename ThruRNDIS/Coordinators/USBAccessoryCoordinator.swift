@@ -14,7 +14,7 @@ private enum USBPassthroughPolicy {
 
 private struct ExpectedAccessoryReenumeration {
     let registryID: UInt64
-    let descriptorIdentityKey: String
+    let deviceDescriptorHash: String
     let disconnectDeadline: Date
     var reconnectDeadline: Date?
 }
@@ -287,7 +287,7 @@ final class USBAccessoryCoordinator {
            let record = accessories.first(where: { $0.id == attachedAccessoryID }) {
             expectedAccessoryReenumeration = ExpectedAccessoryReenumeration(
                 registryID: attachedAccessoryID,
-                descriptorIdentityKey: record.descriptorIdentityKey,
+                deviceDescriptorHash: record.deviceDescriptorHash,
                 disconnectDeadline: Date().addingTimeInterval(
                     USBPassthroughPolicy.intentionalDisconnectExpectationInterval
                 )
@@ -632,20 +632,22 @@ final class USBAccessoryCoordinator {
             level: .debug
         )
 
-        let becameReady = previousRecord?.hasConfigurationDescriptor != true && record.hasConfigurationDescriptor
-        let shouldAnnounce = becameReady
-            && attachedAccessoryID != record.id
-            && announcedAccessoryIDs.insert(record.id).inserted
-
-        if shouldAnnounce,
-           consumeExpectedReenumerationIfMatching(record) {
+        if consumeExpectedReenumerationIfMatching(record) {
+            _ = announcedAccessoryIDs.insert(record.id)
             reportEventLog(
                 "USB accessory returned after intentional passthrough release; " +
                     "automatic attach prompt suppressed for registry " +
                     "\(record.registryIDText).",
                 level: .debug
             )
-        } else if shouldAnnounce {
+        }
+
+        let becameReady = previousRecord?.hasConfigurationDescriptor != true && record.hasConfigurationDescriptor
+        let shouldAnnounce = becameReady
+            && attachedAccessoryID != record.id
+            && announcedAccessoryIDs.insert(record.id).inserted
+
+        if shouldAnnounce {
             onAccessoryAvailable?(record)
         }
     }
@@ -751,8 +753,8 @@ final class USBAccessoryCoordinator {
             return false
         }
 
-        guard expectedAccessoryReenumeration.descriptorIdentityKey
-                == record.descriptorIdentityKey else {
+        guard expectedAccessoryReenumeration.deviceDescriptorHash
+                == record.deviceDescriptorHash else {
             return false
         }
 
