@@ -99,6 +99,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var consoleWindowController: ConsoleWindowController?
     private var onboardingWindowController: OnboardingWindowController?
     private var onboardingPresentationID: UUID?
+    // Remove with the legacy migration extension at the end of this file.
     private let legacyNetworkHelperMigration =
         LegacyNetworkRouteHelperMigrationService()
     private var cancellables: Set<AnyCancellable> = []
@@ -257,32 +258,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         helper.reinstall()
     }
 
-    private func prepareNetworkHelperOnLaunch() async {
-        do {
-            if try await legacyNetworkHelperMigration.migrateIfNeeded() {
-                eventLog.append(
-                    "Migrated the legacy Network Helper registration.",
-                    level: .info,
-                    category: .application
-                )
-            }
-            updateNetworkHelperIfNeeded()
-        } catch {
-            eventLog.append(
-                "Could not migrate the legacy Network Helper registration: \(error.localizedDescription)",
-                level: .error,
-                category: .application
-            )
-            networkRoute.refresh()
-            return
-        }
-
+    private func startApplicationServices() {
+        updateNetworkHelperIfNeeded()
         networkRoute.refresh()
         store.startAccessoryMonitoringOnLaunch()
     }
 
     private func completeApplicationLaunch() async {
-        await prepareNetworkHelperOnLaunch()
+        if await legacyNetworkHelperMigrationAllowsServiceStart() {
+            startApplicationServices()
+        } else {
+            networkRoute.refresh()
+        }
         menuBarController = MenuBarController(
             store: store,
             assetWorkflowCoordinator: assetWorkflowCoordinator,
@@ -465,5 +452,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             operationTask.cancel()
         }
         return didFinishOperation
+    }
+}
+
+// MARK: - Legacy Network Helper Migration
+
+private extension AppDelegate {
+    /// Delete this extension and its single launch hook after 0.3 migration
+    /// support ends.
+    func legacyNetworkHelperMigrationAllowsServiceStart() async -> Bool {
+        do {
+            if try await legacyNetworkHelperMigration.migrateIfNeeded() {
+                eventLog.append(
+                    "Migrated the legacy Network Helper registration.",
+                    level: .info,
+                    category: .application
+                )
+            }
+            return true
+        } catch {
+            eventLog.append(
+                "Could not migrate the legacy Network Helper registration: \(error.localizedDescription)",
+                level: .error,
+                category: .application
+            )
+            return false
+        }
     }
 }
