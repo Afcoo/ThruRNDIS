@@ -54,23 +54,56 @@ struct USBDevicesView: View {
             }
 
             Section("USB Devices") {
-                if usbSession.accessories.isEmpty {
-                    LabeledContent("Available devices", value: String(localized: "None"))
-                } else {
-                    List(selection: selectedAccessoryBinding) {
-                        ForEach(usbSession.accessories) { accessory in
-                            USBAccessoryRow(
-                                accessory: accessory,
-                                isAttached: accessory.id == usbSession.attachedAccessoryID
-                            )
-                            .tag(accessory.id)
+                Table(
+                    usbSession.accessories,
+                    selection: selectedAccessoryBinding
+                ) {
+                    TableColumn("Status") { accessory in
+                        if accessory.id == usbSession.attachedAccessoryID {
+                            Text("Attached")
+                                .foregroundStyle(.green)
+                        } else {
+                            Text("Available")
+                                .foregroundStyle(.secondary)
                         }
                     }
-                    .frame(height: 180)
+                    .width(60)
+
+                    TableColumn("VID:PID") { accessory in
+                        Text(verbatim: accessory.usbIDText)
+                            .monospaced()
+                            .lineLimit(1)
+                    }
+                    .width(90)
+
+                    TableColumn("Device") { accessory in
+                        Text(verbatim: accessory.deviceName)
+                            .lineLimit(1)
+                    }
+                    .width(160)
+
+                    TableColumn("Class") { accessory in
+                        Text(verbatim: accessory.classText)
+                    }
+                    .width(70)
+
+                    TableColumn("Registry") { accessory in
+                        Text(verbatim: accessory.registryIDText)
+                    }
+                    .width(100)
                 }
+                .frame(height: 180)
 
                 HStack {
-                    Button("Attach Selected") {
+                    Toggle(
+                        "Ask to attach when device is available",
+                        isOn: $appPreferences.shouldAskToAttachDetectedUSBDevices
+                    )
+                    .toggleStyle(.checkbox)
+
+                    Spacer()
+
+                    Button("Attach") {
                         store.requestAttachSelectedAccessory()
                     }
                     .disabled(!store.canAttachSelectedAccessory)
@@ -79,14 +112,6 @@ struct USBDevicesView: View {
                         store.detachAccessory()
                     }
                     .disabled(!store.canDetachAccessory)
-
-                    Spacer()
-
-                    Toggle(
-                        "Ask to attach when device is available",
-                        isOn: $appPreferences.shouldAskToAttachDetectedUSBDevices
-                    )
-                    .toggleStyle(.checkbox)
                 }
             }
         }
@@ -115,36 +140,5 @@ struct USBDevicesView: View {
         }
 
         return usbSession.isAccessoryMonitoring ? .active : .stopped
-    }
-}
-
-private struct USBAccessoryRow: View {
-    let accessory: USBAccessoryRecord
-    let isAttached: Bool
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: isAttached ? "checkmark.circle.fill" : "cable.connector")
-                .foregroundStyle(isAttached ? .green : .secondary)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(verbatim: accessory.deviceName)
-                    .lineLimit(1)
-
-                Text("VID:PID \(accessory.usbIDText) · Class \(accessory.classText) · Registry \(accessory.registryIDText)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-
-            Spacer()
-
-            if isAttached {
-                Text("Attached")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(.vertical, 2)
     }
 }

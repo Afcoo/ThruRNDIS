@@ -223,16 +223,6 @@
         }
       }
     },
-    "Attach Selected" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "선택 항목 연결"
-          }
-        }
-      }
-    },
     "Attach USB" : {
       "localizations" : {
         "ko" : {
@@ -259,6 +249,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "연결됨"
+          }
+        }
+      }
+    },
+    "Available" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "사용 가능"
           }
         }
       }
@@ -429,6 +429,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "선택…"
+          }
+        }
+      }
+    },
+    "Class" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "클래스"
           }
         }
       }
@@ -699,6 +709,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "USB 연결 해제"
+          }
+        }
+      }
+    },
+    "Device" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "기기"
           }
         }
       }
@@ -1551,6 +1571,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "관리형 저장소 외부의 VM 에셋 경로는 변경할 수 없습니다: %@"
+          }
+        }
+      }
+    },
+    "Registry" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "레지스트리"
           }
         }
       }
@@ -2499,6 +2529,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "버전"
+          }
+        }
+      }
+    },
+    "VID:PID" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VID:PID"
           }
         }
       }
