@@ -123,7 +123,6 @@ struct PortForwardingPortSet: Equatable {
 enum PortForwardingConfiguration {
     static let bootArgumentKey = "thrurndis.port_forward"
     static let isEnabledByDefault = false
-    static let defaultPortSpecification = "80,443,47980-48000"
 
     static func bootArgument(for ports: PortForwardingPortSet) -> String {
         "\(Self.bootArgumentKey)=\(ports.canonicalString)"
@@ -193,23 +192,13 @@ final class PortForwardingStore: ObservableObject {
         let isEnabled = defaults.object(forKey: DefaultsKey.isEnabled) == nil
             ? PortForwardingConfiguration.isEnabledByDefault
             : defaults.bool(forKey: DefaultsKey.isEnabled)
-        let storedPortSpecification = defaults.string(
-            forKey: DefaultsKey.portSpecification
-        )
-        let portSpecification = Self.nonEmptyPortSpecification(
-            storedPortSpecification
-        )
         self.eventLog = eventLog
         self.defaults = defaults
         self.isEnabled = isEnabled
-        self.portSpecification = portSpecification
+        self.portSpecification = defaults.string(
+            forKey: DefaultsKey.portSpecification
+        ) ?? ""
         self.runtimeState = isEnabled ? .saved : .disabled
-        if isEnabled || storedPortSpecification != nil {
-            defaults.set(
-                portSpecification,
-                forKey: DefaultsKey.portSpecification
-            )
-        }
     }
 
     private var validatedPortSet: PortForwardingPortSet? {
@@ -244,8 +233,7 @@ final class PortForwardingStore: ObservableObject {
         }
         runtimeState = isEnabled ? .saved : .disabled
 
-        let description = validatedPortSet?.canonicalString
-            ?? portSpecification
+        let description = validatedPortSet?.canonicalString ?? "invalid input"
         eventLog.append(
             isEnabled
                 ? "TCP and UDP port forwarding enabled for the next VM start: ports \(description)."
@@ -256,7 +244,6 @@ final class PortForwardingStore: ObservableObject {
     }
 
     func setPortSpecification(_ specification: String) {
-        let specification = Self.nonEmptyPortSpecification(specification)
         guard !isConfigurationLocked,
               portSpecification != specification else {
             return
@@ -332,20 +319,8 @@ final class PortForwardingStore: ObservableObject {
         defaults.removeObject(forKey: DefaultsKey.portSpecification)
         isConfigurationLocked = false
         isEnabled = PortForwardingConfiguration.isEnabledByDefault
-        portSpecification = PortForwardingConfiguration.defaultPortSpecification
+        portSpecification = ""
         runtimeState = .disabled
-    }
-
-    private static func nonEmptyPortSpecification(
-        _ specification: String?
-    ) -> String {
-        guard let specification,
-              !specification.trimmingCharacters(
-                  in: .whitespacesAndNewlines
-              ).isEmpty else {
-            return PortForwardingConfiguration.defaultPortSpecification
-        }
-        return specification
     }
 
     private func reportGuestConfigurationMismatch(
