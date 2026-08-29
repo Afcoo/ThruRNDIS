@@ -91,19 +91,13 @@ team_identifier() {
 
 validate_signed_runtime_app() {
   local app_path="$1"
-  local system_extensions_dir="$app_path/Contents/Library/SystemExtensions"
   local app_entitlements="$VALIDATION_DIR/app-entitlements.plist"
   local app_bundle_identifier
   local app_team
-  local system_extensions
 
   /usr/bin/codesign --verify --deep --strict --verbose=2 "$app_path"
 
-  shopt -s nullglob
-  system_extensions=("$system_extensions_dir"/*.systemextension)
-  shopt -u nullglob
-  [[ "${#system_extensions[@]}" -eq 0 ]] || fail \
-    "the app must not contain an embedded System Extension: ${system_extensions[*]}"
+  distribution_reject_system_extensions "$app_path"
 
   app_bundle_identifier="$(/usr/libexec/PlistBuddy \
     -c 'Print :CFBundleIdentifier' "$app_path/Contents/Info.plist")"

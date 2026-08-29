@@ -27,6 +27,16 @@ distribution_fail() {
   exit 1
 }
 
+distribution_reject_system_extensions() {
+  local app_path="$1"
+  local system_extension
+
+  system_extension="$(/usr/bin/find \
+    "$app_path" -name '*.systemextension' -print -quit)"
+  [[ -z "$system_extension" ]] || distribution_fail \
+    "the app must not contain an embedded System Extension: $system_extension"
+}
+
 distribution_build_setting_value() {
   local build_settings="$1"
   local setting_name="$2"
@@ -318,24 +328,18 @@ distribution_validate_app() {
   local app_path="$1"
   local validation_dir="$2"
   local expected_team="${3:-}"
-  local system_extensions_dir="$app_path/Contents/Library/SystemExtensions"
   local app_entitlements="$validation_dir/app-entitlements.plist"
   local app_authority
   local app_bundle_identifier
   local app_signing_details
   local app_team
-  local system_extensions
 
   [[ -d "$app_path" ]] || distribution_fail "app bundle not found at $app_path"
   /bin/mkdir -p "$validation_dir"
 
   /usr/bin/codesign --verify --deep --strict --verbose=2 "$app_path"
 
-  shopt -s nullglob
-  system_extensions=("$system_extensions_dir"/*.systemextension)
-  shopt -u nullglob
-  [[ "${#system_extensions[@]}" -eq 0 ]] || distribution_fail \
-    "the app must not contain an embedded System Extension: ${system_extensions[*]}"
+  distribution_reject_system_extensions "$app_path"
 
   app_authority="$(distribution_leaf_signing_authority "$app_path")"
   [[ "$app_authority" == "Developer ID Application:"* ]] || distribution_fail \
