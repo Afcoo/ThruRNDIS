@@ -67,11 +67,10 @@ struct LegacyNetworkRouteHelperMigrationService {
                 try await removeLegacyNetworkUsingCurrentHelper()
                 markCompleted()
                 return true
-            } catch where shouldReplaceCurrentRegistration(after: error) {
-                defaults.removeObject(
-                    forKey: LegacyNetworkRouteHelperDefaultsKey
-                        .registeredBuildVersion
-                )
+            } catch {
+                guard shouldReplaceCurrentRegistration(after: error) else {
+                    throw error
+                }
             }
         }
 
@@ -87,10 +86,12 @@ struct LegacyNetworkRouteHelperMigrationService {
         let registrationStatus = try registrationService.enable()
         guard registrationStatus == .enabled
                 || registrationStatus == .requiresApproval else {
+            invalidateCurrentRegistrationRecord()
             throw LegacyNetworkRouteHelperMigrationError
                 .registrationIncomplete
         }
         guard registrationStatus == .enabled else {
+            invalidateCurrentRegistrationRecord()
             throw LegacyNetworkRouteHelperMigrationError.approvalRequired
         }
         try await removeLegacyNetworkUsingCurrentHelper()
@@ -100,7 +101,12 @@ struct LegacyNetworkRouteHelperMigrationService {
     }
 
     private func removeLegacyNetworkUsingCurrentHelper() async throws {
-        _ = try await NetworkRoutePrivilegedHelperClient().stop()
+        do {
+            _ = try await NetworkRoutePrivilegedHelperClient().stop()
+        } catch {
+            invalidateCurrentRegistrationRecord()
+            throw error
+        }
     }
 
     private func shouldReplaceCurrentRegistration(after error: Error) -> Bool {
@@ -114,6 +120,13 @@ struct LegacyNetworkRouteHelperMigrationService {
         case .applicationBundleIdentifierUnavailable, .helperFailure:
             false
         }
+    }
+
+    private func invalidateCurrentRegistrationRecord() {
+        defaults.removeObject(
+            forKey: LegacyNetworkRouteHelperDefaultsKey
+                .registeredBuildVersion
+        )
     }
 
     private func markCompleted() {

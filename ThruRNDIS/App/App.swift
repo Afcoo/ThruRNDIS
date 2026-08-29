@@ -273,6 +273,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 level: .error,
                 category: .application
             )
+            networkRoute.refresh()
+            return
         }
 
         networkRoute.refresh()
