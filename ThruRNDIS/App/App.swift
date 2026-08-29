@@ -116,6 +116,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         assetWorkflowCoordinator.reportCurrentStateToEventLog()
 
+        menuBarController = MenuBarController(
+            store: store,
+            assetWorkflowCoordinator: assetWorkflowCoordinator,
+            openSettings: { [weak self] in self?.showSettingsWindow() }
+        )
+
         store.usbSession.$attachmentPrompt
             .compactMap { $0 }
             .sink { [weak self] prompt in
@@ -160,8 +166,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .store(in: &cancellables)
 
-        Task { @MainActor [weak self] in
-            await self?.completeApplicationLaunch()
+        startServicesAfterLegacyNetworkHelperMigration { [self] in // Remove this wrapper after legacy migration support ends.
+            updateNetworkHelperIfNeeded()
+            networkRoute.refresh()
+            store.startAccessoryMonitoringOnLaunch()
+        } // Remove this wrapper after legacy migration support ends.
+        DispatchQueue.main.async { [weak self] in
+            guard let self else {
+                return
+            }
+
+            if self.store.shouldPresentOnboardingOnLaunch
+                || !self.assetWorkflowCoordinator.hasConfiguredAssets {
+                self.showOnboardingWindow()
+            }
         }
     }
 
@@ -207,7 +225,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidBecomeActive(_ notification: Notification) {
         appPreferences.refreshLaunchAtLoginStatus()
-        guard menuBarController != nil else { return }
         store.networkRoute.refresh()
     }
 
@@ -253,29 +270,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             category: .application
         )
         helper.reinstall()
-    }
-
-    private func startApplicationServices() {
-        updateNetworkHelperIfNeeded()
-        networkRoute.refresh()
-        store.startAccessoryMonitoringOnLaunch()
-    }
-
-    private func completeApplicationLaunch() async {
-        if await legacyNetworkHelperMigrationAllowsServiceStart() {
-            startApplicationServices()
-        } else {
-            networkRoute.refresh()
-        }
-        menuBarController = MenuBarController(
-            store: store,
-            assetWorkflowCoordinator: assetWorkflowCoordinator,
-            openSettings: { [weak self] in self?.showSettingsWindow() }
-        )
-        if store.shouldPresentOnboardingOnLaunch
-            || !assetWorkflowCoordinator.hasConfiguredAssets {
-            showOnboardingWindow()
-        }
     }
 
     private func resetAppSettingsAndQuit() {
@@ -454,27 +448,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
 // MARK: - Legacy Network Helper Migration
 
-private extension AppDelegate {
-    /// Delete this extension and its single launch hook after 0.3 migration
-    /// support ends.
-    func legacyNetworkHelperMigrationAllowsServiceStart() async -> Bool {
-        let migration = LegacyNetworkRouteHelperMigrationService()
-        do {
-            if try await migration.migrateIfNeeded() {
+private extension AppDelegate { // Remove this extension after legacy migration support ends.
+    func startServicesAfterLegacyNetworkHelperMigration(
+        _ startServices: @escaping @MainActor () -> Void
+    ) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let migration = LegacyNetworkRouteHelperMigrationService()
+            do {
+                if try await migration.migrateIfNeeded() {
+                    eventLog.append(
+                        "Migrated the legacy Network Helper registration.",
+                        level: .info,
+                        category: .application
+                    )
+                }
+                startServices()
+            } catch {
                 eventLog.append(
-                    "Migrated the legacy Network Helper registration.",
-                    level: .info,
+                    "Could not migrate the legacy Network Helper registration: \(error.localizedDescription)",
+                    level: .error,
                     category: .application
                 )
+                networkRoute.refresh()
             }
-            return true
-        } catch {
-            eventLog.append(
-                "Could not migrate the legacy Network Helper registration: \(error.localizedDescription)",
-                level: .error,
-                category: .application
-            )
-            return false
         }
     }
 }
