@@ -23,13 +23,14 @@ final class USBAccessoryCoordinator {
     private let monitor: USBAccessoryMonitor
     private var accessoryObjects: [UInt64: AAUSBAccessory] = [:]
     private var attachedDevice: VZUSBPassthroughDevice?
+    private var attachedReconnectIdentity: USBAccessoryReconnectIdentity?
     private var accessoryEventSequence = 0
     private var pendingAttachAccessoryID: UInt64?
     private var pendingAttachToken: UUID?
     private var lastAccessoryEventByDescriptor: [String: (kind: String, date: Date)] = [:]
     private var lastAttachAttemptByDescriptor: [String: Date] = [:]
     private var attachSuppressedUntilByDescriptor: [String: Date] = [:]
-    private var reconnectDescriptorKey: String?
+    private var reconnectIdentity: USBAccessoryReconnectIdentity?
     private var announcedAccessoryIDs: Set<UInt64> = []
     private var isIntentionalVMStopInProgress = false
     private var isRegistrationPending = false
@@ -203,7 +204,7 @@ final class USBAccessoryCoordinator {
         accessoryObjects.removeAll()
         accessories.removeAll()
         selectedAccessoryID = nil
-        reconnectDescriptorKey = nil
+        reconnectIdentity = nil
         announcedAccessoryIDs.removeAll()
         notifyStateChanged()
 
@@ -280,11 +281,12 @@ final class USBAccessoryCoordinator {
     func resetForVMStart() {
         attachedAccessoryID = nil
         attachedDevice = nil
+        attachedReconnectIdentity = nil
         pendingAttachAccessoryID = nil
         pendingAttachToken = nil
         lastAttachAttemptByDescriptor.removeAll()
         attachSuppressedUntilByDescriptor.removeAll()
-        reconnectDescriptorKey = nil
+        reconnectIdentity = nil
         vmSessionAccessoryID = nil
         isIntentionalVMStopInProgress = false
         reportEventLog(
@@ -297,9 +299,10 @@ final class USBAccessoryCoordinator {
     func clearAttachmentForStoppedVM() {
         attachedAccessoryID = nil
         attachedDevice = nil
+        attachedReconnectIdentity = nil
         pendingAttachAccessoryID = nil
         pendingAttachToken = nil
-        reconnectDescriptorKey = nil
+        reconnectIdentity = nil
         vmSessionAccessoryID = nil
         isIntentionalVMStopInProgress = false
         reportEventLog(
@@ -360,7 +363,7 @@ final class USBAccessoryCoordinator {
             return
         }
 
-        reconnectDescriptorKey = nil
+        reconnectIdentity = nil
         selectedAccessoryID = accessoryID
         attach(
             accessory,
@@ -393,9 +396,12 @@ final class USBAccessoryCoordinator {
         let reconnectRecord = attachedAccessoryID.flatMap { id in
             accessories.first { $0.id == id }
         }
+        let disconnectedReconnectIdentity = attachedReconnectIdentity
+            ?? reconnectRecord?.reconnectIdentity
         if isIntentionalVMStopInProgress {
             attachedAccessoryID = nil
             self.attachedDevice = nil
+            attachedReconnectIdentity = nil
             notifyStateChanged()
             reportEventLog(
                 "USB passthrough disconnect ignored because it was produced by an " +
@@ -407,9 +413,8 @@ final class USBAccessoryCoordinator {
 
         attachedAccessoryID = nil
         self.attachedDevice = nil
-        if let reconnectRecord {
-            reconnectDescriptorKey = reconnectRecord.descriptorIdentityKey
-        }
+        attachedReconnectIdentity = nil
+        reconnectIdentity = disconnectedReconnectIdentity
         notifyStateChanged()
         let reason = "USB passthrough device disconnected by the system, attached registry \(attachedRegistry)."
         reportEventLog(reason, level: .warning)
@@ -541,6 +546,7 @@ final class USBAccessoryCoordinator {
                     } else {
                         self.attachedAccessoryID = registryID
                         self.attachedDevice = device
+                        self.attachedReconnectIdentity = record.reconnectIdentity
                         self.vmSessionAccessoryID = registryID
                         self.onStatusMessage?(String(localized: "USB accessory attached."))
                         self.reportEventLog("USB accessory attached.", level: .info)
@@ -575,24 +581,36 @@ final class USBAccessoryCoordinator {
 
     private func addAccessory(_ accessory: AAUSBAccessory) {
         accessoryObjects[accessory.registryID] = accessory
-        let record = USBAccessoryRecord(accessory: accessory)
-        let previousRecord = accessories.first { $0.id == record.id }
-        let replacedSelectedRecord = accessories.contains { existingRecord in
-            existingRecord.descriptorIdentityKey == record.descriptorIdentityKey
-                && selectedAccessoryID == existingRecord.id
-        }
-        let shouldReconnect = reconnectDescriptorKey == record.descriptorIdentityKey
+        let previousRecord = accessories.first { $0.id == accessory.registryID }
+        let record = USBAccessoryRecord(
+            accessory: accessory,
+            previousReconnectIdentity: previousRecord?.reconnectIdentity
+        )
 
         accessories.removeAll { $0.id == record.id }
 
         accessories.append(record)
         accessories.sort { $0.usbIDText < $1.usbIDText }
+        let matchingIdentityCount = record.reconnectIdentity.map { identity in
+            accessories.filter { $0.reconnectIdentity == identity }.count
+        } ?? 0
+        let shouldReconnect = reconnectIdentity != nil
+            && reconnectIdentity == record.reconnectIdentity
+            && matchingIdentityCount == 1
         attachSuppressedUntilByDescriptor.removeValue(forKey: record.descriptorIdentityKey)
-        if selectedAccessoryID == nil || replacedSelectedRecord || shouldReconnect {
+        if selectedAccessoryID == nil || shouldReconnect {
             selectedAccessoryID = record.id
         }
         if shouldReconnect {
-            reconnectDescriptorKey = nil
+            reconnectIdentity = nil
+        } else if reconnectIdentity == record.reconnectIdentity,
+                  matchingIdentityCount > 1 {
+            reconnectIdentity = nil
+            reportEventLog(
+                "USB reconnect identity is ambiguous across connected accessories; " +
+                    "automatic identity matching was disabled.",
+                level: .warning
+            )
         }
         notifyStateChanged()
         if previousRecord == nil {
@@ -621,7 +639,8 @@ final class USBAccessoryCoordinator {
     }
 
     private func removeAccessory(_ accessory: AAUSBAccessory) {
-        let record = USBAccessoryRecord(accessory: accessory)
+        let record = accessories.first { $0.id == accessory.registryID }
+            ?? USBAccessoryRecord(accessory: accessory)
         let wasSelected = selectedAccessoryID == accessory.registryID
         let wasAttached = attachedAccessoryID == accessory.registryID
         let wasPendingAttach = pendingAttachAccessoryID == accessory.registryID
@@ -635,9 +654,10 @@ final class USBAccessoryCoordinator {
         }
 
         if wasAttached {
-            reconnectDescriptorKey = record.descriptorIdentityKey
+            reconnectIdentity = attachedReconnectIdentity ?? record.reconnectIdentity
             attachedAccessoryID = nil
             attachedDevice = nil
+            attachedReconnectIdentity = nil
         }
 
         if wasPendingAttach {
