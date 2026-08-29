@@ -55,6 +55,7 @@ struct ManagedIPv4Route: Hashable, Sendable {
         globalUpper,
     ]
     static let removalOrder = Array(installationOrder.reversed())
+    static let rediscoveryAnchor = globalLower
     static let all = installationOrder
     static let global = [globalLower, globalUpper]
 

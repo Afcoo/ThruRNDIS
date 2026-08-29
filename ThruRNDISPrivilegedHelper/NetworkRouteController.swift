@@ -579,12 +579,21 @@ final class NetworkRouteController: @unchecked Sendable {
                 throw NetworkRouteControllerError.routeVerificationFailed(failures)
             }
         } catch {
+            var rollbackFailed = false
             for route in added.reversed() {
-                try? routeRunner.delete(
-                    route,
-                    gateway: anchor.gateway,
-                    interfaceName: anchor.interfaceName
-                )
+                if route == ManagedIPv4Route.rediscoveryAnchor,
+                   rollbackFailed {
+                    continue
+                }
+                do {
+                    try routeRunner.delete(
+                        route,
+                        gateway: anchor.gateway,
+                        interfaceName: anchor.interfaceName
+                    )
+                } catch {
+                    rollbackFailed = true
+                }
             }
             throw error
         }
@@ -596,6 +605,10 @@ final class NetworkRouteController: @unchecked Sendable {
     ) throws {
         var failures: [String] = []
         for route in ManagedIPv4Route.removalOrder {
+            if route == ManagedIPv4Route.rediscoveryAnchor,
+               !failures.isEmpty {
+                continue
+            }
             do {
                 switch try routeRunner.inspection(
                     of: route,
