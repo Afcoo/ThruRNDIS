@@ -3093,12 +3093,12 @@
         }
       }
     },
-    "VM assets %@ are already installed and ready." : {
+    "Already up to date: %@" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "VM 에셋 설치가 이미 완료되어 사용할 수 있습니다: %@"
+            "value" : "이미 최신버전입니다: %@"
           }
         }
       }

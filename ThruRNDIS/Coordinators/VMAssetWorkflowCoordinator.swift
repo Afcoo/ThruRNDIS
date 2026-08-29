@@ -298,7 +298,7 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
                 finishOperation(operationID)
                 finishSuccessfully(
                     release: installed,
-                    message: String(localized: "VM assets \(installed.displayName) are already installed and ready."),
+                    message: String(localized: "Already up to date: \(installed.displayName)"),
                     eventMessage: "VM assets \(installed.displayName) are already installed and ready."
                 )
                 return
