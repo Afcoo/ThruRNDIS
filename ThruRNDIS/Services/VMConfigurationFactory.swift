@@ -10,7 +10,6 @@ struct VMConfigurationInput {
     let kernelURL: URL
     let initialRamdiskURL: URL
     let diskImageURL: URL?
-    let wireGuardConfigurationDirectoryURL: URL
     let cpuCount: Int
     let memorySizeBytes: UInt64
     let bootCommandLine: String
@@ -45,9 +44,7 @@ enum VMConfigurationFactory {
         configuration.entropyDevices = [VZVirtioEntropyDeviceConfiguration()]
         configuration.serialPorts = [createConsoleConfiguration(inputPipe: consoleInputPipe, outputPipe: consoleOutputPipe)]
         configuration.storageDevices = try createStorageDevices(url: input.diskImageURL)
-        configuration.directorySharingDevices = [
-            createWireGuardDirectorySharingDevice(url: input.wireGuardConfigurationDirectoryURL)
-        ]
+        configuration.directorySharingDevices = []
         configuration.usbControllers = [VZXHCIControllerConfiguration()]
         configuration.networkDevices = [try createNetworkDevice(macAddress: input.guestMACAddress)]
 
@@ -92,14 +89,6 @@ enum VMConfigurationFactory {
         let blockDevice = VZVirtioBlockDeviceConfiguration(attachment: attachment)
         blockDevice.blockDeviceIdentifier = "scratch"
         return blockDevice
-    }
-
-    private static func createWireGuardDirectorySharingDevice(url: URL) -> VZDirectorySharingDeviceConfiguration {
-        let directory = VZSharedDirectory(url: url, readOnly: true)
-        let share = VZSingleDirectoryShare(directory: directory)
-        let device = VZVirtioFileSystemDeviceConfiguration(tag: "thrurndis-wireguard")
-        device.share = share
-        return device
     }
 
     private static func createNetworkDevice(macAddress: String) throws -> VZNetworkDeviceConfiguration {

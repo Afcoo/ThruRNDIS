@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 # Verifies an existing ThruRNDIS distribution DMG without signing or modifying
-# its contents. The image is mounted read-only while the embedded app, Network
-# System Extension, volume icon, and Applications symlink are validated.
+# its contents. The image is mounted read-only while the embedded app,
+# privileged helper, volume icon, and Applications symlink are validated.
 #
 # Run this from a normal macOS terminal session. Restricted sandboxes can block
 # the system trust services used by codesign, stapler, spctl, and

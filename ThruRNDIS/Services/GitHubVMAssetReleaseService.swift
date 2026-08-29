@@ -22,37 +22,75 @@ enum VMAssetReleaseServiceError: LocalizedError {
         case .httpStatus(let status):
             return String(localized: "GitHub returned HTTP \(status) while checking VM assets.")
         case .unavailableRelease:
-            return String(localized: "GitHub did not return a published VM asset release.")
+            return String(localized: "GitHub did not return a compatible published VM asset release.")
         case .missingAsset(let name):
-            return String(localized: "The latest VM asset release does not contain \(name).")
+            return String(localized: "The latest compatible VM asset release does not contain \(name).")
         case .duplicateAsset(let name):
-            return String(localized: "The latest VM asset release contains more than one \(name) attachment.")
+            return String(localized: "The latest compatible VM asset release contains more than one \(name) attachment.")
         case .invalidAssetURL(let name):
-            return String(localized: "The latest VM asset release contains an invalid download URL for \(name).")
+            return String(localized: "The latest compatible VM asset release contains an invalid download URL for \(name).")
         case .invalidAssetDigest(let name):
-            return String(localized: "The latest VM asset release contains an invalid SHA-256 digest for \(name).")
+            return String(localized: "The latest compatible VM asset release contains an invalid SHA-256 digest for \(name).")
         }
     }
 }
 
 final class GitHubVMAssetReleaseService {
-    static let latestReleaseURL = URL(
-        string: "https://api.github.com/repos/Afcoo/ThruRNDIS_VM_Assets/releases/latest"
+    static let releasesURL = URL(
+        string: "https://api.github.com/repos/Afcoo/ThruRNDIS_VM_Assets/releases?per_page=100"
     )!
+    static let compatibleReleaseTagPrefix = "vm-assets-v1-"
 
     private let session: URLSession
     private let endpointURL: URL
 
     init(
         session: URLSession = .shared,
-        endpointURL: URL = GitHubVMAssetReleaseService.latestReleaseURL
+        endpointURL: URL = GitHubVMAssetReleaseService.releasesURL
     ) {
         self.session = session
         self.endpointURL = endpointURL
     }
 
-    func fetchLatestRelease() async throws -> VMAssetReleaseDescriptor {
-        var request = URLRequest(url: endpointURL)
+    func fetchLatestCompatibleRelease() async throws -> VMAssetReleaseDescriptor {
+        var matchingReleases: [GitHubRelease] = []
+        var nextURL: URL? = endpointURL
+        var visitedURLs = Set<URL>()
+
+        while let pageURL = nextURL {
+            guard visitedURLs.insert(pageURL).inserted else {
+                throw VMAssetReleaseServiceError.invalidResponse
+            }
+            let (releases, response) = try await fetchReleasePage(at: pageURL)
+            matchingReleases.append(contentsOf: releases.filter { release in
+                !release.draft
+                    && !release.prerelease
+                    && release.tagName.hasPrefix(Self.compatibleReleaseTagPrefix)
+            })
+            nextURL = try nextPageURL(from: response)
+        }
+
+        guard let release = matchingReleases.max(by: { lhs, rhs in
+            if lhs.createdAt == rhs.createdAt {
+                return lhs.id < rhs.id
+            }
+            return lhs.createdAt < rhs.createdAt
+        }) else {
+            throw VMAssetReleaseServiceError.unavailableRelease
+        }
+
+        return VMAssetReleaseDescriptor(
+            id: release.id,
+            tagName: release.tagName,
+            archive: try remoteAsset(named: "vm_assets.zip", in: release.assets),
+            checksums: try remoteAsset(named: "SHA256SUMS", in: release.assets)
+        )
+    }
+
+    private func fetchReleasePage(
+        at url: URL
+    ) async throws -> ([GitHubRelease], HTTPURLResponse) {
+        var request = URLRequest(url: url)
         request.timeoutInterval = 30
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         request.setValue("ThruRNDIS", forHTTPHeaderField: "User-Agent")
@@ -66,17 +104,36 @@ final class GitHubVMAssetReleaseService {
             throw VMAssetReleaseServiceError.httpStatus(response.statusCode)
         }
 
-        let payload = try JSONDecoder().decode(GitHubRelease.self, from: data)
-        guard !payload.draft, !payload.prerelease else {
-            throw VMAssetReleaseServiceError.unavailableRelease
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return (try decoder.decode([GitHubRelease].self, from: data), response)
+    }
+
+    private func nextPageURL(from response: HTTPURLResponse) throws -> URL? {
+        guard let linkHeader = response.value(forHTTPHeaderField: "Link") else {
+            return nil
         }
 
-        return VMAssetReleaseDescriptor(
-            id: payload.id,
-            tagName: payload.tagName,
-            archive: try remoteAsset(named: "vm_assets.zip", in: payload.assets),
-            checksums: try remoteAsset(named: "SHA256SUMS", in: payload.assets)
-        )
+        for link in linkHeader.split(separator: ",") {
+            let components = link.split(separator: ";").map {
+                $0.trimmingCharacters(in: .whitespaces)
+            }
+            guard components.dropFirst().contains(#"rel="next""#) else {
+                continue
+            }
+            guard let target = components.first,
+                  target.first == "<",
+                  target.last == ">",
+                  let url = URL(string: String(target.dropFirst().dropLast())),
+                  url.scheme?.lowercased() == endpointURL.scheme?.lowercased(),
+                  url.host?.lowercased() == endpointURL.host?.lowercased(),
+                  url.port == endpointURL.port else {
+                throw VMAssetReleaseServiceError.invalidResponse
+            }
+            return url
+        }
+
+        return nil
     }
 
     private func remoteAsset(
@@ -143,6 +200,7 @@ private struct GitHubRelease: Decodable {
     let tagName: String
     let draft: Bool
     let prerelease: Bool
+    let createdAt: Date
     let assets: [Asset]
 
     private enum CodingKeys: String, CodingKey {
@@ -150,6 +208,7 @@ private struct GitHubRelease: Decodable {
         case tagName = "tag_name"
         case draft
         case prerelease
+        case createdAt = "created_at"
         case assets
     }
 }

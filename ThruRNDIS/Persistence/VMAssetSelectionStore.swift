@@ -30,6 +30,7 @@ struct VMAssetSelectionStore {
             ?? restoredKernelURL.map(resolver.folderURL(containing:)) else {
             return nil
         }
+        try resolver.validateAssetVersion(in: folderURL)
 
         let contents: VMAssetFolderContents
         do {
@@ -159,6 +160,7 @@ struct VMAssetSelectionStore {
     }
 
     func validate(_ selection: VMAssetSelection) throws -> VMAssetBootAssets {
+        try resolver.validateAssetVersion(in: selection.folderURL)
         let kernelURL = selection.effectiveKernelURL.standardizedFileURL
         let initialRamdiskURL = selection.effectiveInitialRamdiskURL.standardizedFileURL
         try resolver.validateRegularFile(

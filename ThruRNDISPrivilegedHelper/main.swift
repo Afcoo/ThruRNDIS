@@ -16,14 +16,14 @@ private enum PrivilegedHelperStartupError: Error, LocalizedError {
         case .invalidHelperIdentifier(let identifier):
             "The helper signing identifier does not use the required privileged-helper suffix: \(identifier)."
         case .notRunningAsRoot:
-            "The privileged helper launch daemon is not running as root."
+            "The Network Helper launch daemon is not running as root."
         }
     }
 }
 
 private final class PrivilegedHelperRuntime {
     private let listener: NSXPCListener
-    private let listenerDelegate: DummyEthernetPrivilegedHelperListenerDelegate
+    private let listenerDelegate: NetworkRoutePrivilegedHelperListenerDelegate
 
     init() throws {
         guard geteuid() == 0 else {
@@ -31,7 +31,7 @@ private final class PrivilegedHelperRuntime {
         }
         let helperIdentifier = try PeerCodeSigningRequirementBuilder
             .currentSigningIdentifier()
-        guard let authorizedClientIdentifier = ThruRNDISDummyEthernet
+        guard let authorizedClientIdentifier = ThruRNDISNetworkRoute
             .applicationBundleIdentifier(
                 derivedFromHelperBundleIdentifier: helperIdentifier
             ) else {
@@ -41,9 +41,9 @@ private final class PrivilegedHelperRuntime {
         }
         let clientRequirement = try PeerCodeSigningRequirementBuilder
             .requirement(forPeerIdentifier: authorizedClientIdentifier)
-        let manager = DummyEthernetBondManager()
-        listenerDelegate = DummyEthernetPrivilegedHelperListenerDelegate(
-            manager: manager
+        let controller = NetworkRouteController()
+        listenerDelegate = NetworkRoutePrivilegedHelperListenerDelegate(
+            controller: controller
         )
         listener = NSXPCListener(machServiceName: helperIdentifier)
         // Foundation rejects nonmatching clients before invoking our delegate.
@@ -68,6 +68,6 @@ private let logger = Logger(
 do {
     try PrivilegedHelperRuntime().run()
 } catch {
-    logger.fault("Privileged helper startup failed: \(error.localizedDescription, privacy: .public)")
+    logger.fault("Network Helper startup failed: \(error.localizedDescription, privacy: .public)")
     exit(EXIT_FAILURE)
 }

@@ -7,7 +7,6 @@ import SwiftUI
 struct VirtualMachineView: View {
     @EnvironmentObject private var store: TetheringStore
     @EnvironmentObject private var vmConfiguration: VMConfigurationStore
-    @EnvironmentObject private var wireGuardSession: WireGuardSessionStore
     @EnvironmentObject private var assetWorkflowCoordinator: VMAssetWorkflowCoordinator
 
     let openConsole: () -> Void
@@ -47,7 +46,6 @@ struct VirtualMachineView: View {
                         }
                         .disabled(
                             !store.canStartVirtualMachine
-                                || !wireGuardSession.hasKeyMaterial
                         )
                     }
 
