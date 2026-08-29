@@ -389,7 +389,7 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
             finishOperation(operationID)
             finishSuccessfully(
                 release: installed,
-                message: String(localized: "Installed and activated VM assets \(installed.displayName)."),
+                message: String(localized: "Installation complete: \(installed.displayName)"),
                 eventMessage: "Installed and activated VM assets \(installed.displayName)."
             )
         } catch {

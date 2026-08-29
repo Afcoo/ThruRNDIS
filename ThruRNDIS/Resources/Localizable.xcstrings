@@ -1419,12 +1419,12 @@
         }
       }
     },
-    "Installed and activated VM assets %@." : {
+    "Installation complete: %@" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "VM 에셋을 설치하고 활성화했습니다: %@"
+            "value" : "설치 완료: %@"
           }
         }
       }
