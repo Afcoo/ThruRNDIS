@@ -627,6 +627,13 @@ final class TetheringStore: ObservableObject {
         refreshRuntimeEntitlements()
         guard canReplaceAttachedAccessory(with: accessoryID) else {
             statusMessage = String(localized: "Wait for the current operation to finish.")
+            appendEventLog(
+                "USB accessory replacement rejected for registry 0x" +
+                    String(accessoryID, radix: 16, uppercase: true) +
+                    ": replacement prerequisites are no longer satisfied.",
+                level: .warning,
+                category: .usb
+            )
             return
         }
 
