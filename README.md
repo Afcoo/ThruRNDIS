@@ -54,6 +54,9 @@ brew install --cask afcoo/tap/thrurndis
 
 ## How It Works
 
+> [!WARNING]
+> ThruRNDIS 0.4.0+ does not use WireGuard.
+
 ```text
 [macOS]
 IPv4 routes

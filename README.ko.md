@@ -54,6 +54,9 @@ brew install --cask afcoo/tap/thrurndis
 
 ## 작동 원리
 
+> [!WARNING]
+> 0.4.0 버전 이상부터는 WireGuard 연결을 사용하지 않습니다.
+
 ```text
 [macOS]
 IPv4 routes
