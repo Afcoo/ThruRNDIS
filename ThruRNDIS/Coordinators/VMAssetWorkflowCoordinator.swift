@@ -298,13 +298,16 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
                 finishOperation(operationID)
                 finishSuccessfully(
                     release: installed,
-                    message: String(localized: "VM assets \(installed.displayName) are already installed and ready."),
+                    message: String(localized: "Already up to date: \(installed.displayName)"),
                     eventMessage: "VM assets \(installed.displayName) are already installed and ready."
                 )
                 return
             }
 
-            installState = .downloading(progress: 0)
+            installState = .downloading(progress: VMAssetDownloadProgress(
+                downloadedBytes: 0,
+                totalBytes: release.totalDownloadBytes
+            ))
             reportEventLog(
                 "Downloading VM assets \(releaseName).",
                 level: .debug
@@ -386,7 +389,7 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
             finishOperation(operationID)
             finishSuccessfully(
                 release: installed,
-                message: String(localized: "Installed and activated VM assets \(installed.displayName)."),
+                message: String(localized: "Installation complete: \(installed.displayName)"),
                 eventMessage: "Installed and activated VM assets \(installed.displayName)."
             )
         } catch {
