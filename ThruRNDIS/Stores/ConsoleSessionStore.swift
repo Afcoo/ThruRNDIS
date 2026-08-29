@@ -22,44 +22,57 @@ struct GuestNetworkConsoleUpdate: Equatable {
     let rndisIPv4AddressUpdate: GuestRNDISIPv4AddressUpdate?
     let isRNDISRouteReady: Bool?
     let portForwardingState: GuestPortForwardingState?
-
-    var isEmpty: Bool {
-        guestIPv4Address == nil
-            && vznatGatewayIPv4Address == nil
-            && rndisIPv4AddressUpdate == nil
-            && isRNDISRouteReady == nil
-            && portForwardingState == nil
-    }
 }
 
 @MainActor
 final class ConsoleSessionStore: ObservableObject {
     @Published private(set) var output = ConsoleOutputState()
 
+    private static let markerNamespaceBytes = Data("THRURNDIS_".utf8)
+
     private let maximumOutputBytes: Int
-    private let maximumScanCharacters: Int
-    private var networkMarkerScanBuffer = ""
+    private let maximumMarkerTokenBytes: Int
+    // Retain only an unfinished whitespace-delimited token. Completed marker
+    // values form the latest snapshot and their source text is never rescanned.
+    private var markerTokenBuffer = Data()
+    private var isDiscardingOversizedMarkerToken = false
+    private var guestIPv4Address: String?
+    private var vznatGatewayIPv4Address: String?
+    private var rndisIPv4AddressUpdate: GuestRNDISIPv4AddressUpdate?
+    private var isRNDISRouteReady: Bool?
+    private var portForwardingState: GuestPortForwardingState?
 
     init(
         maximumOutputBytes: Int = 4_000_000,
-        maximumScanCharacters: Int = 200_000
+        maximumMarkerTokenBytes: Int = 200_000
     ) {
         precondition(maximumOutputBytes > 0)
-        precondition(maximumScanCharacters > 0)
+        precondition(maximumMarkerTokenBytes > 0)
         self.maximumOutputBytes = maximumOutputBytes
-        self.maximumScanCharacters = maximumScanCharacters
+        self.maximumMarkerTokenBytes = maximumMarkerTokenBytes
     }
 
     @discardableResult
     func append(_ data: Data) -> GuestNetworkConsoleUpdate? {
         appendOutput(data)
-        appendToNetworkMarkerScanBuffer(data)
-        let update = detectedGuestNetworkUpdate()
-        return update.isEmpty ? nil : update
+        guard consumeGuestNetworkMarkers(in: data) else { return nil }
+        return GuestNetworkConsoleUpdate(
+            guestIPv4Address: guestIPv4Address,
+            vznatGatewayIPv4Address: vznatGatewayIPv4Address,
+            rndisIPv4AddressUpdate: rndisIPv4AddressUpdate,
+            isRNDISRouteReady: isRNDISRouteReady,
+            portForwardingState: portForwardingState
+        )
     }
 
     func clear() {
-        networkMarkerScanBuffer = ""
+        markerTokenBuffer = Data()
+        isDiscardingOversizedMarkerToken = false
+        guestIPv4Address = nil
+        vznatGatewayIPv4Address = nil
+        rndisIPv4AddressUpdate = nil
+        isRNDISRouteReady = nil
+        portForwardingState = nil
         output = ConsoleOutputState(
             data: Data(),
             outputSequence: 0,
@@ -80,65 +93,100 @@ final class ConsoleSessionStore: ObservableObject {
         output = next
     }
 
-    private func appendToNetworkMarkerScanBuffer(_ data: Data) {
-        if let text = String(data: data, encoding: .utf8) {
-            networkMarkerScanBuffer.append(text)
-        } else {
-            networkMarkerScanBuffer.append(
-                data.map { String(format: "%02X", $0) }.joined(separator: " ")
-            )
-            networkMarkerScanBuffer.append("\n")
-        }
+    private func consumeGuestNetworkMarkers(
+        in data: Data
+    ) -> Bool {
+        var didConsumeMarker = false
 
-        if networkMarkerScanBuffer.count > maximumScanCharacters {
-            networkMarkerScanBuffer.removeFirst(
-                networkMarkerScanBuffer.count - maximumScanCharacters
-            )
-        }
-    }
-
-    private func detectedGuestNetworkUpdate() -> GuestNetworkConsoleUpdate {
-        GuestNetworkConsoleUpdate(
-            guestIPv4Address: completedMarkerValue(
-                after: "THRURNDIS_VZNAT_IPV4="
-            ),
-            vznatGatewayIPv4Address: completedMarkerValue(
-                after: "THRURNDIS_VZNAT_GATEWAY="
-            ),
-            rndisIPv4AddressUpdate: detectedRNDISIPv4AddressUpdate(),
-            isRNDISRouteReady: completedMarkerValue(
-                after: "THRURNDIS_RNDIS_ROUTE_READY="
-            ).flatMap {
-                switch $0 {
-                case "1": true
-                case "0": false
-                default: nil
+        for byte in data {
+            if Self.isASCIIWhitespace(byte) {
+                if !isDiscardingOversizedMarkerToken,
+                   consumeCompletedMarkerToken() {
+                    didConsumeMarker = true
                 }
-            },
-            portForwardingState: detectedPortForwardingState()
-        )
-    }
+                markerTokenBuffer.removeAll(keepingCapacity: true)
+                isDiscardingOversizedMarkerToken = false
+                continue
+            }
 
-    private func detectedPortForwardingState() -> GuestPortForwardingState? {
-        guard let markerValue = completedMarkerValue(
-            after: "THRURNDIS_PORT_FORWARD_STATE="
-        ) else {
-            return nil
+            guard !isDiscardingOversizedMarkerToken else {
+                continue
+            }
+            guard markerTokenBuffer.count < maximumMarkerTokenBytes else {
+                markerTokenBuffer.removeAll(keepingCapacity: true)
+                isDiscardingOversizedMarkerToken = true
+                continue
+            }
+            markerTokenBuffer.append(byte)
         }
-        return GuestPortForwardingState(markerValue: markerValue)
+
+        return didConsumeMarker
     }
 
-    private func detectedRNDISIPv4AddressUpdate()
-        -> GuestRNDISIPv4AddressUpdate? {
-        guard let value = completedMarkerValue(
+    private func consumeCompletedMarkerToken() -> Bool {
+        guard markerTokenBuffer.range(of: Self.markerNamespaceBytes) != nil,
+              let token = String(data: markerTokenBuffer, encoding: .utf8) else {
+            return false
+        }
+
+        if let value = Self.markerValue(
+            in: token,
+            after: "THRURNDIS_VZNAT_IPV4="
+        ) {
+            guestIPv4Address = value
+            return true
+        }
+
+        if let value = Self.markerValue(
+            in: token,
+            after: "THRURNDIS_VZNAT_GATEWAY="
+        ) {
+            vznatGatewayIPv4Address = value
+            return true
+        }
+
+        if let value = Self.markerValue(
+            in: token,
             after: "THRURNDIS_RNDIS_IPV4=",
             allowingEmptyValue: true
-        ) else {
-            return nil
+        ) {
+            let addressUpdate: GuestRNDISIPv4AddressUpdate
+            if value.isEmpty {
+                addressUpdate = .unavailable
+            } else {
+                guard Self.isCanonicalIPv4Address(value) else { return false }
+                addressUpdate = .available(value)
+            }
+            rndisIPv4AddressUpdate = addressUpdate
+            return true
         }
-        if value.isEmpty { return .unavailable }
-        guard Self.isCanonicalIPv4Address(value) else { return nil }
-        return .available(value)
+
+        if let value = Self.markerValue(
+            in: token,
+            after: "THRURNDIS_RNDIS_ROUTE_READY="
+        ) {
+            let isReady: Bool
+            switch value {
+            case "1":
+                isReady = true
+            case "0":
+                isReady = false
+            default:
+                return false
+            }
+            isRNDISRouteReady = isReady
+            return true
+        }
+
+        if let value = Self.markerValue(
+            in: token,
+            after: "THRURNDIS_PORT_FORWARD_STATE="
+        ), let state = GuestPortForwardingState(markerValue: value) {
+            portForwardingState = state
+            return true
+        }
+
+        return false
     }
 
     private static func isCanonicalIPv4Address(_ value: String) -> Bool {
@@ -159,22 +207,23 @@ final class ConsoleSessionStore: ObservableObject {
             && octets.map { String($0) }.joined(separator: ".") == value
     }
 
-    private func completedMarkerValue(
+    private static func markerValue(
+        in token: String,
         after marker: String,
         allowingEmptyValue: Bool = false
     ) -> String? {
-        guard let markerRange = networkMarkerScanBuffer.range(
+        guard let markerRange = token.range(
             of: marker,
             options: [.backwards]
         ) else {
             return nil
         }
 
-        let suffix = networkMarkerScanBuffer[markerRange.upperBound...]
-        guard let delimiter = suffix.firstIndex(where: \.isWhitespace) else {
-            return nil
-        }
-        let value = suffix[..<delimiter]
+        let value = token[markerRange.upperBound...]
         return value.isEmpty && !allowingEmptyValue ? nil : String(value)
+    }
+
+    private static func isASCIIWhitespace(_ byte: UInt8) -> Bool {
+        byte == 0x20 || (0x09 ... 0x0D).contains(byte)
     }
 }
