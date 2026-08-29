@@ -429,12 +429,12 @@
         }
       }
     },
-    "Checking the latest VM asset release…" : {
+    "Checking latest version…" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "최신 VM 에셋 릴리스를 확인하는 중…"
+            "value" : "최신 버전 확인 중"
           }
         }
       }
@@ -3098,7 +3098,7 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "이미 최신버전입니다: %@"
+            "value" : "이미 최신 버전입니다: %@"
           }
         }
       }
