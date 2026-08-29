@@ -7,7 +7,7 @@ import Foundation
 
 @MainActor
 final class AppPreferencesStore: ObservableObject {
-    static let currentOnboardingVersion = 4
+    static let currentOnboardingVersion = 5
 
     @Published var isDebugModeEnabled: Bool {
         didSet {
@@ -21,8 +21,6 @@ final class AppPreferencesStore: ObservableObject {
         }
     }
 
-    @Published private(set) var isWireGuardManualConfigurationModeEnabled: Bool
-
     @Published var shouldAskToAttachDetectedUSBDevices: Bool {
         didSet {
             guard !isResettingPersistedValues else {
@@ -31,18 +29,6 @@ final class AppPreferencesStore: ObservableObject {
             defaults.set(
                 shouldAskToAttachDetectedUSBDevices,
                 forKey: DefaultsKey.shouldAskToAttachDetectedUSBDevices
-            )
-        }
-    }
-
-    @Published var shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches: Bool {
-        didSet {
-            guard !isResettingPersistedValues else {
-                return
-            }
-            defaults.set(
-                shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches,
-                forKey: DefaultsKey.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches
             )
         }
     }
@@ -64,17 +50,11 @@ final class AppPreferencesStore: ObservableObject {
         self.isDebugModeEnabled = defaults.bool(
             forKey: DefaultsKey.isDebugModeEnabled
         )
-        self.isWireGuardManualConfigurationModeEnabled = defaults.bool(
-            forKey: DefaultsKey.isWireGuardManualConfigurationModeEnabled
-        )
         self.shouldAskToAttachDetectedUSBDevices = defaults.object(
             forKey: DefaultsKey.shouldAskToAttachDetectedUSBDevices
         ) == nil
             ? true
             : defaults.bool(forKey: DefaultsKey.shouldAskToAttachDetectedUSBDevices)
-        self.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches = defaults.bool(
-            forKey: DefaultsKey.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches
-        )
         self.hasCompletedOnboarding = defaults.integer(
             forKey: DefaultsKey.onboardingVersion
         ) >= Self.currentOnboardingVersion
@@ -107,30 +87,14 @@ final class AppPreferencesStore: ObservableObject {
         launchAtLoginStatusMessage = ""
     }
 
-    func setWireGuardManualConfigurationModeEnabledForNextLaunch(
-        _ isEnabled: Bool
-    ) {
-        defaults.set(
-            isEnabled,
-            forKey: DefaultsKey.isWireGuardManualConfigurationModeEnabled
-        )
-    }
-
     func resetPersistedValues() throws {
         defaults.removeObject(forKey: DefaultsKey.onboardingVersion)
         defaults.removeObject(forKey: DefaultsKey.isDebugModeEnabled)
-        defaults.removeObject(
-            forKey: DefaultsKey.isWireGuardManualConfigurationModeEnabled
-        )
         defaults.removeObject(forKey: DefaultsKey.shouldAskToAttachDetectedUSBDevices)
-        defaults.removeObject(
-            forKey: DefaultsKey.shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches
-        )
 
         isResettingPersistedValues = true
         isDebugModeEnabled = false
         shouldAskToAttachDetectedUSBDevices = true
-        shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches = false
         hasCompletedOnboarding = false
         isResettingPersistedValues = false
 
@@ -149,10 +113,6 @@ final class AppPreferencesStore: ObservableObject {
     private enum DefaultsKey {
         static let onboardingVersion = "Onboarding.completedVersion"
         static let isDebugModeEnabled = "Application.debugModeEnabled"
-        static let isWireGuardManualConfigurationModeEnabled =
-            "Application.manualConfigurationModeEnabled"
         static let shouldAskToAttachDetectedUSBDevices = "USB.askToAttachDetectedDevices"
-        static let shouldAutomaticallyConnectWireGuardWhenUSBDeviceAttaches =
-            "WireGuard.connectAutomaticallyWhenUSBDeviceAttaches"
     }
 }

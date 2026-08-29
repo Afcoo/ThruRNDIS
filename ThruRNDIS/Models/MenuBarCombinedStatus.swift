@@ -5,14 +5,6 @@ Copyright (C) 2026 Afcoo.
 import Foundation
 
 struct MenuBarCombinedStatus: Equatable {
-    enum DummyEthernetState: Equatable {
-        case helperProblem
-        case notChecked
-        case stopped
-        case active
-        case needsAttention
-    }
-
     enum Activity: Equatable {
         case inactive
         case partiallyActive
@@ -22,12 +14,10 @@ struct MenuBarCombinedStatus: Equatable {
     enum Stage: Equatable {
         case inactive
         case usbNotAttached
-        case wireGuardNeedsAttention
-        case wireGuardDisconnected
-        case dummyEthernetHelperProblem
-        case dummyEthernetNotChecked
-        case dummyEthernetStopped
-        case dummyEthernetNeedsAttention
+        case waitingForGuestNetwork
+        case waitingForRNDIS
+        case preparingNetworkRouting
+        case vmNetworkNeedsAttention
         case active
     }
 
@@ -37,29 +27,19 @@ struct MenuBarCombinedStatus: Equatable {
     init(
         vmRuntimeState: VMRuntimeState,
         isUSBAttached: Bool,
-        dummyEthernetState: DummyEthernetState? = nil,
-        wireGuardTunnelStatus: WireGuardTunnelStatus?,
-        hasWireGuardFailure: Bool = false
+        guestIPv4Address: String?,
+        vznatGatewayIPv4Address: String?,
+        isRNDISRouteReady: Bool,
+        isNetworkRouteTransitioning: Bool,
+        networkRouteSnapshot: NetworkRouteSnapshot?
     ) {
         let isVMRunning = vmRuntimeState == .running
-        let isWireGuardConnected = wireGuardTunnelStatus == .connected
-        let isWireGuardActive = isWireGuardConnected && !hasWireGuardFailure
-        var activeComponents = [
-            isVMRunning,
-            isUSBAttached,
-        ]
-        if wireGuardTunnelStatus != nil {
-            activeComponents.append(isWireGuardActive)
-        }
-        if let dummyEthernetState {
-            activeComponents.append(dummyEthernetState == .active)
-        }
-        let activeComponentCount = activeComponents.filter { $0 }.count
-
-        switch activeComponentCount {
+        let isVMNetworkActive = networkRouteSnapshot?.state == .active
+        let components = [isVMRunning, isUSBAttached, isVMNetworkActive]
+        switch components.filter({ $0 }).count {
         case 0:
             activity = .inactive
-        case activeComponents.count:
+        case components.count:
             activity = .active
         default:
             activity = .partiallyActive
@@ -69,24 +49,15 @@ struct MenuBarCombinedStatus: Equatable {
             stage = .inactive
         } else if !isUSBAttached {
             stage = .usbNotAttached
-        } else if wireGuardTunnelStatus != nil, hasWireGuardFailure {
-            stage = .wireGuardNeedsAttention
-        } else if wireGuardTunnelStatus != nil, !isWireGuardConnected {
-            stage = .wireGuardDisconnected
-        } else if let dummyEthernetState,
-                  dummyEthernetState != .active {
-            switch dummyEthernetState {
-            case .helperProblem:
-                stage = .dummyEthernetHelperProblem
-            case .notChecked:
-                stage = .dummyEthernetNotChecked
-            case .stopped:
-                stage = .dummyEthernetStopped
-            case .needsAttention:
-                stage = .dummyEthernetNeedsAttention
-            case .active:
-                preconditionFailure("Active Dummy Ethernet cannot block status")
-            }
+        } else if guestIPv4Address == nil
+            || vznatGatewayIPv4Address == nil {
+            stage = .waitingForGuestNetwork
+        } else if !isRNDISRouteReady {
+            stage = .waitingForRNDIS
+        } else if !isVMNetworkActive && isNetworkRouteTransitioning {
+            stage = .preparingNetworkRouting
+        } else if !isVMNetworkActive {
+            stage = .vmNetworkNeedsAttention
         } else {
             stage = .active
         }
@@ -95,37 +66,17 @@ struct MenuBarCombinedStatus: Equatable {
     var title: String {
         switch stage {
         case .inactive:
-            return String(
-                localized: "menuBar.combinedStatus.notRunning",
-                defaultValue: "Not Running"
-            )
+            String(localized: "menuBar.combinedStatus.notRunning", defaultValue: "Not Running")
         case .usbNotAttached:
-            return String(localized: "USB Not Attached")
-        case .wireGuardNeedsAttention:
-            return String(
-                localized: "WireGuard: \(String(localized: "Needs Attention"))"
-            )
-        case .wireGuardDisconnected:
-            return String(localized: "WireGuard Disconnected")
-        case .dummyEthernetHelperProblem:
-            return String(localized: "Dummy Ethernet helper problem")
-        case .dummyEthernetNotChecked:
-            return String(
-                localized: "Dummy Ethernet: \(String(localized: "Not Checked"))"
-            )
-        case .dummyEthernetStopped:
-            return String(
-                localized: "Dummy Ethernet: \(String(localized: "Stopped"))"
-            )
-        case .dummyEthernetNeedsAttention:
-            return String(
-                localized: "Dummy Ethernet: \(String(localized: "Needs Attention"))"
-            )
+            String(localized: "USB Not Attached")
+        case .waitingForGuestNetwork, .waitingForRNDIS,
+             .preparingNetworkRouting:
+            String(localized: "Preparing Network Routing")
+        case .vmNetworkNeedsAttention:
+            String(localized: "Network Routing") + ": "
+                + String(localized: "Needs Attention")
         case .active:
-            return String(
-                localized: "menuBar.combinedStatus.running",
-                defaultValue: "Running"
-            )
+            String(localized: "menuBar.combinedStatus.running", defaultValue: "Running")
         }
     }
 }

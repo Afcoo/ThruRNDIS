@@ -85,7 +85,8 @@ final class VMConfigurationStore: ObservableObject {
             "root",
             "rootflags",
             "rootfstype",
-            "rw"
+            "rw",
+            PortForwardingConfiguration.bootArgumentKey
         ]
 
         var tokens = kernelCommandLine

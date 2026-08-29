@@ -5,15 +5,10 @@ Copyright (C) 2026 Afcoo.
 import SwiftUI
 
 struct SettingsView: View {
-    @EnvironmentObject private var appPreferences: AppPreferencesStore
     @State private var selectedSection: SettingsSection = .general
 
     let openConsole: () -> Void
     let resetAndQuit: () -> Void
-    let quitWithWireGuardManualConfigurationMode: (Bool) -> Void
-    let openWireGuardConfigurationFolder: () -> Void
-    let copyWireGuardConfiguration: () -> Void
-    let saveWireGuardConfiguration: () -> Void
 
     var body: some View {
         NavigationSplitView {
@@ -32,16 +27,8 @@ struct SettingsView: View {
                     VirtualMachineView(openConsole: openConsole)
                 case .usbDevices:
                     USBDevicesView()
-                case .wireGuard:
-                    WireGuardView(
-                        quitWithManualConfigurationMode:
-                            quitWithWireGuardManualConfigurationMode,
-                        openConfigurationFolder: openWireGuardConfigurationFolder,
-                        copyConfiguration: copyWireGuardConfiguration,
-                        saveConfiguration: saveWireGuardConfiguration
-                    )
-                case .dummyEthernet:
-                    DummyEthernetView()
+                case .networkRoute:
+                    NetworkRouteView()
                 case .info:
                     InfoView(resetAndQuit: resetAndQuit)
                 }
@@ -53,15 +40,12 @@ struct SettingsView: View {
         .frame(minWidth: 760, minHeight: 480)
         .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
         .onAppear {
-            appPreferences.refreshLaunchAtLoginStatus()
+            // Individual settings stores refresh their own system state.
         }
     }
 
     private var availableSections: [SettingsSection] {
-        SettingsSection.allCases.filter {
-            !appPreferences.isWireGuardManualConfigurationModeEnabled
-                || $0 != .dummyEthernet
-        }
+        SettingsSection.allCases
     }
 }
 
@@ -69,8 +53,7 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
     case general
     case virtualMachine
     case usbDevices
-    case wireGuard
-    case dummyEthernet
+    case networkRoute
     case info
 
     var id: Self { self }
@@ -83,10 +66,8 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
             "Virtual Machine"
         case .usbDevices:
             "USB Devices"
-        case .wireGuard:
-            "WireGuard"
-        case .dummyEthernet:
-            "Dummy Ethernet"
+        case .networkRoute:
+            "Network Routing"
         case .info:
             "Info"
         }
@@ -100,9 +81,7 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
             "server.rack"
         case .usbDevices:
             "cable.connector"
-        case .wireGuard:
-            "lock.shield"
-        case .dummyEthernet:
+        case .networkRoute:
             "network"
         case .info:
             "info.circle"

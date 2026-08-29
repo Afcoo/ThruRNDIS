@@ -1,36 +1,6 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "Manual Configuration Mode" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "수동 구성 모드"
-          }
-        }
-      }
-    },
-    "Manual Configuration Mode will be disabled after you reopen ThruRNDIS." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ThruRNDIS를 다시 열면 일반 구성 모드로 변경됩니다."
-          }
-        }
-      }
-    },
-    "Manual Configuration Mode will be enabled after you reopen ThruRNDIS." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ThruRNDIS를 다시 열면 수동 구성 모드로 변경됩니다."
-          }
-        }
-      }
-    },
     "%@ (%@)" : {
       "localizations" : {
         "en" : {
@@ -103,32 +73,6 @@
         }
       }
     },
-    "%@ is being connected. Connect to WireGuard when the connection is complete?" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ is being connected. Connect to WireGuard when the connection is complete?"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ 기기를 연결하는 중입니다. 연결이 완료되면 WireGuard에 연결할까요?"
-          }
-        }
-      }
-    },
-    "A newer WireGuard tunnel operation superseded this request." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "더 새로운 WireGuard 터널 작업이 이 요청을 대체했습니다."
-          }
-        }
-      }
-    },
     "AccessoryAccess Listener" : {
       "localizations" : {
         "ko" : {
@@ -149,16 +93,6 @@
         }
       }
     },
-    "Activating System Extension" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "시스템 확장 활성화 중"
-          }
-        }
-      }
-    },
     "Activating the installed VM assets…" : {
       "localizations" : {
         "ko" : {
@@ -175,16 +109,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "활성화 요청됨"
-          }
-        }
-      }
-    },
-    "Activation was requested. Approve the Network Extension in System Settings." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "활성화를 요청했습니다. 시스템 설정에서 네트워크 확장 프로그램을 승인하세요."
           }
         }
       }
@@ -235,16 +159,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "시스템 설정 > 일반 > 로그인 항목 및 확장 프로그램에서 ThruRNDIS를 허용하세요."
-          }
-        }
-      }
-    },
-    "Allowed IPs" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "허용 IP"
           }
         }
       }
@@ -409,12 +323,12 @@
         }
       }
     },
-    "Check & Install Latest" : {
+    "Check & Install Latest Compatible" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "최신 버전 확인 및 설치"
+            "value" : "최신 호환 버전 확인 및 설치"
           }
         }
       }
@@ -429,22 +343,12 @@
         }
       }
     },
-    "Checking the latest VM asset release…" : {
+    "Checking the latest compatible VM asset release…" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "최신 VM 에셋 릴리스를 확인하는 중…"
-          }
-        }
-      }
-    },
-    "Checking whether the Network Extension is active." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "네트워크 확장 프로그램이 활성화되어 있는지 확인하는 중입니다."
+            "value" : "최신 호환 VM 에셋 릴리스를 확인하는 중…"
           }
         }
       }
@@ -619,22 +523,12 @@
         }
       }
     },
-    "Configure Network Extension in Settings" : {
+    "Configure Network Routing in Settings" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "설정에서 Network Extension을 구성하세요"
-          }
-        }
-      }
-    },
-    "Configure Dummy Ethernet helper in Settings" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "설정에서 더미 이더넷 헬퍼를 구성하세요"
+            "value" : "설정에서 네트워크 라우팅을 구성하세요"
           }
         }
       }
@@ -675,26 +569,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "USB 기기 연결시 자동으로 연결"
-          }
-        }
-      }
-    },
-    "Connect WireGuard" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "WireGuard 연결"
-          }
-        }
-      }
-    },
-    "Connect WireGuard?" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "WireGuard에 연결할까요?"
           }
         }
       }
@@ -769,88 +643,6 @@
         }
       }
     },
-    "Could not atomically replace WireGuard configuration at %@: %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Could not atomically replace WireGuard configuration at %1$@: %2$@"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@에서 WireGuard 구성을 원자적으로 교체할 수 없습니다: %2$@"
-          }
-        }
-      }
-    },
-    "Could not create the WireGuard packet tunnel configuration." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "WireGuard 패킷 터널 구성을 만들 수 없습니다."
-          }
-        }
-      }
-    },
-    "Could not remove the Dummy Ethernet helper while resetting app settings: %@" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "앱 설정을 초기화하는 동안 더미 이더넷 헬퍼를 제거할 수 없습니다: %@"
-          }
-        }
-      }
-    },
-    "Could not remove the saved WireGuard tunnel profile." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "저장된 WireGuard 터널 프로필을 제거할 수 없습니다."
-          }
-        }
-      }
-    },
-    "Could not remove WireGuard configuration: %@" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "WireGuard 구성을 제거할 수 없습니다: %@"
-          }
-        }
-      }
-    },
-    "Could not securely create WireGuard file at %@: %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Could not securely create WireGuard file at %1$@: %2$@"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@에 WireGuard 파일을 안전하게 만들 수 없습니다: %2$@"
-          }
-        }
-      }
-    },
-    "Could not stop Dummy Ethernet while resetting app settings: %@" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "앱 설정을 초기화하는 동안 더미 이더넷 구성을 중지할 수 없습니다: %@"
-          }
-        }
-      }
-    },
     "Could not stop the VM before resetting app settings." : {
       "localizations" : {
         "ko" : {
@@ -861,38 +653,12 @@
         }
       }
     },
-    "Could not stop the WireGuard tunnel before resetting app settings." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "앱 설정을 초기화하기 전에 WireGuard 터널을 중지할 수 없습니다."
-          }
-        }
-      }
-    },
     "Could not update Launch at Login: %@" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "로그인 시 열기 설정을 업데이트할 수 없습니다: %@"
-          }
-        }
-      }
-    },
-    "Could not write WireGuard file at %@: %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Could not write WireGuard file at %1$@: %2$@"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@에 WireGuard 파일을 쓸 수 없습니다: %2$@"
           }
         }
       }
@@ -957,16 +723,6 @@
         }
       }
     },
-    "Disconnect WireGuard" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "WireGuard 연결 해제"
-          }
-        }
-      }
-    },
     "Disconnected" : {
       "localizations" : {
         "ko" : {
@@ -987,16 +743,6 @@
         }
       }
     },
-    "DNS Servers" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "DNS 서버"
-          }
-        }
-      }
-    },
     "Done" : {
       "localizations" : {
         "ko" : {
@@ -1007,12 +753,12 @@
         }
       }
     },
-    "Download & Install Latest" : {
+    "Download & Install Latest Compatible" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "최신 버전 다운로드 및 설치"
+            "value" : "최신 호환 버전 다운로드 및 설치"
           }
         }
       }
@@ -1099,16 +845,6 @@
         }
       }
     },
-    "Endpoint" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "엔드포인트"
-          }
-        }
-      }
-    },
     "Event Log" : {
       "localizations" : {
         "ko" : {
@@ -1179,16 +915,6 @@
         }
       }
     },
-    "Fix the WireGuard configuration error before starting the VM." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "VM을 시작하기 전에 WireGuard 구성 오류를 해결하세요."
-          }
-        }
-      }
-    },
     "Follow these four steps to use USB tethering." : {
       "localizations" : {
         "ko" : {
@@ -1209,12 +935,12 @@
         }
       }
     },
-    "GitHub did not return a published VM asset release." : {
+    "GitHub did not return a compatible published VM asset release." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "GitHub에서 게시된 VM 에셋 릴리스를 찾을 수 없습니다."
+            "value" : "GitHub에서 게시된 호환 VM 에셋 릴리스를 찾을 수 없습니다."
           }
         }
       }
@@ -1245,16 +971,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "VM 에셋 확인 중 GitHub가 HTTP %lld 응답을 반환했습니다."
-          }
-        }
-      }
-    },
-    "Grant the Network Extension and Dummy Ethernet helper permissions." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "네트워크 확장 프로그램과 더미 이더넷 헬퍼 권한을 부여하세요."
           }
         }
       }
@@ -1299,22 +1015,22 @@
         }
       }
     },
-    "Network Extension permission is required for WireGuard connections." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "WireGuard 연결에는 네트워크 확장 프로그램 권한이 필요합니다."
-          }
-        }
-      }
-    },
     "Inactive" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "비활성화됨"
+          }
+        }
+      }
+    },
+    "Incompatible VM asset version" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "호환되지 않는 에셋 버전입니다"
           }
         }
       }
@@ -1459,32 +1175,6 @@
         }
       }
     },
-    "Invalid WireGuard configuration integer for %@: %lld." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Invalid WireGuard configuration integer for %1$@: %2$lld."
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "WireGuard 구성의 %1$@ 정숫값이 잘못되었습니다: %2$lld."
-          }
-        }
-      }
-    },
-    "Invalid WireGuard X25519 private key: %@." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "WireGuard X25519 개인 키가 잘못되었습니다: %@."
-          }
-        }
-      }
-    },
     "Kernel arguments" : {
       "localizations" : {
         "ko" : {
@@ -1535,16 +1225,6 @@
         }
       }
     },
-    "macOS returned an unknown network extension activation result." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "macOS가 알 수 없는 네트워크 확장 프로그램 활성화 결과를 반환했습니다."
-          }
-        }
-      }
-    },
     "Manually selected VM assets are ready." : {
       "localizations" : {
         "ko" : {
@@ -1565,52 +1245,12 @@
         }
       }
     },
-    "Missing WireGuard configuration value: %@." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "WireGuard 구성 값이 없습니다: %@."
-          }
-        }
-      }
-    },
     "MIT License" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "MIT 라이선스"
-          }
-        }
-      }
-    },
-    "Network Extension" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "네트워크 확장 프로그램"
-          }
-        }
-      }
-    },
-    "Network extension activation is already in progress." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "네트워크 확장 프로그램 활성화가 이미 진행 중입니다."
-          }
-        }
-      }
-    },
-    "NetworkExtension Packet Tunnel" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "NetworkExtension 패킷 터널"
           }
         }
       }
@@ -1825,6 +1465,16 @@
         }
       }
     },
+    "Preparing Network Routing" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 라우팅 준비 중"
+          }
+        }
+      }
+    },
     "Preparing video…" : {
       "localizations" : {
         "ko" : {
@@ -2035,36 +1685,6 @@
         }
       }
     },
-    "Restart macOS to finish activating the network extension." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "네트워크 확장 프로그램 활성화를 마치려면 macOS를 재시동하세요."
-          }
-        }
-      }
-    },
-    "Restart macOS to finish activating the Network Extension." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "네트워크 확장 프로그램 활성화를 완료하려면 macOS를 재시동하세요."
-          }
-        }
-      }
-    },
-    "Restart macOS to finish removing the Network Extension before requesting activation again." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "네트워크 확장 프로그램 제거를 완료하려면 macOS를 재시동한 후 다시 활성화를 요청하세요."
-          }
-        }
-      }
-    },
     "Restart Onboarding…" : {
       "localizations" : {
         "ko" : {
@@ -2141,16 +1761,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "런타임"
-          }
-        }
-      }
-    },
-    "Save WireGuard Configuration" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "WireGuard 구성 저장"
           }
         }
       }
@@ -2395,16 +2005,6 @@
         }
       }
     },
-    "System Extension Installation" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "시스템 확장 설치"
-          }
-        }
-      }
-    },
     "The download response for %@ was invalid." : {
       "localizations" : {
         "ko" : {
@@ -2425,42 +2025,42 @@
         }
       }
     },
-    "The latest VM asset release contains an invalid download URL for %@." : {
+    "The latest compatible VM asset release contains an invalid download URL for %@." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "최신 VM 에셋 릴리스에 포함된 %@의 다운로드 URL이 잘못되었습니다."
+            "value" : "최신 호환 VM 에셋 릴리스에 포함된 %@의 다운로드 URL이 잘못되었습니다."
           }
         }
       }
     },
-    "The latest VM asset release contains an invalid SHA-256 digest for %@." : {
+    "The latest compatible VM asset release contains an invalid SHA-256 digest for %@." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "최신 VM 에셋 릴리스에 포함된 %@의 SHA-256 다이제스트가 잘못되었습니다."
+            "value" : "최신 호환 VM 에셋 릴리스에 포함된 %@의 SHA-256 다이제스트가 잘못되었습니다."
           }
         }
       }
     },
-    "The latest VM asset release contains more than one %@ attachment." : {
+    "The latest compatible VM asset release contains more than one %@ attachment." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "최신 VM 에셋 릴리스에 %@ 첨부 파일이 두 개 이상 있습니다."
+            "value" : "최신 호환 VM 에셋 릴리스에 %@ 첨부 파일이 두 개 이상 있습니다."
           }
         }
       }
     },
-    "The latest VM asset release does not contain %@." : {
+    "The latest compatible VM asset release does not contain %@." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "최신 VM 에셋 릴리스에 %@ 첨부 파일이 없습니다."
+            "value" : "최신 호환 VM 에셋 릴리스에 %@ 첨부 파일이 없습니다."
           }
         }
       }
@@ -2471,56 +2071,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "로그인 항목을 찾을 수 없습니다. ThruRNDIS를 앱 번들에서 실행하세요."
-          }
-        }
-      }
-    },
-    "The Network Extension is active and ready to connect." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "네트워크 확장 프로그램이 활성화되어 연결할 준비가 되었습니다."
-          }
-        }
-      }
-    },
-    "The network extension is still disabled after the activation request completed." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "활성화 요청이 완료된 후에도 네트워크 확장 프로그램이 비활성화되어 있습니다."
-          }
-        }
-      }
-    },
-    "The Network Extension status could not be determined." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "네트워크 확장 프로그램 상태를 확인할 수 없습니다."
-          }
-        }
-      }
-    },
-    "The Network Extension status has not been checked yet." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "아직 네트워크 확장 프로그램 상태를 확인하지 않았습니다."
-          }
-        }
-      }
-    },
-    "The saved WireGuard tunnel is not a packet tunnel session." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "저장된 WireGuard 터널이 패킷 터널 세션이 아닙니다."
           }
         }
       }
@@ -2647,26 +2197,6 @@
         }
       }
     },
-    "The WireGuard tunnel did not stop within five seconds." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "WireGuard 터널이 5초 안에 중지되지 않았습니다."
-          }
-        }
-      }
-    },
-    "This build cannot activate the Network Extension. Run a signed copy of ThruRNDIS from Applications." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "이 빌드에서는 네트워크 확장 프로그램을 활성화할 수 없습니다. 서명된 ThruRNDIS를 응용 프로그램 폴더에서 실행하세요."
-          }
-        }
-      }
-    },
     "ThruRNDIS" : {
       "localizations" : {
         "ko" : {
@@ -2709,16 +2239,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "다음 단계로 진행할 준비가 되었습니다."
-          }
-        }
-      }
-    },
-    "ThruRNDIS requires Network Extension and Dummy Ethernet helper permissions." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ThruRNDIS는 네트워크 확장 프로그램과 더미 이더넷 헬퍼 권한이 필요합니다."
           }
         }
       }
@@ -2839,16 +2359,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "USB 액세서리가 연결되었습니다."
-          }
-        }
-      }
-    },
-    "USB and WireGuard will disconnect. Quit anyway?" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "USB 기기와 연결이 해제됩니다.\n정말 종료하시겠어요?"
           }
         }
       }
@@ -3223,16 +2733,6 @@
         }
       }
     },
-    "Wait for the current Dummy Ethernet operation to finish." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "현재 더미 이더넷 작업이 끝날 때까지 기다리세요."
-          }
-        }
-      }
-    },
     "Wait for the current USB attachment workflow before reloading the listener." : {
       "localizations" : {
         "ko" : {
@@ -3343,76 +2843,6 @@
         }
       }
     },
-    "WireGuard" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "WireGuard"
-          }
-        }
-      }
-    },
-    "WireGuard connections are unavailable in this unsigned build." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "서명되지 않은 빌드에서는 WireGuard 연결을 사용할 수 없습니다."
-          }
-        }
-      }
-    },
-    "WireGuard key pair is incomplete. Restore the missing key without replacing the existing key: %@" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "WireGuard 키 쌍이 불완전합니다. 기존 키를 교체하지 말고 누락된 키를 복원하세요: %@"
-          }
-        }
-      }
-    },
-    "WireGuard private key is missing: %@" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "WireGuard 개인 키가 없습니다: %@"
-          }
-        }
-      }
-    },
-    "WireGuard: %@" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "WireGuard: %@"
-          }
-        }
-      }
-    },
-    "WireGuard Disconnected" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "WireGuard 연결 안 됨"
-          }
-        }
-      }
-    },
-    "WireGuard: Provider connected" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "WireGuard: 프로바이더 연결됨"
-          }
-        }
-      }
-    },
     "menuBar.combinedStatus.notRunning" : {
       "localizations" : {
         "en" : {
@@ -3445,42 +2875,12 @@
         }
       }
     },
-    "A signed Runtime build is required to use the Dummy Ethernet helper." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "더미 이더넷 헬퍼를 사용하려면 서명된 런타임 빌드가 필요합니다."
-          }
-        }
-      }
-    },
-    "Allow the Dummy Ethernet helper in System Settings > General > Login Items, then return and refresh." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "시스템 설정 > 일반 > 로그인 항목 및 확장 프로그램에서 더미 이더넷 헬퍼를 허용한 다음 앱으로 돌아와 새로고침하세요."
-          }
-        }
-      }
-    },
     "Approval Required" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "승인 필요"
-          }
-        }
-      }
-    },
-    "Bond Member" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bond 멤버"
           }
         }
       }
@@ -3515,62 +2915,6 @@
         }
       }
     },
-    "Dummy Ethernet" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "더미 이더넷"
-          }
-        }
-      }
-    },
-    "Dummy Ethernet: %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Dummy Ethernet: %@"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "더미 이더넷: %@"
-          }
-        }
-      }
-    },
-    "Dummy Ethernet helper problem" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "더미 이더넷 헬퍼 문제"
-          }
-        }
-      }
-    },
-    "Dummy Ethernet is unavailable in this unsigned build." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "서명되지 않은 빌드에서는 더미 이더넷을 사용할 수 없습니다."
-          }
-        }
-      }
-    },
-    "Dummy Ethernet did not stop while resetting app settings." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "앱 설정을 초기화하는 동안 더미 이더넷 구성이 중지되지 않았습니다."
-          }
-        }
-      }
-    },
     "Remove" : {
       "localizations" : {
         "ko" : {
@@ -3591,46 +2935,6 @@
         }
       }
     },
-    "Reinstall the bundled Dummy Ethernet helper." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "내장 더미 이더넷 헬퍼를 다시 설치하세요."
-          }
-        }
-      }
-    },
-    "Reinstall the Dummy Ethernet helper before resetting app settings." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "앱 설정을 초기화하기 전에 더미 이더넷 헬퍼를 다시 설치하세요."
-          }
-        }
-      }
-    },
-    "Reinstalling Dummy Ethernet helper…" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "더미 이더넷 헬퍼 재설치 중…"
-          }
-        }
-      }
-    },
-    "Removing Dummy Ethernet helper…" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "더미 이더넷 헬퍼 제거 중…"
-          }
-        }
-      }
-    },
     "Install" : {
       "localizations" : {
         "ko" : {
@@ -3641,42 +2945,12 @@
         }
       }
     },
-    "Installing Dummy Ethernet helper…" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "더미 이더넷 헬퍼 설치 중…"
-          }
-        }
-      }
-    },
-    "Install the bundled Dummy Ethernet helper." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "내장 더미 이더넷 헬퍼를 설치하세요."
-          }
-        }
-      }
-    },
     "Enabled" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "활성화됨"
-          }
-        }
-      }
-    },
-    "Enter a valid Dummy Ethernet configuration." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "유효한 더미 이더넷 구성을 입력하세요."
           }
         }
       }
@@ -3711,16 +2985,6 @@
         }
       }
     },
-    "Network Configuration" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "네트워크 구성"
-          }
-        }
-      }
-    },
     "Not Enabled" : {
       "localizations" : {
         "ko" : {
@@ -3751,26 +3015,6 @@
         }
       }
     },
-    "Dummy Ethernet helper" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "더미 이더넷 헬퍼"
-          }
-        }
-      }
-    },
-    "Refresh the Dummy Ethernet helper status before managing Dummy Ethernet." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "더미 이더넷을 관리하기 전에 더미 이더넷 헬퍼 상태를 새로고침하세요."
-          }
-        }
-      }
-    },
     "Refreshing…" : {
       "localizations" : {
         "ko" : {
@@ -3787,16 +3031,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "라우터 피어"
-          }
-        }
-      }
-    },
-    "Dummy Ethernet Status" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "더미 이더넷 상태"
           }
         }
       }
@@ -3821,32 +3055,12 @@
         }
       }
     },
-    "The Bond member and router peer must use different feth interface names." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bond 멤버와 라우터 피어에는 서로 다른 feth 인터페이스 이름을 사용해야 합니다."
-          }
-        }
-      }
-    },
     "The bundled LaunchDaemon could not be found. Use a signed installed ThruRNDIS app." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "내장 LaunchDaemon을 찾을 수 없습니다. 서명되어 설치된 ThruRNDIS 앱을 사용하세요."
-          }
-        }
-      }
-    },
-    "The Dummy Ethernet helper remained registered during the settings reset." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "설정 초기화 중 더미 이더넷 헬퍼 등록이 제거되지 않았습니다."
           }
         }
       }
@@ -3881,96 +3095,6 @@
         }
       }
     },
-    "The Dummy Ethernet helper is required to configure the Dummy Ethernet network service." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "더미 이더넷 네트워크 서비스를 구성하려면 더미 이더넷 헬퍼가 필요합니다."
-          }
-        }
-      }
-    },
-    "The Dummy Ethernet helper XPC interface is unavailable." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "더미 이더넷 헬퍼 XPC 인터페이스를 사용할 수 없습니다."
-          }
-        }
-      }
-    },
-    "The Dummy Ethernet helper did not respond before the request timed out." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "요청 시간이 초과되기 전에 더미 이더넷 헬퍼가 응답하지 않았습니다."
-          }
-        }
-      }
-    },
-    "The Dummy Ethernet helper is ready." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "더미 이더넷 헬퍼가 준비되었습니다."
-          }
-        }
-      }
-    },
-    "The Dummy Ethernet helper registration is being updated." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "더미 이더넷 헬퍼 등록을 업데이트하고 있습니다."
-          }
-        }
-      }
-    },
-    "The Dummy Ethernet helper returned an incomplete response." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "더미 이더넷 헬퍼가 불완전한 응답을 반환했습니다."
-          }
-        }
-      }
-    },
-    "Restart Dummy Ethernet" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "더미 이더넷 재시작"
-          }
-        }
-      }
-    },
-    "Start Dummy Ethernet" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "더미 이더넷 시작"
-          }
-        }
-      }
-    },
-    "Stop Dummy Ethernet" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "더미 이더넷 중지"
-          }
-        }
-      }
-    },
     "Update Required" : {
       "localizations" : {
         "ko" : {
@@ -3991,12 +3115,432 @@
         }
       }
     },
-    "Use fethX interface names." : {
+    "The input format is invalid." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "fethX 인터페이스 이름을 사용하세요."
+            "value" : "입력 형식이 올바르지 않습니다."
+          }
+        }
+      }
+    },
+    "Enable Port Forwarding" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "포트포워딩 활성화"
+          }
+        }
+      }
+    },
+    "Invalid Input" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "잘못된 입력"
+          }
+        }
+      }
+    },
+    "Off" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "꺼짐"
+          }
+        }
+      }
+    },
+    "Pending" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "대기 중"
+          }
+        }
+      }
+    },
+    "A value is outside the allowed range." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "허용 범위를 벗어난 값이 있습니다."
+          }
+        }
+      }
+    },
+    "The range order is invalid." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "범위 순서가 올바르지 않습니다."
+          }
+        }
+      }
+    },
+    "Ports" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "포트"
+          }
+        }
+      }
+    },
+    "Listening on %@" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@에서 수신 중"
+          }
+        }
+      }
+    },
+    "Saved" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "저장됨"
+          }
+        }
+      }
+    },
+    "Separate entries with commas and ranges with hyphens." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "쉼표로 항목을 구분하고 하이픈으로 범위를 지정하세요."
+          }
+        }
+      }
+    },
+    "TCP/UDP Port Forwarding" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TCP/UDP 포트포워딩"
+          }
+        }
+      }
+    },
+    "The VM did not enable the configured TCP and UDP port forwarding ports." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VM에서 구성된 TCP/UDP 포트포워딩 포트를 활성화하지 못했습니다."
+          }
+        }
+      }
+    },
+    "The VM rejected the configured TCP and UDP port forwarding ports (%@)." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VM이 구성된 TCP/UDP 포트포워딩 포트를 거부했습니다(%@)."
+          }
+        }
+      }
+    },
+    "The VM reported unexpected TCP and UDP port forwarding ports: %@." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VM이 예상하지 않은 TCP/UDP 포트포워딩 포트를 보고했습니다: %@."
+          }
+        }
+      }
+    },
+    "Network Routing" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 라우팅"
+          }
+        }
+      }
+    },
+    "Network Helper" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 헬퍼"
+          }
+        }
+      }
+    },
+    "The Network Helper is unavailable in this unsigned build." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "서명되지 않은 이 빌드에서는 네트워크 헬퍼를 사용할 수 없습니다."
+          }
+        }
+      }
+    },
+    "Checking" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "확인 중"
+          }
+        }
+      }
+    },
+    "Installing Network Helper…" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 헬퍼 설치 중…"
+          }
+        }
+      }
+    },
+    "Reinstalling Network Helper…" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 헬퍼 재설치 중…"
+          }
+        }
+      }
+    },
+    "Removing Network Helper…" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 헬퍼 제거 중…"
+          }
+        }
+      }
+    },
+    "The Network Helper is being updated." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 헬퍼를 업데이트하고 있습니다."
+          }
+        }
+      }
+    },
+    "Refresh the helper status." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "헬퍼 상태를 새로고침하세요."
+          }
+        }
+      }
+    },
+    "Install the Network Helper." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 헬퍼를 설치하세요."
+          }
+        }
+      }
+    },
+    "The Network Helper is ready." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 헬퍼가 준비되었습니다."
+          }
+        }
+      }
+    },
+    "Reinstall the Network Helper." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 헬퍼를 재설치하세요."
+          }
+        }
+      }
+    },
+    "Allow the helper in System Settings > General > Login Items, then refresh." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "시스템 설정 > 일반 > 로그인 항목 및 확장 프로그램에서 헬퍼를 허용한 다음 새로고침하세요."
+          }
+        }
+      }
+    },
+    "Use a signed installed ThruRNDIS app." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "서명되어 설치된 ThruRNDIS 앱을 사용하세요."
+          }
+        }
+      }
+    },
+    "Could not stop Network Routing. Retry Restart after resolving the Network Routing error." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 라우팅을 중지할 수 없습니다. 네트워크 라우팅 오류를 해결한 후 VM 다시 시작을 시도하세요."
+          }
+        }
+      }
+    },
+    "Could not stop Network Routing. Retry Stop before stopping the VM." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 라우팅을 중지할 수 없습니다. VM 중지를 다시 시도하세요."
+          }
+        }
+      }
+    },
+    "Enable the Network Helper" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 헬퍼 활성화"
+          }
+        }
+      }
+    },
+    "Grant the Network Helper permission." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 헬퍼를 허용하세요."
+          }
+        }
+      }
+    },
+    "Install and enable the Network Helper before attaching USB." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "USB를 연결하기 전에 네트워크 헬퍼를 설치하고 활성화하세요."
+          }
+        }
+      }
+    },
+    "Install and enable the Network Helper before starting the USB listener." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "USB 리스너를 시작하기 전에 네트워크 헬퍼를 설치하고 활성화하세요."
+          }
+        }
+      }
+    },
+    "Install valid VM assets and enable the Network Helper before finishing onboarding." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "온보딩을 완료하려면 유효한 VM 에셋을 설치하고 네트워크 헬퍼를 활성화하세요."
+          }
+        }
+      }
+    },
+    "Stopping Network Routing before restarting the VM." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VM을 다시 시작하기 위해 네트워크 라우팅을 먼저 중지하는 중입니다."
+          }
+        }
+      }
+    },
+    "Stopping Network Routing before stopping the VM." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VM을 중지하기 위해 네트워크 라우팅을 먼저 중지하는 중입니다."
+          }
+        }
+      }
+    },
+    "The Network Helper configures the network between the VM and Mac." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 헬퍼는 VM과 Mac 간의 네트워크를 구성합니다."
+          }
+        }
+      }
+    },
+    "The helper configures IPv4 routes from the Mac to the VM." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "헬퍼는 Mac의 IPv4 트래픽이 VM으로 전달되도록 라우팅을 구성합니다."
+          }
+        }
+      }
+    },
+    "USB will disconnect and Network Routing will stop. Quit anyway?" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "USB 연결이 해제되고 네트워크 라우팅이 중지됩니다. 그래도 종료하시겠습니까?"
+          }
+        }
+      }
+    },
+    "Wait for Network Routing cleanup to finish before starting the VM." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VM을 시작하기 전에 네트워크 라우팅 정리가 끝날 때까지 기다리세요."
+          }
+        }
+      }
+    },
+    "Wait for Network Routing status before starting the VM." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VM을 시작하기 전에 네트워크 라우팅 상태 확인이 끝날 때까지 기다리세요."
           }
         }
       }

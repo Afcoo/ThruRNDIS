@@ -81,9 +81,9 @@ struct VMAssetConfigurationView: View {
 
     private var installButtonTitle: String {
         if assetWorkflowCoordinator.hasConfiguredAssets {
-            return String(localized: "Check & Install Latest")
+            return String(localized: "Check & Install Latest Compatible")
         }
-        return String(localized: "Download & Install Latest")
+        return String(localized: "Download & Install Latest Compatible")
     }
 
     private var assetStatusAppearance: SettingsStatusAppearance {

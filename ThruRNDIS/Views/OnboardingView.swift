@@ -6,7 +6,7 @@ import SwiftUI
 
 struct OnboardingView: View {
     @EnvironmentObject private var store: TetheringStore
-    @EnvironmentObject private var dummyEthernet: DummyEthernetStore
+    @EnvironmentObject private var networkRoute: NetworkRouteStore
     @EnvironmentObject private var assetWorkflowCoordinator: VMAssetWorkflowCoordinator
     @State private var step = 0
 
@@ -77,6 +77,7 @@ struct OnboardingView: View {
                         .disabled(
                             !assetWorkflowCoordinator.hasConfiguredAssets
                                 || assetWorkflowCoordinator.isBusy
+                                || !isNetworkHelperReadyForOnboarding
                         )
                     }
                 }
@@ -131,7 +132,7 @@ struct OnboardingView: View {
         Section {
             onboardingPoint("Install the VM Assets.", image: "arrow.down.circle")
             onboardingPoint(
-                "Grant the Network Extension and Dummy Ethernet helper permissions.",
+                "Grant the Network Helper permission.",
                 image: "checkmark.shield"
             )
             onboardingPoint(
@@ -196,42 +197,22 @@ struct OnboardingView: View {
     }
 
     private var permissionsStep: some View {
-        Group {
-            Section {
-                NetworkExtensionPermissionView()
-            } header: {
-                VStack(alignment: .leading, spacing: 24) {
-                    onboardingStepHeader(
-                        "Enable the permissions",
-                        detail: "ThruRNDIS requires Network Extension and Dummy Ethernet helper permissions.",
-                        image: "checkmark.shield"
-                    )
-
-                    Text("Network Extension")
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                }
-            } footer: {
-                Text("Network Extension permission is required for WireGuard connections.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Section {
-                DummyEthernetHelperPermissionView()
-            } header: {
-                Text("Dummy Ethernet helper")
-            } footer: {
-                Text("The Dummy Ethernet helper is required to configure the Dummy Ethernet network service.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+        Section {
+            NetworkRouteHelperPermissionView()
+        } header: {
+            onboardingStepHeader(
+                "Enable the Network Helper",
+                detail: "The Network Helper configures the network between the VM and Mac.",
+                image: "checkmark.shield"
+            )
+        } footer: {
+            Text("The helper configures IPv4 routes from the Mac to the VM.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .onAppear {
-            store.refreshWireGuardSystemExtensionStatus()
-            dummyEthernet.refresh()
+            networkRoute.refresh()
         }
     }
 
@@ -277,10 +258,21 @@ struct OnboardingView: View {
     }
 
     private var canContinue: Bool {
-        guard step == 1 else {
+        switch step {
+        case 1:
+            return assetWorkflowCoordinator.hasConfiguredAssets
+                && !assetWorkflowCoordinator.isBusy
+        case 2:
+            return isNetworkHelperReadyForOnboarding
+        default:
             return true
         }
-        return assetWorkflowCoordinator.hasConfiguredAssets && !assetWorkflowCoordinator.isBusy
+    }
+
+    private var isNetworkHelperReadyForOnboarding: Bool {
+        !networkRoute.helper.isSignedBuild
+            || (networkRoute.helper.isAvailable
+                && !networkRoute.helper.isOperationInProgress)
     }
 
     private func onboardingInstruction(

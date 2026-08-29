@@ -108,7 +108,7 @@ enum VMAssetInstallState: Equatable {
         case .idle:
             return String(localized: "VM assets are not selected.")
         case .checking:
-            return String(localized: "Checking the latest VM asset release…")
+            return String(localized: "Checking the latest compatible VM asset release…")
         case .downloading(let progress):
             return String(localized: "Downloading VM assets… \(Int(progress * 100))%")
         case .verifying:

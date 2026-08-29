@@ -185,9 +185,6 @@ DMG_SIGNING_IDENTITY_SHA1="$(distribution_resolve_dmg_signing_identity \
   "$APP_SIGNING_AUTHORITY" \
   "$DEVELOPMENT_TEAM" \
   "$WORK_DIR/input-app-signing-certificate-")"
-WIREGUARD_APP_GROUP="$(/usr/libexec/PlistBuddy \
-  -c 'Print :com.apple.security.application-groups:0' \
-  "$WORK_DIR/input-signing/extension-entitlements.plist")"
 DMG_SOURCE_DIR="$WORK_DIR/dmg-source"
 DMG_SOURCE_APP="$DMG_SOURCE_DIR/$APP_NAME.app"
 WRITABLE_DMG="$WORK_DIR/$APP_NAME-writable.dmg"
@@ -207,8 +204,7 @@ distribution_compare_app_contents \
 distribution_validate_app \
   "$DMG_SOURCE_APP" \
   "$WORK_DIR/source-copy-signing" \
-  "$DEVELOPMENT_TEAM" \
-  "$WIREGUARD_APP_GROUP"
+  "$DEVELOPMENT_TEAM"
 
 echo "Creating the writable $DMG_NAME with hdiutil..."
 /usr/bin/hdiutil create \
@@ -273,8 +269,7 @@ verify_mounted_dmg() {
   distribution_validate_app \
     "$mounted_app" \
     "$validation_dir/signing" \
-    "$DEVELOPMENT_TEAM" \
-    "$WIREGUARD_APP_GROUP"
+    "$DEVELOPMENT_TEAM"
 }
 
 echo "Applying the app icon and persisted Finder layout..."
