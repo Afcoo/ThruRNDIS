@@ -99,6 +99,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var consoleWindowController: ConsoleWindowController?
     private var onboardingWindowController: OnboardingWindowController?
     private var onboardingPresentationID: UUID?
+    private let legacyNetworkHelperMigration =
+        LegacyNetworkRouteHelperMigrationService()
     private var cancellables: Set<AnyCancellable> = []
     private var isTerminating = false
     private var isQuittingAfterSettingsChange = false
@@ -115,12 +117,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             category: .application
         )
         assetWorkflowCoordinator.reportCurrentStateToEventLog()
-
-        menuBarController = MenuBarController(
-            store: store,
-            assetWorkflowCoordinator: assetWorkflowCoordinator,
-            openSettings: { [weak self] in self?.showSettingsWindow() }
-        )
 
         store.usbSession.$attachmentPrompt
             .compactMap { $0 }
@@ -166,18 +162,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .store(in: &cancellables)
 
-        updateNetworkHelperIfNeeded()
-        networkRoute.refresh()
-        store.startAccessoryMonitoringOnLaunch()
-        DispatchQueue.main.async { [weak self] in
-            guard let self else {
-                return
-            }
-
-            if self.store.shouldPresentOnboardingOnLaunch
-                || !self.assetWorkflowCoordinator.hasConfiguredAssets {
-                self.showOnboardingWindow()
-            }
+        Task { @MainActor [weak self] in
+            await self?.completeApplicationLaunch()
         }
     }
 
@@ -223,6 +209,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidBecomeActive(_ notification: Notification) {
         appPreferences.refreshLaunchAtLoginStatus()
+        guard menuBarController != nil else { return }
         store.networkRoute.refresh()
     }
 
@@ -268,6 +255,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             category: .application
         )
         helper.reinstall()
+    }
+
+    private func prepareNetworkHelperOnLaunch() async {
+        do {
+            if try await legacyNetworkHelperMigration.migrateIfNeeded() {
+                eventLog.append(
+                    "Migrated the legacy Network Helper registration.",
+                    level: .info,
+                    category: .application
+                )
+            }
+            updateNetworkHelperIfNeeded()
+        } catch {
+            eventLog.append(
+                "Could not migrate the legacy Network Helper registration: \(error.localizedDescription)",
+                level: .error,
+                category: .application
+            )
+        }
+
+        networkRoute.refresh()
+        store.startAccessoryMonitoringOnLaunch()
+    }
+
+    private func completeApplicationLaunch() async {
+        await prepareNetworkHelperOnLaunch()
+        menuBarController = MenuBarController(
+            store: store,
+            assetWorkflowCoordinator: assetWorkflowCoordinator,
+            openSettings: { [weak self] in self?.showSettingsWindow() }
+        )
+        if store.shouldPresentOnboardingOnLaunch
+            || !assetWorkflowCoordinator.hasConfiguredAssets {
+            showOnboardingWindow()
+        }
     }
 
     private func resetAppSettingsAndQuit() {

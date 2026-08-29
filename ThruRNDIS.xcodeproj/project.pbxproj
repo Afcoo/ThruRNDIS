@@ -64,6 +64,7 @@
 		H20000000000000000000001 /* EventLogModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = H20000000000000000000101 /* EventLogModels.swift */; };
 		I10000000000000000000001 /* MenuBarCombinedStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = I10000000000000000000101 /* MenuBarCombinedStatus.swift */; };
 		I10000000000000000000003 /* MenuBarStatusDotImageFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = I10000000000000000000103 /* MenuBarStatusDotImageFactory.swift */; };
+		LG1000000000000000000001 /* LegacyDummyEthernetCleanupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = LG1000000000000000000101 /* LegacyDummyEthernetCleanupService.swift */; };
 		F40000000000000000000004 /* PeerCodeSigningRequirementBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000104 /* PeerCodeSigningRequirementBuilder.swift */; };
 		F40000000000000000000013 /* PeerCodeSigningRequirementBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000104 /* PeerCodeSigningRequirementBuilder.swift */; };
 		F40000000000000000000019 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4000000000000000000010E /* main.swift */; };
@@ -77,6 +78,7 @@
 		NR1000000000000000000007 /* ThruRNDISNetworkRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR1000000000000000000107 /* ThruRNDISNetworkRoute.swift */; };
 		NR1000000000000000000008 /* NetworkRouteHelperPermissionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR1000000000000000000108 /* NetworkRouteHelperPermissionView.swift */; };
 		NR1000000000000000000009 /* NetworkRouteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR1000000000000000000109 /* NetworkRouteView.swift */; };
+		NR1000000000000000000010 /* LegacyNetworkRouteHelperMigrationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR1000000000000000000110 /* LegacyNetworkRouteHelperMigrationService.swift */; };
 		NR1000000000000000000011 /* NetworkRouteModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR1000000000000000000101 /* NetworkRouteModels.swift */; };
 		NR1000000000000000000012 /* NetworkRoutePrivilegedHelperProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR1000000000000000000102 /* NetworkRoutePrivilegedHelperProtocol.swift */; };
 		NR1000000000000000000013 /* ThruRNDISNetworkRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR1000000000000000000107 /* ThruRNDISNetworkRoute.swift */; };
@@ -199,6 +201,7 @@
 		H20000000000000000000101 /* EventLogModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventLogModels.swift; sourceTree = "<group>"; };
 		I10000000000000000000101 /* MenuBarCombinedStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarCombinedStatus.swift; sourceTree = "<group>"; };
 		I10000000000000000000103 /* MenuBarStatusDotImageFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarStatusDotImageFactory.swift; sourceTree = "<group>"; };
+		LG1000000000000000000101 /* LegacyDummyEthernetCleanupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacyDummyEthernetCleanupService.swift; sourceTree = "<group>"; };
 		F40000000000000000000104 /* PeerCodeSigningRequirementBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeerCodeSigningRequirementBuilder.swift; sourceTree = "<group>"; };
 		F4000000000000000000010E /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		F4000000000000000000010F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -213,6 +216,7 @@
 		NR1000000000000000000107 /* ThruRNDISNetworkRoute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThruRNDISNetworkRoute.swift; sourceTree = "<group>"; };
 		NR1000000000000000000108 /* NetworkRouteHelperPermissionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkRouteHelperPermissionView.swift; sourceTree = "<group>"; };
 		NR1000000000000000000109 /* NetworkRouteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkRouteView.swift; sourceTree = "<group>"; };
+		NR1000000000000000000110 /* LegacyNetworkRouteHelperMigrationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacyNetworkRouteHelperMigrationService.swift; sourceTree = "<group>"; };
 		NR100000000000000000011A /* NetworkRouteController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkRouteController.swift; sourceTree = "<group>"; };
 		NR100000000000000000011B /* NetworkRoutePrivilegedHelperService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkRoutePrivilegedHelperService.swift; sourceTree = "<group>"; };
 		NR100000000000000000011C /* RouteCommandRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouteCommandRunner.swift; sourceTree = "<group>"; };
@@ -329,6 +333,7 @@
 		8B0000000000000000000203 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				NR1000000000000000000110 /* LegacyNetworkRouteHelperMigrationService.swift */,
 				NR1000000000000000000103 /* NetworkRoutePrivilegedHelperClient.swift */,
 				NR1000000000000000000104 /* NetworkRoutePrivilegedHelperRegistrationService.swift */,
 				8B0000000000000000000105 /* USBAccessoryMonitor.swift */,
@@ -434,6 +439,7 @@
 			isa = PBXGroup;
 			children = (
 				F4000000000000000000010E /* main.swift */,
+				LG1000000000000000000101 /* LegacyDummyEthernetCleanupService.swift */,
 				NR100000000000000000011A /* NetworkRouteController.swift */,
 				NR100000000000000000011B /* NetworkRoutePrivilegedHelperService.swift */,
 				NR100000000000000000011E /* NetworkInterfaceCommandRunner.swift */,
@@ -591,6 +597,7 @@
 				NR1000000000000000000007 /* ThruRNDISNetworkRoute.swift in Sources */,
 				NR1000000000000000000008 /* NetworkRouteHelperPermissionView.swift in Sources */,
 				NR1000000000000000000009 /* NetworkRouteView.swift in Sources */,
+				NR1000000000000000000010 /* LegacyNetworkRouteHelperMigrationService.swift in Sources */,
 				PF1000000000000000000001 /* PortForwardingStore.swift in Sources */,
 				DE1000000000000000000001 /* AppPreferencesStore.swift in Sources */,
 				8B0000000000000000000003 /* USBAccessoryRecord.swift in Sources */,
@@ -650,6 +657,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				LG1000000000000000000001 /* LegacyDummyEthernetCleanupService.swift in Sources */,
 				NR1000000000000000000011 /* NetworkRouteModels.swift in Sources */,
 				NR1000000000000000000012 /* NetworkRoutePrivilegedHelperProtocol.swift in Sources */,
 				F40000000000000000000013 /* PeerCodeSigningRequirementBuilder.swift in Sources */,
@@ -800,7 +808,7 @@
 				CODE_SIGN_ENTITLEMENTS = ThruRNDIS/ThruRNDIS.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 13;
+				CURRENT_PROJECT_VERSION = 14;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ThruRNDIS/Info.plist;
@@ -826,7 +834,7 @@
 				CODE_SIGN_ENTITLEMENTS = ThruRNDIS/Distribution.entitlements;
 				CODE_SIGN_IDENTITY = "Developer ID Application";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 13;
+				CURRENT_PROJECT_VERSION = 14;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -915,7 +923,7 @@
 				CODE_SIGN_ENTITLEMENTS = ThruRNDIS/Runtime.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 13;
+				CURRENT_PROJECT_VERSION = 14;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ThruRNDIS/Info.plist;
@@ -940,7 +948,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CREATE_INFOPLIST_SECTION_IN_BINARY = YES;
-				CURRENT_PROJECT_VERSION = 13;
+				CURRENT_PROJECT_VERSION = 14;
 				ENABLE_DEBUG_DYLIB = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -964,7 +972,7 @@
 				CODE_SIGN_IDENTITY = "Developer ID Application";
 				CODE_SIGN_STYLE = Manual;
 				CREATE_INFOPLIST_SECTION_IN_BINARY = YES;
-				CURRENT_PROJECT_VERSION = 13;
+				CURRENT_PROJECT_VERSION = 14;
 				ENABLE_DEBUG_DYLIB = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -988,7 +996,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CREATE_INFOPLIST_SECTION_IN_BINARY = YES;
-				CURRENT_PROJECT_VERSION = 13;
+				CURRENT_PROJECT_VERSION = 14;
 				ENABLE_DEBUG_DYLIB = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
