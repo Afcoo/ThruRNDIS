@@ -140,12 +140,14 @@ final class NetworkRouteController: @unchecked Sendable {
                 .createDisabledConfiguration(requested)
             bondInterfaceName = bondName
             try waitForInterface(bondName, timeout: 3)
-            try interfaceRunner.run([bondName, "bondmode", "static"])
-            try interfaceRunner.run([
-                bondName,
-                "bonddev",
-                ThruRNDISNetworkRoute.memberInterfaceName,
-            ])
+            try systemConfiguration.withOwnedBondInterface { ownedBondName in
+                try interfaceRunner.run([ownedBondName, "bondmode", "static"])
+                try interfaceRunner.run([
+                    ownedBondName,
+                    "bonddev",
+                    ThruRNDISNetworkRoute.memberInterfaceName,
+                ])
+            }
 
             // Resolve again immediately before mutating membership. A VM
             // restart can replace bridgeN while SCPreferences is being applied.
