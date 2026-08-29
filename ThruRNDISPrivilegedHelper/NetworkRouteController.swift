@@ -36,7 +36,6 @@ final class NetworkRouteController: @unchecked Sendable {
     private let interfaceRunner = NetworkInterfaceCommandRunner()
     private let routeRunner = RouteCommandRunner()
     private let systemConfiguration = NetworkRouteSystemConfigurationService()
-    private let legacyCleanup = LegacyDummyEthernetCleanupService()
     private var ownedConfiguration: OwnedConfiguration?
     private var leaseOwnerIdentifier: UUID?
 
@@ -232,7 +231,8 @@ final class NetworkRouteController: @unchecked Sendable {
         if let ownedConfiguration {
             try removeManagedConfiguration(ownedConfiguration)
         } else {
-            try legacyCleanup.removeIfPresent()
+            // Legacy 0.3 migration hook.
+            try LegacyDummyEthernetCleanupService().removeIfPresent()
         }
 
         ownedConfiguration = nil

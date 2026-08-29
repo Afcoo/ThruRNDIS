@@ -99,9 +99,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var consoleWindowController: ConsoleWindowController?
     private var onboardingWindowController: OnboardingWindowController?
     private var onboardingPresentationID: UUID?
-    // Remove with the legacy migration extension at the end of this file.
-    private let legacyNetworkHelperMigration =
-        LegacyNetworkRouteHelperMigrationService()
     private var cancellables: Set<AnyCancellable> = []
     private var isTerminating = false
     private var isQuittingAfterSettingsChange = false
@@ -461,8 +458,9 @@ private extension AppDelegate {
     /// Delete this extension and its single launch hook after 0.3 migration
     /// support ends.
     func legacyNetworkHelperMigrationAllowsServiceStart() async -> Bool {
+        let migration = LegacyNetworkRouteHelperMigrationService()
         do {
-            if try await legacyNetworkHelperMigration.migrateIfNeeded() {
+            if try await migration.migrateIfNeeded() {
                 eventLog.append(
                     "Migrated the legacy Network Helper registration.",
                     level: .info,
