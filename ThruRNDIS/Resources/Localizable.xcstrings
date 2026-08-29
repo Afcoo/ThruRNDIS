@@ -1059,12 +1059,12 @@
         }
       }
     },
-    "Downloading VM assets… %lld%%" : {
+    "Downloading…" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "VM 에셋 다운로드 중… %lld%%"
+            "value" : "다운로드 중…"
           }
         }
       }

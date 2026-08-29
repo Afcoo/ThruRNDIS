@@ -40,7 +40,7 @@ final class VMAssetDownloadService {
     func download(
         release: VMAssetReleaseDescriptor,
         operationID: UUID,
-        progress: @escaping (Double) -> Void
+        progress: @escaping (VMAssetDownloadProgress) -> Void
     ) async throws -> DownloadedVMAssetPackage {
         let stagingURL = layout.stagingURL(for: operationID)
         do {
@@ -54,7 +54,7 @@ final class VMAssetDownloadService {
             )
 
             let assets = [release.archive, release.checksums]
-            let totalBytes = max(assets.reduce(Int64(0)) { $0 + max($1.size, 0) }, 1)
+            let totalBytes = release.totalDownloadBytes
             var completedBytes: Int64 = 0
 
             for asset in assets {
@@ -63,14 +63,19 @@ final class VMAssetDownloadService {
                 try await download(
                     asset: asset,
                     destinationURL: destinationURL,
-                    progress: { fraction in
-                        let currentBytes = Int64(Double(max(asset.size, 0)) * fraction)
-                        progress(Double(completedBytes + currentBytes) / Double(totalBytes))
+                    progress: { downloadedBytes in
+                        progress(VMAssetDownloadProgress(
+                            downloadedBytes: completedBytes + downloadedBytes,
+                            totalBytes: totalBytes
+                        ))
                     }
                 )
                 try Task.checkCancellation()
                 completedBytes += max(asset.size, 0)
-                progress(Double(completedBytes) / Double(totalBytes))
+                progress(VMAssetDownloadProgress(
+                    downloadedBytes: completedBytes,
+                    totalBytes: totalBytes
+                ))
             }
 
             try Task.checkCancellation()
@@ -97,7 +102,7 @@ final class VMAssetDownloadService {
     private func download(
         asset: VMAssetRemoteAsset,
         destinationURL: URL,
-        progress: (Double) -> Void
+        progress: (Int64) -> Void
     ) async throws {
         do {
             var request = URLRequest(url: asset.downloadURL)
@@ -140,9 +145,7 @@ final class VMAssetDownloadService {
                             actual: writtenBytes
                         )
                     }
-                    if asset.size > 0 {
-                        progress(min(Double(writtenBytes) / Double(asset.size), 1))
-                    }
+                    progress(writtenBytes)
                 }
             }
             if !buffer.isEmpty {
@@ -159,7 +162,7 @@ final class VMAssetDownloadService {
                     actual: writtenBytes
                 )
             }
-            progress(1)
+            progress(writtenBytes)
         } catch {
             try? fileManager.removeItem(at: destinationURL)
             throw error

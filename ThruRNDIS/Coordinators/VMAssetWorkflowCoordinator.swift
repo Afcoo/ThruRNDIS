@@ -304,7 +304,10 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
                 return
             }
 
-            installState = .downloading(progress: 0)
+            installState = .downloading(progress: VMAssetDownloadProgress(
+                downloadedBytes: 0,
+                totalBytes: release.totalDownloadBytes
+            ))
             reportEventLog(
                 "Downloading VM assets \(releaseName).",
                 level: .debug

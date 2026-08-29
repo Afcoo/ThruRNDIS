@@ -17,6 +17,13 @@ struct VMAssetReleaseDescriptor: Equatable {
     let tagName: String
     let archive: VMAssetRemoteAsset
     let checksums: VMAssetRemoteAsset
+
+    var totalDownloadBytes: Int64 {
+        let archiveBytes = max(archive.size, 0)
+        let checksumsBytes = max(checksums.size, 0)
+        let (totalBytes, overflow) = archiveBytes.addingReportingOverflow(checksumsBytes)
+        return overflow ? Int64.max : max(totalBytes, 1)
+    }
 }
 
 struct DownloadedVMAssetPackage {
@@ -24,6 +31,11 @@ struct DownloadedVMAssetPackage {
     let stagingDirectoryURL: URL
     let archiveURL: URL
     let checksumsURL: URL
+}
+
+struct VMAssetDownloadProgress: Equatable, Sendable {
+    let downloadedBytes: Int64
+    let totalBytes: Int64
 }
 
 struct VMAssetInstallMetadata: Codable, Equatable {
@@ -89,19 +101,12 @@ struct VMAssetBootAssets: Equatable {
 enum VMAssetInstallState: Equatable {
     case idle
     case checking
-    case downloading(progress: Double)
+    case downloading(progress: VMAssetDownloadProgress)
     case verifying
     case extracting
     case activating
     case ready(message: String)
     case failed(message: String)
-
-    var progress: Double? {
-        guard case .downloading(let progress) = self else {
-            return nil
-        }
-        return min(max(progress, 0), 1)
-    }
 
     var statusText: String {
         switch self {
@@ -110,7 +115,10 @@ enum VMAssetInstallState: Equatable {
         case .checking:
             return String(localized: "Checking the latest VM asset release…")
         case .downloading(let progress):
-            return String(localized: "Downloading VM assets… \(Int(progress * 100))%")
+            let status = String(localized: "Downloading…")
+            let downloadedMegabytes = Self.megabytesText(for: progress.downloadedBytes)
+            let totalMegabytes = Self.megabytesText(for: progress.totalBytes)
+            return "\(status) (\(downloadedMegabytes)MB/\(totalMegabytes)MB)"
         case .verifying:
             return String(localized: "Verifying the downloaded VM assets…")
         case .extracting:
@@ -120,6 +128,11 @@ enum VMAssetInstallState: Equatable {
         case .ready(let message), .failed(let message):
             return message
         }
+    }
+
+    private static func megabytesText(for byteCount: Int64) -> String {
+        let megabytes = Double(max(byteCount, 0)) / 1_000_000
+        return megabytes.formatted(.number.precision(.fractionLength(1)))
     }
 }
 

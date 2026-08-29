@@ -18,10 +18,6 @@ struct VMAssetConfigurationView: View {
                 )
             }
 
-            if let progress = assetWorkflowCoordinator.installState.progress {
-                ProgressView(value: progress)
-            }
-
             selectedFolder
 
             HStack(spacing: 12) {
