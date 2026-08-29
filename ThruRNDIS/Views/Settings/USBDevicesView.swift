@@ -8,6 +8,7 @@ struct USBDevicesView: View {
     @EnvironmentObject private var store: TetheringStore
     @EnvironmentObject private var usbSession: USBSessionStore
     @EnvironmentObject private var appPreferences: AppPreferencesStore
+    @State private var replacementConfirmation: USBAccessoryReplacementConfirmation?
 
     var body: some View {
         Form {
@@ -104,17 +105,48 @@ struct USBDevicesView: View {
                     Spacer()
 
                     Button("Attach") {
-                        store.requestAttachSelectedAccessory()
+                        requestSelectedAccessoryAttachment()
                     }
                     .disabled(!store.canAttachSelectedAccessory)
 
                     Button("Detach") {
                         store.detachAccessory()
                     }
-                    .disabled(!store.canDetachAccessory)
+                    .disabled(!store.canDetachSelectedAccessory)
                 }
             }
         }
+        .alert(item: $replacementConfirmation) { confirmation in
+            Alert(
+                title: Text("Replace Attached USB Device?"),
+                message: Text(
+                    "The attached USB device will be detached, and the selected device will be attached."
+                ),
+                primaryButton: .destructive(Text("Detach and Attach")) {
+                    store.replaceAttachedAccessory(
+                        with: confirmation.replacementAccessoryID
+                    )
+                },
+                secondaryButton: .cancel()
+            )
+        }
+    }
+
+    private func requestSelectedAccessoryAttachment() {
+        guard let selectedAccessoryID = usbSession.selectedAccessoryID else {
+            store.requestAttachSelectedAccessory()
+            return
+        }
+
+        if let attachedAccessoryID = usbSession.attachedAccessoryID,
+           attachedAccessoryID != selectedAccessoryID {
+            replacementConfirmation = USBAccessoryReplacementConfirmation(
+                replacementAccessoryID: selectedAccessoryID
+            )
+            return
+        }
+
+        store.requestAttachSelectedAccessory()
     }
 
     private var displayedAccessories: [USBAccessoryRecord] {
@@ -157,4 +189,10 @@ struct USBDevicesView: View {
 
         return usbSession.isAccessoryMonitoring ? .active : .stopped
     }
+}
+
+private struct USBAccessoryReplacementConfirmation: Identifiable {
+    let replacementAccessoryID: UInt64
+
+    var id: UInt64 { replacementAccessoryID }
 }

@@ -683,6 +683,16 @@
         }
       }
     },
+    "Detach and Attach" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "연결 해제 후 연결"
+          }
+        }
+      }
+    },
     "Detach the current USB accessory before attaching another USB accessory." : {
       "localizations" : {
         "ko" : {
@@ -1595,6 +1605,16 @@
         }
       }
     },
+    "Replace Attached USB Device?" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "연결된 USB 기기를 교체할까요?"
+          }
+        }
+      }
+    },
     "Replay" : {
       "localizations" : {
         "ko" : {
@@ -2011,6 +2031,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "SwiftTerm"
+          }
+        }
+      }
+    },
+    "The attached USB device will be detached, and the selected device will be attached." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "현재 연결된 USB 기기의 연결을 해제하고 선택한 기기를 연결합니다."
           }
         }
       }

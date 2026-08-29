@@ -270,9 +270,17 @@ final class TetheringStore: ObservableObject {
               isNetworkRouteHelperReady,
               !assetProvider.isBusy,
               !workflowCoordinator.hasPendingAttachment,
-              vmSessionAccessoryID == nil,
               !workflowCoordinator.attachmentRequiresVMStopRetry,
-              let selectedAccessoryID else {
+              let selectedAccessoryID,
+              selectedAccessoryID != attachedAccessoryID else {
+            return false
+        }
+
+        if attachedAccessoryID != nil {
+            return canReplaceAttachedAccessory(with: selectedAccessoryID)
+        }
+
+        guard vmSessionAccessoryID == nil else {
             return false
         }
         return usbCoordinator.canRequestAttachment(for: selectedAccessoryID)
@@ -283,6 +291,28 @@ final class TetheringStore: ObservableObject {
             && !isVMStopPreparationInProgress
             && vmRestartState == .idle
             && usbCoordinator.canDetachAccessory(runtimeState: runtimeState)
+    }
+
+    var canDetachSelectedAccessory: Bool {
+        guard let selectedAccessoryID,
+              selectedAccessoryID == attachedAccessoryID else {
+            return false
+        }
+        return canDetachAccessory
+    }
+
+    private func canReplaceAttachedAccessory(with accessoryID: UInt64) -> Bool {
+        guard canRestartVirtualMachine,
+              !isOnboardingPresented,
+              isNetworkRouteHelperReady,
+              runtimeEntitlements.accessoryAccessUSB,
+              !workflowCoordinator.attachmentRequiresVMStopRetry,
+              let attachedAccessoryID,
+              attachedAccessoryID != accessoryID,
+              vmSessionAccessoryID == attachedAccessoryID else {
+            return false
+        }
+        return usbCoordinator.canUseAccessoryForAttachment(accessoryID)
     }
 
     func canChooseAccessoryForAttachment(_ accessoryID: UInt64) -> Bool {
@@ -586,6 +616,32 @@ final class TetheringStore: ObservableObject {
     }
 
     func restartVirtualMachine() {
+        restartVirtualMachine(
+            attachingAccessoryID: attachedAccessoryID,
+            networkStopReason: "VM restart",
+            vmRestartReason: "manual request"
+        )
+    }
+
+    func replaceAttachedAccessory(with accessoryID: UInt64) {
+        refreshRuntimeEntitlements()
+        guard canReplaceAttachedAccessory(with: accessoryID) else {
+            statusMessage = String(localized: "Wait for the current operation to finish.")
+            return
+        }
+
+        restartVirtualMachine(
+            attachingAccessoryID: accessoryID,
+            networkStopReason: "USB accessory replacement",
+            vmRestartReason: "USB accessory replacement"
+        )
+    }
+
+    private func restartVirtualMachine(
+        attachingAccessoryID: UInt64?,
+        networkStopReason: String,
+        vmRestartReason: String
+    ) {
         guard canRestartVirtualMachine else { return }
         vmRestartState = .stopping
         statusMessage = String(
@@ -595,7 +651,7 @@ final class TetheringStore: ObservableObject {
         Task { @MainActor [weak self] in
             guard let self else { return }
             let didStopVMNetwork = await self.networkRoute.stopAndWait(
-                reason: "VM restart"
+                reason: networkStopReason
             )
             guard didStopVMNetwork else {
                 self.appendEventLog(
@@ -616,14 +672,16 @@ final class TetheringStore: ObservableObject {
                 return
             }
 
-            self.workflowCoordinator.prepareForManualVMRestart(
-                attachedAccessoryID: self.attachedAccessoryID
+            self.workflowCoordinator.prepareForVMRestart(
+                attachingAccessoryID: attachingAccessoryID
             )
             self.usbCoordinator.prepareForIntentionalVMStop()
-            self.vmCoordinator.restart(reason: "manual request") { [weak self] in
+            self.vmCoordinator.restart(reason: vmRestartReason) { [weak self] in
                 guard let self else { return }
                 self.vmRestartState = .starting
-                guard self.workflowCoordinator.canStartVMForManualRestart() else {
+                guard self.workflowCoordinator.preparePendingAttachmentForRestartedVM(
+                    expectedAccessoryID: attachingAccessoryID
+                ) else {
                     self.vmRestartState = .idle
                     return
                 }

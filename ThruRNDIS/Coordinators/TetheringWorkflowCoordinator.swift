@@ -103,12 +103,12 @@ final class TetheringWorkflowCoordinator {
         presentNextUSBAttachmentPromptIfPossible()
     }
 
-    func prepareForManualVMRestart(attachedAccessoryID: UInt64?) {
-        guard let attachedAccessoryID else { return }
+    func prepareForVMRestart(attachingAccessoryID: UInt64?) {
+        guard let attachingAccessoryID else { return }
         setAttachmentState(
             .waitingForVMStop(
                 PendingUSBAttachment(
-                    accessoryID: attachedAccessoryID,
+                    accessoryID: attachingAccessoryID,
                     token: UUID(),
                     startedVM: false
                 )
@@ -116,14 +116,26 @@ final class TetheringWorkflowCoordinator {
         )
     }
 
-    func canStartVMForManualRestart() -> Bool {
-        guard let accessoryID = pendingAttachmentAccessoryID else {
+    func preparePendingAttachmentForRestartedVM(
+        expectedAccessoryID: UInt64?
+    ) -> Bool {
+        guard let expectedAccessoryID else {
+            guard attachmentState == .idle else {
+                cancelPendingAttachment(
+                    reason: "unexpected pending USB attachment during targetless VM restart"
+                )
+                return false
+            }
             return true
         }
-        guard usbSession.accessories.contains(where: { $0.id == accessoryID })
-        else {
+
+        guard pendingAttachmentAccessoryID == expectedAccessoryID,
+              let attachment = attachmentState.attachment,
+              usbSession.accessories.contains(
+                where: { $0.id == expectedAccessoryID }
+              ) else {
             cancelPendingAttachment(
-                reason: "target USB accessory disconnected during VM restart"
+                reason: "expected USB accessory unavailable during VM restart"
             )
             actions.updateStatusMessage(
                 String(localized: "The USB accessory became unavailable before it could be attached.")
@@ -131,9 +143,7 @@ final class TetheringWorkflowCoordinator {
             return false
         }
 
-        if let attachment = attachmentState.attachment {
-            setAttachmentState(.waitingForVM(attachment))
-        }
+        setAttachmentState(.waitingForVM(attachment))
         return true
     }
 
