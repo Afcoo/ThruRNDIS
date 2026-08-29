@@ -55,19 +55,28 @@ brew install --cask afcoo/tap/thrurndis
 ## 작동 원리
 
 ```text
-macOS
--> Ethernet Bond 및 feth pair
--> VZNAT bridge를 통한 Linux VM
--> nftables masquerade
--> Linux VM usb0
--> RNDIS USB tethering device
+[macOS]
+IPv4 routes
+→ Ethernet Bond
+→ feth0 (Bond member) ↔ feth1 (VZNAT bridge member)
+  ⌃
+  │ VZNAT bridge
+  ⌄
+[Linux VM]
+eth0
+→ IPv4 forwarding + nftables masquerade
+→ usb0
+  ⌃
+  │ USB passthrough
+  ⌄
+[RNDIS Device]
 ```
 
 *참조: [`Virtualization Framework: VZUSBPassthroughDevice`](https://developer.apple.com/documentation/virtualization/vzusbpassthroughdevice)*
 
 ThruRNDIS는 경량 Linux VM을 실행하고 macOS에 연결된 RNDIS 장치를 USB passthrough로 VM에 전달합니다.
 
-macOS는 VM의 VZNAT bridge에 연결된 Ethernet Bond와 feth pair를 통해 VM과 통신합니다. VM은 IPv4 트래픽을 USB RNDIS 인터페이스로 전달합니다.
+ThruRNDIS의 네트워크 헬퍼는 Ethernet Bond와 feth pair를 구성하고 feth peer를 VM의 VZNAT bridge에 연결하여 macOS의 IPv4 트래픽이 VM으로 라우팅되도록 합니다. VM은 이 트래픽을 전달하고 NAT masquerade를 적용해 USB RNDIS 인터페이스로 내보냅니다.
 
 TCP/UDP 포트 포워딩은 Linux VM의 nftables DNAT/SNAT 규칙으로 처리하며, 일치하는 RNDIS 트래픽을 목적지 포트 변경 없이 macOS로 전달합니다.
 

@@ -55,19 +55,28 @@ brew install --cask afcoo/tap/thrurndis
 ## How It Works
 
 ```text
-macOS
--> Ethernet Bond and feth pair
--> Linux VM through the VZNAT bridge
--> nftables masquerade
--> Linux VM usb0
--> RNDIS USB tethering device
+[macOS]
+IPv4 routes
+→ Ethernet Bond
+→ feth0 (Bond member) ↔ feth1 (VZNAT bridge member)
+  ⌃
+  │ VZNAT bridge
+  ⌄
+[Linux VM]
+eth0
+→ IPv4 forwarding + nftables masquerade
+→ usb0
+  ⌃
+  │ USB passthrough
+  ⌄
+[RNDIS Device]
 ```
 
 *Reference: [`Virtualization Framework: VZUSBPassthroughDevice`](https://developer.apple.com/documentation/virtualization/vzusbpassthroughdevice)*
 
 ThruRNDIS runs a lightweight Linux VM and passes the RNDIS device connected to macOS through to the VM using USB passthrough.
 
-macOS connects to the VM through an Ethernet Bond and feth pair attached to the VM's VZNAT bridge. The VM forwards IPv4 traffic through the USB RNDIS interface.
+ThruRNDIS's Network Helper configures an Ethernet Bond and feth pair and attaches the feth peer to the VM's VZNAT bridge so that macOS IPv4 traffic is routed through the VM. The VM forwards this traffic and applies NAT masquerade before sending it through the USB RNDIS interface.
 
 TCP/UDP port forwarding is handled by nftables DNAT/SNAT rules in the Linux VM, which forward matching RNDIS traffic to macOS without changing the destination port.
 
