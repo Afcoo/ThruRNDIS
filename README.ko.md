@@ -45,7 +45,7 @@ brew install --cask afcoo/tap/thrurndis
 ## 사용 방법
 
 1. **VM Assets 설치:** 온보딩 또는 설정에서 최신 호환 VM Assets를 설치합니다.
-2. **USB 장치 전달:** 메뉴 막대의 **가상 머신 액세서리**에서 USB 장치를 **ThruRNDIS**로 전달합니다.
+2. **USB 장치 패스스루:** 메뉴 막대의 **가상 머신 액세서리**에서 USB 장치를 **ThruRNDIS**로 전달합니다.
 
    ![가상 머신 액세서리에서 USB 장치를 ThruRNDIS로 전달하는 과정](./images/accessory-access-onboarding.gif)
 

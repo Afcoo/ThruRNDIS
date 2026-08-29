@@ -45,7 +45,7 @@ brew install --cask afcoo/tap/thrurndis
 ## How to Use
 
 1. **Install VM Assets:** Install the latest compatible VM Assets during onboarding or in Settings.
-2. **Pass through the USB device:** In **Virtual Machine Accessories** in the menu bar, connect the USB device to **ThruRNDIS**.
+2. **USB device passthrough:** In **Virtual Machine Accessories** in the menu bar, connect the USB device to **ThruRNDIS**.
 
    ![Passing a USB device to ThruRNDIS from Virtual Machine Accessories](./images/accessory-access-onboarding.gif)
 
