@@ -39,7 +39,7 @@ final class GitHubVMAssetReleaseService {
     static let releasesURL = URL(
         string: "https://api.github.com/repos/Afcoo/ThruRNDIS_VM_Assets/releases?per_page=100"
     )!
-    static let compatibleReleaseTagPrefix = "vm-assets-v1-"
+    static let compatibleReleaseTagPrefix = "V1-"
 
     private let session: URLSession
     private let endpointURL: URL
