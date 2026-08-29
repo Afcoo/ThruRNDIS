@@ -8,6 +8,13 @@ import Foundation
 
 private enum USBPassthroughPolicy {
     static let attachFailureSuppressionInterval: TimeInterval = 10
+    static let intentionalReenumerationInterval: TimeInterval = 3
+}
+
+private struct ExpectedAccessoryReenumeration {
+    let registryID: UInt64
+    let descriptorIdentityKey: String
+    var reconnectDeadline: Date?
 }
 
 @MainActor
@@ -27,9 +34,9 @@ final class USBAccessoryCoordinator {
     private var pendingAttachAccessoryID: UInt64?
     private var pendingAttachToken: UUID?
     private var lastAccessoryEventByDescriptor: [String: (kind: String, date: Date)] = [:]
-    private var lastAttachAttemptByDescriptor: [String: Date] = [:]
     private var attachSuppressedUntilByDescriptor: [String: Date] = [:]
     private var reconnectDescriptorKey: String?
+    private var expectedAccessoryReenumeration: ExpectedAccessoryReenumeration?
     private var announcedAccessoryIDs: Set<UInt64> = []
     private var isIntentionalVMStopInProgress = false
     private var isRegistrationPending = false
@@ -204,6 +211,7 @@ final class USBAccessoryCoordinator {
         accessories.removeAll()
         selectedAccessoryID = nil
         reconnectDescriptorKey = nil
+        expectedAccessoryReenumeration = nil
         announcedAccessoryIDs.removeAll()
         notifyStateChanged()
 
@@ -270,6 +278,13 @@ final class USBAccessoryCoordinator {
     }
 
     func prepareForIntentionalVMStop() {
+        if let attachedAccessoryID,
+           let record = accessories.first(where: { $0.id == attachedAccessoryID }) {
+            expectedAccessoryReenumeration = ExpectedAccessoryReenumeration(
+                registryID: attachedAccessoryID,
+                descriptorIdentityKey: record.descriptorIdentityKey
+            )
+        }
         isIntentionalVMStopInProgress = true
         reportEventLog(
             "Marked USB passthrough teardown as an intentional VM stop.",
@@ -282,7 +297,6 @@ final class USBAccessoryCoordinator {
         attachedDevice = nil
         pendingAttachAccessoryID = nil
         pendingAttachToken = nil
-        lastAttachAttemptByDescriptor.removeAll()
         attachSuppressedUntilByDescriptor.removeAll()
         reconnectDescriptorKey = nil
         vmSessionAccessoryID = nil
@@ -440,7 +454,6 @@ final class USBAccessoryCoordinator {
         completion: ((Bool) -> Void)?
     ) {
         let registryID = accessory.registryID
-        let descriptorKey = record.descriptorIdentityKey
 
         if let vmSessionAccessoryID {
             onStatusMessage?(String(localized: "Detach the current USB accessory before attaching another USB accessory."))
@@ -480,7 +493,6 @@ final class USBAccessoryCoordinator {
         let attachToken = UUID()
         pendingAttachAccessoryID = registryID
         pendingAttachToken = attachToken
-        lastAttachAttemptByDescriptor[descriptorKey] = Date()
         notifyStateChanged()
         reportEventLog(
             "USB attach details: \(record.descriptorDiagnosticText), registry " +
@@ -615,16 +627,31 @@ final class USBAccessoryCoordinator {
             && attachedAccessoryID != record.id
             && announcedAccessoryIDs.insert(record.id).inserted
 
-        if shouldAnnounce {
+        if shouldAnnounce,
+           consumeExpectedReenumerationIfMatching(record) {
+            reportEventLog(
+                "USB accessory returned after intentional passthrough release; " +
+                    "automatic attach prompt suppressed for registry " +
+                    "\(record.registryIDText).",
+                level: .debug
+            )
+        } else if shouldAnnounce {
             onAccessoryAvailable?(record)
         }
     }
 
     private func removeAccessory(_ accessory: AAUSBAccessory) {
-        let record = USBAccessoryRecord(accessory: accessory)
+        let record = accessories.first { $0.id == accessory.registryID }
+            ?? USBAccessoryRecord(accessory: accessory)
         let wasSelected = selectedAccessoryID == accessory.registryID
         let wasAttached = attachedAccessoryID == accessory.registryID
         let wasPendingAttach = pendingAttachAccessoryID == accessory.registryID
+
+        if expectedAccessoryReenumeration?.registryID == accessory.registryID {
+            expectedAccessoryReenumeration?.reconnectDeadline = Date().addingTimeInterval(
+                USBPassthroughPolicy.intentionalReenumerationInterval
+            )
+        }
 
         accessoryObjects[accessory.registryID] = nil
         accessories.removeAll { $0.id == accessory.registryID }
@@ -686,6 +713,31 @@ final class USBAccessoryCoordinator {
                 onUnexpectedDetach?(record.id, reason)
             }
         }
+    }
+
+    private func consumeExpectedReenumerationIfMatching(
+        _ record: USBAccessoryRecord
+    ) -> Bool {
+        guard let expectedAccessoryReenumeration else {
+            return false
+        }
+
+        guard let reconnectDeadline = expectedAccessoryReenumeration.reconnectDeadline else {
+            return false
+        }
+
+        guard reconnectDeadline > Date() else {
+            self.expectedAccessoryReenumeration = nil
+            return false
+        }
+
+        guard expectedAccessoryReenumeration.descriptorIdentityKey
+                == record.descriptorIdentityKey else {
+            return false
+        }
+
+        self.expectedAccessoryReenumeration = nil
+        return true
     }
 
     private func attachSuppressionRemaining(for record: USBAccessoryRecord) -> TimeInterval? {
