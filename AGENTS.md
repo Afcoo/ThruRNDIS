@@ -222,7 +222,7 @@ macOS 0.0.0.0/1 and 128.0.0.0/1 routes
   Release-list lookup begins only after explicit user action.
 - The app follows the VM Assets Release list pagination and selects the newest
   `created_at` value among published, non-prerelease Releases whose tag begins
-  with `vm-assets-v1-`. It never falls back to `/releases/latest` or a legacy
+  with `V1-`. It never falls back to `/releases/latest` or a legacy
   tag. From the selected Release it downloads exactly `vm_assets.zip` and
   `SHA256SUMS`, validates reported size and SHA-256, inspects ZIP entries,
   extracts to staging, and promotes atomically.
