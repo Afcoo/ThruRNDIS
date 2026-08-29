@@ -50,8 +50,6 @@ struct USBDevicesView: View {
                 }
             } header: {
                 Text("AccessoryAccess Listener")
-            } footer: {
-                Text("New devices require approval, and only one USB device can be attached during a VM session.")
             }
 
             Section("USB Devices") {
