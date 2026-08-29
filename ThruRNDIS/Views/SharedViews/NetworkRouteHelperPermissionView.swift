@@ -29,7 +29,8 @@ struct NetworkRouteHelperPermissionView: View {
                         .disabled(
                             !helper.canReinstall
                                 || networkRoute.operation != nil
-                                || networkRoute.snapshot?.state != .inactive
+                                || networkRoute.snapshot?.state == .active
+                                || networkRoute.snapshot?.state == .degraded
                         )
                 } else {
                     Button("Install") { helper.enable() }

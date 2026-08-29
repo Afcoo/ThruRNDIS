@@ -68,7 +68,7 @@
 		F40000000000000000000004 /* PeerCodeSigningRequirementBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000104 /* PeerCodeSigningRequirementBuilder.swift */; };
 		F40000000000000000000013 /* PeerCodeSigningRequirementBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000104 /* PeerCodeSigningRequirementBuilder.swift */; };
 		F40000000000000000000019 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4000000000000000000010E /* main.swift */; };
-		F4000000000000000000001D /* ThruRNDISPrivilegedHelper in Copy Privileged Helper */ = {isa = PBXBuildFile; fileRef = F40000000000000000000111 /* ThruRNDISPrivilegedHelper */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		F4000000000000000000001D /* ThruRNDISPrivilegedHelper in Copy Privileged Helper */ = {isa = PBXBuildFile; fileRef = F40000000000000000000111 /* ThruRNDISPrivilegedHelper */; };
 		NR1000000000000000000001 /* NetworkRouteModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR1000000000000000000101 /* NetworkRouteModels.swift */; };
 		NR1000000000000000000002 /* NetworkRoutePrivilegedHelperProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR1000000000000000000102 /* NetworkRoutePrivilegedHelperProtocol.swift */; };
 		NR1000000000000000000003 /* NetworkRoutePrivilegedHelperClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR1000000000000000000103 /* NetworkRoutePrivilegedHelperClient.swift */; };
@@ -993,8 +993,8 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = E3865CF719CB3E4197A4D3A9 /* BuildSettings.xcconfig */;
 			buildSettings = {
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "Developer ID Application";
+				CODE_SIGN_STYLE = Manual;
 				CREATE_INFOPLIST_SECTION_IN_BINARY = YES;
 				CURRENT_PROJECT_VERSION = 15;
 				ENABLE_DEBUG_DYLIB = NO;

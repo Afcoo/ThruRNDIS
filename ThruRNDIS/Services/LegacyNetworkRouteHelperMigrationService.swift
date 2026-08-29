@@ -45,18 +45,16 @@ struct LegacyNetworkRouteHelperMigrationService {
 
     /// Returns true only when the legacy registration and network were removed.
     func migrateIfNeeded() async throws -> Bool {
-        guard !defaults.bool(
-            forKey: LegacyNetworkRouteHelperDefaultsKey
-                .didMigrateLegacyRegistration
-        ) else {
-            return false
-        }
-
         guard defaults.object(
             forKey: LegacyNetworkRouteHelperDefaultsKey
                 .legacyRegisteredBuildVersion
         ) != nil else {
-            markCompleted()
+            if !defaults.bool(
+                forKey: LegacyNetworkRouteHelperDefaultsKey
+                    .didMigrateLegacyRegistration
+            ) {
+                markCompleted()
+            }
             return false
         }
 
