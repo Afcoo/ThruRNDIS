@@ -323,12 +323,12 @@
         }
       }
     },
-    "Check & Install Latest Compatible" : {
+    "Check & Download Latest" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "최신 호환 버전 확인 및 설치"
+            "value" : "최신 버전 확인 및 다운로드"
           }
         }
       }
@@ -343,12 +343,12 @@
         }
       }
     },
-    "Checking the latest compatible VM asset release…" : {
+    "Checking latest version…" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "최신 호환 VM 에셋 릴리스를 확인하는 중…"
+            "value" : "최신 버전 확인 중"
           }
         }
       }
@@ -753,16 +753,6 @@
         }
       }
     },
-    "Download & Install Latest Compatible" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "최신 호환 버전 다운로드 및 설치"
-          }
-        }
-      }
-    },
     "Download and install the VM Assets." : {
       "localizations" : {
         "ko" : {
@@ -805,12 +795,12 @@
         }
       }
     },
-    "Downloading VM assets… %lld%%" : {
+    "Downloading…" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "VM 에셋 다운로드 중… %lld%%"
+            "value" : "다운로드 중…"
           }
         }
       }
@@ -1135,12 +1125,12 @@
         }
       }
     },
-    "Installed and activated VM assets %@." : {
+    "Installation complete: %@" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "VM 에셋을 설치하고 활성화했습니다: %@"
+            "value" : "설치 완료: %@"
           }
         }
       }
@@ -2603,12 +2593,12 @@
         }
       }
     },
-    "VM assets %@ are already installed and ready." : {
+    "Already up to date: %@" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "VM 에셋 설치가 이미 완료되어 사용할 수 있습니다: %@"
+            "value" : "이미 최신 버전입니다: %@"
           }
         }
       }
