@@ -28,7 +28,7 @@ ThruRNDIS is a Swift app based on the Virtualization framework that enables Andr
 ## Requirements
 
 - macOS 27 or later
-- AccessoryAccess, Virtualization, and LaunchDaemon permissions
+- Privileged Helper approval
 
 ## Installation
 
