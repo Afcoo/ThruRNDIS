@@ -253,16 +253,6 @@
         }
       }
     },
-    "Available" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "사용 가능"
-          }
-        }
-      }
-    },
     "Available devices" : {
       "localizations" : {
         "ko" : {

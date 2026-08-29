@@ -55,19 +55,20 @@ struct USBDevicesView: View {
 
             Section("USB Devices") {
                 Table(
-                    usbSession.accessories,
+                    displayedAccessories,
                     selection: selectedAccessoryBinding
                 ) {
-                    TableColumn("Status") { accessory in
+                    TableColumn("") { accessory in
                         if accessory.id == usbSession.attachedAccessoryID {
-                            Text("Attached")
+                            Image(systemName: "checkmark.circle.fill")
                                 .foregroundStyle(.green)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .accessibilityLabel(Text("Attached"))
                         } else {
-                            Text("Available")
-                                .foregroundStyle(.secondary)
+                            EmptyView()
                         }
                     }
-                    .width(60)
+                    .width(20)
 
                     TableColumn("VID:PID") { accessory in
                         Text(verbatim: accessory.usbIDText)
@@ -80,7 +81,6 @@ struct USBDevicesView: View {
                         Text(verbatim: accessory.deviceName)
                             .lineLimit(1)
                     }
-                    .width(160)
 
                     TableColumn("Class") { accessory in
                         Text(verbatim: accessory.classText)
@@ -115,6 +115,22 @@ struct USBDevicesView: View {
                 }
             }
         }
+    }
+
+    private var displayedAccessories: [USBAccessoryRecord] {
+        let accessories = usbSession.accessories
+        guard let attachedAccessoryID = usbSession.attachedAccessoryID,
+              let attachedIndex = accessories.firstIndex(where: {
+                $0.id == attachedAccessoryID
+              }),
+              attachedIndex != accessories.startIndex else {
+            return accessories
+        }
+
+        var displayedAccessories = accessories
+        let attachedAccessory = displayedAccessories.remove(at: attachedIndex)
+        displayedAccessories.insert(attachedAccessory, at: 0)
+        return displayedAccessories
     }
 
     private var selectedAccessoryBinding: Binding<UInt64?> {
