@@ -163,6 +163,10 @@ macOS 0.0.0.0/1 and 128.0.0.0/1 routes
   pair, and finally removes the recorded SystemConfiguration objects. A VM
   bridge that already disappeared is treated as an absent membership, not as
   authority to touch another bridge.
+- The one-time 0.3 migration may remove objects recorded under
+  `ThruRNDIS.DummyEthernet.Configuration` only after validating the exact
+  Network Service, Bond identity, runtime member, and feth peer relationship.
+  Ambiguous legacy state is retained and blocks migration completion.
 - The helper authenticates the connecting app's signing identifier and team;
   the app authenticates the helper using the corresponding derived identifier
   and team. Keep `PeerCodeSigningRequirementBuilder` shared by both targets.

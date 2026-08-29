@@ -230,6 +230,9 @@ final class NetworkRouteController: @unchecked Sendable {
 
         if let ownedConfiguration {
             try removeManagedConfiguration(ownedConfiguration)
+        } else {
+            // Legacy 0.3 migration hook.
+            try LegacyDummyEthernetCleanupService().removeIfPresent()
         }
 
         ownedConfiguration = nil

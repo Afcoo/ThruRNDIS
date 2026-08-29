@@ -166,9 +166,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .store(in: &cancellables)
 
-        updateNetworkHelperIfNeeded()
-        networkRoute.refresh()
-        store.startAccessoryMonitoringOnLaunch()
+        startServicesAfterLegacyNetworkHelperMigration { [self] in // Remove this wrapper after legacy migration support ends.
+            updateNetworkHelperIfNeeded()
+            networkRoute.refresh()
+            store.startAccessoryMonitoringOnLaunch()
+        } // Remove this wrapper after legacy migration support ends.
         DispatchQueue.main.async { [weak self] in
             guard let self else {
                 return
@@ -441,5 +443,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             operationTask.cancel()
         }
         return didFinishOperation
+    }
+}
+
+// MARK: - Legacy Network Helper Migration
+
+private extension AppDelegate { // Remove this extension after legacy migration support ends.
+    func startServicesAfterLegacyNetworkHelperMigration(
+        _ startServices: @escaping @MainActor () -> Void
+    ) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let migration = LegacyNetworkRouteHelperMigrationService()
+            do {
+                if try await migration.migrateIfNeeded() {
+                    eventLog.append(
+                        "Migrated the legacy Network Helper registration.",
+                        level: .info,
+                        category: .application
+                    )
+                }
+                startServices()
+            } catch {
+                eventLog.append(
+                    "Could not migrate the legacy Network Helper registration: \(error.localizedDescription)",
+                    level: .error,
+                    category: .application
+                )
+                networkRoute.refresh()
+            }
+        }
     }
 }
