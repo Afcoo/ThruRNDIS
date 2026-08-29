@@ -409,12 +409,12 @@
         }
       }
     },
-    "Check & Install Latest" : {
+    "Check & Download Latest" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "최신 버전 확인 및 설치"
+            "value" : "최신 버전 확인 및 다운로드"
           }
         }
       }
@@ -1003,16 +1003,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "완료"
-          }
-        }
-      }
-    },
-    "Download & Install Latest" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "최신 버전 다운로드 및 설치"
           }
         }
       }

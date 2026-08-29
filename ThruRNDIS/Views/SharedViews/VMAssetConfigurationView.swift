@@ -26,7 +26,7 @@ struct VMAssetConfigurationView: View {
                         assetWorkflowCoordinator.cancelInstall()
                     }
                 } else {
-                    Button(installButtonTitle) {
+                    Button("Check & Download Latest") {
                         assetWorkflowCoordinator.installLatest()
                     }
                     .buttonStyle(.borderedProminent)
@@ -73,13 +73,6 @@ struct VMAssetConfigurationView: View {
             .frame(maxWidth: 380, alignment: .trailing)
             .textSelection(.enabled)
         }
-    }
-
-    private var installButtonTitle: String {
-        if assetWorkflowCoordinator.hasConfiguredAssets {
-            return String(localized: "Check & Install Latest")
-        }
-        return String(localized: "Download & Install Latest")
     }
 
     private var assetStatusAppearance: SettingsStatusAppearance {
