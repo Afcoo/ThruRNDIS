@@ -151,9 +151,13 @@ macOS 0.0.0.0/1 and 128.0.0.0/1 routes
 - Do not add an external ownership file. Store the allocated Bond, Network
   Service, and dynamic VZNAT bridge/guest values in one SystemConfiguration
   ownership value. The feth names and managed addresses are fixed constants
-  and are not duplicated in metadata. After restart, remove only those exact
-  recorded objects and routes carrying the private ownership flags; never scan
-  for or adopt same-named objects.
+  and are not duplicated in metadata. The recorded Network Service ID is also
+  stored as a private option on the owned Bond. Treat a Bond as owned only when
+  its name and token match and the recorded service, when present, attaches to
+  that same object; a same-named Bond alone is never proof of ownership. Keep
+  that validation locked through runtime Bond mutation. After restart, remove
+  only those exact recorded objects and routes carrying the private ownership
+  flags; never scan for or adopt same-named objects.
 - Cleanup withdraws the `/1` routes first, removes `feth1` from the recorded
   bridge when that bridge still exists, detaches and destroys the owned feth
   pair, and finally removes the recorded SystemConfiguration objects. A VM

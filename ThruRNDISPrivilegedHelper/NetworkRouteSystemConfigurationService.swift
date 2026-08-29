@@ -73,6 +73,16 @@ struct NetworkRouteSystemConfigurationService: Sendable {
                 throw lastError("create the ThruRNDIS Network Service")
             }
 
+            var bondOptions = (SCBondInterfaceGetOptions(bond)
+                as? [String: Any]) ?? [:]
+            bondOptions[BondOptionKey.ownershipToken] = serviceID
+            guard SCBondInterfaceSetOptions(
+                bond,
+                bondOptions as CFDictionary
+            ) else {
+                throw lastError("mark the Ethernet Bond as owned")
+            }
+
             try configureProtocols(for: service)
             guard SCNetworkServiceSetEnabled(service, false),
                   let networkSet = SCNetworkSetCopyCurrent(preferences),
@@ -97,6 +107,18 @@ struct NetworkRouteSystemConfigurationService: Sendable {
 
     func disableNetworkService() throws {
         try setNetworkServiceEnabled(false)
+    }
+
+    func withOwnedBondInterface(
+        _ operation: (String) throws -> Void
+    ) throws {
+        try withLockedPreferences { preferences in
+            guard let bond = try managedObjects(in: preferences).bond,
+                  let bondInterfaceName = interfaceName(of: bond) else {
+                return
+            }
+            try operation(bondInterfaceName)
+        }
     }
 
     func removeConfiguration() throws {
@@ -153,19 +175,44 @@ struct NetworkRouteSystemConfigurationService: Sendable {
         guard let metadata = try metadata(in: preferences) else {
             return ManagedObjects(bond: nil, service: nil, metadata: nil)
         }
-        let bond = ((SCBondInterfaceCopyAll(preferences)
-            as? [SCBondInterface]) ?? []).first {
+        let matchingBonds = ((SCBondInterfaceCopyAll(preferences)
+            as? [SCBondInterface]) ?? []).filter {
                 interfaceName(of: $0) == metadata.bondInterfaceName
             }
+        guard matchingBonds.count <= 1 else {
+            throw NetworkRouteSystemConfigurationError.conflict(
+                "More than one Ethernet Bond uses the recorded BSD name."
+            )
+        }
+        let bond = matchingBonds.first
+        if let bond,
+           bondOwnershipToken(of: bond) != metadata.networkServiceID {
+            throw NetworkRouteSystemConfigurationError.conflict(
+                "The Ethernet Bond using the recorded BSD name does not carry the recorded ownership token."
+            )
+        }
+
         let service = SCNetworkServiceCopy(
             preferences,
             metadata.networkServiceID as CFString
         )
-        if let service,
-           serviceInterfaceName(of: service) != metadata.bondInterfaceName {
-            throw NetworkRouteSystemConfigurationError.conflict(
-                "The recorded Network Service is not attached to its Bond."
-            )
+        if let service {
+            guard let serviceInterface = SCNetworkServiceGetInterface(service),
+                  interfaceName(of: serviceInterface)
+                    == metadata.bondInterfaceName,
+                  let interfaceType = SCNetworkInterfaceGetInterfaceType(
+                    serviceInterface
+                  ),
+                  CFEqual(interfaceType, kSCNetworkInterfaceTypeBond) else {
+                throw NetworkRouteSystemConfigurationError.conflict(
+                    "The recorded Network Service is not attached to the recorded Ethernet Bond."
+                )
+            }
+            if let bond, !CFEqual(serviceInterface, bond) {
+                throw NetworkRouteSystemConfigurationError.conflict(
+                    "The recorded Network Service and Ethernet Bond do not identify the same object."
+                )
+            }
         }
         return ManagedObjects(
             bond: bond,
@@ -373,10 +420,11 @@ struct NetworkRouteSystemConfigurationService: Sendable {
         SCNetworkInterfaceGetBSDName(interface) as String?
     }
 
-    private func serviceInterfaceName(
-        of service: SCNetworkService
+    private func bondOwnershipToken(
+        of bond: SCBondInterface
     ) -> String? {
-        SCNetworkServiceGetInterface(service).flatMap(interfaceName)
+        let options = SCBondInterfaceGetOptions(bond) as? [String: Any]
+        return options?[BondOptionKey.ownershipToken] as? String
     }
 
     private func isCanonicalBondInterfaceName(_ name: String) -> Bool {
@@ -465,6 +513,11 @@ struct NetworkRouteSystemConfigurationService: Sendable {
         static let guestIPv4Address = "GuestIPv4Address"
         static let vznatGatewayIPv4Address = "VZNATGatewayIPv4Address"
         static let bridgeInterfaceName = "BridgeInterfaceName"
+    }
+
+    private enum BondOptionKey {
+        static let ownershipToken =
+            "ThruRNDIS.NetworkRoute.OwnershipToken"
     }
 
     private struct ManagedObjects {

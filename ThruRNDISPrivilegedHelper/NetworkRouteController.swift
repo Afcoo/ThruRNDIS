@@ -455,9 +455,13 @@ final class NetworkRouteController: @unchecked Sendable {
 
         let member = ThruRNDISNetworkRoute.memberInterfaceName
         let peer = ThruRNDISNetworkRoute.peerInterfaceName
-        if interfaceExists(owned.bondInterfaceName), interfaceExists(member) {
-            try? interfaceRunner.run([
-                owned.bondInterfaceName,
+        try? systemConfiguration.withOwnedBondInterface { bondInterfaceName in
+            guard interfaceExists(bondInterfaceName),
+                  interfaceExists(member) else {
+                return
+            }
+            try interfaceRunner.run([
+                bondInterfaceName,
                 "-bonddev",
                 member,
             ])
