@@ -63,12 +63,12 @@
         }
       }
     },
-    "%@ has been connected.\nStart the VM and attach this device?" : {
+    "%@ has been connected.\nStart networking through this device?" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ 기기가 연결되었습니다.\nVM을 시작하고 이 기기를 연결할까요?"
+            "value" : "%@ 기기가 연결되었습니다.\n이 기기로 네트워크를 연결할까요?"
           }
         }
       }
