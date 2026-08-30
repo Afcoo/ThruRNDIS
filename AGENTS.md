@@ -263,8 +263,14 @@ macOS 0.0.0.0/1 and 128.0.0.0/1 routes
   marketing/build versions, and has a code-signing identifier equal to its
   launchd `Label` and sole `MachServices` key. `BundleProgram` remains
   `Contents/MacOS/ThruRNDISPrivilegedHelper`.
-- Increment `CURRENT_PROJECT_VERSION` for every app update so a registered
-  older helper is replaced.
+- Treat `CURRENT_PROJECT_VERSION` as the identity of a distinct installed or
+  published app update, not as a build-invocation counter. Do not increment it
+  for repeated local builds, unsigned Debug builds, or test retries for the
+  same update. Increment it once when preparing a distinct signed app update
+  for installation or distribution so a registered older helper is replaced.
+  During same-build local signed iteration, manually Reinstall the Network
+  Helper after changing it; increment the build number only when specifically
+  validating automatic version-driven helper replacement.
 - Runtime and distribution validators must reject any embedded
   `.systemextension` and any obsolete network/system-extension entitlement.
 
