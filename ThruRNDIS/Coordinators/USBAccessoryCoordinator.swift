@@ -48,7 +48,6 @@ final class USBAccessoryCoordinator {
     private var pendingAttachAccessoryID: UInt64?
     private var pendingAttachToken: UUID?
     private var lastAccessoryEventByDescriptor: [String: (kind: String, date: Date)] = [:]
-    private var lastAttachAttemptByDescriptor: [String: Date] = [:]
     private var attachSuppressedUntilByDescriptor: [String: Date] = [:]
     private var reconnectIdentity: USBAccessoryReconnectIdentity?
     private var expectedAccessoryReenumeration: ExpectedAccessoryReenumeration?
@@ -338,7 +337,6 @@ final class USBAccessoryCoordinator {
         attachedAttachmentProfile = nil
         pendingAttachAccessoryID = nil
         pendingAttachToken = nil
-        lastAttachAttemptByDescriptor.removeAll()
         attachSuppressedUntilByDescriptor.removeAll()
         reconnectIdentity = nil
         pruneExpiredAccessoryReenumerations()
@@ -522,7 +520,6 @@ final class USBAccessoryCoordinator {
         completion: ((Bool) -> Void)?
     ) {
         let registryID = accessory.registryID
-        let descriptorKey = record.descriptorIdentityKey
 
         if let vmSessionAccessoryID {
             onStatusMessage?(String(localized: "Detach the current USB accessory before attaching another USB accessory."))
@@ -562,7 +559,6 @@ final class USBAccessoryCoordinator {
         let attachToken = UUID()
         pendingAttachAccessoryID = registryID
         pendingAttachToken = attachToken
-        lastAttachAttemptByDescriptor[descriptorKey] = Date()
         notifyStateChanged()
         reportEventLog(
             "USB attach details: \(record.descriptorDiagnosticText), registry " +
