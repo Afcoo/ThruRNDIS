@@ -189,10 +189,11 @@ final class NetworkRouteStore: ObservableObject {
         reconcileIfNeeded(reason: "guest RNDIS readiness changed")
     }
 
-    func usbDidAttach() {
+    func usbDidAttach(allowsAutomaticNetworkRoutingStart: Bool) {
         cancelStatusRefreshIfNeeded()
-        shouldRunManagedNetwork = true
+        shouldRunManagedNetwork = allowsAutomaticNetworkRoutingStart
         lastErrorMessage = nil
+        guard allowsAutomaticNetworkRoutingStart else { return }
         reconcileIfNeeded(reason: "USB accessory attached")
     }
 
