@@ -13,6 +13,11 @@ private enum USBPassthroughPolicy {
     static let descriptorReadinessInterval: Duration = .seconds(10)
 }
 
+private enum USBAccessoryTrackingKey: Hashable {
+    case identity(USBAccessoryReconnectIdentity)
+    case registryID(UInt64)
+}
+
 private struct ExpectedAccessoryReenumeration {
     let registryID: UInt64
     let reconnectIdentity: USBAccessoryReconnectIdentity
@@ -47,9 +52,9 @@ final class USBAccessoryCoordinator {
     private var accessoryEventSequence = 0
     private var pendingAttachAccessoryID: UInt64?
     private var pendingAttachToken: UUID?
-    private var lastAccessoryEventByDescriptor: [String: (kind: String, date: Date)] = [:]
-    private var attachSuppressedUntilByDescriptor: [String: Date] = [:]
-    private var reconnectIdentity: USBAccessoryReconnectIdentity?
+    private var lastAccessoryEventByTrackingKey: [USBAccessoryTrackingKey: (kind: String, date: Date)] = [:]
+    private var attachSuppressedUntilByTrackingKey: [USBAccessoryTrackingKey: Date] = [:]
+    private var selectionRecoveryIdentity: USBAccessoryReconnectIdentity?
     private var expectedAccessoryReenumeration: ExpectedAccessoryReenumeration?
     private var suppressedAccessoryReenumerations: [UInt64: SuppressedAccessoryReenumeration] = [:]
     private var announcedAccessoryIDs: Set<UInt64> = []
@@ -237,7 +242,7 @@ final class USBAccessoryCoordinator {
         accessoryObjects.removeAll()
         accessories.removeAll()
         selectedAccessoryID = nil
-        reconnectIdentity = nil
+        selectionRecoveryIdentity = nil
         announcedAccessoryIDs.removeAll()
         notifyStateChanged()
 
@@ -337,8 +342,8 @@ final class USBAccessoryCoordinator {
         attachedAttachmentProfile = nil
         pendingAttachAccessoryID = nil
         pendingAttachToken = nil
-        attachSuppressedUntilByDescriptor.removeAll()
-        reconnectIdentity = nil
+        attachSuppressedUntilByTrackingKey.removeAll()
+        selectionRecoveryIdentity = nil
         pruneExpiredAccessoryReenumerations()
         vmSessionAccessoryID = nil
         isIntentionalVMStopInProgress = false
@@ -356,7 +361,7 @@ final class USBAccessoryCoordinator {
         attachedAttachmentProfile = nil
         pendingAttachAccessoryID = nil
         pendingAttachToken = nil
-        reconnectIdentity = nil
+        selectionRecoveryIdentity = nil
         vmSessionAccessoryID = nil
         isIntentionalVMStopInProgress = false
         reportEventLog(
@@ -421,7 +426,7 @@ final class USBAccessoryCoordinator {
             return
         }
 
-        reconnectIdentity = nil
+        selectionRecoveryIdentity = nil
         pruneExpiredAccessoryReenumerations()
         selectedAccessoryID = accessoryID
         attach(
@@ -452,11 +457,11 @@ final class USBAccessoryCoordinator {
 
         let disconnectedAccessoryID = attachedAccessoryID
         let attachedRegistry = disconnectedAccessoryID.map(Self.registryIDText) ?? "none"
-        let reconnectRecord = attachedAccessoryID.flatMap { id in
+        let attachedRecord = attachedAccessoryID.flatMap { id in
             accessories.first { $0.id == id }
         }
         let disconnectedReconnectIdentity = attachedReconnectIdentity
-            ?? reconnectRecord?.reconnectIdentity
+            ?? attachedRecord?.reconnectIdentity
         if isIntentionalVMStopInProgress {
             noteExpectedAccessoryDisconnect(
                 registryID: disconnectedAccessoryID,
@@ -479,7 +484,7 @@ final class USBAccessoryCoordinator {
         self.attachedDevice = nil
         attachedReconnectIdentity = nil
         attachedAttachmentProfile = nil
-        reconnectIdentity = disconnectedReconnectIdentity
+        selectionRecoveryIdentity = disconnectedReconnectIdentity
         notifyStateChanged()
         let reason = "USB passthrough device disconnected by the system, attached registry \(attachedRegistry)."
         reportEventLog(reason, level: .warning)
@@ -684,21 +689,23 @@ final class USBAccessoryCoordinator {
             with: record,
             matchingIdentityCount: matchingIdentityCount
         )
-        let shouldReconnect = reconnectIdentity != nil
-            && reconnectIdentity == record.reconnectIdentity
+        let shouldRestoreSelection = selectionRecoveryIdentity != nil
+            && selectionRecoveryIdentity == record.reconnectIdentity
             && matchingIdentityCount == 1
-        attachSuppressedUntilByDescriptor.removeValue(forKey: record.descriptorIdentityKey)
-        if selectedAccessoryID == nil || shouldReconnect {
+        attachSuppressedUntilByTrackingKey.removeValue(
+            forKey: trackingKey(for: record)
+        )
+        if selectedAccessoryID == nil || shouldRestoreSelection {
             selectedAccessoryID = record.id
         }
-        if shouldReconnect {
-            reconnectIdentity = nil
-        } else if reconnectIdentity == record.reconnectIdentity,
+        if shouldRestoreSelection {
+            selectionRecoveryIdentity = nil
+        } else if selectionRecoveryIdentity == record.reconnectIdentity,
                   matchingIdentityCount > 1 {
-            reconnectIdentity = nil
+            selectionRecoveryIdentity = nil
             reportEventLog(
                 "USB reconnect identity is ambiguous across connected accessories; " +
-                    "automatic identity matching was disabled.",
+                    "selection recovery was disabled.",
                 level: .warning
             )
         }
@@ -757,7 +764,8 @@ final class USBAccessoryCoordinator {
         }
 
         if wasAttached {
-            reconnectIdentity = attachedReconnectIdentity ?? record.reconnectIdentity
+            selectionRecoveryIdentity = attachedReconnectIdentity
+                ?? record.reconnectIdentity
             attachedAccessoryID = nil
             attachedDevice = nil
             attachedReconnectIdentity = nil
@@ -962,13 +970,14 @@ final class USBAccessoryCoordinator {
     }
 
     private func attachSuppressionRemaining(for record: USBAccessoryRecord) -> TimeInterval? {
-        guard let suppressedUntil = attachSuppressedUntilByDescriptor[record.descriptorIdentityKey] else {
+        let trackingKey = trackingKey(for: record)
+        guard let suppressedUntil = attachSuppressedUntilByTrackingKey[trackingKey] else {
             return nil
         }
 
         let now = Date()
         guard suppressedUntil > now else {
-            attachSuppressedUntilByDescriptor[record.descriptorIdentityKey] = nil
+            attachSuppressedUntilByTrackingKey[trackingKey] = nil
             return nil
         }
 
@@ -977,9 +986,11 @@ final class USBAccessoryCoordinator {
 
     private func suppressAttach(for record: USBAccessoryRecord, interval: TimeInterval, reason: String) {
         let suppressedUntil = Date().addingTimeInterval(interval)
-        attachSuppressedUntilByDescriptor[record.descriptorIdentityKey] = suppressedUntil
+        attachSuppressedUntilByTrackingKey[trackingKey(for: record)] = suppressedUntil
+        let trackedDevice = record.reconnectIdentity?.diagnosticText
+            ?? "registry \(record.registryIDText)"
         reportEventLog(
-            "USB attach retry suppressed for descriptor \(record.usbIDText) for " +
+            "USB attach retry suppressed for \(trackedDevice) for " +
                 "\(Self.secondsText(interval)): \(reason)",
             level: .debug
         )
@@ -989,8 +1000,9 @@ final class USBAccessoryCoordinator {
         accessoryEventSequence += 1
 
         let now = Date()
-        let previousEvent = lastAccessoryEventByDescriptor[record.descriptorIdentityKey]
-        lastAccessoryEventByDescriptor[record.descriptorIdentityKey] = (kind: kind, date: now)
+        let trackingKey = trackingKey(for: record)
+        let previousEvent = lastAccessoryEventByTrackingKey[trackingKey]
+        lastAccessoryEventByTrackingKey[trackingKey] = (kind: kind, date: now)
 
         var components = [
             "event #\(accessoryEventSequence)",
@@ -999,9 +1011,9 @@ final class USBAccessoryCoordinator {
 
         if let previousEvent {
             let interval = now.timeIntervalSince(previousEvent.date)
-            components.append(String(format: "%.2fs after previous %@ for same descriptor", interval, previousEvent.kind))
+            components.append(String(format: "%.2fs after previous %@ for same tracked device", interval, previousEvent.kind))
         } else {
-            components.append("first event for descriptor")
+            components.append("first event for tracked device")
         }
 
         if let selectedAccessoryID {
@@ -1017,6 +1029,15 @@ final class USBAccessoryCoordinator {
         }
 
         return components.joined(separator: ", ")
+    }
+
+    private func trackingKey(
+        for record: USBAccessoryRecord
+    ) -> USBAccessoryTrackingKey {
+        if let reconnectIdentity = record.reconnectIdentity {
+            return .identity(reconnectIdentity)
+        }
+        return .registryID(record.id)
     }
 
     private var currentRuntimeState: VMRuntimeState {

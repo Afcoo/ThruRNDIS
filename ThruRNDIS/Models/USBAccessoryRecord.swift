@@ -193,15 +193,6 @@ struct USBAccessoryRecord: Identifiable, Hashable, Sendable {
         ].joined(separator: ", ")
     }
 
-    var descriptorIdentityKey: String {
-        [
-            usbIDText,
-            classText,
-            deviceDescriptorHash,
-            configurationDescriptorHash
-        ].joined(separator: "|")
-    }
-
     var configurationDiagnosticText: String {
         guard configurationValue != nil || configurationInterfaceCount != nil else {
             return "none"
