@@ -92,7 +92,7 @@ struct USBDevicesView: View {
                                 && !store.isAutoConnectEnabled(for: accessory)
                         )
                     }
-                    .width(100)
+                    .width(80)
 
                     TableColumn("Device") { accessory in
                         HStack(spacing: 6) {
@@ -117,11 +117,6 @@ struct USBDevicesView: View {
                             .lineLimit(1)
                     }
                     .width(90)
-
-                    TableColumn("Class") { accessory in
-                        Text(verbatim: accessory.classText)
-                    }
-                    .width(70)
 
                     TableColumn("Registry") { accessory in
                         Text(verbatim: accessory.registryIDText)

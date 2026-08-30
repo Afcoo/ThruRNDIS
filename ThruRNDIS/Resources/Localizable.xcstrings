@@ -443,16 +443,6 @@
         }
       }
     },
-    "Class" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "클래스"
-          }
-        }
-      }
-    },
     "Clear" : {
       "localizations" : {
         "ko" : {
