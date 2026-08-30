@@ -242,7 +242,7 @@ final class TetheringWorkflowCoordinator {
         reason: String
     ) {
         actions.updateStatusMessage(
-            String(localized: "USB accessory replacement is no longer available.")
+            String(localized: "Unable to replace the USB device.")
         )
         appendEventLog(
             "USB accessory replacement rejected for registry " +

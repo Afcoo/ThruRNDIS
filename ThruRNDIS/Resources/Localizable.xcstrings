@@ -2393,12 +2393,12 @@
         }
       }
     },
-    "USB accessory replacement is no longer available." : {
+    "Unable to replace the USB device." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "USB 기기 교체 조건이 더 이상 충족되지 않습니다."
+            "value" : "USB 기기를 교체할 수 없습니다."
           }
         }
       }
