@@ -223,7 +223,7 @@ final class TetheringWorkflowCoordinator {
                 appendEventLog(
                     "USB accessory replacement failed for registry " +
                         Self.registryIDText(accessoryID) +
-                        " after VM restart.",
+                        ": attachment could not start after the previous VM stopped.",
                     level: .warning,
                     category: .usb
                 )
