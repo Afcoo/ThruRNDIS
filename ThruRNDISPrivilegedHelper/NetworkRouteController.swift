@@ -112,11 +112,44 @@ final class NetworkRouteController: @unchecked Sendable {
             let current = try snapshot(
                 for: existing,
                 systemConfiguration: existingSystemConfiguration
-            ).snapshot
-            if existing.network == requested, current.state == .active {
+            )
+            // A changed bridge for the same guest/gateway is topology damage,
+            // not authority for a route-repair request to rebuild everything.
+            let hasSameVZNATNetwork =
+                existing.network.guestIPv4Address
+                    == requested.guestIPv4Address
+                && existing.network.vznatGatewayIPv4Address
+                    == requested.vznatGatewayIPv4Address
+            if hasSameVZNATNetwork,
+               current.snapshot.state == .active {
                 ownedConfiguration = existing
                 self.leaseOwnerIdentifier = leaseOwnerIdentifier
-                return current
+                return current.snapshot
+            }
+            if hasSameVZNATNetwork {
+                guard current.isTopologyReady else {
+                    throw NetworkRouteControllerError.configurationConflict(
+                        "The existing managed topology is degraded and was retained: \(current.topologyReadinessFailures.joined(separator: ", "))."
+                    )
+                }
+
+                let repaired = try installRoutes(
+                    for: routeAnchor(for: existing)
+                ) {
+                    let evaluation = try snapshot(
+                        for: existing,
+                        systemConfiguration: try systemConfiguration.inspect()
+                    )
+                    guard evaluation.snapshot.state == .active else {
+                        throw NetworkRouteControllerError.configurationConflict(
+                            "The managed routes were reinstalled, but the existing network did not return to its active state: \(evaluation.failureDescriptions.joined(separator: ", "))."
+                        )
+                    }
+                    return evaluation
+                }
+                ownedConfiguration = existing
+                self.leaseOwnerIdentifier = leaseOwnerIdentifier
+                return repaired.snapshot
             }
             try removeManagedConfiguration(existing)
             ownedConfiguration = nil
@@ -191,11 +224,8 @@ final class NetworkRouteController: @unchecked Sendable {
                 systemConfiguration: try systemConfiguration.inspect()
             )
             guard evaluation.snapshot.state == .active else {
-                let detail = evaluation.failures.isEmpty
-                    ? "no failed readiness check was recorded"
-                    : evaluation.failures.joined(separator: ", ")
                 throw NetworkRouteControllerError.configurationConflict(
-                    "The managed bridge, Bond, service, and routes did not reach their active state: \(detail)."
+                    "The managed bridge, Bond, service, and routes did not reach their active state: \(evaluation.failureDescriptions.joined(separator: ", "))."
                 )
             }
             ownedConfiguration = owned
@@ -258,7 +288,7 @@ final class NetworkRouteController: @unchecked Sendable {
         for owned: OwnedConfiguration,
         systemConfiguration systemSnapshot:
             NetworkRouteSystemConfigurationSnapshot
-    ) throws -> (snapshot: NetworkRouteSnapshot, failures: [String]) {
+    ) throws -> NetworkRouteEvaluation {
         let routes = try inspectRoutes(for: routeAnchor(for: owned))
         let network = owned.network
         let member = ThruRNDISNetworkRoute.memberInterfaceName
@@ -311,22 +341,21 @@ final class NetworkRouteController: @unchecked Sendable {
                 == ThruRNDISNetworkRoute.routerIPv4Address
             && systemSnapshot.configuredDNSServerAddresses
                 == [ThruRNDISNetworkRoute.routerIPv4Address]
-        let routesReady = routes.count == ManagedIPv4Route.all.count
-            && routes.allSatisfy { $0.value == .owned }
+        let routesReady = routes.isFullyOwned
 
-        var readinessFailures: [String] = []
+        var topologyReadinessFailures: [String] = []
         if !runtimeInterfacesReady {
-            readinessFailures.append(
+            topologyReadinessFailures.append(
                 "missing runtime interfaces [\(missingInterfaces.joined(separator: ", "))]"
             )
         }
         if !bridgeIdentityReady {
-            readinessFailures.append("VM bridge identity changed")
+            topologyReadinessFailures.append("VM bridge identity changed")
         }
         if !bridgeMembershipReady {
             let members = bridgeMembers?.sorted().joined(separator: ", ")
                 ?? "unavailable"
-            readinessFailures.append(
+            topologyReadinessFailures.append(
                 "bridge members [\(members)] do not contain \(peer)"
             )
         }
@@ -334,42 +363,27 @@ final class NetworkRouteController: @unchecked Sendable {
             let mode = bondRuntime?.mode ?? "unavailable"
             let members = bondRuntime?.members.sorted().joined(separator: ", ")
                 ?? "unavailable"
-            readinessFailures.append(
+            topologyReadinessFailures.append(
                 "Bond runtime mode=\(mode), members=[\(members)]"
             )
         }
         if !bondIPv4Ready {
-            readinessFailures.append(
+            topologyReadinessFailures.append(
                 "Bond runtime host=\(ThruRNDISNetworkRoute.hostIPv4Address), mask=\(ThruRNDISNetworkRoute.subnetMask) is unavailable"
             )
         }
         if !fethPairReady {
-            readinessFailures.append(
+            topologyReadinessFailures.append(
                 "feth peers \(member)->\(memberPeer ?? "unavailable"), \(peer)->\(peerPeer ?? "unavailable")"
             )
         }
         if !systemConfigurationReady {
-            readinessFailures.append(
+            topologyReadinessFailures.append(
                 "SystemConfiguration bond=\(systemSnapshot.hasBond), service=\(systemSnapshot.hasNetworkService), enabled=\(systemSnapshot.isNetworkServiceEnabled), host=\(systemSnapshot.configuredHostIPv4Address ?? "missing"), mask=\(systemSnapshot.configuredHostIPv4SubnetMask ?? "missing"), router=\(systemSnapshot.configuredRouterIPv4Address ?? "missing"), DNS=\(systemSnapshot.configuredDNSServerAddresses.joined(separator: ","))"
             )
         }
-        if !routesReady {
-            let states = ManagedIPv4Route.all.map { route in
-                let state = routes[route]?.diagnosticName ?? "missing"
-                return "\(route.diagnosticName(interfaceName: owned.bondInterfaceName))=\(state)"
-            }
-            readinessFailures.append(
-                "routes [\(states.joined(separator: ", "))]"
-            )
-        }
         let snapshot = NetworkRouteSnapshot(
-            state: systemConfigurationReady
-                && runtimeInterfacesReady
-                && bridgeIdentityReady
-                && bridgeMembershipReady
-                && bondRuntimeReady
-                && bondIPv4Ready
-                && fethPairReady
+            state: topologyReadinessFailures.isEmpty
                 && routesReady ? .active : .degraded,
             guestIPv4Address: network.guestIPv4Address,
             vznatGatewayIPv4Address: network.vznatGatewayIPv4Address,
@@ -377,7 +391,11 @@ final class NetworkRouteController: @unchecked Sendable {
             bondInterfaceName: owned.bondInterfaceName,
             installedPrefixes: installedPrefixes(from: routes)
         )
-        return (snapshot, readinessFailures)
+        return NetworkRouteEvaluation(
+            snapshot: snapshot,
+            topologyReadinessFailures: topologyReadinessFailures,
+            routeInspections: routes
+        )
     }
 
     private func createFethPair() throws {
@@ -544,25 +562,26 @@ final class NetworkRouteController: @unchecked Sendable {
     }
 
     private func installRoutes(for anchor: RouteAnchor) throws {
+        try installRoutes(for: anchor) { () }
+    }
+
+    private func installRoutes<Result>(
+        for anchor: RouteAnchor,
+        additionalVerification: () throws -> Result
+    ) throws -> Result {
         let inspections = try inspectRoutes(for: anchor)
-        if inspections.contains(where: { $0.value == .conflicting }) {
-            let route = inspections.first { $0.value == .conflicting }!.key
+        if let route = inspections.firstConflictingRoute {
             throw RouteCommandRunnerError.conflictingRoute(
                 route.diagnosticName(interfaceName: anchor.interfaceName)
             )
         }
-        for route in ManagedIPv4Route.removalOrder
-        where inspections[route] == .owned {
-            try routeRunner.delete(
-                route,
-                gateway: anchor.gateway,
-                interfaceName: anchor.interfaceName
-            )
-        }
-
         var added: [ManagedIPv4Route] = []
         do {
-            for route in ManagedIPv4Route.installationOrder {
+            // Preserve every exact-owned entry and add only the missing ones.
+            // If an add fails, rolling back `added` restores the complete
+            // pre-invocation route set instead of discarding healthy routes.
+            for route in ManagedIPv4Route.installationOrder
+            where inspections[route] == .absent {
                 try routeRunner.add(
                     route,
                     gateway: anchor.gateway,
@@ -571,7 +590,7 @@ final class NetworkRouteController: @unchecked Sendable {
                 added.append(route)
             }
             let installed = try inspectRoutes(for: anchor)
-            guard installed.allSatisfy({ $0.value == .owned }) else {
+            guard installed.isFullyOwned else {
                 let failures = ManagedIPv4Route.installationOrder.compactMap {
                     route -> String? in
                     guard installed[route] != .owned else { return nil }
@@ -581,25 +600,58 @@ final class NetworkRouteController: @unchecked Sendable {
                 }
                 throw NetworkRouteControllerError.routeVerificationFailed(failures)
             }
+            return try additionalVerification()
         } catch {
-            var rollbackFailed = false
-            for route in added.reversed() {
-                if route == ManagedIPv4Route.rediscoveryAnchor,
-                   rollbackFailed {
+            let rollbackFailures = rollbackAddedRoutes(
+                added,
+                for: anchor
+            )
+            guard !rollbackFailures.isEmpty else { throw error }
+            throw NetworkRouteControllerError.couldNotRemoveConfiguration([
+                "route installation failed: \(error.localizedDescription)",
+                "route rollback failed: \(rollbackFailures.joined(separator: "; "))",
+            ])
+        }
+    }
+
+    private func rollbackAddedRoutes(
+        _ added: [ManagedIPv4Route],
+        for anchor: RouteAnchor
+    ) -> [String] {
+        var failures: [String] = []
+        for route in added.reversed() {
+            if route == ManagedIPv4Route.rediscoveryAnchor,
+               !failures.isEmpty {
+                continue
+            }
+            do {
+                switch try routeRunner.inspection(
+                    of: route,
+                    gateway: anchor.gateway,
+                    interfaceName: anchor.interfaceName
+                ) {
+                case .absent:
                     continue
-                }
-                do {
+                case .owned:
                     try routeRunner.delete(
                         route,
                         gateway: anchor.gateway,
                         interfaceName: anchor.interfaceName
                     )
-                } catch {
-                    rollbackFailed = true
+                case .conflicting:
+                    failures.append(
+                        route.diagnosticName(
+                            interfaceName: anchor.interfaceName
+                        ) + " changed ownership before rollback"
+                    )
                 }
+            } catch {
+                failures.append(
+                    "\(route.diagnosticName(interfaceName: anchor.interfaceName)): \(error.localizedDescription)"
+                )
             }
-            throw error
         }
+        return failures
     }
 
     private func removeRoutes(
@@ -647,45 +699,25 @@ final class NetworkRouteController: @unchecked Sendable {
     }
 
     private func rejectExistingRoutesWithoutOwnershipMetadata() throws {
-        for route in ManagedIPv4Route.global {
-            let records = try routeRunner.records(matching: route)
-            guard !records.isEmpty else {
-                continue
-            }
-            throw RouteCommandRunnerError.conflictingRoute(
-                "\(route.prefix) without SystemConfiguration ownership metadata"
-            )
-        }
+        guard let route = try routeRunner.firstExistingRoute(
+            matching: ManagedIPv4Route.global
+        ) else { return }
+        throw RouteCommandRunnerError.conflictingRoute(
+            "\(route.prefix) without SystemConfiguration ownership metadata"
+        )
     }
 
     private func inspectRoutes(
         for anchor: RouteAnchor
-    ) throws -> [ManagedIPv4Route: ManagedRouteInspection] {
-        var result: [ManagedIPv4Route: ManagedRouteInspection] = [:]
-        for route in ManagedIPv4Route.all {
-            result[route] = try routeRunner.inspection(
-                of: route,
-                gateway: anchor.gateway,
-                interfaceName: anchor.interfaceName
-            )
-        }
-        for route in ManagedIPv4Route.all
-        where route.scope == .interfaceScoped {
-            let hasUnexpectedScope = try routeRunner
-                .records(matching: route)
-                .contains {
-                    $0.isInterfaceScoped
-                        && $0.interfaceName != anchor.interfaceName
-                }
-            if hasUnexpectedScope {
-                result[route] = .conflicting
-            }
-        }
-        return result
+    ) throws -> ManagedIPv4RouteSetInspection {
+        try routeRunner.inspections(
+            gateway: anchor.gateway,
+            interfaceName: anchor.interfaceName
+        )
     }
 
     private func installedPrefixes(
-        from inspections: [ManagedIPv4Route: ManagedRouteInspection]
+        from inspections: ManagedIPv4RouteSetInspection
     ) -> [String] {
         ManagedIPv4Route.prefixes.filter { prefix in
             ManagedIPv4Route.entries(for: prefix).allSatisfy { route in
@@ -809,5 +841,27 @@ final class NetworkRouteController: @unchecked Sendable {
     private struct RouteAnchor {
         let gateway: String
         let interfaceName: String
+    }
+
+    private struct NetworkRouteEvaluation {
+        let snapshot: NetworkRouteSnapshot
+        let topologyReadinessFailures: [String]
+        let routeInspections: ManagedIPv4RouteSetInspection
+
+        var isTopologyReady: Bool {
+            topologyReadinessFailures.isEmpty
+        }
+
+        var failureDescriptions: [String] {
+            var failures = topologyReadinessFailures
+            guard !routeInspections.isFullyOwned else { return failures }
+            let interfaceName = snapshot.bondInterfaceName ?? "unknown Bond"
+            let states = ManagedIPv4Route.all.map { route in
+                let state = routeInspections[route]?.diagnosticName ?? "missing"
+                return "\(route.diagnosticName(interfaceName: interfaceName))=\(state)"
+            }
+            failures.append("routes [\(states.joined(separator: ", "))]")
+            return failures
+        }
     }
 }

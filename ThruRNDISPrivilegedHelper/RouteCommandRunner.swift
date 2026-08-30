@@ -124,7 +124,7 @@ struct RouteCommandRunner: Sendable {
         arguments.append(contentsOf: [
             "-static", "-proto1", "-proto2", route.prefix, gateway,
         ])
-        _ = try run(arguments)
+        try run(arguments)
     }
 
     func delete(
@@ -139,7 +139,7 @@ struct RouteCommandRunner: Sendable {
             to: &arguments
         )
         arguments.append(contentsOf: [route.prefix, gateway])
-        _ = try run(arguments)
+        try run(arguments)
     }
 
     func inspection(
@@ -147,9 +147,58 @@ struct RouteCommandRunner: Sendable {
         gateway: String,
         interfaceName: String
     ) throws -> ManagedRouteInspection {
+        let routeTable = try readIPv4RouteTable()
+        return try inspection(
+            of: route,
+            gateway: gateway,
+            interfaceName: interfaceName,
+            routeTable: routeTable
+        )
+    }
+
+    /// Classifies the complete managed route set from one route-table read.
+    /// This prevents a network change from producing a mixed result assembled
+    /// from route-table snapshots captured at different times.
+    func inspections(
+        gateway: String,
+        interfaceName: String
+    ) throws -> ManagedIPv4RouteSetInspection {
+        let routeTable = try readIPv4RouteTable()
+        var result: [ManagedIPv4Route: ManagedRouteInspection] = [:]
+        for route in ManagedIPv4Route.all {
+            result[route] = try inspection(
+                of: route,
+                gateway: gateway,
+                interfaceName: interfaceName,
+                routeTable: routeTable
+            )
+        }
+        for route in ManagedIPv4Route.all
+        where route.scope == .interfaceScoped {
+            let hasUnexpectedScope = routeTableRecords(
+                for: route,
+                in: routeTable
+            ).contains {
+                $0.isInterfaceScoped
+                    && $0.interfaceName != interfaceName
+            }
+            if hasUnexpectedScope {
+                result[route] = .conflicting
+            }
+        }
+        return ManagedIPv4RouteSetInspection(entries: result)
+    }
+
+    private func inspection(
+        of route: ManagedIPv4Route,
+        gateway: String,
+        interfaceName: String,
+        routeTable: String
+    ) throws -> ManagedRouteInspection {
         guard let record = try lookup(
             route,
-            interfaceName: interfaceName
+            interfaceName: interfaceName,
+            routeTable: routeTable
         ) else {
             return .absent
         }
@@ -160,9 +209,10 @@ struct RouteCommandRunner: Sendable {
         return record.isOwned ? .owned : .conflicting
     }
 
-    func lookup(
+    private func lookup(
         _ route: ManagedIPv4Route,
-        interfaceName: String?
+        interfaceName: String?,
+        routeTable: String
     ) throws -> RouteLookupRecord? {
         if route.scope == .interfaceScoped,
            interfaceName?.isEmpty != false {
@@ -170,7 +220,10 @@ struct RouteCommandRunner: Sendable {
         }
 
         let expectedScope = route.scope == .interfaceScoped
-        let records = try routeTableRecords(for: route).filter { record in
+        let records = routeTableRecords(
+            for: route,
+            in: routeTable
+        ).filter { record in
             guard record.isInterfaceScoped == expectedScope else {
                 return false
             }
@@ -190,30 +243,15 @@ struct RouteCommandRunner: Sendable {
         return records.first
     }
 
-    func records(
-        matching route: ManagedIPv4Route
-    ) throws -> [RouteLookupRecord] {
-        try routeTableRecords(for: route)
-    }
-
-    func diagnosticOutput(
-        of route: ManagedIPv4Route,
-        interfaceName: String
-    ) -> String {
-        do {
-            let records = try routeTableRecords(for: route)
-            let descriptions = records.map { record in
-                let scope = record.isInterfaceScoped
-                    ? "scoped" : "global"
-                let ownership = record.isOwned ? "owned" : "unowned"
-                return "\(scope) \(record.gateway) on "
-                    + "\(record.interfaceName) \(ownership)"
-            }
-            return descriptions.isEmpty
-                ? "no diagnostic output"
-                : descriptions.joined(separator: " | ")
-        } catch {
-            return error.localizedDescription
+    func firstExistingRoute(
+        matching routes: [ManagedIPv4Route]
+    ) throws -> ManagedIPv4Route? {
+        let routeTable = try readIPv4RouteTable()
+        return routes.first { route in
+            !routeTableRecords(
+                for: route,
+                in: routeTable
+            ).isEmpty
         }
     }
 
@@ -230,10 +268,10 @@ struct RouteCommandRunner: Sendable {
     }
 
     private func routeTableRecords(
-        for route: ManagedIPv4Route
-    ) throws -> [RouteLookupRecord] {
-        let output = try readIPv4RouteTable()
-        return output.split(separator: "\n").compactMap { line in
+        for route: ManagedIPv4Route,
+        in routeTable: String
+    ) -> [RouteLookupRecord] {
+        routeTable.split(separator: "\n").compactMap { line in
             let columns = line.split(whereSeparator: { $0.isWhitespace })
             guard columns.count >= 4,
                   route.netstatDestinations.contains(String(columns[0])) else {
@@ -279,7 +317,7 @@ struct RouteCommandRunner: Sendable {
         return output
     }
 
-    private func run(_ arguments: [String]) throws -> CommandResult {
+    private func run(_ arguments: [String]) throws {
         let process = Process()
         let outputPipe = Pipe()
         process.executableURL = URL(fileURLWithPath: "/sbin/route")
@@ -306,15 +344,10 @@ struct RouteCommandRunner: Sendable {
                 output: output
             )
         }
-        return CommandResult(output: output)
-    }
-
-    private struct CommandResult {
-        let output: String
     }
 }
 
-enum ManagedRouteInspection: Equatable {
+enum ManagedRouteInspection: Equatable, Sendable {
     case absent
     case owned
     case conflicting
@@ -331,7 +364,25 @@ enum ManagedRouteInspection: Equatable {
     }
 }
 
-struct RouteLookupRecord: Equatable, Sendable {
+struct ManagedIPv4RouteSetInspection: Sendable {
+    let entries: [ManagedIPv4Route: ManagedRouteInspection]
+
+    subscript(route: ManagedIPv4Route) -> ManagedRouteInspection? {
+        entries[route]
+    }
+
+    var isFullyOwned: Bool {
+        ManagedIPv4Route.all.allSatisfy { entries[$0] == .owned }
+    }
+
+    var firstConflictingRoute: ManagedIPv4Route? {
+        ManagedIPv4Route.installationOrder.first {
+            entries[$0] == .conflicting
+        }
+    }
+}
+
+private struct RouteLookupRecord {
     let gateway: String
     let interfaceName: String
     let isOwned: Bool
