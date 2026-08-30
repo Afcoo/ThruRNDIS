@@ -102,9 +102,6 @@ struct USBDevicesView: View {
                             !store.canEnableAutoConnect(for: accessory)
                                 && !store.isAutoConnectEnabled(for: accessory)
                         )
-                        .accessibilityLabel(
-                            Text("Auto Connect for \(accessory.deviceName)")
-                        )
                         .accessibilityValue(
                             Text(
                                 store.isAutoConnectEnabled(for: accessory)
@@ -113,7 +110,7 @@ struct USBDevicesView: View {
                             )
                         )
                     }
-                    .width(80)
+                    .width(85)
 
                     TableColumn("Device") { accessory in
                         HStack(spacing: 6) {
