@@ -90,9 +90,9 @@ struct USBDevicesView: View {
                             .disabled(!store.isAutoConnectEnabled(for: accessory))
                         } label: {
                             if store.isAutoConnectEnabled(for: accessory) {
-                                Text("Enable")
+                                Text("Enabled")
                             } else {
-                                Text("Disable")
+                                Text("Disabled")
                             }
                         }
                         .menuStyle(.borderlessButton)
@@ -104,6 +104,13 @@ struct USBDevicesView: View {
                         )
                         .accessibilityLabel(
                             Text("Auto Connect for \(accessory.deviceName)")
+                        )
+                        .accessibilityValue(
+                            Text(
+                                store.isAutoConnectEnabled(for: accessory)
+                                    ? "Enabled"
+                                    : "Disabled"
+                            )
                         )
                     }
                     .width(80)

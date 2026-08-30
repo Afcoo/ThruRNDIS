@@ -855,6 +855,16 @@
         }
       }
     },
+    "Disabled" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "비활성화됨"
+          }
+        }
+      }
+    },
     "Enable" : {
       "localizations" : {
         "ko" : {
