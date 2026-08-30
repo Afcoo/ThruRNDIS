@@ -275,6 +275,7 @@ final class TetheringWorkflowCoordinator {
             presentNextUSBAttachmentPromptIfPossible()
         case .failed:
             cancelPendingAttachment(reason: "VM start or runtime failure")
+            presentNextUSBAttachmentPromptIfPossible()
         default:
             break
         }
@@ -384,6 +385,9 @@ final class TetheringWorkflowCoordinator {
             canPresent: actions.canPresentUSBAttachmentPrompt()
                 && attachmentState == .idle
                 && !isStoppingForVMRestart
+                && runtimeState != .starting
+                && runtimeState != .stopping
+                && !attachmentRequiresVMStopRetry
                 && !assetProvider.isBusy
         )
     }

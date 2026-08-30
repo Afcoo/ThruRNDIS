@@ -37,15 +37,27 @@ final class VMCoordinator {
     private var restartContinuation: (() -> Void)?
     private var stopContinuations: [CheckedContinuation<Bool, Never>] = []
     private var generation: UInt64 = 0
+    private var deferredStopGeneration: UInt64?
     private var consoleOutputWatchdogTask: Task<Void, Never>?
 
     var canStop: Bool {
-        virtualMachine != nil
-            && (runtimeState == .running || runtimeState == .starting || runtimeState == .failed)
+        guard let virtualMachine else {
+            return false
+        }
+        return switch runtimeState {
+        case .starting:
+            true
+        case .running, .failed:
+            virtualMachine.canStop
+        case .idle, .stopping, .stopped:
+            false
+        }
     }
 
     var canRestart: Bool {
-        (runtimeState == .running || runtimeState == .starting) && !isRestarting
+        runtimeState == .running
+            && virtualMachine?.canStop == true
+            && !isRestarting
     }
 
     var canSendConsoleInput: Bool {
@@ -75,6 +87,7 @@ final class VMCoordinator {
         releaseRuntimeResources()
         cancelConsoleOutputWatchdog()
         hasReceivedConsoleOutput = false
+        deferredStopGeneration = nil
         generation &+= 1
         let generation = self.generation
 
@@ -120,7 +133,9 @@ final class VMCoordinator {
                         return
                     }
 
-                    guard self.runtimeState == .starting else {
+                    let hasDeferredStop = self.deferredStopGeneration == generation
+                    guard self.runtimeState == .starting
+                            || (self.runtimeState == .stopping && hasDeferredStop) else {
                         self.reportEventLog(
                             "Ignoring VM start completion while VM state is " +
                                 "\(self.runtimeState.rawValue).",
@@ -131,10 +146,23 @@ final class VMCoordinator {
 
                     switch startResult {
                     case .success:
-                        self.transition(to: .running, message: String(localized: "VM running."))
-                        self.reportEventLog("VM started.", level: .info)
-                        self.scheduleConsoleOutputWatchdog(generation: generation)
+                        if hasDeferredStop {
+                            self.deferredStopGeneration = nil
+                            self.reportEventLog(
+                                "VM start completed; continuing the deferred stop.",
+                                level: .debug
+                            )
+                            self.performStop(
+                                virtualMachine,
+                                generation: generation
+                            )
+                        } else {
+                            self.transition(to: .running, message: String(localized: "VM running."))
+                            self.reportEventLog("VM started.", level: .info)
+                            self.scheduleConsoleOutputWatchdog(generation: generation)
+                        }
                     case .failure(let error):
+                        self.deferredStopGeneration = nil
                         self.generation &+= 1
                         self.virtualMachine = nil
                         self.vmDelegate = nil
@@ -145,6 +173,9 @@ final class VMCoordinator {
                             "VM start failed: " + EventLogErrorFormatter.description(for: error),
                             level: .error
                         )
+                        if hasDeferredStop {
+                            self.resolveStopContinuations(didStop: true)
+                        }
                     }
                 }
             }
@@ -163,35 +194,20 @@ final class VMCoordinator {
         }
         let generation = self.generation
 
-        transition(to: .stopping, message: String(localized: "Stopping VM."))
-        reportEventLog("Stopping VM.", level: .debug)
-
-        virtualMachine.stop { [weak self] error in
-            Task { @MainActor in
-                guard let self else { return }
-                guard self.isCurrent(virtualMachine, generation: generation) else {
-                    self.reportEventLog(
-                        "Ignoring stale VM stop completion from an earlier VM generation.",
-                        level: .debug
-                    )
-                    return
-                }
-
-                if let error {
-                    self.transition(to: .failed, message: error.localizedDescription)
-                    self.reportEventLog(
-                        "VM stop failed: " + EventLogErrorFormatter.description(for: error),
-                        level: .error
-                    )
-                    self.resolveStopContinuations(didStop: false)
-                } else {
-                    self.markStopped(
-                        message: String(localized: "VM stopped."),
-                        eventMessage: "VM stopped."
-                    )
-                }
-            }
+        if runtimeState == .starting {
+            deferredStopGeneration = generation
+            transition(to: .stopping, message: String(localized: "Stopping VM."))
+            reportEventLog(
+                "VM stop deferred until the in-progress start completes.",
+                level: .debug
+            )
+            return
         }
+
+        guard runtimeState != .stopping else {
+            return
+        }
+        performStop(virtualMachine, generation: generation)
     }
 
     func stopAndWaitUntilStopped() async -> Bool {
@@ -220,7 +236,7 @@ final class VMCoordinator {
             return
         }
 
-        guard runtimeState == .running || runtimeState == .starting else {
+        guard runtimeState == .running, virtualMachine.canStop else {
             reportEventLog(
                 "VM restart skipped while VM state is \(runtimeState.rawValue): \(reason).",
                 level: .debug
@@ -295,6 +311,7 @@ final class VMCoordinator {
         generation &+= 1
         isRestarting = false
         restartContinuation = nil
+        deferredStopGeneration = nil
         virtualMachine = nil
         vmDelegate = nil
         usbDelegate = nil
@@ -327,6 +344,7 @@ final class VMCoordinator {
 
                 self.isRestarting = false
                 self.restartContinuation = nil
+                self.deferredStopGeneration = nil
                 self.transition(to: .failed, message: error.localizedDescription)
                 self.generation &+= 1
                 self.releaseRuntimeResources()
@@ -387,6 +405,7 @@ final class VMCoordinator {
         let continuation = restartContinuation
         restartContinuation = nil
         isRestarting = false
+        deferredStopGeneration = nil
         generation &+= 1
         virtualMachine = nil
         vmDelegate = nil
@@ -400,6 +419,41 @@ final class VMCoordinator {
         )
         resolveStopContinuations(didStop: true)
         continuation?()
+    }
+
+    private func performStop(
+        _ virtualMachine: VZVirtualMachine,
+        generation: UInt64
+    ) {
+        transition(to: .stopping, message: String(localized: "Stopping VM."))
+        reportEventLog("Stopping VM.", level: .debug)
+
+        virtualMachine.stop { [weak self] error in
+            Task { @MainActor in
+                guard let self else { return }
+                guard self.isCurrent(virtualMachine, generation: generation) else {
+                    self.reportEventLog(
+                        "Ignoring stale VM stop completion from an earlier VM generation.",
+                        level: .debug
+                    )
+                    return
+                }
+
+                if let error {
+                    self.transition(to: .failed, message: error.localizedDescription)
+                    self.reportEventLog(
+                        "VM stop failed: " + EventLogErrorFormatter.description(for: error),
+                        level: .error
+                    )
+                    self.resolveStopContinuations(didStop: false)
+                } else {
+                    self.markStopped(
+                        message: String(localized: "VM stopped."),
+                        eventMessage: "VM stopped."
+                    )
+                }
+            }
+        }
     }
 
     private func resolveStopContinuations(didStop: Bool) {
