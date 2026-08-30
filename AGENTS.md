@@ -94,11 +94,14 @@ macOS 0.0.0.0/1 and 128.0.0.0/1 routes
   and, only when the managed `/1` set is incomplete, requests the same
   configuration again so the helper can reapply just those routes. The initial
   path callback and ordinary status refreshes remain read-only.
-- A successful USB passthrough attachment arms one automatic managed-network
-  start. Status refreshes from Settings, app activation, helper health, or the
-  menu bar are read-only and must not retry a failed start. A new USB attach or
-  an explicit Start action may arm another attempt; Stop preserves current
-  guest inputs so the user can start again without restarting the VM.
+- Outside debug mode, a successful USB passthrough attachment arms one automatic
+  managed-network start. In debug mode, only an attachment accepted through the
+  detected-device prompt arms that start; attachments requested from the
+  Settings USB list or menu bar leave routing stopped for an explicit Start.
+  Status refreshes from Settings, app activation, helper health, or the menu bar
+  are read-only and must not retry a failed start. An eligible new USB attach or
+  an explicit Start action may arm another attempt; Stop preserves current guest
+  inputs so the user can start again without restarting the VM.
 - The helper installs global and Bond-interface-scoped entries for exactly
   `0.0.0.0/1` and `128.0.0.0/1`, both through guest `192.168.100.1` on the
   allocated Bond. These prefixes remain more specific than the original macOS
@@ -270,8 +273,14 @@ macOS 0.0.0.0/1 and 128.0.0.0/1 routes
   marketing/build versions, and has a code-signing identifier equal to its
   launchd `Label` and sole `MachServices` key. `BundleProgram` remains
   `Contents/MacOS/ThruRNDISPrivilegedHelper`.
-- Increment `CURRENT_PROJECT_VERSION` for every app update so a registered
-  older helper is replaced.
+- Treat `CURRENT_PROJECT_VERSION` as the identity of a distinct installed or
+  published app update, not as a build-invocation counter. Do not increment it
+  for repeated local builds, unsigned Debug builds, or test retries for the
+  same update. Increment it once when preparing a distinct signed app update
+  for installation or distribution so a registered older helper is replaced.
+  During same-build local signed iteration, manually Reinstall the Network
+  Helper after changing it; increment the build number only when specifically
+  validating automatic version-driven helper replacement.
 - Runtime and distribution validators must reject any embedded
   `.systemextension` and any obsolete network/system-extension entitlement.
 
