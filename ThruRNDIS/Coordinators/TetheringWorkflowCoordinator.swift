@@ -10,6 +10,13 @@ private struct PendingUSBAttachment: Equatable {
     let allowsAutomaticNetworkRoutingStart: Bool
     var startedVM: Bool
 }
+
+private struct PendingUSBAutoConnectRequest: Equatable {
+    let accessoryID: UInt64
+    let reconnectIdentity: USBAccessoryReconnectIdentity
+    let token: UUID
+}
+
 private enum USBAttachmentWorkflowState: Equatable {
     case idle
     case waitingForVM(PendingUSBAttachment)
@@ -66,6 +73,8 @@ private enum VMRestartWorkflowRequest {
 final class TetheringWorkflowCoordinator {
     struct Actions {
         let canPresentUSBAttachmentPrompt: () -> Bool
+        let canBeginAutoConnect: () -> Bool
+        let isAutoConnectEnabled: (USBAccessoryReconnectIdentity) -> Bool
         let canContinueVMRestart: () -> Bool
         let stopNetworkRouting: (String) async -> Bool
         let startVirtualMachine: () -> Bool
@@ -83,6 +92,7 @@ final class TetheringWorkflowCoordinator {
     private var runtimeState: VMRuntimeState
     private var attachmentState: USBAttachmentWorkflowState = .idle
     private var vmRestartState: VMRestartWorkflowState = .idle
+    private var pendingAutoConnectRequest: PendingUSBAutoConnectRequest?
 
     init(
         assetProvider: VMAssetProviding,
@@ -366,6 +376,31 @@ final class TetheringWorkflowCoordinator {
         presentNextUSBAttachmentPromptIfPossible()
     }
 
+    func autoConnectAccessoryDidBecomeAvailable(_ record: USBAccessoryRecord) {
+        guard let reconnectIdentity = record.reconnectIdentity,
+              actions.isAutoConnectEnabled(reconnectIdentity),
+              pendingAutoConnectRequest == nil else {
+            return
+        }
+
+        let request = PendingUSBAutoConnectRequest(
+            accessoryID: record.id,
+            reconnectIdentity: reconnectIdentity,
+            token: UUID()
+        )
+        pendingAutoConnectRequest = request
+
+        Task { @MainActor [weak self] in
+            await Task.yield()
+            guard let self,
+                  self.pendingAutoConnectRequest == request else {
+                return
+            }
+            self.pendingAutoConnectRequest = nil
+            self.attemptAutoConnect(request)
+        }
+    }
+
     func accessoryDidBecomeUnavailable(_ accessoryID: UInt64) {
         usbSession.removeDeferredAttachment(accessoryID: accessoryID)
         guard pendingAttachmentAccessoryID == accessoryID else { return }
@@ -419,6 +454,7 @@ final class TetheringWorkflowCoordinator {
     }
 
     func cancelPendingWorkForReset() {
+        pendingAutoConnectRequest = nil
         cancelPendingAttachment(
             reason: "app settings reset",
             presentNextPrompt: false
@@ -437,6 +473,57 @@ final class TetheringWorkflowCoordinator {
 
     private var pendingAttachmentStartedVM: Bool {
         attachmentState.attachment?.startedVM == true
+    }
+
+    private func attemptAutoConnect(_ request: PendingUSBAutoConnectRequest) {
+        guard actions.isAutoConnectEnabled(request.reconnectIdentity),
+              usbSession.isAccessoryMonitoring,
+              let accessory = usbSession.uniqueAccessory(
+                matching: request.reconnectIdentity
+              ),
+              accessory.id == request.accessoryID else {
+            appendEventLog(
+                "USB Auto Connect ignored because its remembered identity " +
+                    "is unavailable or ambiguous.",
+                level: .debug,
+                category: .usb
+            )
+            return
+        }
+
+        usbSession.discardAttachmentWork(accessoryID: request.accessoryID)
+
+        guard usbSession.attachedAccessoryID == nil,
+              usbSession.vmSessionAccessoryID == nil,
+              attachmentState == .idle,
+              vmRestartState == .idle,
+              assetProvider.hasConfiguredAssets,
+              !assetProvider.isBusy,
+              !attachmentRequiresVMStopRetry,
+              actions.canBeginAutoConnect(),
+              usbCoordinator.canRequestAttachment(for: request.accessoryID) else {
+            appendEventLog(
+                "USB Auto Connect ignored for registry " +
+                    "\(accessory.registryIDText) because attachment is not " +
+                    "currently available.",
+                level: .debug,
+                category: .usb
+            )
+            return
+        }
+
+        usbSession.deferPresentedAttachmentPrompt()
+        guard beginAttachmentWorkflow(
+            accessoryID: request.accessoryID,
+            allowsAutomaticNetworkRoutingStart: false
+        ) != nil else {
+            return
+        }
+        appendEventLog(
+            "USB Auto Connect started for registry \(accessory.registryIDText).",
+            level: .info,
+            category: .usb
+        )
     }
 
     @discardableResult

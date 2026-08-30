@@ -34,6 +34,8 @@ final class AppPreferencesStore: ObservableObject {
     }
 
     @Published private(set) var hasCompletedOnboarding: Bool
+    @Published private(set) var usbAutoConnectIdentities:
+        Set<USBAccessoryReconnectIdentity>
     @Published private(set) var launchAtLoginSnapshot: LaunchAtLoginSnapshot
     @Published private(set) var launchAtLoginStatusMessage = ""
 
@@ -58,6 +60,9 @@ final class AppPreferencesStore: ObservableObject {
         self.hasCompletedOnboarding = defaults.integer(
             forKey: DefaultsKey.onboardingVersion
         ) >= Self.currentOnboardingVersion
+        self.usbAutoConnectIdentities = Self.restoredUSBAutoConnectIdentities(
+            defaults: defaults
+        )
         self.launchAtLoginSnapshot = launchAtLoginService.snapshot()
     }
 
@@ -87,14 +92,47 @@ final class AppPreferencesStore: ObservableObject {
         launchAtLoginStatusMessage = ""
     }
 
+    func isUSBAutoConnectEnabled(
+        for identity: USBAccessoryReconnectIdentity
+    ) -> Bool {
+        usbAutoConnectIdentities.contains(identity)
+    }
+
+    @discardableResult
+    func setUSBAutoConnectEnabled(
+        _ isEnabled: Bool,
+        for identity: USBAccessoryReconnectIdentity
+    ) -> Bool {
+        var identities = usbAutoConnectIdentities
+        if isEnabled {
+            identities.insert(identity)
+        } else {
+            identities.remove(identity)
+        }
+
+        guard !identities.isEmpty else {
+            defaults.removeObject(forKey: DefaultsKey.usbAutoConnectIdentities)
+            usbAutoConnectIdentities = []
+            return true
+        }
+        guard let data = try? JSONEncoder().encode(identities) else {
+            return false
+        }
+        defaults.set(data, forKey: DefaultsKey.usbAutoConnectIdentities)
+        usbAutoConnectIdentities = identities
+        return true
+    }
+
     func resetPersistedValues() throws {
         defaults.removeObject(forKey: DefaultsKey.onboardingVersion)
         defaults.removeObject(forKey: DefaultsKey.isDebugModeEnabled)
         defaults.removeObject(forKey: DefaultsKey.shouldAskToAttachDetectedUSBDevices)
+        defaults.removeObject(forKey: DefaultsKey.usbAutoConnectIdentities)
 
         isResettingPersistedValues = true
         isDebugModeEnabled = false
         shouldAskToAttachDetectedUSBDevices = true
+        usbAutoConnectIdentities = []
         hasCompletedOnboarding = false
         isResettingPersistedValues = false
 
@@ -114,5 +152,24 @@ final class AppPreferencesStore: ObservableObject {
         static let onboardingVersion = "Onboarding.completedVersion"
         static let isDebugModeEnabled = "Application.debugModeEnabled"
         static let shouldAskToAttachDetectedUSBDevices = "USB.askToAttachDetectedDevices"
+        static let usbAutoConnectIdentities = "USB.autoConnectIdentities.v1"
+    }
+
+    private static func restoredUSBAutoConnectIdentities(
+        defaults: UserDefaults
+    ) -> Set<USBAccessoryReconnectIdentity> {
+        guard let data = defaults.data(
+            forKey: DefaultsKey.usbAutoConnectIdentities
+        ) else {
+            return []
+        }
+        guard let identities = try? JSONDecoder().decode(
+            Set<USBAccessoryReconnectIdentity>.self,
+            from: data
+        ) else {
+            defaults.removeObject(forKey: DefaultsKey.usbAutoConnectIdentities)
+            return []
+        }
+        return identities
     }
 }

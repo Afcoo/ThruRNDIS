@@ -26,8 +26,8 @@ struct USBInterfaceSummary: Hashable, Sendable {
     }
 }
 
-struct USBAccessoryReconnectIdentity: Hashable, Sendable {
-    enum Anchor: Hashable, Sendable {
+struct USBAccessoryReconnectIdentity: Codable, Hashable, Sendable {
+    enum Anchor: Codable, Hashable, Sendable {
         case containerID(UUID)
         case serialNumber(Data, locationID: UInt32)
     }

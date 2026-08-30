@@ -91,8 +91,9 @@ macOS 0.0.0.0/1 and 128.0.0.0/1 routes
   app settings are reset, or the app terminates.
 - Outside debug mode, a successful USB passthrough attachment arms one automatic
   managed-network start. In debug mode, only an attachment accepted through the
-  detected-device prompt arms that start; attachments requested from the
-  Settings USB list or menu bar leave routing stopped for an explicit Start.
+  detected-device prompt arms that start; remembered Auto Connect attachments
+  and attachments requested from the Settings USB list or menu bar leave routing
+  stopped for an explicit Start.
   Status refreshes from Settings, app activation, helper health, or the menu bar
   are read-only and must not retry a failed start. An eligible new USB attach or
   an explicit Start action may arm another attempt; Stop preserves current guest
@@ -192,8 +193,9 @@ macOS 0.0.0.0/1 and 128.0.0.0/1 routes
   retention policy.
 - `ConsoleSessionStore` owns serial-console text and structured marker
   scanning. `USBSessionStore` owns the atomic USB UI snapshot, prompt queue,
-  de-duplication, and VM-asset deferral. `VMConfigurationStore` owns persisted
-  VM settings and the optional scratch disk.
+  de-duplication, and VM-asset deferral. `AppPreferencesStore` owns the persisted
+  set of Auto Connect reconnect identities with other application preferences.
+  `VMConfigurationStore` owns persisted VM settings and the optional scratch disk.
 - Normal operation requires completed onboarding, valid VM Assets, and the
   current enabled network helper before AccessoryAccess monitoring starts or
   reloads. Debug mode may expose controls, but it does not bypass USB
@@ -207,8 +209,14 @@ macOS 0.0.0.0/1 and 128.0.0.0/1 routes
 
 - USB passthrough must use an AccessoryAccess `AAUSBAccessory` with
   `VZUSBPassthroughDeviceConfiguration(device:)`.
-- A newly available USB device is never attached silently. The app asks first,
-  starts the VM when needed, then attaches the approved device.
+- A newly available USB device normally requires approval before the app starts
+  the VM and attaches it. The sole silent exception is a device whose unique,
+  persisted `USBAccessoryReconnectIdentity` is enabled for Auto Connect. When
+  multiple enabled devices are detected together, the first availability event
+  wins one deferred-turn evaluation through the same serialized attachment
+  workflow. Auto Connect proceeds only when no accessory owns the current VM
+  session; an unavailable or ambiguous identity fails closed without a later
+  automatic retry.
 - One VM boot corresponds to one passthrough attachment lifetime. Manual
   detach, physical disconnect, or passthrough disconnect stops that VM session.
 - Preserve VM-generation and USB-operation tokens so callbacks from old

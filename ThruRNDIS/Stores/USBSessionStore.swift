@@ -42,6 +42,15 @@ final class USBSessionStore: ObservableObject {
         snapshot.vmSessionAccessoryID
     }
 
+    func uniqueAccessory(
+        matching reconnectIdentity: USBAccessoryReconnectIdentity
+    ) -> USBAccessoryRecord? {
+        let matches = accessories.filter {
+            $0.reconnectIdentity == reconnectIdentity
+        }
+        return matches.count == 1 ? matches[0] : nil
+    }
+
     func apply(_ snapshot: USBSessionSnapshot) {
         guard snapshot != self.snapshot else {
             return
@@ -66,6 +75,13 @@ final class USBSessionStore: ObservableObject {
 
     func clearAttachmentPrompt() {
         attachmentPrompt = nil
+    }
+
+    func deferPresentedAttachmentPrompt() {
+        guard let prompt = takeAttachmentPrompt() else {
+            return
+        }
+        enqueueAttachmentPrompt(prompt)
     }
 
     func enqueueAttachmentPrompt(_ prompt: USBAttachmentPrompt) {

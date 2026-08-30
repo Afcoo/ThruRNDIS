@@ -253,6 +253,26 @@
         }
       }
     },
+    "Auto Connect" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "자동 연결"
+          }
+        }
+      }
+    },
+    "Auto Connect for %@" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 자동 연결"
+          }
+        }
+      }
+    },
     "Available devices" : {
       "localizations" : {
         "ko" : {

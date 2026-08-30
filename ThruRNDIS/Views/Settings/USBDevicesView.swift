@@ -77,17 +77,39 @@ struct USBDevicesView: View {
                     displayedAccessories,
                     selection: selectedAccessoryBinding
                 ) {
-                    TableColumn("") { accessory in
-                        if accessory.id == usbSession.attachedAccessoryID {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                                .frame(maxWidth: .infinity, alignment: .center)
-                                .accessibilityLabel(Text("Attached"))
-                        } else {
-                            EmptyView()
+                    TableColumn("Auto Connect") { accessory in
+                        Toggle(
+                            isOn: autoConnectBinding(for: accessory)
+                        ) {
+                            Text("Auto Connect for \(accessory.deviceName)")
                         }
+                        .labelsHidden()
+                        .toggleStyle(.checkbox)
+                        .buttonStyle(.borderless)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .disabled(
+                            !store.canEnableAutoConnect(for: accessory)
+                                && !store.isAutoConnectEnabled(for: accessory)
+                        )
                     }
-                    .width(20)
+                    .width(100)
+
+                    TableColumn("Device") { accessory in
+                        HStack(spacing: 6) {
+                            Group {
+                                if accessory.id == usbSession.attachedAccessoryID {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(.green)
+                                        .accessibilityLabel(Text("Attached"))
+                                }
+                            }
+                            .frame(width: 16)
+
+                            Text(verbatim: accessory.deviceName)
+                        }
+                        .lineLimit(1)
+                        .accessibilityElement(children: .combine)
+                    }
 
                     TableColumn("VID:PID") { accessory in
                         Text(verbatim: accessory.usbIDText)
@@ -95,11 +117,6 @@ struct USBDevicesView: View {
                             .lineLimit(1)
                     }
                     .width(90)
-
-                    TableColumn("Device") { accessory in
-                        Text(verbatim: accessory.deviceName)
-                            .lineLimit(1)
-                    }
 
                     TableColumn("Class") { accessory in
                         Text(verbatim: accessory.classText)
@@ -167,6 +184,17 @@ struct USBDevicesView: View {
         Binding(
             get: { usbSession.selectedAccessoryID },
             set: { store.selectAccessory(id: $0) }
+        )
+    }
+
+    private func autoConnectBinding(
+        for accessory: USBAccessoryRecord
+    ) -> Binding<Bool> {
+        Binding(
+            get: { store.isAutoConnectEnabled(for: accessory) },
+            set: {
+                store.setAutoConnectEnabled($0, for: accessory)
+            }
         )
     }
 
