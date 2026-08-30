@@ -53,6 +53,26 @@ struct USBDevicesView: View {
             }
 
             Section("USB Devices") {
+                HStack {
+                    Toggle(
+                        "Ask to attach when device is available",
+                        isOn: $appPreferences.shouldAskToAttachDetectedUSBDevices
+                    )
+                    .toggleStyle(.checkbox)
+
+                    Spacer()
+
+                    Button("Attach") {
+                        requestSelectedAccessoryAttachment()
+                    }
+                    .disabled(!store.canAttachSelectedAccessory)
+
+                    Button("Detach") {
+                        store.detachAccessory()
+                    }
+                    .disabled(!store.canDetachSelectedAccessory)
+                }
+
                 Table(
                     displayedAccessories,
                     selection: selectedAccessoryBinding
@@ -92,26 +112,6 @@ struct USBDevicesView: View {
                     .width(100)
                 }
                 .frame(height: 180)
-
-                HStack {
-                    Toggle(
-                        "Ask to attach when device is available",
-                        isOn: $appPreferences.shouldAskToAttachDetectedUSBDevices
-                    )
-                    .toggleStyle(.checkbox)
-
-                    Spacer()
-
-                    Button("Attach") {
-                        requestSelectedAccessoryAttachment()
-                    }
-                    .disabled(!store.canAttachSelectedAccessory)
-
-                    Button("Detach") {
-                        store.detachAccessory()
-                    }
-                    .disabled(!store.canDetachSelectedAccessory)
-                }
             }
         }
         .alert(item: $replacementConfirmation) { confirmation in
