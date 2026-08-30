@@ -341,8 +341,7 @@ final class USBAccessoryCoordinator {
         lastAttachAttemptByDescriptor.removeAll()
         attachSuppressedUntilByDescriptor.removeAll()
         reconnectIdentity = nil
-        expectedAccessoryReenumeration = nil
-        suppressedAccessoryReenumerations.removeAll()
+        pruneExpiredAccessoryReenumerations()
         vmSessionAccessoryID = nil
         isIntentionalVMStopInProgress = false
         reportEventLog(
@@ -425,8 +424,7 @@ final class USBAccessoryCoordinator {
         }
 
         reconnectIdentity = nil
-        expectedAccessoryReenumeration = nil
-        suppressedAccessoryReenumerations.removeAll()
+        pruneExpiredAccessoryReenumerations()
         selectedAccessoryID = accessoryID
         attach(
             accessory,
@@ -952,6 +950,19 @@ final class USBAccessoryCoordinator {
             )
         }
         return isMatching
+    }
+
+    private func pruneExpiredAccessoryReenumerations() {
+        let now = clock.now
+        if let expectedAccessoryReenumeration {
+            let deadline = expectedAccessoryReenumeration.reconnectDeadline
+                ?? expectedAccessoryReenumeration.disconnectDeadline
+            if deadline <= now {
+                self.expectedAccessoryReenumeration = nil
+            }
+        }
+        suppressedAccessoryReenumerations = suppressedAccessoryReenumerations
+            .filter { $0.value.readinessDeadline > now }
     }
 
     private func attachSuppressionRemaining(for record: USBAccessoryRecord) -> TimeInterval? {
