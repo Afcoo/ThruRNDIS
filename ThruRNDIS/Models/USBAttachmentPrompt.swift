@@ -26,7 +26,7 @@ struct USBAttachmentPrompt: Identifiable {
     var message: String {
         switch kind {
         case .attach:
-            return String(localized: "\(accessory.deviceName) has been connected.\nStart the VM and attach this device?")
+            return String(localized: "\(accessory.deviceName) has been connected.\nStart networking through this device?")
         case .assetsRequired:
             return String(localized: "\(accessory.deviceName) has been connected, but VM assets have not been configured.\nOpen Settings to install VM Assets.")
         }
