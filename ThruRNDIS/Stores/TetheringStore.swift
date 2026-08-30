@@ -884,6 +884,11 @@ final class TetheringStore: ObservableObject {
         usbCoordinator.onEventLog = { [weak self] message, level in
             self?.appendEventLog(message, level: level, category: .usb)
         }
+        usbCoordinator.onAccessoryPromptSuppressed = { [weak self] accessoryID in
+            guard let self else { return }
+            self.usbSession.discardAttachmentWork(accessoryID: accessoryID)
+            self.workflowCoordinator.presentNextUSBAttachmentPromptIfPossible()
+        }
         usbCoordinator.onAccessoryAvailable = { [weak self] record in
             guard let self else { return }
             guard self.appPreferences.shouldAskToAttachDetectedUSBDevices else {

@@ -83,6 +83,15 @@ final class USBSessionStore: ObservableObject {
         accessoriesAwaitingAssetSetup.remove(accessoryID)
     }
 
+    func discardAttachmentWork(accessoryID: UInt64) {
+        queuedAttachmentPrompts.removeAll { $0.accessory.id == accessoryID }
+        promptedAccessoryIDs.remove(accessoryID)
+        accessoriesAwaitingAssetSetup.remove(accessoryID)
+        if attachmentPrompt?.accessory.id == accessoryID {
+            attachmentPrompt = nil
+        }
+    }
+
     func isAttachmentDeferredUntilAssetsAreReady(accessoryID: UInt64) -> Bool {
         accessoriesAwaitingAssetSetup.contains(accessoryID)
     }

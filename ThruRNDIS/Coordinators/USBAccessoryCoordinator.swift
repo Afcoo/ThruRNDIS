@@ -33,6 +33,7 @@ final class USBAccessoryCoordinator {
     var onStatusMessage: ((String) -> Void)?
     var onEventLog: EventLogHandler?
     var onAccessoryAvailable: ((USBAccessoryRecord) -> Void)?
+    var onAccessoryPromptSuppressed: ((UInt64) -> Void)?
     var onAccessoryUnavailable: ((UInt64) -> Void)?
     var onUnexpectedDetach: ((UInt64, String) -> Void)?
     var runtimeStateProvider: (() -> VMRuntimeState)?
@@ -388,8 +389,11 @@ final class USBAccessoryCoordinator {
             return
         }
 
-        let record = accessories.first { $0.id == accessoryID }
-            ?? USBAccessoryRecord(accessory: accessory)
+        let cachedRecord = accessories.first { $0.id == accessoryID }
+        let record = USBAccessoryRecord(
+            accessory: accessory,
+            previousReconnectIdentity: cachedRecord?.reconnectIdentity
+        )
         guard record.hasConfigurationDescriptor else {
             onStatusMessage?(String(localized: "USB descriptor is incomplete."))
             reportEventLog(
@@ -718,6 +722,7 @@ final class USBAccessoryCoordinator {
             && record.hasConfigurationDescriptor
         if becameReady, consumePromptSuppressionIfMatching(record) {
             _ = announcedAccessoryIDs.insert(record.id)
+            onAccessoryPromptSuppressed?(record.id)
             reportEventLog(
                 "USB accessory returned after intentional passthrough release; " +
                     "connection prompt suppressed for registry \(record.registryIDText).",
@@ -830,6 +835,50 @@ final class USBAccessoryCoordinator {
             )
         }
         self.expectedAccessoryReenumeration = expectedAccessoryReenumeration
+        reconcileExpectedAccessoryReenumerationWithAvailableAccessories()
+    }
+
+    private func reconcileExpectedAccessoryReenumerationWithAvailableAccessories() {
+        guard let expectedAccessoryReenumeration,
+              expectedAccessoryReenumeration.reconnectDeadline != nil else {
+            return
+        }
+
+        let candidates = accessories.filter {
+            $0.id != expectedAccessoryReenumeration.registryID
+                && $0.reconnectIdentity
+                    == expectedAccessoryReenumeration.reconnectIdentity
+        }
+        guard candidates.count <= 1 else {
+            self.expectedAccessoryReenumeration = nil
+            reportEventLog(
+                "USB reenumeration identity is ambiguous; connection prompt " +
+                    "suppression was disabled.",
+                level: .warning
+            )
+            return
+        }
+        guard let candidate = candidates.first else {
+            return
+        }
+
+        matchExpectedAccessoryReenumeration(
+            with: candidate,
+            matchingIdentityCount: 1
+        )
+        guard candidate.hasConfigurationDescriptor,
+              consumePromptSuppressionIfMatching(candidate) else {
+            return
+        }
+
+        _ = announcedAccessoryIDs.insert(candidate.id)
+        onAccessoryPromptSuppressed?(candidate.id)
+        reportEventLog(
+            "USB accessory returned before disconnect notification; " +
+                "queued connection prompt suppressed for registry " +
+                "\(candidate.registryIDText).",
+            level: .debug
+        )
     }
 
     private func matchExpectedAccessoryReenumeration(
