@@ -89,6 +89,11 @@ macOS 0.0.0.0/1 and 128.0.0.0/1 routes
   current, the guest VZNAT address and gateway are known, and RNDIS is ready.
   It removes routes and owned interfaces when readiness is lost, the VM stops,
   app settings are reset, or the app terminates.
+- While an active route lease exists, the app uses `NWPathMonitor` to coalesce
+  macOS network-path changes. It asks the helper for a fresh route-table status
+  and, only when the managed `/1` set is incomplete, requests the same
+  configuration again so the helper can reapply just those routes. The initial
+  path callback and ordinary status refreshes remain read-only.
 - A successful USB passthrough attachment arms one automatic managed-network
   start. Status refreshes from Settings, app activation, helper health, or the
   menu bar are read-only and must not retry a failed start. A new USB attach or
@@ -119,7 +124,10 @@ macOS 0.0.0.0/1 and 128.0.0.0/1 routes
   rediscover and remove the exactly owned routes.
 - The shared XPC surface contains only `status`,
   `start(guestIPv4Address:vznatGatewayIPv4Address:)`, and `stop`. Keep values
-  Foundation/XPC-safe and validate every value again in the helper.
+  Foundation/XPC-safe and validate every value again in the helper. For the
+  exact current configuration, `start` may repair an incomplete managed route
+  set only while every non-route topology check still passes; it must not tear
+  down degraded topology as part of that repair.
 - `VZNATInterfaceResolver` accepts only canonical RFC 1918 guest and gateway
   addresses. It enumerates active host IPv4 interfaces and requires exactly
   one canonical `bridge<number>` whose link type is `IFT_BRIDGE`, whose address
@@ -133,8 +141,10 @@ macOS 0.0.0.0/1 and 128.0.0.0/1 routes
   exact feth member are verified before the helper grants the network lease.
 - `RouteCommandRunner` invokes only `/sbin/route` for mutation and fixed,
   read-only `/usr/sbin/netstat -rn -f inet` for exact global/scoped entry
-  inspection, each with an argument array and fixed environment. Never add a
-  shell API or arbitrary-command XPC method.
+  inspection, each with an argument array and fixed environment. Classify the
+  complete four-entry managed route set from one netstat snapshot per status,
+  preflight, or verification pass. Never add a shell API or arbitrary-command
+  XPC method.
 - Each managed prefix has one global entry and one entry scoped to the allocated
   Bond. Both entries use `192.168.100.1` as gateway and both `PROTO1` and
   `PROTO2` flags as the private ownership signature. Status/removal require the
