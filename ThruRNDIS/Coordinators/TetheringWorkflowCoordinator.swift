@@ -39,13 +39,13 @@ private enum VMRestartWorkflowState: Equatable {
 }
 
 private enum VMRestartWorkflowRequest {
-    case manual(attachingAccessoryID: UInt64?)
+    case manual
     case accessoryReplacement(accessoryID: UInt64)
 
-    var attachingAccessoryID: UInt64? {
+    var attachmentAccessoryID: UInt64? {
         switch self {
-        case .manual(let attachingAccessoryID):
-            attachingAccessoryID
+        case .manual:
+            nil
         case .accessoryReplacement(let accessoryID):
             accessoryID
         }
@@ -152,10 +152,8 @@ final class TetheringWorkflowCoordinator {
         presentNextUSBAttachmentPromptIfPossible()
     }
 
-    func restartVirtualMachine(attachingAccessoryID: UInt64?) {
-        restartVirtualMachine(
-            for: .manual(attachingAccessoryID: attachingAccessoryID)
-        )
+    func restartVirtualMachine() {
+        restartVirtualMachine(for: .manual)
     }
 
     func replaceAttachedAccessory(
@@ -212,9 +210,11 @@ final class TetheringWorkflowCoordinator {
                 self.setVMRestartState(.idle)
                 return
             }
-            self.prepareForVMRestart(
-                attachingAccessoryID: request.attachingAccessoryID
-            )
+            if let attachmentAccessoryID = request.attachmentAccessoryID {
+                self.prepareAttachmentForVMRestart(
+                    accessoryID: attachmentAccessoryID
+                )
+            }
             self.usbCoordinator.prepareForIntentionalVMStop()
             self.vmCoordinator.restart(
                 reason: request.vmRestartReason
@@ -222,7 +222,7 @@ final class TetheringWorkflowCoordinator {
                 guard let self else { return }
                 self.setVMRestartState(.starting)
                 guard self.preparePendingAttachmentForRestartedVM(
-                    expectedAccessoryID: request.attachingAccessoryID
+                    expectedAccessoryID: request.attachmentAccessoryID
                 ) else {
                     self.setVMRestartState(.idle)
                     return
@@ -242,12 +242,11 @@ final class TetheringWorkflowCoordinator {
         }
     }
 
-    private func prepareForVMRestart(attachingAccessoryID: UInt64?) {
-        guard let attachingAccessoryID else { return }
+    private func prepareAttachmentForVMRestart(accessoryID: UInt64) {
         setAttachmentState(
             .waitingForVMStop(
                 PendingUSBAttachment(
-                    accessoryID: attachingAccessoryID,
+                    accessoryID: accessoryID,
                     token: UUID(),
                     startedVM: false
                 )

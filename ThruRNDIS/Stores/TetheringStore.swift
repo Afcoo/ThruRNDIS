@@ -612,9 +612,7 @@ final class TetheringStore: ObservableObject {
 
     func restartVirtualMachine() {
         guard canRestartVirtualMachine else { return }
-        workflowCoordinator.restartVirtualMachine(
-            attachingAccessoryID: attachedAccessoryID
-        )
+        workflowCoordinator.restartVirtualMachine()
     }
 
     func replaceAttachedAccessory(with accessoryID: UInt64) {
