@@ -51,13 +51,6 @@ private enum VMRestartWorkflowRequest {
         }
     }
 
-    var replacementAccessoryID: UInt64? {
-        guard case .accessoryReplacement(let accessoryID) = self else {
-            return nil
-        }
-        return accessoryID
-    }
-
     var networkStopReason: String {
         switch self {
         case .manual:
@@ -219,18 +212,6 @@ final class TetheringWorkflowCoordinator {
                 self.setVMRestartState(.idle)
                 return
             }
-            if let replacementAccessoryID = request.replacementAccessoryID,
-               !self.usbCoordinator.canUseAccessoryForAttachment(
-                   replacementAccessoryID
-               ) {
-                self.rejectAccessoryReplacement(
-                    replacementAccessoryID,
-                    reason: "target became unavailable during Network Routing cleanup"
-                )
-                self.setVMRestartState(.idle)
-                return
-            }
-
             self.prepareForVMRestart(
                 attachingAccessoryID: request.attachingAccessoryID
             )
