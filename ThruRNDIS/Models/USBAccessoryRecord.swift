@@ -109,19 +109,19 @@ struct USBAccessoryRecord: Identifiable, Hashable, Sendable {
         accessory: AAUSBAccessory,
         previousReconnectIdentity: USBAccessoryReconnectIdentity? = nil
     ) {
-        let registryProperties = USBDeviceRegistryResolver.properties(
-            registryID: accessory.registryID
+        let deviceDescriptorData = accessory.deviceDescriptorData
+        let identityResolution = USBDeviceIdentityResolver.resolve(
+            registryID: accessory.registryID,
+            deviceDescriptorData: deviceDescriptorData,
+            previousIdentity: previousReconnectIdentity
         )
         self.init(
             id: accessory.registryID,
-            deviceName: registryProperties.productName
+            deviceName: identityResolution.productName
                 ?? String(localized: "USB Device"),
-            deviceDescriptorData: accessory.deviceDescriptorData,
+            deviceDescriptorData: deviceDescriptorData,
             configurationDescriptorData: accessory.configurationDescriptorData,
-            serialNumber: registryProperties.serialNumber,
-            containerID: registryProperties.containerID,
-            locationID: registryProperties.locationID,
-            previousReconnectIdentity: previousReconnectIdentity
+            reconnectIdentity: identityResolution.identity
         )
     }
 
@@ -130,10 +130,7 @@ struct USBAccessoryRecord: Identifiable, Hashable, Sendable {
         deviceName: String,
         deviceDescriptorData: Data,
         configurationDescriptorData: Data?,
-        serialNumber: Data? = nil,
-        containerID: UUID? = nil,
-        locationID: UInt32? = nil,
-        previousReconnectIdentity: USBAccessoryReconnectIdentity? = nil
+        reconnectIdentity: USBAccessoryReconnectIdentity? = nil
     ) {
         let bytes = [UInt8](deviceDescriptorData)
         let configurationBytes = configurationDescriptorData.map { [UInt8]($0) }
@@ -154,26 +151,10 @@ struct USBAccessoryRecord: Identifiable, Hashable, Sendable {
         self.hasConfigurationDescriptor = configurationBytes?.isEmpty == false
         self.deviceDescriptorHash = Self.fnv1a64(deviceDescriptorData)
         self.configurationDescriptorHash = Self.fnv1a64(configurationDescriptorData)
-        let resolvedReconnectIdentity = USBAccessoryReconnectIdentity(
-            containerID: containerID,
-            serialNumber: serialNumber,
-            locationID: locationID,
-            deviceDescriptorData: deviceDescriptorData
-        )
-        if let previousReconnectIdentity {
-            if let resolvedReconnectIdentity {
-                self.reconnectIdentity = resolvedReconnectIdentity == previousReconnectIdentity
-                    ? resolvedReconnectIdentity
-                    : nil
-            } else {
-                self.reconnectIdentity = previousReconnectIdentity.deviceDescriptorData
-                    == deviceDescriptorData
-                    ? previousReconnectIdentity
-                    : nil
-            }
-        } else {
-            self.reconnectIdentity = resolvedReconnectIdentity
-        }
+        self.reconnectIdentity = reconnectIdentity?.deviceDescriptorData
+            == deviceDescriptorData
+            ? reconnectIdentity
+            : nil
         self.attachmentProfile = USBAccessoryAttachmentProfile(
             deviceDescriptorData: deviceDescriptorData,
             configurationDescriptorData: configurationDescriptorData

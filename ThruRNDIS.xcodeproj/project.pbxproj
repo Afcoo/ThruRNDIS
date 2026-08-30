@@ -48,7 +48,7 @@
 		D10000000000000000000006 /* VMAssetStorageLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10000000000000000000106 /* VMAssetStorageLayout.swift */; };
 		DC1000000000000000000001 /* EventLogErrorFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC1000000000000000000101 /* EventLogErrorFormatter.swift */; };
 		DE1000000000000000000001 /* AppPreferencesStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE1000000000000000000101 /* AppPreferencesStore.swift */; };
-		E10000000000000000000001 /* USBDeviceRegistryResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10000000000000000000101 /* USBDeviceRegistryResolver.swift */; };
+		E10000000000000000000001 /* USBDeviceIdentityResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10000000000000000000101 /* USBDeviceIdentityResolver.swift */; };
 		E20000000000000000000001 /* ReplayableVideoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20000000000000000000101 /* ReplayableVideoView.swift */; };
 		E20000000000000000000002 /* HeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20000000000000000000102 /* HeaderView.swift */; };
 		E20000000000000000000003 /* CommandBlock.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20000000000000000000103 /* CommandBlock.swift */; };
@@ -183,7 +183,7 @@
 		DA1000000000000000000109 /* Distribution.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Distribution.entitlements; sourceTree = "<group>"; };
 		DC1000000000000000000101 /* EventLogErrorFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventLogErrorFormatter.swift; sourceTree = "<group>"; };
 		DE1000000000000000000101 /* AppPreferencesStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPreferencesStore.swift; sourceTree = "<group>"; };
-		E10000000000000000000101 /* USBDeviceRegistryResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBDeviceRegistryResolver.swift; sourceTree = "<group>"; };
+		E10000000000000000000101 /* USBDeviceIdentityResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBDeviceIdentityResolver.swift; sourceTree = "<group>"; };
 		E20000000000000000000101 /* ReplayableVideoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReplayableVideoView.swift; sourceTree = "<group>"; };
 		E20000000000000000000102 /* HeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeaderView.swift; sourceTree = "<group>"; };
 		E20000000000000000000103 /* CommandBlock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandBlock.swift; sourceTree = "<group>"; };
@@ -373,7 +373,7 @@
 				F40000000000000000000104 /* PeerCodeSigningRequirementBuilder.swift */,
 				8B0000000000000000000112 /* RuntimeEntitlements.swift */,
 				NR1000000000000000000107 /* ThruRNDISNetworkRoute.swift */,
-				E10000000000000000000101 /* USBDeviceRegistryResolver.swift */,
+				E10000000000000000000101 /* USBDeviceIdentityResolver.swift */,
 				B10000000000000000000102 /* VMAssetFolderResolver.swift */,
 			);
 			path = Support;
@@ -615,7 +615,7 @@
 				F20000000000000000000001 /* VideoPlaybackStore.swift in Sources */,
 				D10000000000000000000006 /* VMAssetStorageLayout.swift in Sources */,
 				EL3000000000000000000001 /* EventLogFileStore.swift in Sources */,
-				E10000000000000000000001 /* USBDeviceRegistryResolver.swift in Sources */,
+				E10000000000000000000001 /* USBDeviceIdentityResolver.swift in Sources */,
 				8B0000000000000000000009 /* Clipboard.swift in Sources */,
 				8B000000000000000000000A /* FilePicker.swift in Sources */,
 				8B0000000000000000000012 /* RuntimeEntitlements.swift in Sources */,
