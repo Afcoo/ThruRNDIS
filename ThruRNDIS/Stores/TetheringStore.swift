@@ -618,6 +618,7 @@ final class TetheringStore: ObservableObject {
     func restartVirtualMachine() {
         restartVirtualMachine(
             attachingAccessoryID: attachedAccessoryID,
+            replacementAccessoryID: nil,
             networkStopReason: "VM restart",
             vmRestartReason: "manual request"
         )
@@ -626,21 +627,16 @@ final class TetheringStore: ObservableObject {
     func replaceAttachedAccessory(with accessoryID: UInt64) {
         refreshRuntimeEntitlements()
         guard canReplaceAttachedAccessory(with: accessoryID) else {
-            statusMessage = String(
-                localized: "USB accessory replacement is no longer available."
-            )
-            appendEventLog(
-                "USB accessory replacement rejected for registry 0x" +
-                    String(accessoryID, radix: 16, uppercase: true) +
-                    ": replacement prerequisites are no longer satisfied.",
-                level: .warning,
-                category: .usb
+            rejectAccessoryReplacement(
+                accessoryID,
+                reason: "replacement prerequisites are no longer satisfied"
             )
             return
         }
 
         restartVirtualMachine(
             attachingAccessoryID: accessoryID,
+            replacementAccessoryID: accessoryID,
             networkStopReason: "USB accessory replacement",
             vmRestartReason: "USB accessory replacement"
         )
@@ -648,6 +644,7 @@ final class TetheringStore: ObservableObject {
 
     private func restartVirtualMachine(
         attachingAccessoryID: UInt64?,
+        replacementAccessoryID: UInt64?,
         networkStopReason: String,
         vmRestartReason: String
     ) {
@@ -680,6 +677,17 @@ final class TetheringStore: ObservableObject {
                 self.vmRestartState = .idle
                 return
             }
+            if let replacementAccessoryID,
+               !self.usbCoordinator.canUseAccessoryForAttachment(
+                   replacementAccessoryID
+               ) {
+                self.rejectAccessoryReplacement(
+                    replacementAccessoryID,
+                    reason: "target became unavailable during Network Routing cleanup"
+                )
+                self.vmRestartState = .idle
+                return
+            }
 
             self.workflowCoordinator.prepareForVMRestart(
                 attachingAccessoryID: attachingAccessoryID
@@ -707,6 +715,22 @@ final class TetheringStore: ObservableObject {
                 }
             }
         }
+    }
+
+    private func rejectAccessoryReplacement(
+        _ accessoryID: UInt64,
+        reason: String
+    ) {
+        statusMessage = String(
+            localized: "USB accessory replacement is no longer available."
+        )
+        appendEventLog(
+            "USB accessory replacement rejected for registry 0x" +
+                String(accessoryID, radix: 16, uppercase: true) +
+                ": \(reason).",
+            level: .warning,
+            category: .usb
+        )
     }
 
     func requestAttachSelectedAccessory() {
