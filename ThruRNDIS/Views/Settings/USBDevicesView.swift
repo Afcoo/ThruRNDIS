@@ -77,17 +77,57 @@ struct USBDevicesView: View {
                     displayedAccessories,
                     selection: selectedAccessoryBinding
                 ) {
-                    TableColumn("") { accessory in
-                        if accessory.id == usbSession.attachedAccessoryID {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                                .frame(maxWidth: .infinity, alignment: .center)
-                                .accessibilityLabel(Text("Attached"))
-                        } else {
-                            EmptyView()
+                    TableColumn("Auto Connect") { accessory in
+                        Menu {
+                            Button("Enable") {
+                                store.setAutoConnectEnabled(true, for: accessory)
+                            }
+                            .disabled(store.isAutoConnectEnabled(for: accessory))
+
+                            Button("Disable") {
+                                store.setAutoConnectEnabled(false, for: accessory)
+                            }
+                            .disabled(!store.isAutoConnectEnabled(for: accessory))
+                        } label: {
+                            if store.isAutoConnectEnabled(for: accessory) {
+                                Text("Enabled")
+                            } else {
+                                Text("Disabled")
+                            }
                         }
+                        .menuStyle(.borderlessButton)
+                        .controlSize(.regular)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .disabled(
+                            !store.canEnableAutoConnect(for: accessory)
+                                && !store.isAutoConnectEnabled(for: accessory)
+                        )
+                        .accessibilityValue(
+                            Text(
+                                store.isAutoConnectEnabled(for: accessory)
+                                    ? "Enabled"
+                                    : "Disabled"
+                            )
+                        )
                     }
-                    .width(20)
+                    .width(85)
+
+                    TableColumn("Device") { accessory in
+                        HStack(spacing: 6) {
+                            Group {
+                                if accessory.id == usbSession.attachedAccessoryID {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(.green)
+                                        .accessibilityLabel(Text("Attached"))
+                                }
+                            }
+                            .frame(width: 16)
+
+                            Text(verbatim: accessory.deviceName)
+                        }
+                        .lineLimit(1)
+                        .accessibilityElement(children: .combine)
+                    }
 
                     TableColumn("VID:PID") { accessory in
                         Text(verbatim: accessory.usbIDText)
@@ -95,16 +135,6 @@ struct USBDevicesView: View {
                             .lineLimit(1)
                     }
                     .width(90)
-
-                    TableColumn("Device") { accessory in
-                        Text(verbatim: accessory.deviceName)
-                            .lineLimit(1)
-                    }
-
-                    TableColumn("Class") { accessory in
-                        Text(verbatim: accessory.classText)
-                    }
-                    .width(70)
 
                     TableColumn("Registry") { accessory in
                         Text(verbatim: accessory.registryIDText)

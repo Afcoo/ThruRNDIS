@@ -86,6 +86,19 @@ final class TetheringStore: ObservableObject {
                     && !self.isResettingAppSettings
                     && !self.isOnboardingPresented
             },
+            canBeginAutoConnect: { [weak self] in
+                guard let self else { return false }
+                return self.acceptsNewWork
+                    && !self.isOnboardingPresented
+                    && !self.isVMStopPreparationInProgress
+                    && self.runtimeEntitlements.accessoryAccessUSB
+                    && self.isNetworkRouteHelperReady
+            },
+            isAutoConnectEnabled: { [weak self] reconnectIdentity in
+                self?.appPreferences.isUSBAutoConnectEnabled(
+                    for: reconnectIdentity
+                ) == true
+            },
             canContinueVMRestart: { [weak self] in
                 self?.acceptsNewWork == true
             },
@@ -321,6 +334,65 @@ final class TetheringStore: ObservableObject {
             && !workflowCoordinator.attachmentRequiresVMStopRetry
             && !assetProvider.isBusy
             && usbCoordinator.canRequestAttachment(for: accessoryID)
+    }
+
+    func isAutoConnectEnabled(for accessory: USBAccessoryRecord) -> Bool {
+        guard let reconnectIdentity = accessory.reconnectIdentity else {
+            return false
+        }
+        return appPreferences.isUSBAutoConnectEnabled(
+            for: reconnectIdentity
+        )
+    }
+
+    func canEnableAutoConnect(for accessory: USBAccessoryRecord) -> Bool {
+        guard let reconnectIdentity = accessory.reconnectIdentity else {
+            return false
+        }
+        return usbSession.uniqueAccessory(
+            matching: reconnectIdentity
+        )?.id == accessory.id
+    }
+
+    func setAutoConnectEnabled(
+        _ isEnabled: Bool,
+        for accessory: USBAccessoryRecord
+    ) {
+        guard acceptsNewWork,
+              let currentAccessory = accessories.first(where: {
+                $0.id == accessory.id
+              }) else {
+            return
+        }
+
+        if isEnabled, !canEnableAutoConnect(for: currentAccessory) {
+            appendEventLog(
+                "USB Auto Connect was not enabled for registry " +
+                    "\(currentAccessory.registryIDText): a unique reconnect " +
+                    "identity is unavailable.",
+                level: .warning,
+                category: .usb
+            )
+            return
+        }
+
+        if !isEnabled, !isAutoConnectEnabled(for: currentAccessory) {
+            return
+        }
+        guard let reconnectIdentity = currentAccessory.reconnectIdentity,
+              appPreferences.setUSBAutoConnectEnabled(
+                isEnabled,
+                for: reconnectIdentity
+              ) else {
+            return
+        }
+        appendEventLog(
+            isEnabled
+                ? "USB Auto Connect enabled for \(currentAccessory.deviceName)."
+                : "USB Auto Connect disabled for \(currentAccessory.deviceName).",
+            level: .info,
+            category: .usb
+        )
     }
 
     var shouldConfirmApplicationTermination: Bool {
@@ -857,7 +929,7 @@ final class TetheringStore: ObservableObject {
                     )
                     if !allowsAutomaticNetworkRoutingStart {
                         self.appendEventLog(
-                            "Automatic Network Routing start skipped for an explicit USB attachment in debug mode.",
+                            "Automatic Network Routing start was not armed by this USB attachment in debug mode.",
                             level: .debug,
                             category: .network
                         )
@@ -883,6 +955,11 @@ final class TetheringStore: ObservableObject {
         }
         usbCoordinator.onAccessoryAvailable = { [weak self] record in
             guard let self else { return }
+            if self.isAutoConnectEnabled(for: record) {
+                self.workflowCoordinator
+                    .autoConnectAccessoryDidBecomeAvailable(record)
+                return
+            }
             guard self.appPreferences.shouldAskToAttachDetectedUSBDevices else {
                 return
             }

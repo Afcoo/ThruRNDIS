@@ -253,6 +253,16 @@
         }
       }
     },
+    "Auto Connect" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "자동 연결"
+          }
+        }
+      }
+    },
     "Available devices" : {
       "localizations" : {
         "ko" : {
@@ -419,16 +429,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "선택…"
-          }
-        }
-      }
-    },
-    "Class" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "클래스"
           }
         }
       }
@@ -831,6 +831,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "디버그 모드"
+          }
+        }
+      }
+    },
+    "Disable" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "비활성화"
+          }
+        }
+      }
+    },
+    "Disabled" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "비활성화됨"
+          }
+        }
+      }
+    },
+    "Enable" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "활성화"
           }
         }
       }
