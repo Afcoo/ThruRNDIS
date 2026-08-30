@@ -78,18 +78,32 @@ struct USBDevicesView: View {
                     selection: selectedAccessoryBinding
                 ) {
                     TableColumn("Auto Connect") { accessory in
-                        Toggle(
-                            isOn: autoConnectBinding(for: accessory)
-                        ) {
-                            Text("Auto Connect for \(accessory.deviceName)")
+                        Menu {
+                            Button("Enable") {
+                                store.setAutoConnectEnabled(true, for: accessory)
+                            }
+                            .disabled(store.isAutoConnectEnabled(for: accessory))
+
+                            Button("Disable") {
+                                store.setAutoConnectEnabled(false, for: accessory)
+                            }
+                            .disabled(!store.isAutoConnectEnabled(for: accessory))
+                        } label: {
+                            if store.isAutoConnectEnabled(for: accessory) {
+                                Text("Enable")
+                            } else {
+                                Text("Disable")
+                            }
                         }
-                        .labelsHidden()
-                        .toggleStyle(.checkbox)
-                        .buttonStyle(.borderless)
+                        .menuStyle(.borderlessButton)
+                        .controlSize(.regular)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .disabled(
                             !store.canEnableAutoConnect(for: accessory)
                                 && !store.isAutoConnectEnabled(for: accessory)
+                        )
+                        .accessibilityLabel(
+                            Text("Auto Connect for \(accessory.deviceName)")
                         )
                     }
                     .width(80)
@@ -179,17 +193,6 @@ struct USBDevicesView: View {
         Binding(
             get: { usbSession.selectedAccessoryID },
             set: { store.selectAccessory(id: $0) }
-        )
-    }
-
-    private func autoConnectBinding(
-        for accessory: USBAccessoryRecord
-    ) -> Binding<Bool> {
-        Binding(
-            get: { store.isAutoConnectEnabled(for: accessory) },
-            set: {
-                store.setAutoConnectEnabled($0, for: accessory)
-            }
         )
     }
 
