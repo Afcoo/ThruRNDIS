@@ -42,28 +42,10 @@ private enum VMRestartWorkflowRequest {
     case manual
     case accessoryReplacement(accessoryID: UInt64)
 
-    var attachmentAccessoryID: UInt64? {
-        switch self {
-        case .manual:
-            nil
-        case .accessoryReplacement(let accessoryID):
-            accessoryID
-        }
-    }
-
-    var networkStopReason: String {
+    var reason: String {
         switch self {
         case .manual:
             "VM restart"
-        case .accessoryReplacement:
-            "USB accessory replacement"
-        }
-    }
-
-    var vmRestartReason: String {
-        switch self {
-        case .manual:
-            "manual request"
         case .accessoryReplacement:
             "USB accessory replacement"
         }
@@ -190,7 +172,7 @@ final class TetheringWorkflowCoordinator {
         Task { @MainActor [weak self] in
             guard let self else { return }
             let didStopVMNetwork = await self.actions.stopNetworkRouting(
-                request.networkStopReason
+                request.reason
             )
             guard didStopVMNetwork else {
                 self.appendEventLog(
@@ -210,79 +192,45 @@ final class TetheringWorkflowCoordinator {
                 self.setVMRestartState(.idle)
                 return
             }
-            if let attachmentAccessoryID = request.attachmentAccessoryID {
-                self.prepareAttachmentForVMRestart(
-                    accessoryID: attachmentAccessoryID
-                )
-            }
             self.usbCoordinator.prepareForIntentionalVMStop()
             self.vmCoordinator.restart(
-                reason: request.vmRestartReason
+                reason: request.reason
             ) { [weak self] in
                 guard let self else { return }
                 self.setVMRestartState(.starting)
-                guard self.preparePendingAttachmentForRestartedVM(
-                    expectedAccessoryID: request.attachmentAccessoryID
-                ) else {
+                guard self.continueVMRestart(request) else {
                     self.setVMRestartState(.idle)
                     return
-                }
-                if self.actions.startVirtualMachine() {
-                    if self.hasPendingAttachment,
-                       self.runtimeState == .starting {
-                        self.markVMStartedForPendingAttachment()
-                    }
-                } else {
-                    self.setVMRestartState(.idle)
-                    self.cancelWorkflow(
-                        reason: "VM preflight failed after restart"
-                    )
                 }
             }
         }
     }
 
-    private func prepareAttachmentForVMRestart(accessoryID: UInt64) {
-        setAttachmentState(
-            .waitingForVMStop(
-                PendingUSBAttachment(
-                    accessoryID: accessoryID,
-                    token: UUID(),
-                    startedVM: false
-                )
-            )
-        )
-    }
-
-    private func preparePendingAttachmentForRestartedVM(
-        expectedAccessoryID: UInt64?
+    private func continueVMRestart(
+        _ request: VMRestartWorkflowRequest
     ) -> Bool {
-        guard let expectedAccessoryID else {
+        switch request {
+        case .manual:
             guard attachmentState == .idle else {
                 cancelPendingAttachment(
                     reason: "unexpected pending USB attachment during targetless VM restart"
                 )
                 return false
             }
+            return actions.startVirtualMachine()
+        case .accessoryReplacement(let accessoryID):
+            guard beginAttachmentWorkflow(accessoryID: accessoryID) != nil else {
+                appendEventLog(
+                    "USB accessory replacement failed for registry " +
+                        Self.registryIDText(accessoryID) +
+                        " after VM restart.",
+                    level: .warning,
+                    category: .usb
+                )
+                return false
+            }
             return true
         }
-
-        guard pendingAttachmentAccessoryID == expectedAccessoryID,
-              let attachment = attachmentState.attachment,
-              usbSession.accessories.contains(
-                where: { $0.id == expectedAccessoryID }
-              ) else {
-            cancelPendingAttachment(
-                reason: "expected USB accessory unavailable during VM restart"
-            )
-            actions.updateStatusMessage(
-                String(localized: "The USB accessory became unavailable before it could be attached.")
-            )
-            return false
-        }
-
-        setAttachmentState(.waitingForVM(attachment))
-        return true
     }
 
     private func markVMStartedForPendingAttachment() {
