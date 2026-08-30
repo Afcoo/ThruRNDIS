@@ -1705,6 +1705,16 @@
         }
       }
     },
+    "Restart Network Routing" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 라우팅 다시 시작"
+          }
+        }
+      }
+    },
     "Restart Onboarding…" : {
       "localizations" : {
         "ko" : {
@@ -1915,6 +1925,16 @@
         }
       }
     },
+    "Start Network Routing" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 라우팅 시작"
+          }
+        }
+      }
+    },
     "Start the VM before attaching USB." : {
       "localizations" : {
         "ko" : {
@@ -1971,6 +1991,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "중지"
+          }
+        }
+      }
+    },
+    "Stop Network Routing" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 라우팅 중지"
           }
         }
       }

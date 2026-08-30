@@ -34,6 +34,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var stopVMItem: NSMenuItem?
     private var attachSubmenu: NSMenu?
     private var detachItem: NSMenuItem?
+    private var networkActionItem: NSMenuItem?
+    private var stopNetworkItem: NSMenuItem?
     private var isMenuOpen = false
     private var isPresentationRefreshScheduled = false
     private var isPresentingPrompt = false
@@ -131,6 +133,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             }
             menu.addItem(.separator())
             addUSBControlsSection()
+            if store.appPreferences.isDebugModeEnabled {
+                menu.addItem(.separator())
+                addNetworkControlsSection()
+            }
         }
         addSettingsAndQuitItems()
         refreshPresentation()
@@ -182,6 +188,19 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             action: #selector(detachUSB)
         )
         menu.addItem(detachItem!)
+    }
+
+    private func addNetworkControlsSection() {
+        networkActionItem = actionItem(
+            title: "",
+            action: #selector(startOrRestartNetworkRouting)
+        )
+        stopNetworkItem = actionItem(
+            title: String(localized: "Stop Network Routing"),
+            action: #selector(stopNetworkRouting)
+        )
+        menu.addItem(networkActionItem!)
+        menu.addItem(stopNetworkItem!)
     }
 
     private func addSettingsAndQuitItems() {
@@ -251,6 +270,18 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         stopVMItem?.isEnabled = store.canStopVirtualMachine
         refreshAttachSubmenu()
         detachItem?.isEnabled = store.canDetachAccessory
+        if networkRoute.snapshot?.state == .active {
+            networkActionItem?.title = String(
+                localized: "Restart Network Routing"
+            )
+            networkActionItem?.isEnabled = networkRoute.canRestart
+        } else {
+            networkActionItem?.title = String(
+                localized: "Start Network Routing"
+            )
+            networkActionItem?.isEnabled = networkRoute.canStart
+        }
+        stopNetworkItem?.isEnabled = networkRoute.canStop
     }
 
     private func updateStatusButton() {
@@ -449,6 +480,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         stopVMItem = nil
         attachSubmenu = nil
         detachItem = nil
+        networkActionItem = nil
+        stopNetworkItem = nil
     }
 
     @objc private func startOrRestartVM() {
@@ -468,6 +501,16 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     @objc private func detachUSB() { store.detachAccessory() }
+
+    @objc private func startOrRestartNetworkRouting() {
+        if networkRoute.snapshot?.state == .active {
+            networkRoute.restartManually()
+        } else {
+            networkRoute.startManually()
+        }
+    }
+
+    @objc private func stopNetworkRouting() { networkRoute.stopManually() }
     @objc private func showSettings() { openSettings() }
     @objc private func quit() { NSApp.terminate(nil) }
 
