@@ -887,7 +887,9 @@ final class TetheringStore: ObservableObject {
         usbCoordinator.onAccessoryPromptSuppressed = { [weak self] accessoryID in
             guard let self else { return }
             self.usbSession.discardAttachmentWork(accessoryID: accessoryID)
-            self.workflowCoordinator.presentNextUSBAttachmentPromptIfPossible()
+            DispatchQueue.main.async { [weak self] in
+                self?.workflowCoordinator.presentNextUSBAttachmentPromptIfPossible()
+            }
         }
         usbCoordinator.onAccessoryAvailable = { [weak self] record in
             guard let self else { return }
