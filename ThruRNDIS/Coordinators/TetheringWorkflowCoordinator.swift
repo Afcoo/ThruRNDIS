@@ -32,10 +32,57 @@ private enum USBAttachmentWorkflowState: Equatable {
     }
 }
 
+private enum VMRestartWorkflowState: Equatable {
+    case idle
+    case stopping
+    case starting
+}
+
+private enum VMRestartWorkflowRequest {
+    case manual(attachingAccessoryID: UInt64?)
+    case accessoryReplacement(accessoryID: UInt64)
+
+    var attachingAccessoryID: UInt64? {
+        switch self {
+        case .manual(let attachingAccessoryID):
+            attachingAccessoryID
+        case .accessoryReplacement(let accessoryID):
+            accessoryID
+        }
+    }
+
+    var replacementAccessoryID: UInt64? {
+        guard case .accessoryReplacement(let accessoryID) = self else {
+            return nil
+        }
+        return accessoryID
+    }
+
+    var networkStopReason: String {
+        switch self {
+        case .manual:
+            "VM restart"
+        case .accessoryReplacement:
+            "USB accessory replacement"
+        }
+    }
+
+    var vmRestartReason: String {
+        switch self {
+        case .manual:
+            "manual request"
+        case .accessoryReplacement:
+            "USB accessory replacement"
+        }
+    }
+}
+
 @MainActor
 final class TetheringWorkflowCoordinator {
     struct Actions {
         let canPresentUSBAttachmentPrompt: () -> Bool
+        let canContinueVMRestart: () -> Bool
+        let stopNetworkRouting: (String) async -> Bool
         let startVirtualMachine: () -> Bool
         let updateStatusMessage: (String) -> Void
         let workflowStateDidChange: () -> Void
@@ -50,6 +97,7 @@ final class TetheringWorkflowCoordinator {
 
     private var runtimeState: VMRuntimeState
     private var attachmentState: USBAttachmentWorkflowState = .idle
+    private var vmRestartState: VMRestartWorkflowState = .idle
 
     init(
         assetProvider: VMAssetProviding,
@@ -74,6 +122,14 @@ final class TetheringWorkflowCoordinator {
 
     var attachmentRequiresVMStopRetry: Bool {
         runtimeState == .failed && vmCoordinator.hasVirtualMachine
+    }
+
+    var isRestartingVirtualMachine: Bool {
+        vmRestartState != .idle
+    }
+
+    var isStoppingForVMRestart: Bool {
+        vmRestartState == .stopping
     }
 
     func requestAttachAccessory(id accessoryID: UInt64) {
@@ -103,7 +159,109 @@ final class TetheringWorkflowCoordinator {
         presentNextUSBAttachmentPromptIfPossible()
     }
 
-    func prepareForVMRestart(attachingAccessoryID: UInt64?) {
+    func restartVirtualMachine(attachingAccessoryID: UInt64?) {
+        restartVirtualMachine(
+            for: .manual(attachingAccessoryID: attachingAccessoryID)
+        )
+    }
+
+    func replaceAttachedAccessory(
+        with accessoryID: UInt64,
+        prerequisitesSatisfied: Bool
+    ) {
+        guard prerequisitesSatisfied else {
+            rejectAccessoryReplacement(
+                accessoryID,
+                reason: "replacement prerequisites are no longer satisfied"
+            )
+            return
+        }
+
+        restartVirtualMachine(
+            for: .accessoryReplacement(accessoryID: accessoryID)
+        )
+    }
+
+    private func restartVirtualMachine(
+        for request: VMRestartWorkflowRequest
+    ) {
+        guard vmRestartState == .idle,
+              attachmentState == .idle,
+              vmCoordinator.canRestart else {
+            return
+        }
+
+        setVMRestartState(.stopping)
+        actions.updateStatusMessage(
+            String(localized: "Stopping Network Routing before restarting the VM.")
+        )
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let didStopVMNetwork = await self.actions.stopNetworkRouting(
+                request.networkStopReason
+            )
+            guard didStopVMNetwork else {
+                self.appendEventLog(
+                    "VM restart was cancelled because Network Routing cleanup failed.",
+                    level: .error,
+                    category: .network
+                )
+                self.actions.updateStatusMessage(
+                    String(localized: "Could not stop Network Routing. Retry Restart after resolving the Network Routing error.")
+                )
+                self.setVMRestartState(.idle)
+                return
+            }
+            guard self.actions.canContinueVMRestart(),
+                  self.vmRestartState == .stopping,
+                  self.vmCoordinator.canRestart else {
+                self.setVMRestartState(.idle)
+                return
+            }
+            if let replacementAccessoryID = request.replacementAccessoryID,
+               !self.usbCoordinator.canUseAccessoryForAttachment(
+                   replacementAccessoryID
+               ) {
+                self.rejectAccessoryReplacement(
+                    replacementAccessoryID,
+                    reason: "target became unavailable during Network Routing cleanup"
+                )
+                self.setVMRestartState(.idle)
+                return
+            }
+
+            self.prepareForVMRestart(
+                attachingAccessoryID: request.attachingAccessoryID
+            )
+            self.usbCoordinator.prepareForIntentionalVMStop()
+            self.vmCoordinator.restart(
+                reason: request.vmRestartReason
+            ) { [weak self] in
+                guard let self else { return }
+                self.setVMRestartState(.starting)
+                guard self.preparePendingAttachmentForRestartedVM(
+                    expectedAccessoryID: request.attachingAccessoryID
+                ) else {
+                    self.setVMRestartState(.idle)
+                    return
+                }
+                if self.actions.startVirtualMachine() {
+                    if self.hasPendingAttachment,
+                       self.runtimeState == .starting {
+                        self.markVMStartedForPendingAttachment()
+                    }
+                } else {
+                    self.setVMRestartState(.idle)
+                    self.cancelWorkflow(
+                        reason: "VM preflight failed after restart"
+                    )
+                }
+            }
+        }
+    }
+
+    private func prepareForVMRestart(attachingAccessoryID: UInt64?) {
         guard let attachingAccessoryID else { return }
         setAttachmentState(
             .waitingForVMStop(
@@ -116,7 +274,7 @@ final class TetheringWorkflowCoordinator {
         )
     }
 
-    func preparePendingAttachmentForRestartedVM(
+    private func preparePendingAttachmentForRestartedVM(
         expectedAccessoryID: UInt64?
     ) -> Bool {
         guard let expectedAccessoryID else {
@@ -147,11 +305,30 @@ final class TetheringWorkflowCoordinator {
         return true
     }
 
-    func markVMStartedForPendingAttachment() {
+    private func markVMStartedForPendingAttachment() {
         updatePendingAttachment { $0.startedVM = true }
     }
 
+    private func rejectAccessoryReplacement(
+        _ accessoryID: UInt64,
+        reason: String
+    ) {
+        actions.updateStatusMessage(
+            String(localized: "USB accessory replacement is no longer available.")
+        )
+        appendEventLog(
+            "USB accessory replacement rejected for registry " +
+                Self.registryIDText(accessoryID) +
+                ": \(reason).",
+            level: .warning,
+            category: .usb
+        )
+    }
+
     func vmStateDidChange(_ state: VMRuntimeState) {
+        if state == .running || state == .failed {
+            setVMRestartState(.idle)
+        }
         runtimeState = state
         switch state {
         case .running:
@@ -164,7 +341,8 @@ final class TetheringWorkflowCoordinator {
         }
     }
 
-    func vmDidStop(restartWillStartVM: Bool) {
+    func vmDidStop() {
+        let restartWillStartVM = isStoppingForVMRestart
         appendEventLog(
             "VM stop workflow snapshot: pendingUSB=" +
                 "\(pendingAttachmentAccessoryID.map(Self.registryIDText) ?? "none"), " +
@@ -266,6 +444,7 @@ final class TetheringWorkflowCoordinator {
             hasConfiguredVMAssets: assetProvider.hasConfiguredAssets,
             canPresent: actions.canPresentUSBAttachmentPrompt()
                 && attachmentState == .idle
+                && !isStoppingForVMRestart
                 && !assetProvider.isBusy
         )
     }
@@ -480,6 +659,12 @@ final class TetheringWorkflowCoordinator {
     private func setAttachmentState(_ state: USBAttachmentWorkflowState) {
         guard attachmentState != state else { return }
         attachmentState = state
+        actions.workflowStateDidChange()
+    }
+
+    private func setVMRestartState(_ state: VMRestartWorkflowState) {
+        guard vmRestartState != state else { return }
+        vmRestartState = state
         actions.workflowStateDidChange()
     }
 
