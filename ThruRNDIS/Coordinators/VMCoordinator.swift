@@ -238,7 +238,7 @@ final class VMCoordinator {
         restartContinuation = startAgain
         transition(to: .stopping, message: String(localized: "Restarting VM."))
         reportEventLog(
-            "Restarting VM to recreate the fixed usb0 RNDIS session (\(reason)).",
+            "Restarting VM (\(reason)).",
             level: .info
         )
 

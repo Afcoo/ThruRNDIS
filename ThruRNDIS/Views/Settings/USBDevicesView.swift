@@ -8,6 +8,7 @@ struct USBDevicesView: View {
     @EnvironmentObject private var store: TetheringStore
     @EnvironmentObject private var usbSession: USBSessionStore
     @EnvironmentObject private var appPreferences: AppPreferencesStore
+    @State private var replacementConfirmation: USBAccessoryReplacementConfirmation?
 
     var body: some View {
         Form {
@@ -49,47 +50,117 @@ struct USBDevicesView: View {
                 }
             } header: {
                 Text("AccessoryAccess Listener")
-            } footer: {
-                Text("New devices require approval, and only one USB device can be attached during a VM session.")
             }
 
             Section("USB Devices") {
-                if usbSession.accessories.isEmpty {
-                    LabeledContent("Available devices", value: String(localized: "None"))
-                } else {
-                    List(selection: selectedAccessoryBinding) {
-                        ForEach(usbSession.accessories) { accessory in
-                            USBAccessoryRow(
-                                accessory: accessory,
-                                isAttached: accessory.id == usbSession.attachedAccessoryID
-                            )
-                            .tag(accessory.id)
-                        }
-                    }
-                    .frame(height: 180)
-                }
-
                 HStack {
-                    Button("Attach Selected") {
-                        store.requestAttachSelectedAccessory()
+                    Toggle(
+                        "Ask to attach when device is available",
+                        isOn: $appPreferences.shouldAskToAttachDetectedUSBDevices
+                    )
+                    .toggleStyle(.checkbox)
+
+                    Spacer()
+
+                    Button("Attach") {
+                        requestSelectedAccessoryAttachment()
                     }
                     .disabled(!store.canAttachSelectedAccessory)
 
                     Button("Detach") {
                         store.detachAccessory()
                     }
-                    .disabled(!store.canDetachAccessory)
-
-                    Spacer()
-
-                    Toggle(
-                        "Ask to attach when device is available",
-                        isOn: $appPreferences.shouldAskToAttachDetectedUSBDevices
-                    )
-                    .toggleStyle(.checkbox)
+                    .disabled(!store.canDetachSelectedAccessory)
                 }
+
+                Table(
+                    displayedAccessories,
+                    selection: selectedAccessoryBinding
+                ) {
+                    TableColumn("") { accessory in
+                        if accessory.id == usbSession.attachedAccessoryID {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .accessibilityLabel(Text("Attached"))
+                        } else {
+                            EmptyView()
+                        }
+                    }
+                    .width(20)
+
+                    TableColumn("VID:PID") { accessory in
+                        Text(verbatim: accessory.usbIDText)
+                            .monospaced()
+                            .lineLimit(1)
+                    }
+                    .width(90)
+
+                    TableColumn("Device") { accessory in
+                        Text(verbatim: accessory.deviceName)
+                            .lineLimit(1)
+                    }
+
+                    TableColumn("Class") { accessory in
+                        Text(verbatim: accessory.classText)
+                    }
+                    .width(70)
+
+                    TableColumn("Registry") { accessory in
+                        Text(verbatim: accessory.registryIDText)
+                    }
+                    .width(100)
+                }
+                .frame(height: 180)
             }
         }
+        .alert(item: $replacementConfirmation) { confirmation in
+            Alert(
+                title: Text("Replace Attached USB Device?"),
+                message: Text(
+                    "The attached USB device will be detached, and the selected device will be attached."
+                ),
+                primaryButton: .destructive(Text("Detach and Attach")) {
+                    store.replaceAttachedAccessory(
+                        with: confirmation.replacementAccessoryID
+                    )
+                },
+                secondaryButton: .cancel()
+            )
+        }
+    }
+
+    private func requestSelectedAccessoryAttachment() {
+        guard let selectedAccessoryID = usbSession.selectedAccessoryID else {
+            store.requestAttachSelectedAccessory()
+            return
+        }
+
+        if let attachedAccessoryID = usbSession.attachedAccessoryID,
+           attachedAccessoryID != selectedAccessoryID {
+            replacementConfirmation = USBAccessoryReplacementConfirmation(
+                replacementAccessoryID: selectedAccessoryID
+            )
+            return
+        }
+
+        store.requestAttachSelectedAccessory()
+    }
+
+    private var displayedAccessories: [USBAccessoryRecord] {
+        let accessories = usbSession.accessories
+        guard let attachedAccessoryID = usbSession.attachedAccessoryID,
+              let attachedIndex = accessories.firstIndex(where: {
+                $0.id == attachedAccessoryID
+              }),
+              attachedIndex != accessories.startIndex else {
+            return accessories
+        }
+
+        var displayedAccessories = accessories
+        let attachedAccessory = displayedAccessories.remove(at: attachedIndex)
+        displayedAccessories.insert(attachedAccessory, at: 0)
+        return displayedAccessories
     }
 
     private var selectedAccessoryBinding: Binding<UInt64?> {
@@ -118,33 +189,8 @@ struct USBDevicesView: View {
     }
 }
 
-private struct USBAccessoryRow: View {
-    let accessory: USBAccessoryRecord
-    let isAttached: Bool
+private struct USBAccessoryReplacementConfirmation: Identifiable {
+    let replacementAccessoryID: UInt64
 
-    var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: isAttached ? "checkmark.circle.fill" : "cable.connector")
-                .foregroundStyle(isAttached ? .green : .secondary)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(verbatim: accessory.deviceName)
-                    .lineLimit(1)
-
-                Text("VID:PID \(accessory.usbIDText) · Class \(accessory.classText) · Registry \(accessory.registryIDText)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-
-            Spacer()
-
-            if isAttached {
-                Text("Attached")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(.vertical, 2)
-    }
+    var id: UInt64 { replacementAccessoryID }
 }

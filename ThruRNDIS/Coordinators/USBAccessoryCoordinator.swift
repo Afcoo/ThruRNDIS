@@ -90,11 +90,17 @@ final class USBAccessoryCoordinator {
     }
 
     func canRequestAttachment(for accessoryID: UInt64) -> Bool {
+        guard vmSessionAccessoryID == nil else {
+            return false
+        }
+        return canUseAccessoryForAttachment(accessoryID)
+    }
+
+    func canUseAccessoryForAttachment(_ accessoryID: UInt64) -> Bool {
         guard let record = accessories.first(where: { $0.id == accessoryID }),
               record.hasConfigurationDescriptor,
               accessoryObjects[accessoryID] != nil,
               pendingAttachAccessoryID == nil,
-              vmSessionAccessoryID == nil,
               attachedAccessoryID != accessoryID else {
             return false
         }
