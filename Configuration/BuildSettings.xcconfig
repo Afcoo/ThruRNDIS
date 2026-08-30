@@ -8,7 +8,8 @@ DEVELOPMENT_TEAM =
 THRURNDIS_APP_BUNDLE_IDENTIFIER = com.example.thrurndis
 THRURNDIS_PRIVILEGED_HELPER_BUNDLE_IDENTIFIER = $(THRURNDIS_APP_BUNDLE_IDENTIFIER).privileged-helper
 // The privileged helper uses the app-shared CFBundleVersion for automatic
-// upgrades. Increment CURRENT_PROJECT_VERSION for every app update.
+// upgrades. Increment CURRENT_PROJECT_VERSION once per distinct installed or
+// published app update, not for repeated local builds of the same update.
 THRURNDIS_APP_DISTRIBUTION_PROVISIONING_PROFILE =
 LOCALIZATION_PREFERS_STRING_CATALOGS = YES
 SWIFT_EMIT_LOC_STRINGS = YES
