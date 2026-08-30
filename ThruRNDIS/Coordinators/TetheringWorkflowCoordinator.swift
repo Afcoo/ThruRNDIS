@@ -7,6 +7,7 @@ import Foundation
 private struct PendingUSBAttachment: Equatable {
     let accessoryID: UInt64
     let token: UUID
+    let allowsAutomaticNetworkRoutingStart: Bool
     var startedVM: Bool
 }
 private enum USBAttachmentWorkflowState: Equatable {
@@ -116,8 +117,15 @@ final class TetheringWorkflowCoordinator {
         vmRestartState == .stopping
     }
 
+    var allowsAutomaticNetworkRoutingStart: Bool {
+        attachmentState.attachment?.allowsAutomaticNetworkRoutingStart == true
+    }
+
     func requestAttachAccessory(id accessoryID: UInt64) {
-        _ = beginAttachmentWorkflow(accessoryID: accessoryID)
+        _ = beginAttachmentWorkflow(
+            accessoryID: accessoryID,
+            allowsAutomaticNetworkRoutingStart: false
+        )
     }
 
     func resolveUSBAttachmentPrompt(accepted: Bool) {
@@ -126,7 +134,10 @@ final class TetheringWorkflowCoordinator {
         if accepted {
             switch prompt.kind {
             case .attach:
-                _ = beginAttachmentWorkflow(accessoryID: prompt.accessory.id)
+                _ = beginAttachmentWorkflow(
+                    accessoryID: prompt.accessory.id,
+                    allowsAutomaticNetworkRoutingStart: true
+                )
             case .assetsRequired:
                 usbSession.deferAttachmentUntilAssetsAreReady(
                     accessoryID: prompt.accessory.id
@@ -230,7 +241,10 @@ final class TetheringWorkflowCoordinator {
             }
             return actions.startVirtualMachine()
         case .accessoryReplacement(let accessoryID):
-            guard beginAttachmentWorkflow(accessoryID: accessoryID) != nil else {
+            guard beginAttachmentWorkflow(
+                accessoryID: accessoryID,
+                allowsAutomaticNetworkRoutingStart: false
+            ) != nil else {
                 appendEventLog(
                     "USB accessory replacement failed for registry " +
                         Self.registryIDText(accessoryID) +
@@ -427,7 +441,8 @@ final class TetheringWorkflowCoordinator {
 
     @discardableResult
     private func beginAttachmentWorkflow(
-        accessoryID: UInt64
+        accessoryID: UInt64,
+        allowsAutomaticNetworkRoutingStart: Bool
     ) -> USBAccessoryRecord? {
         guard attachmentState == .idle else {
             actions.updateStatusMessage(
@@ -481,6 +496,8 @@ final class TetheringWorkflowCoordinator {
                 PendingUSBAttachment(
                     accessoryID: accessoryID,
                     token: UUID(),
+                    allowsAutomaticNetworkRoutingStart:
+                        allowsAutomaticNetworkRoutingStart,
                     startedVM: false
                 )
             )

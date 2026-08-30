@@ -847,7 +847,21 @@ final class TetheringStore: ObservableObject {
             let attachedAccessoryID = self.usbSession.attachedAccessoryID
             if attachedAccessoryID != previousAttachedAccessoryID {
                 if attachedAccessoryID != nil {
-                    self.networkRoute.usbDidAttach()
+                    let allowsAutomaticNetworkRoutingStart =
+                        !self.appPreferences.isDebugModeEnabled
+                        || self.workflowCoordinator
+                            .allowsAutomaticNetworkRoutingStart
+                    self.networkRoute.usbDidAttach(
+                        allowsAutomaticNetworkRoutingStart:
+                            allowsAutomaticNetworkRoutingStart
+                    )
+                    if !allowsAutomaticNetworkRoutingStart {
+                        self.appendEventLog(
+                            "Automatic Network Routing start skipped for an explicit USB attachment in debug mode.",
+                            level: .debug,
+                            category: .network
+                        )
+                    }
                 } else {
                     self.networkRoute.usbDidDetach()
                 }

@@ -89,11 +89,14 @@ macOS 0.0.0.0/1 and 128.0.0.0/1 routes
   current, the guest VZNAT address and gateway are known, and RNDIS is ready.
   It removes routes and owned interfaces when readiness is lost, the VM stops,
   app settings are reset, or the app terminates.
-- A successful USB passthrough attachment arms one automatic managed-network
-  start. Status refreshes from Settings, app activation, helper health, or the
-  menu bar are read-only and must not retry a failed start. A new USB attach or
-  an explicit Start action may arm another attempt; Stop preserves current
-  guest inputs so the user can start again without restarting the VM.
+- Outside debug mode, a successful USB passthrough attachment arms one automatic
+  managed-network start. In debug mode, only an attachment accepted through the
+  detected-device prompt arms that start; attachments requested from the
+  Settings USB list or menu bar leave routing stopped for an explicit Start.
+  Status refreshes from Settings, app activation, helper health, or the menu bar
+  are read-only and must not retry a failed start. An eligible new USB attach or
+  an explicit Start action may arm another attempt; Stop preserves current guest
+  inputs so the user can start again without restarting the VM.
 - The helper installs global and Bond-interface-scoped entries for exactly
   `0.0.0.0/1` and `128.0.0.0/1`, both through guest `192.168.100.1` on the
   allocated Bond. These prefixes remain more specific than the original macOS
