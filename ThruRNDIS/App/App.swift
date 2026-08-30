@@ -123,8 +123,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
 
         store.usbSession.$attachmentPrompt
-            .compactMap { $0 }
             .sink { [weak self] prompt in
+                guard let prompt else {
+                    self?.menuBarController?.dismissPresentedPrompt()
+                    return
+                }
                 DispatchQueue.main.async { [weak self] in
                     guard let self,
                           self.store.usbSession.attachmentPrompt?.id == prompt.id else {

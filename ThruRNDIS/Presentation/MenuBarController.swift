@@ -37,6 +37,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var isMenuOpen = false
     private var isPresentationRefreshScheduled = false
     private var isPresentingPrompt = false
+    private var presentedPromptAlert: NSAlert?
 
     init(
         store: TetheringStore,
@@ -100,9 +101,17 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         alert.alertStyle = .informational
         alert.addButton(withTitle: prompt.primaryButtonTitle)
         alert.addButton(withTitle: String(localized: "Not Now"))
+        presentedPromptAlert = alert
         let response = alert.runModal()
+        presentedPromptAlert = nil
         isPresentingPrompt = false
         completion(response == .alertFirstButtonReturn)
+    }
+
+    func dismissPresentedPrompt() {
+        guard isPresentingPrompt, let presentedPromptAlert else { return }
+        NSApp.abortModal()
+        presentedPromptAlert.window.orderOut(nil)
     }
 
     private func rebuildMenu() {

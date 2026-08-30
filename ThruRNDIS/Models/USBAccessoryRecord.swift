@@ -5,7 +5,7 @@ Copyright (C) 2026 Afcoo.
 import AccessoryAccess
 import Foundation
 
-struct USBInterfaceSummary: Hashable {
+struct USBInterfaceSummary: Hashable, Sendable {
     let number: Int
     let alternateSetting: Int
     let endpointCount: Int
@@ -26,7 +26,65 @@ struct USBInterfaceSummary: Hashable {
     }
 }
 
-struct USBAccessoryRecord: Identifiable, Hashable {
+struct USBAccessoryReconnectIdentity: Hashable, Sendable {
+    enum Anchor: Hashable, Sendable {
+        case containerID(UUID)
+        case serialNumber(Data, locationID: UInt32)
+    }
+
+    let anchor: Anchor
+    let deviceDescriptorData: Data
+
+    init?(
+        containerID: UUID?,
+        serialNumber: Data?,
+        locationID: UInt32?,
+        deviceDescriptorData: Data
+    ) {
+        guard deviceDescriptorData.count >= 18 else {
+            return nil
+        }
+
+        if let containerID {
+            anchor = .containerID(containerID)
+        } else if let serialNumber,
+                  let locationID,
+                  deviceDescriptorData[16] != 0 {
+            anchor = .serialNumber(serialNumber, locationID: locationID)
+        } else {
+            return nil
+        }
+
+        self.deviceDescriptorData = deviceDescriptorData
+    }
+
+    var diagnosticText: String {
+        switch anchor {
+        case .containerID:
+            "container ID"
+        case .serialNumber(_, let locationID):
+            "serial number at location 0x" + String(locationID, radix: 16, uppercase: true)
+        }
+    }
+}
+
+struct USBAccessoryAttachmentProfile: Hashable, Sendable {
+    let deviceDescriptorData: Data
+    let configurationDescriptorData: Data
+
+    init?(deviceDescriptorData: Data, configurationDescriptorData: Data?) {
+        guard deviceDescriptorData.count >= 18,
+              let configurationDescriptorData,
+              !configurationDescriptorData.isEmpty else {
+            return nil
+        }
+
+        self.deviceDescriptorData = deviceDescriptorData
+        self.configurationDescriptorData = configurationDescriptorData
+    }
+}
+
+struct USBAccessoryRecord: Identifiable, Hashable, Sendable {
     let id: UInt64
     let deviceName: String
     let vendorID: Int?
@@ -44,14 +102,26 @@ struct USBAccessoryRecord: Identifiable, Hashable {
     let hasConfigurationDescriptor: Bool
     let deviceDescriptorHash: String
     let configurationDescriptorHash: String
+    let reconnectIdentity: USBAccessoryReconnectIdentity?
+    let attachmentProfile: USBAccessoryAttachmentProfile?
 
-    init(accessory: AAUSBAccessory) {
+    init(
+        accessory: AAUSBAccessory,
+        previousReconnectIdentity: USBAccessoryReconnectIdentity? = nil
+    ) {
+        let deviceDescriptorData = accessory.deviceDescriptorData
+        let identityResolution = USBDeviceIdentityResolver.resolve(
+            registryID: accessory.registryID,
+            deviceDescriptorData: deviceDescriptorData,
+            previousIdentity: previousReconnectIdentity
+        )
         self.init(
             id: accessory.registryID,
-            deviceName: USBDeviceNameResolver.productName(registryID: accessory.registryID)
+            deviceName: identityResolution.productName
                 ?? String(localized: "USB Device"),
-            deviceDescriptorData: accessory.deviceDescriptorData,
-            configurationDescriptorData: accessory.configurationDescriptorData
+            deviceDescriptorData: deviceDescriptorData,
+            configurationDescriptorData: accessory.configurationDescriptorData,
+            reconnectIdentity: identityResolution.identity
         )
     }
 
@@ -59,7 +129,8 @@ struct USBAccessoryRecord: Identifiable, Hashable {
         id: UInt64,
         deviceName: String,
         deviceDescriptorData: Data,
-        configurationDescriptorData: Data?
+        configurationDescriptorData: Data?,
+        reconnectIdentity: USBAccessoryReconnectIdentity? = nil
     ) {
         let bytes = [UInt8](deviceDescriptorData)
         let configurationBytes = configurationDescriptorData.map { [UInt8]($0) }
@@ -80,6 +151,14 @@ struct USBAccessoryRecord: Identifiable, Hashable {
         self.hasConfigurationDescriptor = configurationBytes?.isEmpty == false
         self.deviceDescriptorHash = Self.fnv1a64(deviceDescriptorData)
         self.configurationDescriptorHash = Self.fnv1a64(configurationDescriptorData)
+        self.reconnectIdentity = reconnectIdentity?.deviceDescriptorData
+            == deviceDescriptorData
+            ? reconnectIdentity
+            : nil
+        self.attachmentProfile = USBAccessoryAttachmentProfile(
+            deviceDescriptorData: deviceDescriptorData,
+            configurationDescriptorData: configurationDescriptorData
+        )
     }
 
     var registryIDText: String {
@@ -109,17 +188,9 @@ struct USBAccessoryRecord: Identifiable, Hashable {
             "bcdDevice \(Self.wordHex(bcdDevice))",
             "config \(configurationDiagnosticText)",
             "interfaces \(interfaceDiagnosticText)",
-            "hash dev=\(deviceDescriptorHash) cfg=\(configurationDescriptorHash)"
+            "hash dev=\(deviceDescriptorHash) cfg=\(configurationDescriptorHash)",
+            "reconnect identity \(reconnectIdentity?.diagnosticText ?? "unavailable")"
         ].joined(separator: ", ")
-    }
-
-    var descriptorIdentityKey: String {
-        [
-            usbIDText,
-            classText,
-            deviceDescriptorHash,
-            configurationDescriptorHash
-        ].joined(separator: "|")
     }
 
     var configurationDiagnosticText: String {

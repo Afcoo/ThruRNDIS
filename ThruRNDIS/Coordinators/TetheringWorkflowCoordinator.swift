@@ -50,6 +50,15 @@ private enum VMRestartWorkflowRequest {
             "USB accessory replacement"
         }
     }
+
+    var suppressesReleasedAccessoryPrompt: Bool {
+        switch self {
+        case .manual:
+            false
+        case .accessoryReplacement:
+            true
+        }
+    }
 }
 
 @MainActor
@@ -192,7 +201,9 @@ final class TetheringWorkflowCoordinator {
                 self.setVMRestartState(.idle)
                 return
             }
-            self.usbCoordinator.prepareForIntentionalVMStop()
+            self.usbCoordinator.prepareForIntentionalVMStop(
+                suppressReenumerationPrompt: request.suppressesReleasedAccessoryPrompt
+            )
             self.vmCoordinator.restart(
                 reason: request.reason
             ) { [weak self] in
@@ -264,6 +275,7 @@ final class TetheringWorkflowCoordinator {
             presentNextUSBAttachmentPromptIfPossible()
         case .failed:
             cancelPendingAttachment(reason: "VM start or runtime failure")
+            presentNextUSBAttachmentPromptIfPossible()
         default:
             break
         }
@@ -373,6 +385,9 @@ final class TetheringWorkflowCoordinator {
             canPresent: actions.canPresentUSBAttachmentPrompt()
                 && attachmentState == .idle
                 && !isStoppingForVMRestart
+                && runtimeState != .starting
+                && runtimeState != .stopping
+                && !attachmentRequiresVMStopRetry
                 && !assetProvider.isBusy
         )
     }
