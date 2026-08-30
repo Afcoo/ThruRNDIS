@@ -48,6 +48,10 @@ final class NetworkRoutePrivilegedHelperClient {
     private var leaseConnection: NSXPCConnection?
     private var isLeaseActive = false
 
+    var hasActiveLease: Bool {
+        isLeaseActive && leaseConnection != nil
+    }
+
     func status() async throws -> NetworkRouteSnapshot {
         try await sendTransientRequest(
             timeout: Self.statusRequestTimeout
@@ -74,19 +78,12 @@ final class NetworkRoutePrivilegedHelperClient {
         }
 
         do {
-            let snapshot = try await sendRequest(
+            let snapshot = try await sendStartRequest(
                 over: connection,
-                timeout: Self.startRequestTimeout,
-                invalidateOnReply: false,
-                monitorLease: true,
+                guestIPv4Address: guestIPv4Address,
+                vznatGatewayIPv4Address: vznatGatewayIPv4Address,
                 activateConnection: shouldActivate
-            ) { proxy, reply in
-                proxy.start(
-                    guestIPv4Address: guestIPv4Address,
-                    vznatGatewayIPv4Address: vznatGatewayIPv4Address,
-                    withReply: reply
-                )
-            }
+            )
 
             guard leaseConnection === connection else {
                 if !hadActiveLease {
@@ -106,6 +103,41 @@ final class NetworkRoutePrivilegedHelperClient {
             // start. A fresh connection lets a restarted helper rediscover and
             // remove only the routes carrying our ownership signature.
             _ = try? await sendTransientStop(timeout: Self.stopRequestTimeout)
+            throw error
+        }
+    }
+
+    func reapplyRoutes(
+        guestIPv4Address: String,
+        vznatGatewayIPv4Address: String
+    ) async throws -> NetworkRouteSnapshot {
+        guard let connection = leaseConnection,
+              isLeaseActive else {
+            throw NetworkRoutePrivilegedHelperClientError
+                .remoteObjectUnavailable(message: nil)
+        }
+
+        do {
+            let snapshot = try await sendStartRequest(
+                over: connection,
+                guestIPv4Address: guestIPv4Address,
+                vznatGatewayIPv4Address: vznatGatewayIPv4Address,
+                activateConnection: false
+            )
+            guard leaseConnection === connection,
+                  isLeaseActive else {
+                throw NetworkRoutePrivilegedHelperClientError
+                    .remoteObjectUnavailable(message: nil)
+            }
+            return snapshot
+        } catch {
+            if let clientError = error
+                as? NetworkRoutePrivilegedHelperClientError,
+               case .helperFailure = clientError {
+                // A rejected repair leaves the existing lease authoritative.
+            } else {
+                abandonLease(connection, notify: true)
+            }
             throw error
         }
     }
@@ -167,6 +199,27 @@ final class NetworkRoutePrivilegedHelperClient {
     ) async throws -> NetworkRouteSnapshot {
         try await sendTransientRequest(timeout: timeout) { proxy, reply in
             proxy.stop(withReply: reply)
+        }
+    }
+
+    private func sendStartRequest(
+        over connection: NSXPCConnection,
+        guestIPv4Address: String,
+        vznatGatewayIPv4Address: String,
+        activateConnection: Bool
+    ) async throws -> NetworkRouteSnapshot {
+        try await sendRequest(
+            over: connection,
+            timeout: Self.startRequestTimeout,
+            invalidateOnReply: false,
+            monitorLease: true,
+            activateConnection: activateConnection
+        ) { proxy, reply in
+            proxy.start(
+                guestIPv4Address: guestIPv4Address,
+                vznatGatewayIPv4Address: vznatGatewayIPv4Address,
+                withReply: reply
+            )
         }
     }
 

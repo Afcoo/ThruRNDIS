@@ -75,7 +75,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     lazy var usbSession = USBSessionStore()
     lazy var vmConfiguration = VMConfigurationStore()
     lazy var appPreferences = AppPreferencesStore()
-    lazy var networkRoute = NetworkRouteStore(eventLog: eventLog)
+    lazy var networkPathMonitor = NetworkPathMonitorService()
+    lazy var networkRoute = NetworkRouteStore(
+        eventLog: eventLog,
+        networkPathMonitor: networkPathMonitor
+    )
     lazy var portForwarding = PortForwardingStore(eventLog: eventLog)
     lazy var store: TetheringStore = {
         return TetheringStore(
@@ -169,6 +173,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .store(in: &cancellables)
 
+        networkRoute.startNetworkPathMonitoring()
         startServicesAfterLegacyNetworkHelperMigration { [self] in // Remove this wrapper after legacy migration support ends.
             updateNetworkHelperIfNeeded()
             networkRoute.refresh()
@@ -387,6 +392,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func prepareApplicationServicesForTermination(
         prepare: @escaping @MainActor () async -> Void = {}
     ) async {
+        networkRoute.stopNetworkPathMonitoring()
         eventLog.append(
             "Preparing application services for termination.",
             level: .debug,

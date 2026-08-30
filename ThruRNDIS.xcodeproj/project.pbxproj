@@ -88,6 +88,7 @@
 		NR1000000000000000000017 /* VZNATInterfaceResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR100000000000000000011D /* VZNATInterfaceResolver.swift */; };
 		NR1000000000000000000018 /* NetworkInterfaceCommandRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR100000000000000000011E /* NetworkInterfaceCommandRunner.swift */; };
 		NR1000000000000000000019 /* NetworkRouteSystemConfigurationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR100000000000000000011F /* NetworkRouteSystemConfigurationService.swift */; };
+		NM1000000000000000000001 /* NetworkPathMonitorService.swift in Sources */ = {isa = PBXBuildFile; fileRef = NM1000000000000000000101 /* NetworkPathMonitorService.swift */; };
 		PF1000000000000000000001 /* PortForwardingStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = PF1000000000000000000101 /* PortForwardingStore.swift */; };
 /* End PBXBuildFile section */
 
@@ -223,6 +224,7 @@
 		NR100000000000000000011D /* VZNATInterfaceResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VZNATInterfaceResolver.swift; sourceTree = "<group>"; };
 		NR100000000000000000011E /* NetworkInterfaceCommandRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkInterfaceCommandRunner.swift; sourceTree = "<group>"; };
 		NR100000000000000000011F /* NetworkRouteSystemConfigurationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkRouteSystemConfigurationService.swift; sourceTree = "<group>"; };
+		NM1000000000000000000101 /* NetworkPathMonitorService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkPathMonitorService.swift; sourceTree = "<group>"; };
 		PF1000000000000000000101 /* PortForwardingStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortForwardingStore.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -334,6 +336,7 @@
 			isa = PBXGroup;
 			children = (
 				NR1000000000000000000110 /* LegacyNetworkRouteHelperMigrationService.swift */,
+				NM1000000000000000000101 /* NetworkPathMonitorService.swift */,
 				NR1000000000000000000103 /* NetworkRoutePrivilegedHelperClient.swift */,
 				NR1000000000000000000104 /* NetworkRoutePrivilegedHelperRegistrationService.swift */,
 				8B0000000000000000000105 /* USBAccessoryMonitor.swift */,
@@ -598,6 +601,7 @@
 				NR1000000000000000000008 /* NetworkRouteHelperPermissionView.swift in Sources */,
 				NR1000000000000000000009 /* NetworkRouteView.swift in Sources */,
 				NR1000000000000000000010 /* LegacyNetworkRouteHelperMigrationService.swift in Sources */,
+				NM1000000000000000000001 /* NetworkPathMonitorService.swift in Sources */,
 				PF1000000000000000000001 /* PortForwardingStore.swift in Sources */,
 				DE1000000000000000000001 /* AppPreferencesStore.swift in Sources */,
 				8B0000000000000000000003 /* USBAccessoryRecord.swift in Sources */,
@@ -808,7 +812,7 @@
 				CODE_SIGN_ENTITLEMENTS = ThruRNDIS/ThruRNDIS.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 19;
+				CURRENT_PROJECT_VERSION = 20;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ThruRNDIS/Info.plist;
@@ -834,7 +838,7 @@
 				CODE_SIGN_ENTITLEMENTS = ThruRNDIS/Distribution.entitlements;
 				CODE_SIGN_IDENTITY = "Developer ID Application";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 19;
+				CURRENT_PROJECT_VERSION = 20;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -923,7 +927,7 @@
 				CODE_SIGN_ENTITLEMENTS = ThruRNDIS/Runtime.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 19;
+				CURRENT_PROJECT_VERSION = 20;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ThruRNDIS/Info.plist;
@@ -948,7 +952,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CREATE_INFOPLIST_SECTION_IN_BINARY = YES;
-				CURRENT_PROJECT_VERSION = 19;
+				CURRENT_PROJECT_VERSION = 20;
 				ENABLE_DEBUG_DYLIB = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -972,7 +976,7 @@
 				CODE_SIGN_IDENTITY = "Developer ID Application";
 				CODE_SIGN_STYLE = Manual;
 				CREATE_INFOPLIST_SECTION_IN_BINARY = YES;
-				CURRENT_PROJECT_VERSION = 19;
+				CURRENT_PROJECT_VERSION = 20;
 				ENABLE_DEBUG_DYLIB = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -996,7 +1000,7 @@
 				CODE_SIGN_IDENTITY = "Developer ID Application";
 				CODE_SIGN_STYLE = Manual;
 				CREATE_INFOPLIST_SECTION_IN_BINARY = YES;
-				CURRENT_PROJECT_VERSION = 19;
+				CURRENT_PROJECT_VERSION = 20;
 				ENABLE_DEBUG_DYLIB = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;

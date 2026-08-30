@@ -3355,6 +3355,16 @@
         }
       }
     },
+    "Repairing" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "복구 중"
+          }
+        }
+      }
+    },
     "Installing Network Helper…" : {
       "localizations" : {
         "ko" : {

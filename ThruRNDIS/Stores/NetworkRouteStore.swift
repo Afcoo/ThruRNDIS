@@ -7,15 +7,19 @@ import Foundation
 
 enum NetworkRouteOperation: Equatable {
     case refreshing
+    case checkingRoutes
+    case reapplyingRoutes
     case starting
     case stopping
 
     var title: String {
         switch self {
-        case .refreshing:
+        case .refreshing, .checkingRoutes:
             String(localized: "Checking")
         case .starting:
             String(localized: "Starting")
+        case .reapplyingRoutes:
+            String(localized: "Repairing")
         case .stopping:
             String(localized: "Stopping")
         }
@@ -37,13 +41,24 @@ final class NetworkRouteStore: ObservableObject {
 
     private let client: NetworkRoutePrivilegedHelperClient
     private let eventLog: EventLogStore
+    private let networkPathMonitor: NetworkPathMonitorService
     private var reconciliationGeneration: UInt64 = 0
     private var shouldRunManagedNetwork = false
     private var needsReconciliationAfterRefresh = false
+    private var isNetworkPathMonitoring = false
+    private var hasPendingNetworkPathRecovery = false
+    private var networkPathDebounceTask: Task<Void, Never>?
     private var helperCancellables: Set<AnyCancellable> = []
+
+    private struct NetworkPathRecoveryContext {
+        let guestIPv4Address: String
+        let vznatGatewayIPv4Address: String
+        let bondInterfaceName: String
+    }
 
     init(
         eventLog: EventLogStore,
+        networkPathMonitor: NetworkPathMonitorService,
         helper: NetworkRouteHelperStore? = nil,
         client: NetworkRoutePrivilegedHelperClient? = nil
     ) {
@@ -51,8 +66,12 @@ final class NetworkRouteStore: ObservableObject {
         self.helper = helper
         self.client = client ?? NetworkRoutePrivilegedHelperClient()
         self.eventLog = eventLog
+        self.networkPathMonitor = networkPathMonitor
         self.client.onLeaseInvalidated = { [weak self] in
             self?.routeLeaseDidInvalidate()
+        }
+        self.networkPathMonitor.onPathChange = { [weak self] in
+            self?.networkPathDidChange()
         }
 
         Publishers.CombineLatest(
@@ -99,6 +118,18 @@ final class NetworkRouteStore: ObservableObject {
         requestRouteStatusRefresh()
     }
 
+    func startNetworkPathMonitoring() {
+        guard !isNetworkPathMonitoring else { return }
+        isNetworkPathMonitoring = true
+        networkPathMonitor.start()
+    }
+
+    func stopNetworkPathMonitoring() {
+        isNetworkPathMonitoring = false
+        networkPathMonitor.cancel()
+        clearPendingNetworkPathRecovery()
+    }
+
     private func requestRouteStatusRefresh() {
         guard helper.isAvailable, operation == nil else {
             if !helper.isAvailable {
@@ -128,6 +159,188 @@ final class NetworkRouteStore: ObservableObject {
         }
     }
 
+    private func networkPathDidChange() {
+        // Keep changes that arrive after helper-side installation but before
+        // the start reply marks the app's retained connection as the lease.
+        let hasLeaseOrPendingStart = client.hasActiveLease
+            || operation == .starting
+        guard isNetworkPathMonitoring,
+              shouldRunManagedNetwork,
+              hasLeaseOrPendingStart,
+              helper.isAvailable,
+              isRNDISRouteReady,
+              guestIPv4Address != nil,
+              vznatGatewayIPv4Address != nil else {
+            return
+        }
+
+        hasPendingNetworkPathRecovery = true
+        networkPathDebounceTask?.cancel()
+        networkPathDebounceTask = Task { @MainActor [weak self] in
+            do {
+                try await Task.sleep(for: .milliseconds(500))
+            } catch {
+                return
+            }
+            guard let self, !Task.isCancelled else { return }
+            self.networkPathDebounceTask = nil
+            self.performPendingNetworkPathRecoveryIfPossible()
+        }
+    }
+
+    private func performPendingNetworkPathRecoveryIfPossible() {
+        guard hasPendingNetworkPathRecovery,
+              networkPathDebounceTask == nil else { return }
+        guard operation == nil,
+              !helper.isOperationInProgress,
+              !isStopQueued else {
+            return
+        }
+        guard isNetworkPathMonitoring,
+              shouldRunManagedNetwork,
+              client.hasActiveLease,
+              helper.isAvailable,
+              isRNDISRouteReady,
+              let guestIPv4Address,
+              let vznatGatewayIPv4Address,
+              let snapshot,
+              snapshot.guestIPv4Address == guestIPv4Address,
+              snapshot.vznatGatewayIPv4Address
+                == vznatGatewayIPv4Address,
+              let bondInterfaceName = snapshot.bondInterfaceName else {
+            clearPendingNetworkPathRecovery()
+            return
+        }
+
+        hasPendingNetworkPathRecovery = false
+        recoverManagedRoutesAfterNetworkPathChange(.init(
+            guestIPv4Address: guestIPv4Address,
+            vznatGatewayIPv4Address: vznatGatewayIPv4Address,
+            bondInterfaceName: bondInterfaceName
+        ))
+    }
+
+    private func recoverManagedRoutesAfterNetworkPathChange(
+        _ context: NetworkPathRecoveryContext
+    ) {
+        let generation = beginOperation(.checkingRoutes)
+        appendEventLog(
+            "Checking the managed /1 routes after a macOS network path change.",
+            level: .debug
+        )
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            var failureContext =
+                "Could not check Network Routing after the macOS network path changed"
+            do {
+                let checked = try await self.client.status()
+                guard self.reconciliationGeneration == generation else {
+                    return
+                }
+                self.apply(checked)
+                guard self.isNetworkPathRecoveryDesiredAndCurrent(
+                    context
+                ) else {
+                    self.finishOperation(generation)
+                    return
+                }
+                guard self.snapshotMatchesNetworkPathRecovery(
+                    checked,
+                    context: context
+                ) else {
+                    self.finishOperation(generation)
+                    self.disarmNetworkPathRecovery(
+                        after: checked,
+                        expectedBondInterfaceName: context.bondInterfaceName
+                    )
+                    return
+                }
+                guard checked.installedPrefixes
+                    != ThruRNDISNetworkRoute.managedIPv4Prefixes else {
+                    self.finishOperation(generation)
+                    self.appendEventLog(
+                        "The managed /1 routes remain scoped to \(context.bondInterfaceName).",
+                        level: .debug
+                    )
+                    return
+                }
+
+                self.operation = .reapplyingRoutes
+                self.lastErrorMessage = nil
+                self.appendEventLog(
+                    "Reapplying the managed global and \(context.bondInterfaceName)-scoped /1 routes after a macOS network path change.",
+                    level: .warning
+                )
+                failureContext =
+                    "Could not reapply Network Routing after the macOS network path changed"
+                let repaired = try await self.client.reapplyRoutes(
+                    guestIPv4Address: context.guestIPv4Address,
+                    vznatGatewayIPv4Address:
+                        context.vznatGatewayIPv4Address
+                )
+                guard self.finishOperation(generation) else { return }
+                self.apply(repaired)
+                guard self.isNetworkPathRecoveryDesiredAndCurrent(
+                    context
+                ) else {
+                    return
+                }
+                self.appendEventLog(
+                    "Restored the managed /1 routes on \(context.bondInterfaceName).",
+                    level: .info
+                )
+            } catch {
+                guard self.finishOperation(generation) else { return }
+                self.report(
+                    error,
+                    context: failureContext
+                )
+            }
+        }
+    }
+
+    private func snapshotMatchesNetworkPathRecovery(
+        _ snapshot: NetworkRouteSnapshot,
+        context: NetworkPathRecoveryContext
+    ) -> Bool {
+        snapshot.guestIPv4Address == context.guestIPv4Address
+            && snapshot.vznatGatewayIPv4Address
+                == context.vznatGatewayIPv4Address
+            && snapshot.bondInterfaceName == context.bondInterfaceName
+    }
+
+    private func isNetworkPathRecoveryDesiredAndCurrent(
+        _ context: NetworkPathRecoveryContext
+    ) -> Bool {
+        isNetworkPathMonitoring
+            && shouldRunManagedNetwork
+            && client.hasActiveLease
+            && helper.isAvailable
+            && isRNDISRouteReady
+            && guestIPv4Address == context.guestIPv4Address
+            && vznatGatewayIPv4Address
+                == context.vznatGatewayIPv4Address
+    }
+
+    private func disarmNetworkPathRecovery(
+        after checked: NetworkRouteSnapshot,
+        expectedBondInterfaceName: String
+    ) {
+        shouldRunManagedNetwork = false
+        clearPendingNetworkPathRecovery()
+        lastErrorMessage = String(localized: "Needs Attention")
+        appendEventLog(
+            "Network Routing recovery was disarmed because the helper reported state=\(checked.state.rawValue), guest=\(checked.guestIPv4Address ?? "missing"), gateway=\(checked.vznatGatewayIPv4Address ?? "missing"), bond=\(checked.bondInterfaceName ?? "missing") instead of the active \(expectedBondInterfaceName) configuration.",
+            level: .error
+        )
+    }
+
+    private func clearPendingNetworkPathRecovery() {
+        networkPathDebounceTask?.cancel()
+        networkPathDebounceTask = nil
+        hasPendingNetworkPathRecovery = false
+    }
+
     func updateVZNATNetwork(
         guestIPv4Address: String,
         vznatGatewayIPv4Address: String
@@ -143,9 +356,11 @@ final class NetworkRouteStore: ObservableObject {
             "Guest VZNAT network discovered: guest=\(guestIPv4Address), gateway=\(vznatGatewayIPv4Address).",
             level: .info
         )
-        if operation == .starting {
+        if operation == .starting
+            || operation == .checkingRoutes
+            || operation == .reapplyingRoutes {
             stopPreservingDesiredState(
-                reason: "guest VZNAT network changed during network start"
+                reason: "guest VZNAT network changed during a Network Routing operation"
             )
             return
         }
@@ -172,6 +387,7 @@ final class NetworkRouteStore: ObservableObject {
         guard isRNDISRouteReady != isReady else { return }
         isRNDISRouteReady = isReady
         if !isReady {
+            clearPendingNetworkPathRecovery()
             shouldRunManagedNetwork = false
         }
         appendEventLog(
@@ -180,9 +396,12 @@ final class NetworkRouteStore: ObservableObject {
                 : "Guest RNDIS route is no longer ready.",
             level: isReady ? .info : .warning
         )
-        if !isReady, operation == .starting {
+        if !isReady,
+           operation == .starting
+            || operation == .checkingRoutes
+            || operation == .reapplyingRoutes {
             stopPreservingDesiredState(
-                reason: "guest RNDIS route became unavailable during network start"
+                reason: "guest RNDIS route became unavailable during a Network Routing operation"
             )
             return
         }
@@ -197,6 +416,7 @@ final class NetworkRouteStore: ObservableObject {
     }
 
     func usbDidDetach() {
+        clearPendingNetworkPathRecovery()
         shouldRunManagedNetwork = false
     }
 
@@ -217,6 +437,7 @@ final class NetworkRouteStore: ObservableObject {
 
     func stopManually() {
         guard canStop else { return }
+        clearPendingNetworkPathRecovery()
         shouldRunManagedNetwork = false
         stopPreservingDesiredState(reason: "manual stop requested")
     }
@@ -378,6 +599,7 @@ final class NetworkRouteStore: ObservableObject {
 
     private func clearDesiredNetworkState() {
         needsReconciliationAfterRefresh = false
+        clearPendingNetworkPathRecovery()
         shouldRunManagedNetwork = false
         guestIPv4Address = nil
         vznatGatewayIPv4Address = nil
@@ -398,6 +620,7 @@ final class NetworkRouteStore: ObservableObject {
         } else if !helper.isOperationInProgress {
             reconciliationGeneration &+= 1
             needsReconciliationAfterRefresh = false
+            clearPendingNetworkPathRecovery()
             snapshot = nil
             operation = nil
         }
@@ -406,6 +629,7 @@ final class NetworkRouteStore: ObservableObject {
     private func routeLeaseDidInvalidate() {
         reconciliationGeneration &+= 1
         needsReconciliationAfterRefresh = false
+        clearPendingNetworkPathRecovery()
         operation = nil
         snapshot = nil
         guestIPv4Address = nil
@@ -540,6 +764,11 @@ final class NetworkRouteStore: ObservableObject {
     private func finishOperation(_ generation: UInt64) -> Bool {
         guard reconciliationGeneration == generation else { return false }
         operation = nil
+        if hasPendingNetworkPathRecovery {
+            DispatchQueue.main.async { [weak self] in
+                self?.performPendingNetworkPathRecoveryIfPossible()
+            }
+        }
         return true
     }
 
