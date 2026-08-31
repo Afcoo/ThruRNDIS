@@ -1335,16 +1335,6 @@
         }
       }
     },
-    "None" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "없음"
-          }
-        }
-      }
-    },
     "Not Checked" : {
       "localizations" : {
         "ko" : {
