@@ -97,7 +97,6 @@ struct NetworkRouteSystemConfigurationService: Sendable {
                     "add the disabled Network Service"
                 )
             }
-            try moveServiceFirst(service, in: networkSet)
             try setMetadata(
                 bondInterfaceName: bondName,
                 networkServiceID: serviceID,
@@ -391,32 +390,6 @@ struct NetworkRouteSystemConfigurationService: Sendable {
             return false
         }
         return true
-    }
-
-    private func moveServiceFirst(
-        _ service: SCNetworkService,
-        in networkSet: SCNetworkSet
-    ) throws {
-        guard let serviceID = SCNetworkServiceGetServiceID(service) as String? else {
-            throw NetworkRouteSystemConfigurationError.unavailable(
-                "The new Network Service has no identifier."
-            )
-        }
-        let allServiceIDs = ((SCNetworkSetCopyServices(networkSet)
-            as? [SCNetworkService]) ?? []).compactMap {
-                SCNetworkServiceGetServiceID($0) as String?
-            }
-        var order = (SCNetworkSetGetServiceOrder(networkSet) as? [String]) ?? []
-        for identifier in allServiceIDs where !order.contains(identifier) {
-            order.append(identifier)
-        }
-        order.removeAll { $0 == serviceID }
-        order.insert(serviceID, at: 0)
-        guard SCNetworkSetSetServiceOrder(networkSet, order as CFArray) else {
-            throw preferencesTransaction.error(
-                "move the Network Service to the start of service order"
-            )
-        }
     }
 
     private func metadata(

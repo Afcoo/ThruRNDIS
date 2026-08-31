@@ -100,8 +100,9 @@ macOS managed IPv4 Network Service
   an explicit Start action may arm another attempt; Stop preserves current guest
   inputs so the user can start again without restarting the VM.
 - The helper gives its owned Network Service a manual IPv4 address, subnet,
-  router, and DNS configuration, and places that service first in the current
-  network set. It does not configure `AdditionalRoutes`.
+  router, and DNS configuration and adds it to the current network set without
+  changing the user-selected service order. It does not configure
+  `AdditionalRoutes`.
   SystemConfiguration/configd owns default-route synthesis, ranking,
   installation, and removal.
 - IPv6 routing is out of scope. Do not claim that this PoC captures or blocks
@@ -135,9 +136,9 @@ macOS managed IPv4 Network Service
 - The helper creates only the validated `feth0`/`feth1` pair, leaves `feth1`
   unaddressed, creates its recorded SCBond and Network Service, adds `feth1`
   to the resolved VM bridge with `/sbin/ifconfig`, and assigns the Bond
-  `192.168.100.2/24` with router and DNS `192.168.100.1`. The Network Service
-  is placed first in the current network set while the relative order of all
-  other services is preserved.
+  `192.168.100.2/24` with router and DNS `192.168.100.1`. It adds the Network
+  Service to the current network set but does not call
+  `SCNetworkSetSetServiceOrder`; service priority remains user-controlled.
 - Runtime Bond inspection uses `ifconfig -b <bond>` so both the static mode and
   exact feth member are verified before the helper grants the network lease.
 - Host routing uses only the owned SystemConfiguration Network Service. Do not

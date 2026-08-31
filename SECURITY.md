@@ -46,7 +46,7 @@ Reports are especially useful when they involve:
 - privileged-helper authentication, authorization, Bond/feth/bridge ownership,
   Network Service ownership, route configuration, or cleanup;
 - unintended persistence, alteration, or replacement of the managed IPv4
-  router, DNS, or Network Service priority;
+  router or DNS configuration;
 - adding an unowned interface to a bridge or removing an unrelated Bond, feth
   pair, bridge member, or SystemConfiguration service;
 - USB AccessoryAccess approval and passthrough lifecycle;

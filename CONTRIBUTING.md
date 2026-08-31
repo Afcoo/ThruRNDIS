@@ -54,8 +54,8 @@ Keep these boundaries intact:
   implementation bridge after VM start and adds only its owned `feth1` peer.
 - The app and helper do not inspect or relay packet payloads.
 - The helper manages only its recorded Bond, feth pair, bridge membership, and
-  Network Service. That service uses the guest as its IPv4 router and is placed
-  first in the current service order; cleanup disables it before detaching and
+  Network Service. That service uses the guest as its IPv4 router while service
+  priority remains user-controlled; cleanup disables it before detaching and
   destroying the owned interfaces.
 - IPv6 routing is out of scope for this proof of concept.
 - Guest VM scripts, dependency locking, and VM Asset release tooling belong in
