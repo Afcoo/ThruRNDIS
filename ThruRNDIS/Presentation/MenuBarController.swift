@@ -58,7 +58,6 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         menu.delegate = self
         menu.autoenablesItems = false
         statusItem.menu = menu
-        updateStatusButton()
         rebuildMenu()
 
         Publishers.MergeMany([
@@ -117,6 +116,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     private func rebuildMenu() {
+        let status = combinedStatus
         menu.removeAllItems()
         clearMenuReferences()
 
@@ -126,7 +126,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             || store.appPreferences.isDebugModeEnabled
         if displaysOperations {
             if !guidance.isEmpty { menu.addItem(.separator()) }
-            addStatusSection()
+            addStatusSection(status: status)
             if store.appPreferences.isDebugModeEnabled {
                 menu.addItem(.separator())
                 addVMControlsSection()
@@ -139,10 +139,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             }
         }
         addSettingsAndQuitItems()
-        refreshPresentation()
+        refreshPresentation(with: status)
     }
 
-    private func addStatusSection() {
+    private func addStatusSection(status: MenuBarCombinedStatus) {
         if store.appPreferences.isDebugModeEnabled {
             vmStatusItem = statusItemLine(
                 title: vmStatusTitle,
@@ -160,7 +160,6 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             menu.addItem(usbStatusItem!)
             menu.addItem(networkStatusItem!)
         } else {
-            let status = combinedStatus
             combinedStatusItem = statusItemLine(
                 title: status.title,
                 dotColor: combinedStatusColor(status)
@@ -237,8 +236,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     private func refreshPresentation() {
-        updateStatusButton()
-        let status = combinedStatus
+        refreshPresentation(with: combinedStatus)
+    }
+
+    private func refreshPresentation(with status: MenuBarCombinedStatus) {
+        updateStatusButton(status: status)
         updateStatusItem(
             combinedStatusItem,
             title: status.title,
@@ -284,9 +286,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         stopNetworkItem?.isEnabled = networkRoute.canStop
     }
 
-    private func updateStatusButton() {
+    private func updateStatusButton(status: MenuBarCombinedStatus) {
         guard let button = statusItem.button else { return }
-        let status = combinedStatus
         button.image = Self.statusBarImage
         button.imagePosition = .imageLeading
         button.imageHugsTitle = true
