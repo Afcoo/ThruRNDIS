@@ -51,7 +51,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         self.assetWorkflowCoordinator = assetWorkflowCoordinator
         self.openSettings = openSettings
         statusItem = NSStatusBar.system.statusItem(
-            withLength: NSStatusItem.squareLength
+            withLength: NSStatusItem.variableLength
         )
         super.init()
 
@@ -286,13 +286,30 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     private func updateStatusButton() {
         guard let button = statusItem.button else { return }
+        let status = combinedStatus
         button.image = Self.statusBarImage
+        button.imagePosition = .imageLeading
+        button.imageHugsTitle = true
+        button.attributedTitle = Self.statusDotTitle(
+            color: combinedStatusColor(status)
+        )
         button.setAccessibilityLabel(String(localized: "ThruRNDIS status"))
+        button.setAccessibilityValue(status.title)
         if configurationGuidanceTitles.isEmpty {
-            button.toolTip = "ThruRNDIS — \(combinedStatus.title)"
+            button.toolTip = "ThruRNDIS — \(status.title)"
         } else {
             button.toolTip = configurationGuidanceTitles.joined(separator: "\n")
         }
+    }
+
+    private static func statusDotTitle(color: NSColor) -> NSAttributedString {
+        NSAttributedString(
+            string: "●",
+            attributes: [
+                .font: NSFont.systemFont(ofSize: 6, weight: .medium),
+                .foregroundColor: color,
+            ]
+        )
     }
 
     private var configurationGuidanceTitles: [String] {
