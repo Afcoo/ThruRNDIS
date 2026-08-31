@@ -514,7 +514,7 @@ final class NetworkRouteStore: ObservableObject {
                     return
                 }
                 self.appendEventLog(
-                    "IPv4 traffic is routed through \(snapshot.bondInterfaceName ?? "unknown Bond") and \(snapshot.bridgeInterfaceName ?? "unknown bridge") to guest \(guestIPv4Address).",
+                    "The managed IPv4 network path is active through \(snapshot.bondInterfaceName ?? "unknown Bond") and \(snapshot.bridgeInterfaceName ?? "unknown bridge") to guest \(guestIPv4Address).",
                     level: .info
                 )
             } catch {
