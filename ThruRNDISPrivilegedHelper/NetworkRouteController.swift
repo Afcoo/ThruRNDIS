@@ -250,13 +250,6 @@ final class NetworkRouteController: @unchecked Sendable {
         let network = owned.network
         let member = ThruRNDISNetworkRoute.memberInterfaceName
         let peer = ThruRNDISNetworkRoute.peerInterfaceName
-        let missingInterfaces = [
-            owned.bondInterfaceName,
-            member,
-            peer,
-            network.bridgeInterfaceName,
-        ].filter { !interfaceExists($0) }
-        let runtimeInterfacesReady = missingInterfaces.isEmpty
         let bridgeIdentityReady = (try? resolver.resolve(
             guestIPv4Address: network.guestIPv4Address,
             vznatGatewayIPv4Address: network.vznatGatewayIPv4Address
@@ -264,8 +257,7 @@ final class NetworkRouteController: @unchecked Sendable {
         let bridgeMembers = try? interfaceRunner.bridgeMembers(
             interfaceName: network.bridgeInterfaceName
         )
-        let bridgeMembershipReady = runtimeInterfacesReady
-            && bridgeIdentityReady
+        let bridgeMembershipReady = bridgeIdentityReady
             && bridgeMembers?.contains(peer) == true
         let bondRuntime = try? interfaceRunner.bondRuntime(
             interfaceName: owned.bondInterfaceName
@@ -279,29 +271,18 @@ final class NetworkRouteController: @unchecked Sendable {
             interfaceName: peer
         )
         let fethPairReady = memberPeer == peer && peerPeer == member
+        let runtimePathReady = bridgeMembershipReady
+            && bondRuntimeReady
+            && fethPairReady
         let systemConfigurationReady =
             systemSnapshot.configuration == network
             && systemSnapshot.bondInterfaceName == owned.bondInterfaceName
             && systemSnapshot.hasBond
             && systemSnapshot.hasNetworkService
             && systemSnapshot.isNetworkServiceEnabled
-            && systemSnapshot.isIPv4ProtocolEnabled
-            && systemSnapshot.isConfiguredIPv4ConfigurationExact
-            && systemSnapshot.configuredHostIPv4Address
-                == ThruRNDISNetworkRoute.hostIPv4Address
-            && systemSnapshot.configuredHostIPv4SubnetMask
-                == ThruRNDISNetworkRoute.subnetMask
-            && systemSnapshot.configuredRouterIPv4Address
-                == ThruRNDISNetworkRoute.routerIPv4Address
-            && systemSnapshot.configuredDNSServerAddresses
-                == [ThruRNDISNetworkRoute.routerIPv4Address]
+            && systemSnapshot.hasExpectedIPv4Configuration
 
         var readinessFailures: [String] = []
-        if !runtimeInterfacesReady {
-            readinessFailures.append(
-                "missing runtime interfaces [\(missingInterfaces.joined(separator: ", "))]"
-            )
-        }
         if !bridgeIdentityReady {
             readinessFailures.append("VM bridge identity changed")
         }
@@ -330,20 +311,12 @@ final class NetworkRouteController: @unchecked Sendable {
                 "SystemConfiguration bond=\(systemSnapshot.hasBond), "
                     + "service=\(systemSnapshot.hasNetworkService), "
                     + "enabled=\(systemSnapshot.isNetworkServiceEnabled), "
-                    + "IPv4=\(systemSnapshot.isIPv4ProtocolEnabled), "
-                    + "host=\(systemSnapshot.configuredHostIPv4Address ?? "missing"), "
-                    + "mask=\(systemSnapshot.configuredHostIPv4SubnetMask ?? "missing"), "
-                    + "router=\(systemSnapshot.configuredRouterIPv4Address ?? "missing"), "
-                    + "DNS=\(systemSnapshot.configuredDNSServerAddresses.joined(separator: ","))"
+                    + "IPv4=\(systemSnapshot.hasExpectedIPv4Configuration)"
             )
         }
         let snapshot = NetworkRouteSnapshot(
             state: systemConfigurationReady
-                && runtimeInterfacesReady
-                && bridgeIdentityReady
-                && bridgeMembershipReady
-                && bondRuntimeReady
-                && fethPairReady ? .active : .degraded,
+                && runtimePathReady ? .active : .degraded,
             guestIPv4Address: network.guestIPv4Address,
             vznatGatewayIPv4Address: network.vznatGatewayIPv4Address,
             bridgeInterfaceName: network.bridgeInterfaceName,

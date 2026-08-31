@@ -12,12 +12,7 @@ struct NetworkRouteSystemConfigurationSnapshot: Sendable {
     let hasBond: Bool
     let hasNetworkService: Bool
     let isNetworkServiceEnabled: Bool
-    let isIPv4ProtocolEnabled: Bool
-    let configuredHostIPv4Address: String?
-    let configuredHostIPv4SubnetMask: String?
-    let configuredRouterIPv4Address: String?
-    let configuredDNSServerAddresses: [String]
-    let isConfiguredIPv4ConfigurationExact: Bool
+    let hasExpectedIPv4Configuration: Bool
 }
 
 enum NetworkRouteSystemConfigurationError: Error, LocalizedError {
@@ -118,7 +113,7 @@ struct NetworkRouteSystemConfigurationService: Sendable {
         let initial = try inspect()
         guard initial.hasNetworkService,
               !initial.isNetworkServiceEnabled,
-              initial.isConfiguredIPv4ConfigurationExact else {
+              initial.hasExpectedIPv4Configuration else {
             throw NetworkRouteSystemConfigurationError.conflict(
                 "The owned Network Service does not have the exact disabled IPv4 configuration."
             )
@@ -128,7 +123,7 @@ struct NetworkRouteSystemConfigurationService: Sendable {
             try setNetworkServiceEnabled(true)
             let activated = try inspect()
             guard activated.isNetworkServiceEnabled,
-                  activated.isConfiguredIPv4ConfigurationExact else {
+                  activated.hasExpectedIPv4Configuration else {
                 throw NetworkRouteSystemConfigurationError.operationFailed(
                     "The Network Service did not retain its exact IPv4 configuration."
                 )
@@ -348,7 +343,6 @@ struct NetworkRouteSystemConfigurationService: Sendable {
     private func snapshot(
         from objects: ManagedObjects
     ) -> NetworkRouteSystemConfigurationSnapshot {
-        let protocols = objects.service.map(protocolSnapshot)
         return NetworkRouteSystemConfigurationSnapshot(
             configuration: objects.metadata?.configuration,
             bondInterfaceName: objects.metadata?.bondInterfaceName,
@@ -357,52 +351,24 @@ struct NetworkRouteSystemConfigurationService: Sendable {
             isNetworkServiceEnabled: objects.service.map(
                 SCNetworkServiceGetEnabled
             ) ?? false,
-            isIPv4ProtocolEnabled: protocols?.isIPv4Enabled ?? false,
-            configuredHostIPv4Address: protocols?.hostIPv4Address,
-            configuredHostIPv4SubnetMask: protocols?.hostIPv4SubnetMask,
-            configuredRouterIPv4Address: protocols?.routerIPv4Address,
-            configuredDNSServerAddresses:
-                protocols?.dnsServerAddresses ?? [],
-            isConfiguredIPv4ConfigurationExact:
-                protocols?.isIPv4Enabled == true
-                    && protocols?.isIPv4ConfigurationExact == true
+            hasExpectedIPv4Configuration: objects.service.map(
+                hasExpectedIPv4Configuration
+            ) ?? false
         )
     }
 
-    private func protocolSnapshot(
+    private func hasExpectedIPv4Configuration(
         for service: SCNetworkService
-    ) -> ProtocolSnapshot {
-        let ipv4 = SCNetworkServiceCopyProtocol(
+    ) -> Bool {
+        guard let ipv4 = SCNetworkServiceCopyProtocol(
             service,
             kSCNetworkProtocolTypeIPv4
-        )
-        let ipv4Configuration = ipv4.flatMap(
-            SCNetworkProtocolGetConfiguration
-        ) as? [String: Any]
-        let dns = SCNetworkServiceCopyProtocol(
-            service,
-            kSCNetworkProtocolTypeDNS
-        )
-        let dnsConfiguration = dns.flatMap(
-            SCNetworkProtocolGetConfiguration
-        ) as? [String: Any]
-        return ProtocolSnapshot(
-            hostIPv4Address: (ipv4Configuration?[
-                kSCPropNetIPv4Addresses as String
-            ] as? [String])?.first,
-            hostIPv4SubnetMask: (ipv4Configuration?[
-                kSCPropNetIPv4SubnetMasks as String
-            ] as? [String])?.first,
-            routerIPv4Address: ipv4Configuration?[
-                kSCPropNetIPv4Router as String
-            ] as? String,
-            dnsServerAddresses: dnsConfiguration?[
-                kSCPropNetDNSServerAddresses as String
-            ] as? [String] ?? [],
-            isIPv4Enabled: ipv4.map(SCNetworkProtocolGetEnabled) ?? false,
-            isIPv4ConfigurationExact:
-                ipv4ConfigurationIsExact(ipv4Configuration)
-        )
+        ), SCNetworkProtocolGetEnabled(ipv4) else {
+            return false
+        }
+        let configuration = SCNetworkProtocolGetConfiguration(ipv4)
+            as? [String: Any]
+        return ipv4ConfigurationIsExact(configuration)
     }
 
     private func ipv4ConfigurationIsExact(
@@ -606,15 +572,6 @@ struct NetworkRouteSystemConfigurationService: Sendable {
         let bond: SCBondInterface?
         let service: SCNetworkService?
         let metadata: OwnershipMetadata?
-    }
-
-    private struct ProtocolSnapshot {
-        let hostIPv4Address: String?
-        let hostIPv4SubnetMask: String?
-        let routerIPv4Address: String?
-        let dnsServerAddresses: [String]
-        let isIPv4Enabled: Bool
-        let isIPv4ConfigurationExact: Bool
     }
 
 }
