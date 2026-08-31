@@ -30,14 +30,12 @@ struct NetworkRouteSnapshot: Codable, Equatable, Sendable {
     let vznatGatewayIPv4Address: String?
     let bridgeInterfaceName: String?
     let bondInterfaceName: String?
-    let installedPrefixes: [String]
 
     static let inactive = Self(
         state: .inactive,
         guestIPv4Address: nil,
         vznatGatewayIPv4Address: nil,
         bridgeInterfaceName: nil,
-        bondInterfaceName: nil,
-        installedPrefixes: []
+        bondInterfaceName: nil
     )
 }

@@ -12,10 +12,7 @@ struct NetworkRouteSystemConfigurationSnapshot: Sendable {
     let hasBond: Bool
     let hasNetworkService: Bool
     let isNetworkServiceEnabled: Bool
-    let configuredHostIPv4Address: String?
-    let configuredHostIPv4SubnetMask: String?
-    let configuredRouterIPv4Address: String?
-    let configuredDNSServerAddresses: [String]
+    let hasExpectedIPv4Configuration: Bool
 }
 
 enum NetworkRouteSystemConfigurationError: Error, LocalizedError {
@@ -39,16 +36,20 @@ enum NetworkRouteSystemConfigurationError: Error, LocalizedError {
 /// transaction. Runtime feth and VM-bridge membership remain explicit,
 /// fixed-argument ifconfig operations in NetworkRouteController.
 struct NetworkRouteSystemConfigurationService: Sendable {
+    private let preferencesTransaction =
+        SystemConfigurationPreferencesTransaction()
+
     func inspect() throws -> NetworkRouteSystemConfigurationSnapshot {
-        try withLockedPreferences { preferences in
-            snapshot(from: try managedObjects(in: preferences))
+        try preferencesTransaction.withLockedPreferences { preferences in
+            let objects = try managedObjects(in: preferences)
+            return snapshot(from: objects)
         }
     }
 
     func createDisabledConfiguration(
         _ configuration: NetworkRouteConfiguration
     ) throws -> String {
-        try withLockedPreferences { preferences in
+        try preferencesTransaction.withLockedPreferences { preferences in
             guard try metadata(in: preferences) == nil else {
                 throw NetworkRouteSystemConfigurationError.conflict(
                     "A ThruRNDIS ownership record already exists."
@@ -61,7 +62,7 @@ struct NetworkRouteSystemConfigurationService: Sendable {
                   ),
                   let bondName = interfaceName(of: bond),
                   isCanonicalBondInterfaceName(bondName) else {
-                throw lastError("create the Ethernet Bond")
+                throw preferencesTransaction.error("create the Ethernet Bond")
             }
             guard let service = SCNetworkServiceCreate(preferences, bond),
                   SCNetworkServiceEstablishDefaultConfiguration(service),
@@ -71,7 +72,9 @@ struct NetworkRouteSystemConfigurationService: Sendable {
                   ),
                   let serviceID = SCNetworkServiceGetServiceID(service)
                     as String? else {
-                throw lastError("create the ThruRNDIS Network Service")
+                throw preferencesTransaction.error(
+                    "create the ThruRNDIS Network Service"
+                )
             }
 
             var bondOptions = (SCBondInterfaceGetOptions(bond)
@@ -81,39 +84,82 @@ struct NetworkRouteSystemConfigurationService: Sendable {
                 bond,
                 bondOptions as CFDictionary
             ) else {
-                throw lastError("mark the Ethernet Bond as owned")
+                throw preferencesTransaction.error(
+                    "mark the Ethernet Bond as owned"
+                )
             }
 
             try configureProtocols(for: service)
             guard SCNetworkServiceSetEnabled(service, false),
                   let networkSet = SCNetworkSetCopyCurrent(preferences),
                   SCNetworkSetAddService(networkSet, service) else {
-                throw lastError("add the disabled Network Service")
+                throw preferencesTransaction.error(
+                    "add the disabled Network Service"
+                )
             }
-            try moveServiceLast(service, in: networkSet)
             try setMetadata(
                 bondInterfaceName: bondName,
                 networkServiceID: serviceID,
                 configuration: configuration,
                 in: preferences
             )
-            try commitAndApply(preferences)
+            try preferencesTransaction.commitAndApply(preferences)
             return bondName
         }
     }
 
-    func enableNetworkService() throws {
-        try setNetworkServiceEnabled(true)
+    func activateNetworkService() throws {
+        let initial = try inspect()
+        guard initial.hasNetworkService,
+              !initial.isNetworkServiceEnabled,
+              initial.hasExpectedIPv4Configuration else {
+            throw NetworkRouteSystemConfigurationError.conflict(
+                "The owned Network Service does not have the exact disabled IPv4 configuration."
+            )
+        }
+
+        do {
+            try setNetworkServiceEnabled(true)
+            let activated = try inspect()
+            guard activated.isNetworkServiceEnabled,
+                  activated.hasExpectedIPv4Configuration else {
+                throw NetworkRouteSystemConfigurationError.operationFailed(
+                    "The Network Service did not retain its exact IPv4 configuration."
+                )
+            }
+        } catch {
+            var rollbackFailure: Error?
+            do {
+                try setNetworkServiceEnabled(false)
+            } catch {
+                rollbackFailure = error
+            }
+            guard let rollbackFailure else { throw error }
+            throw NetworkRouteSystemConfigurationError.operationFailed(
+                "Network Service activation failed: \(error.localizedDescription); "
+                    + "SystemConfiguration rollback failed: "
+                    + rollbackFailure.localizedDescription
+            )
+        }
     }
 
-    func disableNetworkService() throws {
-        try setNetworkServiceEnabled(false)
+    func deactivateNetworkService() throws {
+        let initial = try inspect()
+        if initial.hasNetworkService {
+            try setNetworkServiceEnabled(false)
+        }
+        let disabled = try inspect()
+        guard !disabled.isNetworkServiceEnabled else {
+            throw NetworkRouteSystemConfigurationError.operationFailed(
+                "The Network Service remained enabled."
+            )
+        }
     }
 
     func withOwnedBondInterface(
         _ operation: (String) throws -> Void
     ) throws {
-        try withLockedPreferences { preferences in
+        try preferencesTransaction.withLockedPreferences { preferences in
             guard let bond = try managedObjects(in: preferences).bond,
                   let bondInterfaceName = interfaceName(of: bond) else {
                 return
@@ -123,18 +169,28 @@ struct NetworkRouteSystemConfigurationService: Sendable {
     }
 
     func removeConfiguration() throws {
-        try withLockedPreferences { preferences in
+        try preferencesTransaction.withLockedPreferences { preferences in
             let objects = try managedObjects(in: preferences)
+            if let service = objects.service,
+               SCNetworkServiceGetEnabled(service) {
+                throw NetworkRouteSystemConfigurationError.conflict(
+                    "The owned Network Service is still enabled."
+                )
+            }
             var changed = false
             if let service = objects.service {
                 guard SCNetworkServiceRemove(service) else {
-                    throw lastError("remove the ThruRNDIS Network Service")
+                    throw preferencesTransaction.error(
+                        "remove the ThruRNDIS Network Service"
+                    )
                 }
                 changed = true
             }
             if let bond = objects.bond {
                 guard SCBondInterfaceRemove(bond) else {
-                    throw lastError("remove the Ethernet Bond")
+                    throw preferencesTransaction.error(
+                        "remove the Ethernet Bond"
+                    )
                 }
                 changed = true
             }
@@ -144,29 +200,31 @@ struct NetworkRouteSystemConfigurationService: Sendable {
                     ThruRNDISNetworkRoute.systemConfigurationMetadataKey
                         as CFString
                 ) else {
-                    throw lastError("remove the network ownership metadata")
+                    throw preferencesTransaction.error(
+                        "remove the network ownership metadata"
+                    )
                 }
                 changed = true
             }
             if changed {
-                try commitAndApply(preferences)
+                try preferencesTransaction.commitAndApply(preferences)
             }
         }
     }
 
     private func setNetworkServiceEnabled(_ enabled: Bool) throws {
-        try withLockedPreferences { preferences in
+        try preferencesTransaction.withLockedPreferences { preferences in
             guard let service = try managedObjects(in: preferences).service else {
                 throw NetworkRouteSystemConfigurationError.unavailable(
                     "The ThruRNDIS Network Service is missing."
                 )
             }
             guard SCNetworkServiceSetEnabled(service, enabled) else {
-                throw lastError(
+                throw preferencesTransaction.error(
                     enabled ? "enable the Network Service" : "disable the Network Service"
                 )
             }
-            try commitAndApply(preferences)
+            try preferencesTransaction.commitAndApply(preferences)
         }
     }
 
@@ -227,7 +285,7 @@ struct NetworkRouteSystemConfigurationService: Sendable {
             service,
             kSCNetworkProtocolTypeIPv4
         ) else {
-            throw lastError("resolve the IPv4 service protocol")
+            throw preferencesTransaction.error("resolve the IPv4 service protocol")
         }
         let ipv4Configuration: [String: Any] = [
             kSCPropNetIPv4ConfigMethod as String:
@@ -243,14 +301,14 @@ struct NetworkRouteSystemConfigurationService: Sendable {
             ipv4,
             ipv4Configuration as CFDictionary
         ), SCNetworkProtocolSetEnabled(ipv4, true) else {
-            throw lastError("configure the IPv4 service protocol")
+            throw preferencesTransaction.error("configure the IPv4 service protocol")
         }
 
         if let ipv6 = SCNetworkServiceCopyProtocol(
             service,
             kSCNetworkProtocolTypeIPv6
         ), !SCNetworkProtocolSetEnabled(ipv6, false) {
-            throw lastError("disable the IPv6 service protocol")
+            throw preferencesTransaction.error("disable the IPv6 service protocol")
         }
 
         if SCNetworkServiceCopyProtocol(
@@ -261,13 +319,13 @@ struct NetworkRouteSystemConfigurationService: Sendable {
             service,
             kSCNetworkProtocolTypeDNS
            ) {
-            throw lastError("add the DNS service protocol")
+            throw preferencesTransaction.error("add the DNS service protocol")
         }
         guard let dns = SCNetworkServiceCopyProtocol(
             service,
             kSCNetworkProtocolTypeDNS
         ) else {
-            throw lastError("resolve the DNS service protocol")
+            throw preferencesTransaction.error("resolve the DNS service protocol")
         }
         let dnsConfiguration: [String: Any] = [
             kSCPropNetDNSServerAddresses as String:
@@ -277,14 +335,13 @@ struct NetworkRouteSystemConfigurationService: Sendable {
             dns,
             dnsConfiguration as CFDictionary
         ), SCNetworkProtocolSetEnabled(dns, true) else {
-            throw lastError("configure the DNS service protocol")
+            throw preferencesTransaction.error("configure the DNS service protocol")
         }
     }
 
     private func snapshot(
         from objects: ManagedObjects
     ) -> NetworkRouteSystemConfigurationSnapshot {
-        let protocols = objects.service.map(protocolSnapshot)
         return NetworkRouteSystemConfigurationSnapshot(
             configuration: objects.metadata?.configuration,
             bondInterfaceName: objects.metadata?.bondInterfaceName,
@@ -293,63 +350,46 @@ struct NetworkRouteSystemConfigurationService: Sendable {
             isNetworkServiceEnabled: objects.service.map(
                 SCNetworkServiceGetEnabled
             ) ?? false,
-            configuredHostIPv4Address: protocols?.hostIPv4Address,
-            configuredHostIPv4SubnetMask: protocols?.hostIPv4SubnetMask,
-            configuredRouterIPv4Address: protocols?.routerIPv4Address,
-            configuredDNSServerAddresses:
-                protocols?.dnsServerAddresses ?? []
+            hasExpectedIPv4Configuration: objects.service.map(
+                hasExpectedIPv4Configuration
+            ) ?? false
         )
     }
 
-    private func protocolSnapshot(
+    private func hasExpectedIPv4Configuration(
         for service: SCNetworkService
-    ) -> ProtocolSnapshot {
-        let ipv4Configuration = SCNetworkServiceCopyProtocol(
+    ) -> Bool {
+        guard let ipv4 = SCNetworkServiceCopyProtocol(
             service,
             kSCNetworkProtocolTypeIPv4
-        ).flatMap(SCNetworkProtocolGetConfiguration) as? [String: Any]
-        let dnsConfiguration = SCNetworkServiceCopyProtocol(
-            service,
-            kSCNetworkProtocolTypeDNS
-        ).flatMap(SCNetworkProtocolGetConfiguration) as? [String: Any]
-        return ProtocolSnapshot(
-            hostIPv4Address: (ipv4Configuration?[
-                kSCPropNetIPv4Addresses as String
-            ] as? [String])?.first,
-            hostIPv4SubnetMask: (ipv4Configuration?[
-                kSCPropNetIPv4SubnetMasks as String
-            ] as? [String])?.first,
-            routerIPv4Address: ipv4Configuration?[
-                kSCPropNetIPv4Router as String
-            ] as? String,
-            dnsServerAddresses: dnsConfiguration?[
-                kSCPropNetDNSServerAddresses as String
-            ] as? [String] ?? []
-        )
+        ), SCNetworkProtocolGetEnabled(ipv4) else {
+            return false
+        }
+        let configuration = SCNetworkProtocolGetConfiguration(ipv4)
+            as? [String: Any]
+        return ipv4ConfigurationIsExact(configuration)
     }
 
-    private func moveServiceLast(
-        _ service: SCNetworkService,
-        in networkSet: SCNetworkSet
-    ) throws {
-        guard let serviceID = SCNetworkServiceGetServiceID(service) as String? else {
-            throw NetworkRouteSystemConfigurationError.unavailable(
-                "The new Network Service has no identifier."
-            )
+    private func ipv4ConfigurationIsExact(
+        _ configuration: [String: Any]?
+    ) -> Bool {
+        guard let configuration,
+              Set(configuration.keys) == IPv4ConfigurationKey.all,
+              configuration[
+                kSCPropNetIPv4ConfigMethod as String
+              ] as? String == kSCValNetIPv4ConfigMethodManual as String,
+              configuration[
+                kSCPropNetIPv4Addresses as String
+              ] as? [String] == [ThruRNDISNetworkRoute.hostIPv4Address],
+              configuration[
+                kSCPropNetIPv4SubnetMasks as String
+              ] as? [String] == [ThruRNDISNetworkRoute.subnetMask],
+              configuration[
+                kSCPropNetIPv4Router as String
+              ] as? String == ThruRNDISNetworkRoute.routerIPv4Address else {
+            return false
         }
-        let allServiceIDs = ((SCNetworkSetCopyServices(networkSet)
-            as? [SCNetworkService]) ?? []).compactMap {
-                SCNetworkServiceGetServiceID($0) as String?
-            }
-        var order = (SCNetworkSetGetServiceOrder(networkSet) as? [String]) ?? []
-        for identifier in allServiceIDs where !order.contains(identifier) {
-            order.append(identifier)
-        }
-        order.removeAll { $0 == serviceID }
-        order.append(serviceID)
-        guard SCNetworkSetSetServiceOrder(networkSet, order as CFArray) else {
-            throw lastError("move the Network Service to the end of service order")
-        }
+        return true
     }
 
     private func metadata(
@@ -415,7 +455,9 @@ struct NetworkRouteSystemConfigurationService: Sendable {
             ThruRNDISNetworkRoute.systemConfigurationMetadataKey as CFString,
             metadata as CFDictionary
         ) else {
-            throw lastError("store the network ownership metadata")
+            throw preferencesTransaction.error(
+                "store the network ownership metadata"
+            )
         }
     }
 
@@ -471,41 +513,6 @@ struct NetworkRouteSystemConfigurationService: Sendable {
         return String(cString: buffer) == value
     }
 
-    private func withLockedPreferences<Result>(
-        operation: (SCPreferences) throws -> Result
-    ) throws -> Result {
-        guard let preferences = SCPreferencesCreate(
-            nil,
-            "ThruRNDISPrivilegedHelper" as CFString,
-            nil
-        ) else {
-            throw NetworkRouteSystemConfigurationError.unavailable(
-                "SCPreferencesCreate failed."
-            )
-        }
-        guard SCPreferencesLock(preferences, false) else {
-            throw lastError("lock System network preferences")
-        }
-        defer { SCPreferencesUnlock(preferences) }
-        SCPreferencesSynchronize(preferences)
-        return try operation(preferences)
-    }
-
-    private func commitAndApply(_ preferences: SCPreferences) throws {
-        guard SCPreferencesCommitChanges(preferences),
-              SCPreferencesApplyChanges(preferences) else {
-            throw lastError("commit and apply System network preferences")
-        }
-    }
-
-    private func lastError(
-        _ operation: String
-    ) -> NetworkRouteSystemConfigurationError {
-        .operationFailed(
-            "\(operation): \(String(cString: SCErrorString(SCError())))"
-        )
-    }
-
     private struct OwnershipMetadata {
         let bondInterfaceName: String
         let networkServiceID: String
@@ -525,16 +532,19 @@ struct NetworkRouteSystemConfigurationService: Sendable {
             "ThruRNDIS.NetworkRoute.OwnershipToken"
     }
 
+    private enum IPv4ConfigurationKey {
+        static let all: Set<String> = [
+            kSCPropNetIPv4ConfigMethod as String,
+            kSCPropNetIPv4Addresses as String,
+            kSCPropNetIPv4SubnetMasks as String,
+            kSCPropNetIPv4Router as String,
+        ]
+    }
+
     private struct ManagedObjects {
         let bond: SCBondInterface?
         let service: SCNetworkService?
         let metadata: OwnershipMetadata?
     }
 
-    private struct ProtocolSnapshot {
-        let hostIPv4Address: String?
-        let hostIPv4SubnetMask: String?
-        let routerIPv4Address: String?
-        let dnsServerAddresses: [String]
-    }
 }

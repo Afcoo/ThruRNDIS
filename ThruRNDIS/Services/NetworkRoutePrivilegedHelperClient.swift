@@ -104,7 +104,7 @@ final class NetworkRoutePrivilegedHelperClient {
             abandonLease(connection, notify: false)
             // A timeout or transport failure can race a successful helper-side
             // start. A fresh connection lets a restarted helper rediscover and
-            // remove only the routes carrying our ownership signature.
+            // remove the exact recorded SystemConfiguration service.
             _ = try? await sendTransientStop(timeout: Self.stopRequestTimeout)
             throw error
         }

@@ -20,11 +20,6 @@ enum ThruRNDISNetworkRoute {
     static let systemConfigurationMetadataKey =
         "ThruRNDIS.NetworkRoute.Configuration"
 
-    static let managedIPv4Prefixes = [
-        "0.0.0.0/1",
-        "128.0.0.0/1",
-    ]
-
     static func helperBundleIdentifier(
         derivedFrom applicationBundleIdentifier: String
     ) -> String {

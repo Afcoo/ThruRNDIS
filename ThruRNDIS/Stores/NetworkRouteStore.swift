@@ -353,7 +353,7 @@ final class NetworkRouteStore: ObservableObject {
 
         let generation = beginOperation(.stopping)
         appendEventLog(
-            "Removing the managed routes, VM bridge member, Bond, and feth pair: \(reason).",
+            "Disabling the managed Network Service and removing its VM bridge member, Bond, and feth pair: \(reason).",
             level: .debug
         )
         do {
@@ -479,8 +479,8 @@ final class NetworkRouteStore: ObservableObject {
         let generation = beginOperation(.starting)
         lastErrorMessage = nil
         appendEventLog(
-            "Creating the feth bridge network and installing global and "
-                + "interface-scoped /1 routes through "
+            "Creating the feth bridge network and activating the managed "
+                + "Network Service through "
                 + "\(ThruRNDISNetworkRoute.routerIPv4Address): \(reason).",
             level: .debug
         )
@@ -514,7 +514,7 @@ final class NetworkRouteStore: ObservableObject {
                     return
                 }
                 self.appendEventLog(
-                    "IPv4 traffic is routed through \(snapshot.bondInterfaceName ?? "unknown Bond") and \(snapshot.bridgeInterfaceName ?? "unknown bridge") to guest \(guestIPv4Address).",
+                    "The managed IPv4 network path is active through \(snapshot.bondInterfaceName ?? "unknown Bond") and \(snapshot.bridgeInterfaceName ?? "unknown bridge") to guest \(guestIPv4Address).",
                     level: .info
                 )
             } catch {

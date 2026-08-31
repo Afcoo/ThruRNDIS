@@ -84,10 +84,10 @@
 		NR1000000000000000000013 /* ThruRNDISNetworkRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR1000000000000000000107 /* ThruRNDISNetworkRoute.swift */; };
 		NR1000000000000000000014 /* NetworkRouteController.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR100000000000000000011A /* NetworkRouteController.swift */; };
 		NR1000000000000000000015 /* NetworkRoutePrivilegedHelperService.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR100000000000000000011B /* NetworkRoutePrivilegedHelperService.swift */; };
-		NR1000000000000000000016 /* RouteCommandRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR100000000000000000011C /* RouteCommandRunner.swift */; };
 		NR1000000000000000000017 /* VZNATInterfaceResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR100000000000000000011D /* VZNATInterfaceResolver.swift */; };
 		NR1000000000000000000018 /* NetworkInterfaceCommandRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR100000000000000000011E /* NetworkInterfaceCommandRunner.swift */; };
 		NR1000000000000000000019 /* NetworkRouteSystemConfigurationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR100000000000000000011F /* NetworkRouteSystemConfigurationService.swift */; };
+		NR1000000000000000000022 /* SystemConfigurationPreferencesTransaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR1000000000000000000122 /* SystemConfigurationPreferencesTransaction.swift */; };
 		PF1000000000000000000001 /* PortForwardingStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = PF1000000000000000000101 /* PortForwardingStore.swift */; };
 /* End PBXBuildFile section */
 
@@ -219,10 +219,10 @@
 		NR1000000000000000000110 /* LegacyNetworkRouteHelperMigrationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacyNetworkRouteHelperMigrationService.swift; sourceTree = "<group>"; };
 		NR100000000000000000011A /* NetworkRouteController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkRouteController.swift; sourceTree = "<group>"; };
 		NR100000000000000000011B /* NetworkRoutePrivilegedHelperService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkRoutePrivilegedHelperService.swift; sourceTree = "<group>"; };
-		NR100000000000000000011C /* RouteCommandRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouteCommandRunner.swift; sourceTree = "<group>"; };
 		NR100000000000000000011D /* VZNATInterfaceResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VZNATInterfaceResolver.swift; sourceTree = "<group>"; };
 		NR100000000000000000011E /* NetworkInterfaceCommandRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkInterfaceCommandRunner.swift; sourceTree = "<group>"; };
 		NR100000000000000000011F /* NetworkRouteSystemConfigurationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkRouteSystemConfigurationService.swift; sourceTree = "<group>"; };
+		NR1000000000000000000122 /* SystemConfigurationPreferencesTransaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemConfigurationPreferencesTransaction.swift; sourceTree = "<group>"; };
 		PF1000000000000000000101 /* PortForwardingStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortForwardingStore.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -443,8 +443,8 @@
 				NR100000000000000000011A /* NetworkRouteController.swift */,
 				NR100000000000000000011B /* NetworkRoutePrivilegedHelperService.swift */,
 				NR100000000000000000011E /* NetworkInterfaceCommandRunner.swift */,
+				NR1000000000000000000122 /* SystemConfigurationPreferencesTransaction.swift */,
 				NR100000000000000000011F /* NetworkRouteSystemConfigurationService.swift */,
-				NR100000000000000000011C /* RouteCommandRunner.swift */,
 				NR100000000000000000011D /* VZNATInterfaceResolver.swift */,
 				F4000000000000000000010F /* Info.plist */,
 				F40000000000000000000110 /* ThruRNDISPrivilegedHelper.plist.template */,
@@ -664,9 +664,9 @@
 				NR1000000000000000000013 /* ThruRNDISNetworkRoute.swift in Sources */,
 				NR1000000000000000000014 /* NetworkRouteController.swift in Sources */,
 				NR1000000000000000000015 /* NetworkRoutePrivilegedHelperService.swift in Sources */,
-				NR1000000000000000000016 /* RouteCommandRunner.swift in Sources */,
 				NR1000000000000000000017 /* VZNATInterfaceResolver.swift in Sources */,
 				NR1000000000000000000018 /* NetworkInterfaceCommandRunner.swift in Sources */,
+				NR1000000000000000000022 /* SystemConfigurationPreferencesTransaction.swift in Sources */,
 				NR1000000000000000000019 /* NetworkRouteSystemConfigurationService.swift in Sources */,
 				F40000000000000000000019 /* main.swift in Sources */,
 			);
