@@ -3,7 +3,7 @@
 Thank you for helping improve ThruRNDIS. The project is a macOS 27+ menu-bar
 app that uses a Virtualization framework Linux VM, public AccessoryAccess USB
 passthrough APIs, and a narrowly scoped privileged helper for the host-side
-Bond, feth pair, VZNAT bridge membership, and IPv4 routes.
+Bond, feth pair, VZNAT bridge membership, and IPv4 Network Service.
 
 Before making a substantial change, read [AGENTS.md](AGENTS.md). It documents
 the current architecture, ownership boundaries, build paths, signing
@@ -30,7 +30,7 @@ they are not needed to reproduce a problem.
 The proof-of-concept IPv4 data path is:
 
 ```text
-macOS routes 0.0.0.0/1 and 128.0.0.0/1
+macOS managed IPv4 Network Service
 -> Ethernet Bond 192.168.100.2
 -> feth0 <-> feth1
 -> VM-created VZNAT bridge
@@ -42,7 +42,7 @@ macOS routes 0.0.0.0/1 and 128.0.0.0/1
 The app obtains the guest address and RNDIS readiness from serial-console
 markers. Only the authenticated privileged helper may create or remove the
 host network configuration, mutate bridge membership, or configure the managed
-Network Service routes. The unprivileged app must not execute `route`,
+Network Service. The unprivileged app must not execute `route`,
 `ifconfig`, `networksetup`, or another administrative networking command
 itself.
 
@@ -54,8 +54,9 @@ Keep these boundaries intact:
   implementation bridge after VM start and adds only its owned `feth1` peer.
 - The app and helper do not inspect or relay packet payloads.
 - The helper manages only its recorded Bond, feth pair, bridge membership, and
-  Network Service. That service carries the two exact `/1` `AdditionalRoutes`,
-  and cleanup disables it before detaching and destroying the owned interfaces.
+  Network Service. That service uses the guest as its IPv4 router and is placed
+  first in the current service order; cleanup disables it before detaching and
+  destroying the owned interfaces.
 - IPv6 routing is out of scope for this proof of concept.
 - Guest VM scripts, dependency locking, and VM Asset release tooling belong in
   `Afcoo/ThruRNDIS_VM_Assets`, not this repository.
@@ -81,7 +82,8 @@ test-only production abstractions without a separately defined test plan. Real
 USB passthrough, Virtualization, privileged-helper registration, and route
 runtime validation require the signed Runtime build with approved
 AccessoryAccess and Virtualization entitlements, administrator approval, and
-appropriate hardware:
+appropriate hardware. Runtime validation must confirm configd's Network
+Service routing behavior:
 
 ```sh
 ./script/build_and_install.sh

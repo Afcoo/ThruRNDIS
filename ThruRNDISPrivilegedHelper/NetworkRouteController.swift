@@ -23,7 +23,7 @@ enum NetworkRouteControllerError: LocalizedError {
 }
 
 /// Serializes the VM bridge -> feth pair -> Bond -> Network Service lifecycle.
-/// SystemConfiguration owns the IPv4 service and its additional routes. The
+/// SystemConfiguration owns the IPv4 service and default-route selection. The
 /// VM-created bridge is only inspected and given the exact recorded feth peer;
 /// it is never created, addressed, or destroyed here.
 final class NetworkRouteController: @unchecked Sendable {
@@ -183,7 +183,7 @@ final class NetworkRouteController: @unchecked Sendable {
                     ? "no failed readiness check was recorded"
                     : evaluation.failures.joined(separator: ", ")
                 throw NetworkRouteControllerError.configurationConflict(
-                    "The managed bridge, Bond, service, and routes did not reach their active state: \(detail)."
+                    "The managed bridge, Bond, and Network Service did not reach their active state: \(detail)."
                 )
             }
             ownedConfiguration = owned
@@ -287,7 +287,6 @@ final class NetworkRouteController: @unchecked Sendable {
             && systemSnapshot.isNetworkServiceEnabled
             && systemSnapshot.isIPv4ProtocolEnabled
             && systemSnapshot.isConfiguredIPv4ConfigurationExact
-            && systemSnapshot.configuredRouteState == .exact
             && systemSnapshot.configuredHostIPv4Address
                 == ThruRNDISNetworkRoute.hostIPv4Address
             && systemSnapshot.configuredHostIPv4SubnetMask
@@ -332,7 +331,6 @@ final class NetworkRouteController: @unchecked Sendable {
                     + "service=\(systemSnapshot.hasNetworkService), "
                     + "enabled=\(systemSnapshot.isNetworkServiceEnabled), "
                     + "IPv4=\(systemSnapshot.isIPv4ProtocolEnabled), "
-                    + "configuredRoutes=\(systemSnapshot.configuredRouteState), "
                     + "host=\(systemSnapshot.configuredHostIPv4Address ?? "missing"), "
                     + "mask=\(systemSnapshot.configuredHostIPv4SubnetMask ?? "missing"), "
                     + "router=\(systemSnapshot.configuredRouterIPv4Address ?? "missing"), "
@@ -349,9 +347,7 @@ final class NetworkRouteController: @unchecked Sendable {
             guestIPv4Address: network.guestIPv4Address,
             vznatGatewayIPv4Address: network.vznatGatewayIPv4Address,
             bridgeInterfaceName: network.bridgeInterfaceName,
-            bondInterfaceName: owned.bondInterfaceName,
-            installedPrefixes: systemConfigurationReady
-                ? ThruRNDISNetworkRoute.managedIPv4Prefixes : []
+            bondInterfaceName: owned.bondInterfaceName
         )
         return (snapshot, readinessFailures)
     }
@@ -434,8 +430,8 @@ final class NetworkRouteController: @unchecked Sendable {
     private func removeManagedConfiguration(
         _ owned: OwnedConfiguration
     ) throws {
-        // Disabling the owned service delegates route withdrawal to configd
-        // before the bridge and Bond topology is dismantled.
+        // Disable the owned service before dismantling the bridge and Bond so
+        // configd can withdraw its IPv4 configuration first.
         try systemConfiguration.deactivateNetworkService()
         try detachPeerFromBridgeIfPresent(owned.network)
 

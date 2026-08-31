@@ -17,7 +17,6 @@ struct NetworkRouteSystemConfigurationSnapshot: Sendable {
     let configuredHostIPv4SubnetMask: String?
     let configuredRouterIPv4Address: String?
     let configuredDNSServerAddresses: [String]
-    let configuredRouteState: NetworkRouteSystemConfigurationRouteState
     let isConfiguredIPv4ConfigurationExact: Bool
 }
 
@@ -103,7 +102,7 @@ struct NetworkRouteSystemConfigurationService: Sendable {
                     "add the disabled Network Service"
                 )
             }
-            try moveServiceLast(service, in: networkSet)
+            try moveServiceFirst(service, in: networkSet)
             try setMetadata(
                 bondInterfaceName: bondName,
                 networkServiceID: serviceID,
@@ -119,10 +118,9 @@ struct NetworkRouteSystemConfigurationService: Sendable {
         let initial = try inspect()
         guard initial.hasNetworkService,
               !initial.isNetworkServiceEnabled,
-              initial.isConfiguredIPv4ConfigurationExact,
-              initial.configuredRouteState == .exact else {
+              initial.isConfiguredIPv4ConfigurationExact else {
             throw NetworkRouteSystemConfigurationError.conflict(
-                "The owned Network Service does not have the exact disabled IPv4 route configuration."
+                "The owned Network Service does not have the exact disabled IPv4 configuration."
             )
         }
 
@@ -130,8 +128,7 @@ struct NetworkRouteSystemConfigurationService: Sendable {
             try setNetworkServiceEnabled(true)
             let activated = try inspect()
             guard activated.isNetworkServiceEnabled,
-                  activated.isConfiguredIPv4ConfigurationExact,
-                  activated.configuredRouteState == .exact else {
+                  activated.isConfiguredIPv4ConfigurationExact else {
                 throw NetworkRouteSystemConfigurationError.operationFailed(
                     "The Network Service did not retain its exact IPv4 configuration."
                 )
@@ -305,9 +302,6 @@ struct NetworkRouteSystemConfigurationService: Sendable {
                 [ThruRNDISNetworkRoute.subnetMask],
             kSCPropNetIPv4Router as String:
                 ThruRNDISNetworkRoute.routerIPv4Address,
-            SystemConfigurationIPv4RouteSchema.additionalRoutesKey:
-                SystemConfigurationIPv4RouteSchema
-                    .additionalRoutesConfiguration,
         ]
         guard SCNetworkProtocolSetConfiguration(
             ipv4,
@@ -369,7 +363,6 @@ struct NetworkRouteSystemConfigurationService: Sendable {
             configuredRouterIPv4Address: protocols?.routerIPv4Address,
             configuredDNSServerAddresses:
                 protocols?.dnsServerAddresses ?? [],
-            configuredRouteState: protocols?.routeState ?? .absent,
             isConfiguredIPv4ConfigurationExact:
                 protocols?.isIPv4Enabled == true
                     && protocols?.isIPv4ConfigurationExact == true
@@ -406,18 +399,35 @@ struct NetworkRouteSystemConfigurationService: Sendable {
             dnsServerAddresses: dnsConfiguration?[
                 kSCPropNetDNSServerAddresses as String
             ] as? [String] ?? [],
-            routeState: SystemConfigurationIPv4RouteSchema.routeState(
-                in: ipv4Configuration
-            ),
             isIPv4Enabled: ipv4.map(SCNetworkProtocolGetEnabled) ?? false,
             isIPv4ConfigurationExact:
-                SystemConfigurationIPv4RouteSchema.configurationIsExact(
-                ipv4Configuration
-            )
+                ipv4ConfigurationIsExact(ipv4Configuration)
         )
     }
 
-    private func moveServiceLast(
+    private func ipv4ConfigurationIsExact(
+        _ configuration: [String: Any]?
+    ) -> Bool {
+        guard let configuration,
+              Set(configuration.keys) == IPv4ConfigurationKey.all,
+              configuration[
+                kSCPropNetIPv4ConfigMethod as String
+              ] as? String == kSCValNetIPv4ConfigMethodManual as String,
+              configuration[
+                kSCPropNetIPv4Addresses as String
+              ] as? [String] == [ThruRNDISNetworkRoute.hostIPv4Address],
+              configuration[
+                kSCPropNetIPv4SubnetMasks as String
+              ] as? [String] == [ThruRNDISNetworkRoute.subnetMask],
+              configuration[
+                kSCPropNetIPv4Router as String
+              ] as? String == ThruRNDISNetworkRoute.routerIPv4Address else {
+            return false
+        }
+        return true
+    }
+
+    private func moveServiceFirst(
         _ service: SCNetworkService,
         in networkSet: SCNetworkSet
     ) throws {
@@ -435,10 +445,10 @@ struct NetworkRouteSystemConfigurationService: Sendable {
             order.append(identifier)
         }
         order.removeAll { $0 == serviceID }
-        order.append(serviceID)
+        order.insert(serviceID, at: 0)
         guard SCNetworkSetSetServiceOrder(networkSet, order as CFArray) else {
             throw preferencesTransaction.error(
-                "move the Network Service to the end of service order"
+                "move the Network Service to the start of service order"
             )
         }
     }
@@ -583,6 +593,15 @@ struct NetworkRouteSystemConfigurationService: Sendable {
             "ThruRNDIS.NetworkRoute.OwnershipToken"
     }
 
+    private enum IPv4ConfigurationKey {
+        static let all: Set<String> = [
+            kSCPropNetIPv4ConfigMethod as String,
+            kSCPropNetIPv4Addresses as String,
+            kSCPropNetIPv4SubnetMasks as String,
+            kSCPropNetIPv4Router as String,
+        ]
+    }
+
     private struct ManagedObjects {
         let bond: SCBondInterface?
         let service: SCNetworkService?
@@ -594,7 +613,6 @@ struct NetworkRouteSystemConfigurationService: Sendable {
         let hostIPv4SubnetMask: String?
         let routerIPv4Address: String?
         let dnsServerAddresses: [String]
-        let routeState: NetworkRouteSystemConfigurationRouteState
         let isIPv4Enabled: Bool
         let isIPv4ConfigurationExact: Bool
     }

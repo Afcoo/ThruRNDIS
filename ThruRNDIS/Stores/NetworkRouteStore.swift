@@ -479,8 +479,8 @@ final class NetworkRouteStore: ObservableObject {
         let generation = beginOperation(.starting)
         lastErrorMessage = nil
         appendEventLog(
-            "Creating the feth bridge network and configuring two /1 routes "
-                + "on the managed Network Service through "
+            "Creating the feth bridge network and activating the managed "
+                + "Network Service through "
                 + "\(ThruRNDISNetworkRoute.routerIPv4Address): \(reason).",
             level: .debug
         )

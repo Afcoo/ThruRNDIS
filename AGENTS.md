@@ -30,7 +30,7 @@ for the VM's VZNAT attachment.
 The IPv4 proof-of-concept data path is:
 
 ```text
-macOS 0.0.0.0/1 and 128.0.0.0/1 routes
+macOS managed IPv4 Network Service
 -> Ethernet Bond at 192.168.100.2/24
 -> owned feth0 <-> feth1 pair
 -> VM-created VZNAT bridge containing feth1
@@ -76,9 +76,9 @@ macOS 0.0.0.0/1 and 128.0.0.0/1 routes
 - The guest also assigns `192.168.100.1/24` to `eth0`. The host Bond owns
   `192.168.100.2/24`; `feth1` remains unaddressed and carries Ethernet frames
   only after the helper adds it to the resolved VM bridge.
-- The host must not install its `/1` routes from the address marker alone. It
-  waits for a valid guest VZNAT address, the matching VZNAT gateway marker,
-  and the ready marker.
+- The host must not activate its managed Network Service from the address
+  marker alone. It waits for a valid guest VZNAT address, the matching VZNAT
+  gateway marker, and the ready marker.
 - `ConsoleSessionStore` parses console markers. `TetheringStore` forwards the
   VZNAT and RNDIS address/readiness changes into `NetworkRouteStore` and paired
   TCP/UDP port-forwarding markers into `PortForwardingStore`. Settings includes
@@ -99,11 +99,11 @@ macOS 0.0.0.0/1 and 128.0.0.0/1 routes
   are read-only and must not retry a failed start. An eligible new USB attach or
   an explicit Start action may arm another attempt; Stop preserves current guest
   inputs so the user can start again without restarting the VM.
-- The helper configures exactly two IPv4 `AdditionalRoutes` on its owned
-  Network Service: `0.0.0.0` with mask `128.0.0.0`, and `128.0.0.0` with the
-  same mask, both through guest `192.168.100.1`. SystemConfiguration/configd
-  owns route synthesis, ranking, installation, and removal. These `/1`
-  prefixes remain more specific than the original macOS default route.
+- The helper gives its owned Network Service a manual IPv4 address, subnet,
+  router, and DNS configuration, and places that service first in the current
+  network set. It does not configure `AdditionalRoutes`.
+  SystemConfiguration/configd owns default-route synthesis, ranking,
+  installation, and removal.
 - IPv6 routing is out of scope. Do not claim that this PoC captures or blocks
   IPv6 traffic.
 
@@ -135,30 +135,28 @@ macOS 0.0.0.0/1 and 128.0.0.0/1 routes
 - The helper creates only the validated `feth0`/`feth1` pair, leaves `feth1`
   unaddressed, creates its recorded SCBond and Network Service, adds `feth1`
   to the resolved VM bridge with `/sbin/ifconfig`, and assigns the Bond
-  `192.168.100.2/24` with router and DNS `192.168.100.1`. The same IPv4 service
-  configuration carries the exact two managed `AdditionalRoutes`.
+  `192.168.100.2/24` with router and DNS `192.168.100.1`. The Network Service
+  is placed first in the current network set while the relative order of all
+  other services is preserved.
 - Runtime Bond inspection uses `ifconfig -b <bond>` so both the static mode and
   exact feth member are verified before the helper grants the network lease.
-- Route management uses only SystemConfiguration APIs. Do not restore
-  `/sbin/route`, `netstat` parsing, `networksetup`, a routing-socket mutator, or
-  per-route ownership flags. The private IPv4 route schema is isolated as the
-  literal keys `AdditionalRoutes`, `DestinationAddress`, `SubnetMask`, and
-  `GatewayAddress`; do not link private SystemConfiguration symbols.
+- Host routing uses only the owned SystemConfiguration Network Service. Do not
+  add `AdditionalRoutes`, restore `/sbin/route`, `netstat` parsing,
+  `networksetup`, a routing-socket mutator, per-route ownership flags, or
+  private SystemConfiguration symbols.
 - `NetworkRouteSystemConfigurationService` orchestrates the owned Bond and
-  Network Service lifecycle. `SystemConfigurationIPv4RouteSchema` owns route
-  values and exact validation, and `SystemConfigurationPreferencesTransaction`
-  owns preference locking, commit, and apply behavior.
-- Each managed route dictionary contains exactly those three route keys and is
-  validated as one unordered, duplicate-free two-entry set. Cross-service and
-  raw route conflict handling remains entirely with SystemConfiguration/configd.
+  Network Service lifecycle and validates the persisted manual IPv4
+  configuration. `SystemConfigurationPreferencesTransaction` owns preference
+  locking, commit, and apply behavior.
 - Readiness requires the recorded Network Service to be enabled and its
   persisted IPv4 protocol dictionary to contain the exact managed
-  configuration. This API-only readiness is not a kernel route-table
-  acknowledgement; SystemConfiguration/configd remains responsible for route
-  application, ranking, reconciliation, and conflict handling.
+  address, subnet, and router configuration. It does not inspect explicit
+  routes or acknowledge the kernel route table; SystemConfiguration/configd
+  remains responsible for default-route application, ranking, reconciliation,
+  and conflict handling.
 - Activation failure rolls back by disabling the owned Network Service through
-  a fresh SCPreferences transaction. Do not add per-route repair or rollback
-  beside configd.
+  a fresh SCPreferences transaction. Do not add route-specific repair or
+  rollback beside configd.
 - Do not add an external ownership file. Store the allocated Bond, Network
   Service, and dynamic VZNAT bridge/guest values in one SystemConfiguration
   ownership value. The feth names and managed addresses are fixed constants
@@ -168,12 +166,12 @@ macOS 0.0.0.0/1 and 128.0.0.0/1 routes
   that same object; a same-named Bond alone is never proof of ownership. Keep
   that validation locked through runtime Bond mutation. After restart, remove
   only those exact recorded objects; never scan for or adopt same-named objects.
-- Cleanup first disables the recorded Network Service so configd owns route
-  withdrawal. It then removes `feth1` from the recorded bridge when that bridge
-  still exists, detaches and destroys the owned feth pair, and removes the
-  recorded service, Bond, and ownership metadata in one SCPreferences
-  transaction. A VM bridge that already disappeared is treated as an absent
-  membership, not as authority to touch another bridge.
+- Cleanup first disables the recorded Network Service so configd withdraws its
+  IPv4 configuration. It then removes `feth1` from the recorded bridge when
+  that bridge still exists, detaches and destroys the owned feth pair, and
+  removes the recorded service, Bond, and ownership metadata in one
+  SCPreferences transaction. A VM bridge that already disappeared is treated
+  as an absent membership, not as authority to touch another bridge.
 - The one-time 0.3 migration may remove objects recorded under
   `ThruRNDIS.DummyEthernet.Configuration` only after validating the exact
   Network Service, Bond identity, runtime member, and feth peer relationship.
@@ -381,8 +379,8 @@ After relevant changes:
 Real end-to-end network validation additionally requires macOS 27 beta, approved
 AccessoryAccess and Virtualization entitlements, the signed app installed in
 `/Applications`, administrator approval for the helper, a real RNDIS device,
-and Bond/feth/bridge inspection plus configd-managed route behavior on host and
-guest. This POC mutates
+and Bond/feth/bridge inspection plus configd-managed Network Service behavior
+on host and guest. This POC mutates
 the implementation bridge created by VZNAT; that bridge identity and lifetime
 are not a stable Virtualization framework API contract. Signing availability
 must not block compile, UI, or documentation work.

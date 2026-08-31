@@ -83,12 +83,6 @@ struct NetworkRouteView: View {
                             value: snapshot.bondInterfaceName
                                 ?? String(localized: "Unknown")
                         )
-                        LabeledContent(
-                            "Routes",
-                            value: snapshot.installedPrefixes.isEmpty
-                                ? String(localized: "None")
-                                : snapshot.installedPrefixes.joined(separator: ", ")
-                        )
                     }
                     if let lastErrorMessage = networkRoute.lastErrorMessage {
                         Text(lastErrorMessage)

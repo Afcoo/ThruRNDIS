@@ -87,7 +87,6 @@
 		NR1000000000000000000017 /* VZNATInterfaceResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR100000000000000000011D /* VZNATInterfaceResolver.swift */; };
 		NR1000000000000000000018 /* NetworkInterfaceCommandRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR100000000000000000011E /* NetworkInterfaceCommandRunner.swift */; };
 		NR1000000000000000000019 /* NetworkRouteSystemConfigurationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR100000000000000000011F /* NetworkRouteSystemConfigurationService.swift */; };
-		NR1000000000000000000020 /* SystemConfigurationIPv4RouteSchema.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR1000000000000000000120 /* SystemConfigurationIPv4RouteSchema.swift */; };
 		NR1000000000000000000022 /* SystemConfigurationPreferencesTransaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR1000000000000000000122 /* SystemConfigurationPreferencesTransaction.swift */; };
 		PF1000000000000000000001 /* PortForwardingStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = PF1000000000000000000101 /* PortForwardingStore.swift */; };
 /* End PBXBuildFile section */
@@ -223,7 +222,6 @@
 		NR100000000000000000011D /* VZNATInterfaceResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VZNATInterfaceResolver.swift; sourceTree = "<group>"; };
 		NR100000000000000000011E /* NetworkInterfaceCommandRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkInterfaceCommandRunner.swift; sourceTree = "<group>"; };
 		NR100000000000000000011F /* NetworkRouteSystemConfigurationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkRouteSystemConfigurationService.swift; sourceTree = "<group>"; };
-		NR1000000000000000000120 /* SystemConfigurationIPv4RouteSchema.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemConfigurationIPv4RouteSchema.swift; sourceTree = "<group>"; };
 		NR1000000000000000000122 /* SystemConfigurationPreferencesTransaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemConfigurationPreferencesTransaction.swift; sourceTree = "<group>"; };
 		PF1000000000000000000101 /* PortForwardingStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortForwardingStore.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -445,7 +443,6 @@
 				NR100000000000000000011A /* NetworkRouteController.swift */,
 				NR100000000000000000011B /* NetworkRoutePrivilegedHelperService.swift */,
 				NR100000000000000000011E /* NetworkInterfaceCommandRunner.swift */,
-				NR1000000000000000000120 /* SystemConfigurationIPv4RouteSchema.swift */,
 				NR1000000000000000000122 /* SystemConfigurationPreferencesTransaction.swift */,
 				NR100000000000000000011F /* NetworkRouteSystemConfigurationService.swift */,
 				NR100000000000000000011D /* VZNATInterfaceResolver.swift */,
@@ -669,7 +666,6 @@
 				NR1000000000000000000015 /* NetworkRoutePrivilegedHelperService.swift in Sources */,
 				NR1000000000000000000017 /* VZNATInterfaceResolver.swift in Sources */,
 				NR1000000000000000000018 /* NetworkInterfaceCommandRunner.swift in Sources */,
-				NR1000000000000000000020 /* SystemConfigurationIPv4RouteSchema.swift in Sources */,
 				NR1000000000000000000022 /* SystemConfigurationPreferencesTransaction.swift in Sources */,
 				NR1000000000000000000019 /* NetworkRouteSystemConfigurationService.swift in Sources */,
 				F40000000000000000000019 /* main.swift in Sources */,
