@@ -106,7 +106,7 @@ final class NetworkRouteController: @unchecked Sendable {
                     "The ownership record is incomplete."
                 )
             }
-            let current = try snapshot(
+            let current = snapshot(
                 for: existing,
                 systemConfiguration: existingSystemConfiguration
             ).snapshot
@@ -174,7 +174,7 @@ final class NetworkRouteController: @unchecked Sendable {
                 bondInterfaceName: bondName
             )
 
-            let evaluation = try snapshot(
+            let evaluation = snapshot(
                 for: owned,
                 systemConfiguration: try systemConfiguration.inspect()
             )
@@ -234,7 +234,7 @@ final class NetworkRouteController: @unchecked Sendable {
             ownedConfiguration = ownedConfiguration(from: systemSnapshot)
         }
         if let ownedConfiguration {
-            return try snapshot(
+            return snapshot(
                 for: ownedConfiguration,
                 systemConfiguration: systemSnapshot
             ).snapshot
@@ -246,7 +246,7 @@ final class NetworkRouteController: @unchecked Sendable {
         for owned: OwnedConfiguration,
         systemConfiguration systemSnapshot:
             NetworkRouteSystemConfigurationSnapshot
-    ) throws -> (snapshot: NetworkRouteSnapshot, failures: [String]) {
+    ) -> (snapshot: NetworkRouteSnapshot, failures: [String]) {
         let network = owned.network
         let member = ThruRNDISNetworkRoute.memberInterfaceName
         let peer = ThruRNDISNetworkRoute.peerInterfaceName
