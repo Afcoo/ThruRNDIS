@@ -44,9 +44,9 @@ Please allow reasonable time for a fix before publishing details.
 Reports are especially useful when they involve:
 
 - privileged-helper authentication, authorization, Bond/feth/bridge ownership,
-  route ownership, or cleanup;
-- unintended persistence or replacement of the four managed IPv4 route entries
-  for the two `/1` prefixes;
+  Network Service ownership, route configuration, or cleanup;
+- unintended persistence, alteration, or replacement of the two managed IPv4
+  `AdditionalRoutes` for the `/1` prefixes;
 - adding an unowned interface to a bridge or removing an unrelated Bond, feth
   pair, bridge member, or SystemConfiguration service;
 - USB AccessoryAccess approval and passthrough lifecycle;

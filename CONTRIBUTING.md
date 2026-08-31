@@ -41,9 +41,10 @@ macOS routes 0.0.0.0/1 and 128.0.0.0/1
 
 The app obtains the guest address and RNDIS readiness from serial-console
 markers. Only the authenticated privileged helper may create or remove the
-host network configuration, mutate bridge membership, or install routes. The
-unprivileged app must not execute `route`, `ifconfig`, `networksetup`, or
-another administrative networking command itself.
+host network configuration, mutate bridge membership, or configure the managed
+Network Service routes. The unprivileged app must not execute `route`,
+`ifconfig`, `networksetup`, or another administrative networking command
+itself.
 
 Keep these boundaries intact:
 
@@ -53,8 +54,8 @@ Keep these boundaries intact:
   implementation bridge after VM start and adds only its owned `feth1` peer.
 - The app and helper do not inspect or relay packet payloads.
 - The helper manages only its recorded Bond, feth pair, bridge membership, and
-  global/Bond-scoped entries for the two exact `/1` prefixes. Cleanup withdraws
-  routes before detaching and destroying the owned interfaces.
+  Network Service. That service carries the two exact `/1` `AdditionalRoutes`,
+  and cleanup disables it before detaching and destroying the owned interfaces.
 - IPv6 routing is out of scope for this proof of concept.
 - Guest VM scripts, dependency locking, and VM Asset release tooling belong in
   `Afcoo/ThruRNDIS_VM_Assets`, not this repository.

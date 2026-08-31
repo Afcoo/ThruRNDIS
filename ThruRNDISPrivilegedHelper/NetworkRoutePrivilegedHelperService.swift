@@ -34,7 +34,8 @@ final class NetworkRoutePrivilegedHelperService: NSObject,
                leaseState.markStartSucceeded() {
                 // The connection disappeared while start was in flight. The
                 // serialized controller call runs after start and is keyed to
-                // this lease, so it cannot remove a newer owner's routes.
+                // this lease, so it cannot remove a newer owner's managed
+                // network configuration.
                 controller.stop(
                     leaseOwnerIdentifier: leaseState.identifier,
                     releaseLeaseAfterAttempt: true
