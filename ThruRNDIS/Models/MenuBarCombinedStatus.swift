@@ -9,14 +9,14 @@ struct MenuBarCombinedStatus: Equatable {
         case inactive
         case partiallyActive
         case active
-        case needsAttention
+        case error
     }
 
     enum Stage: Equatable {
         case vmAssetsNotConfigured
         case networkHelperNotConfigured
         case vmAssetsAndNetworkHelperNotConfigured
-        case needsAttention
+        case error
         case inactive
         case usbNotAttached
         case waitingForGuestNetwork
@@ -47,7 +47,7 @@ struct MenuBarCombinedStatus: Equatable {
         let components = [isVMRunning, isUSBAttached, isVMNetworkActive]
         requiresConfiguration = !hasConfiguredVMAssets || !isNetworkHelperEnabled
         if requiresConfiguration || hasBlockingError {
-            activity = .needsAttention
+            activity = .error
         } else {
             switch components.filter({ $0 }).count {
             case 0:
@@ -66,7 +66,7 @@ struct MenuBarCombinedStatus: Equatable {
         } else if !isNetworkHelperEnabled {
             stage = .networkHelperNotConfigured
         } else if hasBlockingError {
-            stage = .needsAttention
+            stage = .error
         } else if !isVMRunning {
             stage = .inactive
         } else if !isUSBAttached {
@@ -93,8 +93,8 @@ struct MenuBarCombinedStatus: Equatable {
             String(localized: "Network Helper Setup Required")
         case .vmAssetsAndNetworkHelperNotConfigured:
             String(localized: "VM Assets and Network Helper Setup Required")
-        case .needsAttention:
-            String(localized: "Needs Attention")
+        case .error:
+            String(localized: "Error")
         case .inactive:
             String(localized: "menuBar.combinedStatus.notRunning", defaultValue: "Not Running")
         case .usbNotAttached:

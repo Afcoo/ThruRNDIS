@@ -237,7 +237,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             title: status.title,
             dotColor: statusColor(status.activity)
         )
-        let hidesDebugStatus = status.activity == .needsAttention
+        let hidesDebugStatus = status.activity == .error
         debugStatusSeparatorItem?.isHidden = hidesDebugStatus
         for (item, presentation) in zip(debugStatusItems, debugStatusPresentations) {
             item.isHidden = hidesDebugStatus
@@ -307,9 +307,9 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             isRNDISRouteReady: networkRoute.isRNDISRouteReady,
             isNetworkRouteTransitioning: networkRoute.operation != nil,
             networkRouteSnapshot: networkRoute.snapshot,
-            hasBlockingError: vmStatusActivity == .needsAttention
-                || usbStatusActivity == .needsAttention
-                || networkStatusActivity == .needsAttention
+            hasBlockingError: vmStatusActivity == .error
+                || usbStatusActivity == .error
+                || networkStatusActivity == .error
         )
     }
 
@@ -365,7 +365,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             || !store.runtimeEntitlements.virtualization
             || !store.portForwarding.isReadyForVMStart
             || store.runtimeState == .failed {
-            return .needsAttention
+            return .error
         }
         if store.isRestartingVirtualMachine { return .partiallyActive }
         return switch store.runtimeState {
@@ -376,14 +376,14 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         case .idle, .stopped:
             .inactive
         case .failed:
-            .needsAttention
+            .error
         }
     }
 
     private var usbStatusActivity: MenuBarCombinedStatus.Activity {
         if !store.runtimeEntitlements.accessoryAccessUSB
             || store.usbSession.accessoryMonitoringErrorMessage != nil {
-            return .needsAttention
+            return .error
         }
         if store.usbSession.attachedAccessoryID != nil {
             return .active
@@ -395,16 +395,16 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         if networkRoute.helper.isOperationInProgress {
             return .partiallyActive
         }
-        guard networkRoute.helper.isAvailable else { return .needsAttention }
+        guard networkRoute.helper.isAvailable else { return .error }
         if networkRoute.operation == .starting || networkRoute.operation == .stopping {
             return .partiallyActive
         }
-        if networkRoute.lastErrorMessage != nil { return .needsAttention }
+        if networkRoute.lastErrorMessage != nil { return .error }
         switch networkRoute.snapshot?.state {
         case .active:
             return .active
         case .degraded:
-            return .needsAttention
+            return .error
         case .inactive, nil:
             return .inactive
         }
@@ -418,7 +418,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             .systemOrange
         case .active:
             .systemGreen
-        case .needsAttention:
+        case .error:
             .systemRed
         }
     }

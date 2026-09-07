@@ -3085,6 +3085,16 @@
         }
       }
     },
+    "Error" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "오류"
+          }
+        }
+      }
+    },
     "Needs Attention" : {
       "localizations" : {
         "ko" : {
