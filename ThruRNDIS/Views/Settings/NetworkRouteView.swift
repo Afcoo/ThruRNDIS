@@ -118,18 +118,10 @@ struct NetworkRouteView: View {
                             .frame(width: 180)
                         }
 
-                        Group {
-                            if let validationErrorMessage =
-                                portForwarding.validationErrorMessage {
-                                Text(validationErrorMessage)
-                                    .foregroundStyle(.red)
-                            } else {
-                                Text(
-                                    "Separate entries with commas and ranges with hyphens."
-                                )
-                                .foregroundStyle(.secondary)
-                            }
-                        }
+                        Text(
+                            "Separate entries with commas and ranges with hyphens."
+                        )
+                        .foregroundStyle(.secondary)
                         .font(.caption)
                         .fixedSize(horizontal: false, vertical: true)
                     }
@@ -170,8 +162,8 @@ struct NetworkRouteView: View {
         title: String,
         appearance: SettingsStatusAppearance
     ) {
-        if portForwarding.validationErrorMessage != nil {
-            return (String(localized: "Invalid Input"), .failed)
+        if let validationErrorMessage = portForwarding.validationErrorMessage {
+            return (validationErrorMessage, .failed)
         }
         switch portForwarding.runtimeState {
         case .disabled:
