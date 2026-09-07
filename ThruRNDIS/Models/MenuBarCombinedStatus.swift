@@ -13,6 +13,9 @@ struct MenuBarCombinedStatus: Equatable {
     }
 
     enum Stage: Equatable {
+        case vmAssetsNotConfigured
+        case networkHelperNotConfigured
+        case vmAssetsAndNetworkHelperNotConfigured
         case inactive
         case usbNotAttached
         case waitingForGuestNetwork
@@ -24,8 +27,11 @@ struct MenuBarCombinedStatus: Equatable {
 
     let activity: Activity
     let stage: Stage
+    let requiresConfiguration: Bool
 
     init(
+        hasConfiguredVMAssets: Bool,
+        isNetworkHelperEnabled: Bool,
         vmRuntimeState: VMRuntimeState,
         isUSBAttached: Bool,
         guestIPv4Address: String?,
@@ -38,7 +44,8 @@ struct MenuBarCombinedStatus: Equatable {
         let isVMRunning = vmRuntimeState == .running
         let isVMNetworkActive = networkRouteSnapshot?.state == .active
         let components = [isVMRunning, isUSBAttached, isVMNetworkActive]
-        if hasBlockingError {
+        requiresConfiguration = !hasConfiguredVMAssets || !isNetworkHelperEnabled
+        if requiresConfiguration || hasBlockingError {
             activity = .needsAttention
         } else {
             switch components.filter({ $0 }).count {
@@ -51,7 +58,13 @@ struct MenuBarCombinedStatus: Equatable {
             }
         }
 
-        if !isVMRunning {
+        if !hasConfiguredVMAssets && !isNetworkHelperEnabled {
+            stage = .vmAssetsAndNetworkHelperNotConfigured
+        } else if !hasConfiguredVMAssets {
+            stage = .vmAssetsNotConfigured
+        } else if !isNetworkHelperEnabled {
+            stage = .networkHelperNotConfigured
+        } else if !isVMRunning {
             stage = .inactive
         } else if !isUSBAttached {
             stage = .usbNotAttached
@@ -71,6 +84,12 @@ struct MenuBarCombinedStatus: Equatable {
 
     var title: String {
         switch stage {
+        case .vmAssetsNotConfigured:
+            String(localized: "VM Assets Setup Required")
+        case .networkHelperNotConfigured:
+            String(localized: "Network Helper Setup Required")
+        case .vmAssetsAndNetworkHelperNotConfigured:
+            String(localized: "VM Assets and Network Helper Setup Required")
         case .inactive:
             String(localized: "menuBar.combinedStatus.notRunning", defaultValue: "Not Running")
         case .usbNotAttached:

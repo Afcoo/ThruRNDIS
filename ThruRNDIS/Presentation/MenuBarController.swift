@@ -121,13 +121,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         menu.removeAllItems()
         clearMenuReferences()
 
-        let guidance = configurationGuidanceTitles
-        guidance.forEach { menu.addItem(informationalItem(title: $0)) }
-        let displaysOperations = guidance.isEmpty
+        addStatusSection(status: status)
+        let displaysOperations = !status.requiresConfiguration
             || store.appPreferences.isDebugModeEnabled
         if displaysOperations {
-            if !guidance.isEmpty { menu.addItem(.separator()) }
-            addStatusSection(status: status)
             if store.appPreferences.isDebugModeEnabled {
                 menu.addItem(.separator())
                 addVMControlsSection()
@@ -144,7 +141,13 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     private func addStatusSection(status: MenuBarCombinedStatus) {
+        combinedStatusItem = statusItemLine(
+            title: status.title,
+            dotColor: statusColor(status.activity)
+        )
+        menu.addItem(combinedStatusItem!)
         if store.appPreferences.isDebugModeEnabled {
+            menu.addItem(.separator())
             vmStatusItem = statusItemLine(
                 title: vmStatusTitle,
                 dotColor: statusColor(vmStatusActivity)
@@ -160,12 +163,6 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             menu.addItem(vmStatusItem!)
             menu.addItem(usbStatusItem!)
             menu.addItem(networkStatusItem!)
-        } else {
-            combinedStatusItem = statusItemLine(
-                title: status.title,
-                dotColor: statusColor(status.activity)
-            )
-            menu.addItem(combinedStatusItem!)
         }
     }
 
@@ -297,11 +294,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         )
         button.setAccessibilityLabel(String(localized: "ThruRNDIS status"))
         button.setAccessibilityValue(status.title)
-        if configurationGuidanceTitles.isEmpty {
-            button.toolTip = "ThruRNDIS — \(status.title)"
-        } else {
-            button.toolTip = configurationGuidanceTitles.joined(separator: "\n")
-        }
+        button.toolTip = "ThruRNDIS — \(status.title)"
     }
 
     private static func statusDotTitle(color: NSColor) -> NSAttributedString {
@@ -314,17 +307,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         )
     }
 
-    private var configurationGuidanceTitles: [String] {
-        [
-            assetWorkflowCoordinator.hasConfiguredAssets
-                ? nil : String(localized: "Configure VM Assets in Settings"),
-            networkRoute.helper.registrationStatus == .enabled
-                ? nil : String(localized: "Configure Network Routing in Settings"),
-        ].compactMap { $0 }
-    }
-
     private var combinedStatus: MenuBarCombinedStatus {
         MenuBarCombinedStatus(
+            hasConfiguredVMAssets: store.hasConfiguredVMAssets,
+            isNetworkHelperEnabled: networkRoute.helper.isAvailable,
             vmRuntimeState: store.runtimeState,
             isUSBAttached: store.usbSession.attachedAccessoryID != nil,
             guestIPv4Address: networkRoute.guestIPv4Address,
@@ -480,12 +466,6 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
         item.image = MenuBarStatusDotImageFactory.makeImage(color: dotColor)
         item.preferredImageVisibility = .visible
-        item.isEnabled = false
-        return item
-    }
-
-    private func informationalItem(title: String) -> NSMenuItem {
-        let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
         item.isEnabled = false
         return item
     }
