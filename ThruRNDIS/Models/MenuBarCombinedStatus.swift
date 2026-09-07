@@ -16,6 +16,7 @@ struct MenuBarCombinedStatus: Equatable {
         case vmAssetsNotConfigured
         case networkHelperNotConfigured
         case vmAssetsAndNetworkHelperNotConfigured
+        case needsAttention
         case inactive
         case usbNotAttached
         case waitingForGuestNetwork
@@ -64,6 +65,8 @@ struct MenuBarCombinedStatus: Equatable {
             stage = .vmAssetsNotConfigured
         } else if !isNetworkHelperEnabled {
             stage = .networkHelperNotConfigured
+        } else if hasBlockingError {
+            stage = .needsAttention
         } else if !isVMRunning {
             stage = .inactive
         } else if !isUSBAttached {
@@ -90,6 +93,8 @@ struct MenuBarCombinedStatus: Equatable {
             String(localized: "Network Helper Setup Required")
         case .vmAssetsAndNetworkHelperNotConfigured:
             String(localized: "VM Assets and Network Helper Setup Required")
+        case .needsAttention:
+            String(localized: "Needs Attention")
         case .inactive:
             String(localized: "menuBar.combinedStatus.notRunning", defaultValue: "Not Running")
         case .usbNotAttached:

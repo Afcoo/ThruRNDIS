@@ -27,9 +27,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private let menu = NSMenu()
     private var cancellables: Set<AnyCancellable> = []
     private var combinedStatusItem: NSMenuItem?
-    private var vmStatusItem: NSMenuItem?
-    private var usbStatusItem: NSMenuItem?
-    private var networkStatusItem: NSMenuItem?
+    private var debugStatusSeparatorItem: NSMenuItem?
+    private var debugStatusItems: [NSMenuItem] = []
     private var vmActionItem: NSMenuItem?
     private var stopVMItem: NSMenuItem?
     private var attachSubmenu: NSMenu?
@@ -147,22 +146,16 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         )
         menu.addItem(combinedStatusItem!)
         if store.appPreferences.isDebugModeEnabled {
-            menu.addItem(.separator())
-            vmStatusItem = statusItemLine(
-                title: vmStatusTitle,
-                dotColor: statusColor(vmStatusActivity)
-            )
-            usbStatusItem = statusItemLine(
-                title: usbStatusTitle,
-                dotColor: statusColor(usbStatusActivity)
-            )
-            networkStatusItem = statusItemLine(
-                title: networkStatusTitle,
-                dotColor: statusColor(networkStatusActivity)
-            )
-            menu.addItem(vmStatusItem!)
-            menu.addItem(usbStatusItem!)
-            menu.addItem(networkStatusItem!)
+            let separator = NSMenuItem.separator()
+            debugStatusSeparatorItem = separator
+            menu.addItem(separator)
+            debugStatusItems = debugStatusPresentations.map { presentation in
+                statusItemLine(
+                    title: presentation.title,
+                    dotColor: statusColor(presentation.activity)
+                )
+            }
+            debugStatusItems.forEach { menu.addItem($0) }
         }
     }
 
@@ -244,21 +237,16 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             title: status.title,
             dotColor: statusColor(status.activity)
         )
-        updateStatusItem(
-            vmStatusItem,
-            title: vmStatusTitle,
-            dotColor: statusColor(vmStatusActivity)
-        )
-        updateStatusItem(
-            usbStatusItem,
-            title: usbStatusTitle,
-            dotColor: statusColor(usbStatusActivity)
-        )
-        updateStatusItem(
-            networkStatusItem,
-            title: networkStatusTitle,
-            dotColor: statusColor(networkStatusActivity)
-        )
+        let hidesDebugStatus = status.activity == .needsAttention
+        debugStatusSeparatorItem?.isHidden = hidesDebugStatus
+        for (item, presentation) in zip(debugStatusItems, debugStatusPresentations) {
+            item.isHidden = hidesDebugStatus
+            updateStatusItem(
+                item,
+                title: presentation.title,
+                dotColor: statusColor(presentation.activity)
+            )
+        }
 
         if store.runtimeState == .running {
             vmActionItem?.title = String(localized: "Restart VM")
@@ -323,6 +311,14 @@ final class MenuBarController: NSObject, NSMenuDelegate {
                 || usbStatusActivity == .needsAttention
                 || networkStatusActivity == .needsAttention
         )
+    }
+
+    private var debugStatusPresentations: [(title: String, activity: MenuBarCombinedStatus.Activity)] {
+        [
+            (vmStatusTitle, vmStatusActivity),
+            (usbStatusTitle, usbStatusActivity),
+            (networkStatusTitle, networkStatusActivity),
+        ]
     }
 
     private var vmStatusTitle: String {
@@ -495,9 +491,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     private func clearMenuReferences() {
         combinedStatusItem = nil
-        vmStatusItem = nil
-        usbStatusItem = nil
-        networkStatusItem = nil
+        debugStatusSeparatorItem = nil
+        debugStatusItems.removeAll()
         vmActionItem = nil
         stopVMItem = nil
         attachSubmenu = nil
