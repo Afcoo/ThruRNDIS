@@ -9,6 +9,7 @@ struct MenuBarCombinedStatus: Equatable {
         case inactive
         case partiallyActive
         case active
+        case needsAttention
     }
 
     enum Stage: Equatable {
@@ -31,18 +32,23 @@ struct MenuBarCombinedStatus: Equatable {
         vznatGatewayIPv4Address: String?,
         isRNDISRouteReady: Bool,
         isNetworkRouteTransitioning: Bool,
-        networkRouteSnapshot: NetworkRouteSnapshot?
+        networkRouteSnapshot: NetworkRouteSnapshot?,
+        hasBlockingError: Bool
     ) {
         let isVMRunning = vmRuntimeState == .running
         let isVMNetworkActive = networkRouteSnapshot?.state == .active
         let components = [isVMRunning, isUSBAttached, isVMNetworkActive]
-        switch components.filter({ $0 }).count {
-        case 0:
-            activity = .inactive
-        case components.count:
-            activity = .active
-        default:
-            activity = .partiallyActive
+        if hasBlockingError {
+            activity = .needsAttention
+        } else {
+            switch components.filter({ $0 }).count {
+            case 0:
+                activity = .inactive
+            case components.count:
+                activity = .active
+            default:
+                activity = .partiallyActive
+            }
         }
 
         if !isVMRunning {
