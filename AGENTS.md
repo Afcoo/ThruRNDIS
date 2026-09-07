@@ -91,10 +91,10 @@ macOS managed IPv4 Network Service
   interfaces when readiness is lost, the VM stops, app settings are reset, or
   the app terminates.
 - Outside debug mode, a successful USB passthrough attachment arms one automatic
-  managed-network start. In debug mode, only an attachment accepted through the
-  detected-device prompt arms that start; remembered Auto Connect attachments
-  and attachments requested from the Settings USB list or menu bar leave routing
-  stopped for an explicit Start.
+  managed-network start. In debug mode, attachments accepted through the
+  detected-device prompt and remembered Auto Connect attachments also arm that
+  start. Only attachments requested from the Settings USB list or menu bar leave
+  routing stopped for an explicit Start.
   Status refreshes from Settings, app activation, helper health, or the menu bar
   are read-only and must not retry a failed start. An eligible new USB attach or
   an explicit Start action may arm another attempt; Stop preserves current guest

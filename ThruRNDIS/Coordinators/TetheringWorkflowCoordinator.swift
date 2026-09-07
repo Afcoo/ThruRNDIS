@@ -515,7 +515,7 @@ final class TetheringWorkflowCoordinator {
         usbSession.deferPresentedAttachmentPrompt()
         guard beginAttachmentWorkflow(
             accessoryID: request.accessoryID,
-            allowsAutomaticNetworkRoutingStart: false
+            allowsAutomaticNetworkRoutingStart: true
         ) != nil else {
             return
         }
