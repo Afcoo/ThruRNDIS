@@ -523,22 +523,22 @@
         }
       }
     },
-    "Configure Network Routing in Settings" : {
+    "Network Helper Setup Required" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "설정에서 네트워크 라우팅을 구성하세요"
+            "value" : "네트워크 헬퍼 설정 필요"
           }
         }
       }
     },
-    "Configure VM Assets in Settings" : {
+    "VM Assets Setup Required" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "설정에서 VM에셋을 구성하세요"
+            "value" : "VM 에셋 설정 필요"
           }
         }
       }
@@ -2693,6 +2693,16 @@
         }
       }
     },
+    "VM Assets and Network Helper Setup Required" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VM 에셋 및 네트워크 헬퍼 설정 필요"
+          }
+        }
+      }
+    },
     "VM Assets" : {
       "localizations" : {
         "ko" : {
@@ -3071,6 +3081,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "IPv4 주소"
+          }
+        }
+      }
+    },
+    "Error" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "오류"
           }
         }
       }

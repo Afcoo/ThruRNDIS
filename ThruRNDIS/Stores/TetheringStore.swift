@@ -1114,6 +1114,8 @@ final class TetheringStore: ObservableObject {
             USBSessionSnapshot(
                 accessories: usbCoordinator.accessories,
                 isAccessoryMonitoring: usbCoordinator.isAccessoryMonitoring,
+                accessoryMonitoringErrorMessage:
+                    usbCoordinator.accessoryMonitoringErrorMessage,
                 selectedAccessoryID: usbCoordinator.selectedAccessoryID,
                 attachedAccessoryID: usbCoordinator.attachedAccessoryID,
                 vmSessionAccessoryID: usbCoordinator.vmSessionAccessoryID

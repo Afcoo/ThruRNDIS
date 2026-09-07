@@ -9,9 +9,14 @@ struct MenuBarCombinedStatus: Equatable {
         case inactive
         case partiallyActive
         case active
+        case error
     }
 
     enum Stage: Equatable {
+        case vmAssetsNotConfigured
+        case networkHelperNotConfigured
+        case vmAssetsAndNetworkHelperNotConfigured
+        case error
         case inactive
         case usbNotAttached
         case waitingForGuestNetwork
@@ -23,29 +28,46 @@ struct MenuBarCombinedStatus: Equatable {
 
     let activity: Activity
     let stage: Stage
+    let requiresConfiguration: Bool
 
     init(
+        hasConfiguredVMAssets: Bool,
+        isNetworkHelperEnabled: Bool,
         vmRuntimeState: VMRuntimeState,
         isUSBAttached: Bool,
         guestIPv4Address: String?,
         vznatGatewayIPv4Address: String?,
         isRNDISRouteReady: Bool,
         isNetworkRouteTransitioning: Bool,
-        networkRouteSnapshot: NetworkRouteSnapshot?
+        networkRouteSnapshot: NetworkRouteSnapshot?,
+        hasBlockingError: Bool
     ) {
         let isVMRunning = vmRuntimeState == .running
         let isVMNetworkActive = networkRouteSnapshot?.state == .active
         let components = [isVMRunning, isUSBAttached, isVMNetworkActive]
-        switch components.filter({ $0 }).count {
-        case 0:
-            activity = .inactive
-        case components.count:
-            activity = .active
-        default:
-            activity = .partiallyActive
+        requiresConfiguration = !hasConfiguredVMAssets || !isNetworkHelperEnabled
+        if requiresConfiguration || hasBlockingError {
+            activity = .error
+        } else {
+            switch components.filter({ $0 }).count {
+            case 0:
+                activity = .inactive
+            case components.count:
+                activity = .active
+            default:
+                activity = .partiallyActive
+            }
         }
 
-        if !isVMRunning {
+        if !hasConfiguredVMAssets && !isNetworkHelperEnabled {
+            stage = .vmAssetsAndNetworkHelperNotConfigured
+        } else if !hasConfiguredVMAssets {
+            stage = .vmAssetsNotConfigured
+        } else if !isNetworkHelperEnabled {
+            stage = .networkHelperNotConfigured
+        } else if hasBlockingError {
+            stage = .error
+        } else if !isVMRunning {
             stage = .inactive
         } else if !isUSBAttached {
             stage = .usbNotAttached
@@ -65,6 +87,14 @@ struct MenuBarCombinedStatus: Equatable {
 
     var title: String {
         switch stage {
+        case .vmAssetsNotConfigured:
+            String(localized: "VM Assets Setup Required")
+        case .networkHelperNotConfigured:
+            String(localized: "Network Helper Setup Required")
+        case .vmAssetsAndNetworkHelperNotConfigured:
+            String(localized: "VM Assets and Network Helper Setup Required")
+        case .error:
+            String(localized: "Error")
         case .inactive:
             String(localized: "menuBar.combinedStatus.notRunning", defaultValue: "Not Running")
         case .usbNotAttached:

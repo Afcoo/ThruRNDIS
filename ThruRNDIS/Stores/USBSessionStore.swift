@@ -8,6 +8,7 @@ import Foundation
 struct USBSessionSnapshot: Equatable {
     var accessories: [USBAccessoryRecord] = []
     var isAccessoryMonitoring = false
+    var accessoryMonitoringErrorMessage: String?
     var selectedAccessoryID: UInt64?
     var attachedAccessoryID: UInt64?
     var vmSessionAccessoryID: UInt64?
@@ -28,6 +29,10 @@ final class USBSessionStore: ObservableObject {
 
     var isAccessoryMonitoring: Bool {
         snapshot.isAccessoryMonitoring
+    }
+
+    var accessoryMonitoringErrorMessage: String? {
+        snapshot.accessoryMonitoringErrorMessage
     }
 
     var selectedAccessoryID: UInt64? {

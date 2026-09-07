@@ -27,9 +27,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private let menu = NSMenu()
     private var cancellables: Set<AnyCancellable> = []
     private var combinedStatusItem: NSMenuItem?
-    private var vmStatusItem: NSMenuItem?
-    private var usbStatusItem: NSMenuItem?
-    private var networkStatusItem: NSMenuItem?
+    private var debugStatusSeparatorItem: NSMenuItem?
+    private var debugStatusItems: [NSMenuItem] = []
     private var vmActionItem: NSMenuItem?
     private var stopVMItem: NSMenuItem?
     private var attachSubmenu: NSMenu?
@@ -64,6 +63,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             store.objectWillChange.eraseToAnyPublisher(),
             store.appPreferences.objectWillChange.eraseToAnyPublisher(),
             store.usbSession.objectWillChange.eraseToAnyPublisher(),
+            store.portForwarding.objectWillChange.eraseToAnyPublisher(),
             networkRoute.objectWillChange.eraseToAnyPublisher(),
             networkRoute.helper.objectWillChange.eraseToAnyPublisher(),
             assetWorkflowCoordinator.objectWillChange.eraseToAnyPublisher(),
@@ -120,13 +120,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         menu.removeAllItems()
         clearMenuReferences()
 
-        let guidance = configurationGuidanceTitles
-        guidance.forEach { menu.addItem(informationalItem(title: $0)) }
-        let displaysOperations = guidance.isEmpty
+        addStatusSection(status: status)
+        let displaysOperations = !status.requiresConfiguration
             || store.appPreferences.isDebugModeEnabled
         if displaysOperations {
-            if !guidance.isEmpty { menu.addItem(.separator()) }
-            addStatusSection(status: status)
             if store.appPreferences.isDebugModeEnabled {
                 menu.addItem(.separator())
                 addVMControlsSection()
@@ -143,28 +140,22 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     private func addStatusSection(status: MenuBarCombinedStatus) {
+        combinedStatusItem = statusItemLine(
+            title: status.title,
+            dotColor: statusColor(status.activity)
+        )
+        menu.addItem(combinedStatusItem!)
         if store.appPreferences.isDebugModeEnabled {
-            vmStatusItem = statusItemLine(
-                title: vmStatusTitle,
-                dotColor: vmStatusColor
-            )
-            usbStatusItem = statusItemLine(
-                title: usbStatusTitle,
-                dotColor: usbStatusColor
-            )
-            networkStatusItem = statusItemLine(
-                title: networkStatusTitle,
-                dotColor: networkStatusColor
-            )
-            menu.addItem(vmStatusItem!)
-            menu.addItem(usbStatusItem!)
-            menu.addItem(networkStatusItem!)
-        } else {
-            combinedStatusItem = statusItemLine(
-                title: status.title,
-                dotColor: combinedStatusColor(status)
-            )
-            menu.addItem(combinedStatusItem!)
+            let separator = NSMenuItem.separator()
+            debugStatusSeparatorItem = separator
+            menu.addItem(separator)
+            debugStatusItems = debugStatusPresentations.map { presentation in
+                statusItemLine(
+                    title: presentation.title,
+                    dotColor: statusColor(presentation.activity)
+                )
+            }
+            debugStatusItems.forEach { menu.addItem($0) }
         }
     }
 
@@ -244,23 +235,18 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         updateStatusItem(
             combinedStatusItem,
             title: status.title,
-            dotColor: combinedStatusColor(status)
+            dotColor: statusColor(status.activity)
         )
-        updateStatusItem(
-            vmStatusItem,
-            title: vmStatusTitle,
-            dotColor: vmStatusColor
-        )
-        updateStatusItem(
-            usbStatusItem,
-            title: usbStatusTitle,
-            dotColor: usbStatusColor
-        )
-        updateStatusItem(
-            networkStatusItem,
-            title: networkStatusTitle,
-            dotColor: networkStatusColor
-        )
+        let hidesDebugStatus = status.activity == .error
+        debugStatusSeparatorItem?.isHidden = hidesDebugStatus
+        for (item, presentation) in zip(debugStatusItems, debugStatusPresentations) {
+            item.isHidden = hidesDebugStatus
+            updateStatusItem(
+                item,
+                title: presentation.title,
+                dotColor: statusColor(presentation.activity)
+            )
+        }
 
         if store.runtimeState == .running {
             vmActionItem?.title = String(localized: "Restart VM")
@@ -292,15 +278,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         button.imagePosition = .imageLeading
         button.imageHugsTitle = true
         button.attributedTitle = Self.statusDotTitle(
-            color: combinedStatusColor(status)
+            color: statusColor(status.activity)
         )
         button.setAccessibilityLabel(String(localized: "ThruRNDIS status"))
         button.setAccessibilityValue(status.title)
-        if configurationGuidanceTitles.isEmpty {
-            button.toolTip = "ThruRNDIS — \(status.title)"
-        } else {
-            button.toolTip = configurationGuidanceTitles.joined(separator: "\n")
-        }
+        button.toolTip = "ThruRNDIS — \(status.title)"
     }
 
     private static func statusDotTitle(color: NSColor) -> NSAttributedString {
@@ -313,17 +295,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         )
     }
 
-    private var configurationGuidanceTitles: [String] {
-        [
-            assetWorkflowCoordinator.hasConfiguredAssets
-                ? nil : String(localized: "Configure VM Assets in Settings"),
-            networkRoute.helper.registrationStatus == .enabled
-                ? nil : String(localized: "Configure Network Routing in Settings"),
-        ].compactMap { $0 }
-    }
-
     private var combinedStatus: MenuBarCombinedStatus {
         MenuBarCombinedStatus(
+            hasConfiguredVMAssets: store.hasConfiguredVMAssets,
+            isNetworkHelperEnabled: networkRoute.helper.isAvailable,
             vmRuntimeState: store.runtimeState,
             isUSBAttached: store.usbSession.attachedAccessoryID != nil,
             guestIPv4Address: networkRoute.guestIPv4Address,
@@ -331,8 +306,19 @@ final class MenuBarController: NSObject, NSMenuDelegate {
                 networkRoute.vznatGatewayIPv4Address,
             isRNDISRouteReady: networkRoute.isRNDISRouteReady,
             isNetworkRouteTransitioning: networkRoute.operation != nil,
-            networkRouteSnapshot: networkRoute.snapshot
+            networkRouteSnapshot: networkRoute.snapshot,
+            hasBlockingError: vmStatusActivity == .error
+                || usbStatusActivity == .error
+                || networkStatusActivity == .error
         )
+    }
+
+    private var debugStatusPresentations: [(title: String, activity: MenuBarCombinedStatus.Activity)] {
+        [
+            (vmStatusTitle, vmStatusActivity),
+            (usbStatusTitle, usbStatusActivity),
+            (networkStatusTitle, networkStatusActivity),
+        ]
     }
 
     private var vmStatusTitle: String {
@@ -372,48 +358,68 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         return String(localized: "Network Routing: \(title)")
     }
 
-    private var vmStatusColor: NSColor {
-        switch store.vmDisplayState {
+    private var vmStatusActivity: MenuBarCombinedStatus.Activity {
+        // A disabled Start action can also mean a normal lifecycle transition.
+        // Only missing prerequisites and recorded failures require attention.
+        if !store.hasConfiguredVMAssets
+            || !store.runtimeEntitlements.virtualization
+            || !store.portForwarding.isReadyForVMStart
+            || store.runtimeState == .failed {
+            return .error
+        }
+        if store.isRestartingVirtualMachine { return .partiallyActive }
+        return switch store.runtimeState {
         case .running:
-            .systemGreen
-        case .restarting:
-            .systemYellow
-        case .stopped:
-            .systemRed
+            .active
+        case .starting, .stopping:
+            .partiallyActive
+        case .idle, .stopped:
+            .inactive
+        case .failed:
+            .error
         }
     }
 
-    private var usbStatusColor: NSColor {
+    private var usbStatusActivity: MenuBarCombinedStatus.Activity {
+        if !store.runtimeEntitlements.accessoryAccessUSB
+            || store.usbSession.accessoryMonitoringErrorMessage != nil {
+            return .error
+        }
         if store.usbSession.attachedAccessoryID != nil {
-            return .systemGreen
+            return .active
         }
-        return store.usbSession.accessories.isEmpty ? .systemRed : .systemYellow
+        return .inactive
     }
 
-    private var networkStatusColor: NSColor {
-        guard networkRoute.helper.isAvailable else { return .systemRed }
-        if networkRoute.operation != nil { return .systemYellow }
-        if networkRoute.lastErrorMessage != nil { return .systemRed }
+    private var networkStatusActivity: MenuBarCombinedStatus.Activity {
+        if networkRoute.helper.isOperationInProgress {
+            return .partiallyActive
+        }
+        guard networkRoute.helper.isAvailable else { return .error }
+        if networkRoute.operation == .starting || networkRoute.operation == .stopping {
+            return .partiallyActive
+        }
+        if networkRoute.lastErrorMessage != nil { return .error }
         switch networkRoute.snapshot?.state {
         case .active:
-            return .systemGreen
+            return .active
         case .degraded:
-            return .systemRed
-        case .inactive:
-            return .systemRed
-        case nil:
-            return .systemGray
+            return .error
+        case .inactive, nil:
+            return .inactive
         }
     }
 
-    private func combinedStatusColor(_ status: MenuBarCombinedStatus) -> NSColor {
-        switch status.activity {
+    private func statusColor(_ activity: MenuBarCombinedStatus.Activity) -> NSColor {
+        switch activity {
         case .inactive:
-            .systemRed
+            .systemGray
         case .partiallyActive:
             .systemOrange
         case .active:
             .systemGreen
+        case .error:
+            .systemRed
         }
     }
 
@@ -460,12 +466,6 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         return item
     }
 
-    private func informationalItem(title: String) -> NSMenuItem {
-        let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
-        item.isEnabled = false
-        return item
-    }
-
     private func updateStatusItem(
         _ item: NSMenuItem?,
         title: String,
@@ -491,9 +491,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     private func clearMenuReferences() {
         combinedStatusItem = nil
-        vmStatusItem = nil
-        usbStatusItem = nil
-        networkStatusItem = nil
+        debugStatusSeparatorItem = nil
+        debugStatusItems.removeAll()
         vmActionItem = nil
         stopVMItem = nil
         attachSubmenu = nil

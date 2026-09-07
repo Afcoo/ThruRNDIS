@@ -67,6 +67,7 @@ final class USBAccessoryCoordinator {
 
     private(set) var accessories: [USBAccessoryRecord] = []
     private(set) var isAccessoryMonitoring = false
+    private(set) var accessoryMonitoringErrorMessage: String?
     private(set) var selectedAccessoryID: UInt64?
     private(set) var attachedAccessoryID: UInt64?
     private(set) var vmSessionAccessoryID: UInt64?
@@ -138,6 +139,7 @@ final class USBAccessoryCoordinator {
 
         isRegistrationPending = true
         isAccessoryMonitoring = true
+        accessoryMonitoringErrorMessage = nil
         monitorGeneration &+= 1
         configureAccessoryMonitor(generation: monitorGeneration)
         notifyStateChanged()
@@ -184,6 +186,9 @@ final class USBAccessoryCoordinator {
                     self.notifyStateChanged()
                     completion?()
                 case .failure(let error):
+                    if self.isAccessoryMonitoring {
+                        self.accessoryMonitoringErrorMessage = error.localizedDescription
+                    }
                     self.isAccessoryMonitoring = false
                     self.onStatusMessage?(error.localizedDescription)
                     self.reportEventLog(
@@ -211,6 +216,10 @@ final class USBAccessoryCoordinator {
         cancelsReload: Bool,
         completion: (() -> Void)?
     ) {
+        if accessoryMonitoringErrorMessage != nil {
+            accessoryMonitoringErrorMessage = nil
+            notifyStateChanged()
+        }
         if cancelsReload, isReloadInProgress {
             isReloadInProgress = false
             reportEventLog(
