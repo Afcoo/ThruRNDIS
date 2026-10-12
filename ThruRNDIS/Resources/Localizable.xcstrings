@@ -2095,6 +2095,16 @@
         }
       }
     },
+    "Supports V1 assets" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "V1 에셋 지원"
+          }
+        }
+      }
+    },
     "SwiftTerm" : {
       "localizations" : {
         "ko" : {

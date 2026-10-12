@@ -35,6 +35,11 @@ struct VMAssetConfigurationView: View {
 
                 Spacer()
 
+                Text("Supports V1 assets")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize()
+
                 Button("Choose Folder…") {
                     chooseFolder()
                 }
