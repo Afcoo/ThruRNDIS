@@ -203,16 +203,6 @@
         }
       }
     },
-    "App settings were reset." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "앱 설정이 초기화되었습니다."
-          }
-        }
-      }
-    },
     "Ask to attach when device is available" : {
       "localizations" : {
         "ko" : {
@@ -1915,12 +1905,42 @@
         }
       }
     },
-    "Settings reset, but Launch at Login could not be disabled: %@" : {
+    "Could not disable Launch at Login before resetting app settings: %@" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "설정은 초기화되었지만 로그인 시 열기를 비활성화할 수 없습니다: %@"
+            "value" : "앱 설정 초기화 전에 로그인 시 열기를 비활성화하지 못했습니다: %@"
+          }
+        }
+      }
+    },
+    "Could not reset all settings." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "모든 설정을 초기화하지 못했습니다."
+          }
+        }
+      }
+    },
+    "Could not stop Network Routing before resetting app settings." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "앱 설정 초기화 전에 네트워크 라우팅을 중지하지 못했습니다. 네트워크 헬퍼 상태를 확인한 후 다시 시도하세요."
+          }
+        }
+      }
+    },
+    "Could not reset Network Routing: %@" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 라우팅을 초기화하지 못했습니다: %@"
           }
         }
       }
@@ -3611,16 +3631,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "USB 리스너를 시작하기 전에 네트워크 헬퍼를 설치하고 활성화하세요."
-          }
-        }
-      }
-    },
-    "Install valid VM assets and enable the Network Helper before finishing onboarding." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "온보딩을 완료하려면 유효한 VM 에셋을 설치하고 네트워크 헬퍼를 활성화하세요."
           }
         }
       }

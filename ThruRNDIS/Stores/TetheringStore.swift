@@ -54,7 +54,7 @@ final class TetheringStore: ObservableObject {
     @Published private(set) var isOnboardingPresented = false
     @Published private(set) var onboardingPresentationRequest =
         OnboardingPresentationRequest(sequence: 0, restart: false)
-    @Published private(set) var resetStatusMessage = ""
+    private(set) var resetStatusMessage = ""
 
     let guestMACAddress = "02:00:5E:10:00:02"
     let eventLog: EventLogStore
@@ -71,7 +71,7 @@ final class TetheringStore: ObservableObject {
     private let runtimeEntitlementSnapshotProvider: () -> RuntimeEntitlementSnapshot
     private var didRequestLaunchAccessoryMonitoring = false
     private var shouldRunAccessoryMonitoring = false
-    private var accessoryMonitoringStartCancellables: Set<AnyCancellable> = []
+    private var networkRouteHealthCancellables: Set<AnyCancellable> = []
 
     private lazy var workflowCoordinator = TetheringWorkflowCoordinator(
         assetProvider: assetProvider,
@@ -147,7 +147,7 @@ final class TetheringStore: ObservableObject {
         runtimeEntitlements = runtimeEntitlementSnapshotProvider()
 
         configureCoordinators()
-        configureAccessoryMonitoringStartObservation()
+        configureNetworkRouteHealthObservation()
         appendRuntimeEntitlementSummary()
         appendScratchDiskSelectionSummaryIfNeeded()
     }
@@ -229,6 +229,17 @@ final class TetheringStore: ObservableObject {
     var hasConfiguredVMAssets: Bool { assetProvider.hasConfiguredAssets }
     var shouldPresentOnboardingOnLaunch: Bool {
         !appPreferences.hasCompletedOnboarding
+    }
+
+    var isNetworkHelperReadyForOnboarding: Bool {
+        !networkRoute.helper.isSignedBuild || isNetworkRouteHelperReady
+    }
+
+    var canCompleteOnboarding: Bool {
+        acceptsNewWork
+            && hasConfiguredVMAssets
+            && !assetProvider.isBusy
+            && isNetworkHelperReadyForOnboarding
     }
 
     var isApplicationConfigured: Bool {
@@ -757,20 +768,20 @@ final class TetheringStore: ObservableObject {
         )
     }
 
-    func completeOnboarding() {
-        guard hasConfiguredVMAssets,
-              !assetProvider.isBusy,
-              (!networkRoute.helper.isSignedBuild
-                || isNetworkRouteHelperReady) else {
-            statusMessage = String(
-                localized: "Install valid VM assets and enable the Network Helper before finishing onboarding."
+    func completeOnboarding() -> Bool {
+        guard canCompleteOnboarding else {
+            appendEventLog(
+                "Onboarding completion rejected because setup is not ready.",
+                level: .warning,
+                category: .application
             )
-            return
+            return false
         }
         appPreferences.completeOnboarding()
         appendEventLog("Onboarding completed.", level: .info, category: .application)
         workflowCoordinator.assetsDidBecomeAvailable()
         startAccessoryMonitoringIfRequested(reason: "onboarding completed")
+        return true
     }
 
     func prepareForApplicationTermination() async {
@@ -806,6 +817,7 @@ final class TetheringStore: ObservableObject {
         }
 
         applicationState = .resetting
+        resetStatusMessage = ""
         defer {
             if applicationState == .resetting {
                 applicationState = .active
@@ -833,6 +845,15 @@ final class TetheringStore: ObservableObject {
         }
 
         do {
+            try appPreferences.setLaunchAtLoginEnabled(false)
+        } catch {
+            resetStatusMessage = String(
+                localized: "Could not disable Launch at Login before resetting app settings: \(error.localizedDescription)"
+            )
+            return false
+        }
+
+        do {
             try await networkRoute.resetForAppSettings()
         } catch {
             resetStatusMessage = String(
@@ -842,20 +863,14 @@ final class TetheringStore: ObservableObject {
         }
 
         workflowCoordinator.clearDeferredWorkForReset()
+        appPreferences.resetPersistedValues()
         vmConfiguration.reset()
         portForwarding.reset()
+        assetProvider.clearSelection()
         statusMessage = String(
             localized: "App settings reset. Install or select VM assets to continue."
         )
 
-        do {
-            try appPreferences.resetPersistedValues()
-            resetStatusMessage = String(localized: "App settings were reset.")
-        } catch {
-            resetStatusMessage = String(
-                localized: "Settings reset, but Launch at Login could not be disabled: \(error.localizedDescription)"
-            )
-        }
         appendEventLog(
             "App settings were reset; VM asset files were not deleted.",
             level: .info,
@@ -996,24 +1011,18 @@ final class TetheringStore: ObservableObject {
         syncUSBState()
     }
 
-    private func configureAccessoryMonitoringStartObservation() {
-        networkRoute.helper.$registrationStatus
-            .dropFirst()
-            .sink { [weak self] _ in
-                self?.scheduleAccessoryMonitoringStartIfRequested(
-                    reason: "Network Helper status changed"
-                )
-            }
-            .store(in: &accessoryMonitoringStartCancellables)
-
-        networkRoute.helper.$operation
-            .dropFirst()
-            .sink { [weak self] _ in
-                self?.scheduleAccessoryMonitoringStartIfRequested(
-                    reason: "Network Helper operation changed"
-                )
-            }
-            .store(in: &accessoryMonitoringStartCancellables)
+    private func configureNetworkRouteHealthObservation() {
+        Publishers.CombineLatest(
+            networkRoute.helper.$registrationStatus,
+            networkRoute.helper.$operation
+        )
+        .dropFirst()
+        .sink { [weak self] _, _ in
+            self?.scheduleNetworkRouteHealthCheck(
+                reason: "Network Helper state changed"
+            )
+        }
+        .store(in: &networkRouteHealthCancellables)
 
         Publishers.CombineLatest3(
             networkRoute.$snapshot,
@@ -1022,12 +1031,14 @@ final class TetheringStore: ObservableObject {
         )
         .dropFirst()
         .sink { [weak self] _, _, _ in
-            self?.networkRouteHealthDidChange()
+            self?.scheduleNetworkRouteHealthCheck(
+                reason: "Network Helper health changed"
+            )
         }
-        .store(in: &accessoryMonitoringStartCancellables)
+        .store(in: &networkRouteHealthCancellables)
     }
 
-    private func networkRouteHealthDidChange() {
+    private func networkRouteHealthDidChange(reason: String) {
         objectWillChange.send()
 
         let hasHealthFailure = networkRoute.lastErrorMessage != nil
@@ -1044,9 +1055,7 @@ final class TetheringStore: ObservableObject {
             return
         }
 
-        scheduleAccessoryMonitoringStartIfRequested(
-            reason: "Network Helper health changed"
-        )
+        startAccessoryMonitoringIfRequested(reason: reason)
     }
 
     private func startAccessoryMonitoring(reason: String) {
@@ -1088,12 +1097,11 @@ final class TetheringStore: ObservableObject {
         startAccessoryMonitoring(reason: reason)
     }
 
-    private func scheduleAccessoryMonitoringStartIfRequested(reason: String) {
+    private func scheduleNetworkRouteHealthCheck(reason: String) {
         Task { @MainActor [weak self] in
             await Task.yield()
             guard let self else { return }
-            self.objectWillChange.send()
-            self.startAccessoryMonitoringIfRequested(reason: reason)
+            self.networkRouteHealthDidChange(reason: reason)
         }
     }
 

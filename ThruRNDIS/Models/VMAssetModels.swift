@@ -146,4 +146,5 @@ protocol VMAssetProviding: AnyObject {
     var hasConfiguredAssets: Bool { get }
     var isBusy: Bool { get }
     func validatedBootAssets() throws -> VMAssetBootAssets
+    func clearSelection()
 }

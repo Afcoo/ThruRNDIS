@@ -60,8 +60,11 @@ final class NetworkRouteStore: ObservableObject {
             helper.$operation
         )
         .dropFirst()
-        .sink { [weak self] _, _ in
-            self?.helperStatusDidChange()
+        .sink { [weak self] registrationStatus, helperOperation in
+            self?.helperStatusDidChange(
+                registrationStatus: registrationStatus,
+                helperOperation: helperOperation
+            )
         }
         .store(in: &helperCancellables)
     }
@@ -96,21 +99,23 @@ final class NetworkRouteStore: ObservableObject {
 
     func refresh() {
         helper.refresh()
-        requestRouteStatusRefresh()
-    }
-
-    private func requestRouteStatusRefresh() {
-        guard helper.isAvailable, operation == nil else {
+        guard helper.isAvailable, !helper.isOperationInProgress else {
             if !helper.isAvailable {
                 snapshot = nil
             }
             return
         }
+        refreshRouteStatus()
+    }
+
+    private func refreshRouteStatus() {
+        guard operation == nil else { return }
 
         needsReconciliationAfterRefresh = false
         let generation = beginOperation(.refreshing)
         Task { @MainActor [weak self] in
-            guard let self else { return }
+            guard let self,
+                  self.reconciliationGeneration == generation else { return }
             do {
                 let snapshot = try await self.client.status()
                 guard self.finishOperation(generation) else { return }
@@ -393,10 +398,16 @@ final class NetworkRouteStore: ObservableObject {
         operation = nil
     }
 
-    private func helperStatusDidChange() {
-        if helper.isAvailable {
-            requestRouteStatusRefresh()
-        } else if !helper.isOperationInProgress {
+    private func helperStatusDidChange(
+        registrationStatus: NetworkRouteHelperRegistrationStatus,
+        helperOperation: NetworkRouteHelperOperation?
+    ) {
+        // @Published emits before the stored property changes. Decide from
+        // the emitted pair so registration immediately triggers a status read.
+        guard helperOperation == nil else { return }
+        if registrationStatus == .enabled {
+            refreshRouteStatus()
+        } else {
             reconciliationGeneration &+= 1
             needsReconciliationAfterRefresh = false
             snapshot = nil
