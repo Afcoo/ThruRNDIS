@@ -203,16 +203,6 @@
         }
       }
     },
-    "App settings were reset." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "앱 설정이 초기화되었습니다."
-          }
-        }
-      }
-    },
     "Ask to attach when device is available" : {
       "localizations" : {
         "ko" : {

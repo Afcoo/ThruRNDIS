@@ -71,7 +71,7 @@ final class TetheringStore: ObservableObject {
     private let runtimeEntitlementSnapshotProvider: () -> RuntimeEntitlementSnapshot
     private var didRequestLaunchAccessoryMonitoring = false
     private var shouldRunAccessoryMonitoring = false
-    private var accessoryMonitoringStartCancellables: Set<AnyCancellable> = []
+    private var networkRouteHealthCancellables: Set<AnyCancellable> = []
 
     private lazy var workflowCoordinator = TetheringWorkflowCoordinator(
         assetProvider: assetProvider,
@@ -147,7 +147,7 @@ final class TetheringStore: ObservableObject {
         runtimeEntitlements = runtimeEntitlementSnapshotProvider()
 
         configureCoordinators()
-        configureAccessoryMonitoringStartObservation()
+        configureNetworkRouteHealthObservation()
         appendRuntimeEntitlementSummary()
         appendScratchDiskSelectionSummaryIfNeeded()
     }
@@ -871,7 +871,6 @@ final class TetheringStore: ObservableObject {
             localized: "App settings reset. Install or select VM assets to continue."
         )
 
-        resetStatusMessage = String(localized: "App settings were reset.")
         appendEventLog(
             "App settings were reset; VM asset files were not deleted.",
             level: .info,
@@ -1012,24 +1011,18 @@ final class TetheringStore: ObservableObject {
         syncUSBState()
     }
 
-    private func configureAccessoryMonitoringStartObservation() {
-        networkRoute.helper.$registrationStatus
-            .dropFirst()
-            .sink { [weak self] _ in
-                self?.scheduleNetworkRouteHealthCheck(
-                    reason: "Network Helper status changed"
-                )
-            }
-            .store(in: &accessoryMonitoringStartCancellables)
-
-        networkRoute.helper.$operation
-            .dropFirst()
-            .sink { [weak self] _ in
-                self?.scheduleNetworkRouteHealthCheck(
-                    reason: "Network Helper operation changed"
-                )
-            }
-            .store(in: &accessoryMonitoringStartCancellables)
+    private func configureNetworkRouteHealthObservation() {
+        Publishers.CombineLatest(
+            networkRoute.helper.$registrationStatus,
+            networkRoute.helper.$operation
+        )
+        .dropFirst()
+        .sink { [weak self] _, _ in
+            self?.scheduleNetworkRouteHealthCheck(
+                reason: "Network Helper state changed"
+            )
+        }
+        .store(in: &networkRouteHealthCancellables)
 
         Publishers.CombineLatest3(
             networkRoute.$snapshot,
@@ -1042,7 +1035,7 @@ final class TetheringStore: ObservableObject {
                 reason: "Network Helper health changed"
             )
         }
-        .store(in: &accessoryMonitoringStartCancellables)
+        .store(in: &networkRouteHealthCancellables)
     }
 
     private func networkRouteHealthDidChange(reason: String) {
