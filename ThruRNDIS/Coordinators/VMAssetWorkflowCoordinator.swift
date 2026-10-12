@@ -319,10 +319,15 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
                     Task { @MainActor [weak self] in
                         guard let self,
                               self.operationID == operationID,
-                              !Task.isCancelled else {
+                              case .downloading = self.installState else {
                             return
                         }
                         self.installState = .downloading(progress: progress)
+                    }
+                },
+                eventLog: { [weak self] message, level in
+                    Task { @MainActor [weak self] in
+                        self?.reportEventLog(message, level: level)
                     }
                 }
             )

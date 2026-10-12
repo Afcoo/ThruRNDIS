@@ -256,6 +256,11 @@ macOS managed IPv4 Network Service
 - Managed assets require regular `vm_assets/Image-lts` and
   `vm_assets/initramfs-thrurndis-lts` files. Manual extracted-folder selection
   and per-file overrides remain supported fallbacks.
+- File transfers use `URLSessionDownloadTask` with progress callbacks. Retry only
+  transient connection errors, at most three times per file with bounded backoff;
+  use system resume data when available within the current install operation.
+  Keep detailed transfer, stall, and retry diagnostics in the event log; the
+  download UI retains its high-level state and byte progress.
 - A failed or cancelled install leaves the previous selection active and
   removes partial staging data. Clearing selection preserves managed releases
   and the optional scratch disk.
