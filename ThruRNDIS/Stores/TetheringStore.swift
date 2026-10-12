@@ -231,6 +231,17 @@ final class TetheringStore: ObservableObject {
         !appPreferences.hasCompletedOnboarding
     }
 
+    var isNetworkHelperReadyForOnboarding: Bool {
+        !networkRoute.helper.isSignedBuild || isNetworkRouteHelperReady
+    }
+
+    var canCompleteOnboarding: Bool {
+        acceptsNewWork
+            && hasConfiguredVMAssets
+            && !assetProvider.isBusy
+            && isNetworkHelperReadyForOnboarding
+    }
+
     var isApplicationConfigured: Bool {
         appPreferences.hasCompletedOnboarding
             && hasConfiguredVMAssets
@@ -757,20 +768,27 @@ final class TetheringStore: ObservableObject {
         )
     }
 
-    func completeOnboarding() {
-        guard hasConfiguredVMAssets,
-              !assetProvider.isBusy,
-              (!networkRoute.helper.isSignedBuild
-                || isNetworkRouteHelperReady) else {
-            statusMessage = String(
-                localized: "Install valid VM assets and enable the Network Helper before finishing onboarding."
+    func completeOnboarding() -> Bool {
+        guard canCompleteOnboarding else {
+            if !acceptsNewWork || assetProvider.isBusy {
+                statusMessage = String(localized: "Wait for the current operation to finish.")
+            } else if !hasConfiguredVMAssets {
+                statusMessage = String(localized: "Install valid VM assets before finishing onboarding.")
+            } else {
+                statusMessage = String(localized: "Wait for the Network Helper to become ready before finishing onboarding.")
+            }
+            appendEventLog(
+                "Onboarding completion rejected: \(statusMessage)",
+                level: .warning,
+                category: .application
             )
-            return
+            return false
         }
         appPreferences.completeOnboarding()
         appendEventLog("Onboarding completed.", level: .info, category: .application)
         workflowCoordinator.assetsDidBecomeAvailable()
         startAccessoryMonitoringIfRequested(reason: "onboarding completed")
+        return true
     }
 
     func prepareForApplicationTermination() async {

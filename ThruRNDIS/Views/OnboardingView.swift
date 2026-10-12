@@ -62,8 +62,7 @@ struct OnboardingView: View {
                         .disabled(!canContinue)
                     } else {
                         Button {
-                            store.completeOnboarding()
-                            if assetWorkflowCoordinator.hasConfiguredAssets {
+                            if store.completeOnboarding() {
                                 onFinish()
                             }
                         } label: {
@@ -74,11 +73,7 @@ struct OnboardingView: View {
                         .controlSize(.extraLarge)
                         .tint(.accentColor)
                         .keyboardShortcut(.defaultAction)
-                        .disabled(
-                            !assetWorkflowCoordinator.hasConfiguredAssets
-                                || assetWorkflowCoordinator.isBusy
-                                || !isNetworkHelperReadyForOnboarding
-                        )
+                        .disabled(!store.canCompleteOnboarding)
                     }
                 }
 
@@ -263,16 +258,10 @@ struct OnboardingView: View {
             return assetWorkflowCoordinator.hasConfiguredAssets
                 && !assetWorkflowCoordinator.isBusy
         case 2:
-            return isNetworkHelperReadyForOnboarding
+            return store.isNetworkHelperReadyForOnboarding
         default:
             return true
         }
-    }
-
-    private var isNetworkHelperReadyForOnboarding: Bool {
-        !networkRoute.helper.isSignedBuild
-            || (networkRoute.helper.isAvailable
-                && !networkRoute.helper.isOperationInProgress)
     }
 
     private func onboardingInstruction(

@@ -206,6 +206,10 @@ macOS managed IPv4 Network Service
   current enabled network helper before AccessoryAccess monitoring starts or
   reloads. Debug mode may expose controls, but it does not bypass USB
   entitlement or listener-transition safety.
+- Onboarding completion controls and persistence use the same readiness check,
+  including a successful helper status read in signed builds. Close onboarding
+  only after completion is saved. Helper registration observers must use the
+  emitted values because `@Published` notifies before updating stored values.
 - App reset stops the managed network before unregistering the helper. If
   cleanup fails, do not unregister the helper or claim reset success.
 - Explicit settings reset finishes before the bounded termination cleanup
