@@ -161,6 +161,14 @@ struct USBAccessoryRecord: Identifiable, Hashable, Sendable {
         )
     }
 
+    var hasADBInterface: Bool {
+        interfaces.contains {
+            $0.interfaceClass == 0xFF
+                && $0.interfaceSubClass == 0x42
+                && $0.interfaceProtocol == 0x01
+        }
+    }
+
     var registryIDText: String {
         "0x" + String(id, radix: 16, uppercase: true)
     }

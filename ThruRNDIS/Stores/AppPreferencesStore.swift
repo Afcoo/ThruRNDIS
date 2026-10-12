@@ -33,6 +33,13 @@ final class AppPreferencesStore: ObservableObject {
         }
     }
 
+    @Published var suppressesADBWarnings: Bool {
+        didSet {
+            guard !isResettingPersistedValues else { return }
+            defaults.set(suppressesADBWarnings, forKey: DefaultsKey.suppressesADBWarnings)
+        }
+    }
+
     @Published private(set) var hasCompletedOnboarding: Bool
     @Published private(set) var usbAutoConnectIdentities:
         Set<USBAccessoryReconnectIdentity>
@@ -49,6 +56,7 @@ final class AppPreferencesStore: ObservableObject {
     ) {
         self.launchAtLoginService = launchAtLoginService
         self.defaults = defaults
+        self.suppressesADBWarnings = defaults.bool(forKey: DefaultsKey.suppressesADBWarnings)
         self.isDebugModeEnabled = defaults.bool(
             forKey: DefaultsKey.isDebugModeEnabled
         )
@@ -129,7 +137,10 @@ final class AppPreferencesStore: ObservableObject {
         defaults.removeObject(forKey: DefaultsKey.shouldAskToAttachDetectedUSBDevices)
         defaults.removeObject(forKey: DefaultsKey.usbAutoConnectIdentities)
 
+        defaults.removeObject(forKey: DefaultsKey.suppressesADBWarnings)
+
         isResettingPersistedValues = true
+        suppressesADBWarnings = false
         isDebugModeEnabled = false
         shouldAskToAttachDetectedUSBDevices = true
         usbAutoConnectIdentities = []
@@ -153,6 +164,7 @@ final class AppPreferencesStore: ObservableObject {
         static let isDebugModeEnabled = "Application.debugModeEnabled"
         static let shouldAskToAttachDetectedUSBDevices = "USB.askToAttachDetectedDevices"
         static let usbAutoConnectIdentities = "USB.autoConnectIdentities.v1"
+        static let suppressesADBWarnings = "USB.suppressesADBWarnings"
     }
 
     private static func restoredUSBAutoConnectIdentities(

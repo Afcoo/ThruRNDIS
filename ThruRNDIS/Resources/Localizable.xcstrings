@@ -123,6 +123,26 @@
         }
       }
     },
+    "Don't Show Again" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다시 알리지 않기"
+          }
+        }
+      }
+    },
+    "ADB Interface Detected" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ADB 인터페이스 감지됨"
+          }
+        }
+      }
+    },
     "All" : {
       "localizations" : {
         "ko" : {
@@ -159,6 +179,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "시스템 설정 > 일반 > 로그인 항목 및 확장 프로그램에서 ThruRNDIS를 허용하세요."
+          }
+        }
+      }
+    },
+    "ADB detected on %@.\nDisable USB debugging to avoid connection failures." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@에서 ADB 인터페이스가 감지되었습니다.\n연결이 실패할 수 있으니, USB 디버깅을 비활성화하세요."
           }
         }
       }
