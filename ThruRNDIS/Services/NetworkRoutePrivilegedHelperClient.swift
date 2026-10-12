@@ -118,14 +118,6 @@ final class NetworkRoutePrivilegedHelperClient {
         try await stop(timeout: Self.terminationStopRequestTimeout)
     }
 
-    func stopRegisteredHelperBeforeReplacement() async throws {
-        _ = try await sendTransientDataRequest(
-            timeout: Self.stopRequestTimeout
-        ) { proxy, reply in
-            proxy.stop(withReply: reply)
-        }
-    }
-
     private func stop(
         timeout: DispatchTimeInterval
     ) async throws -> NetworkRouteSnapshot {

@@ -10,6 +10,8 @@ import ServiceManagement
 struct NetworkRoutePrivilegedHelperRegistrationService {
     private static let registeredBuildVersionKey =
         "NetworkRoute.registeredHelperBuildVersion"
+    private static let replacementCleanupPendingKey =
+        "NetworkRoute.helperReplacementCleanupPending"
 
     private let service: SMAppService
     private let defaults: UserDefaults
@@ -28,7 +30,8 @@ struct NetworkRoutePrivilegedHelperRegistrationService {
         guard registrationStatus == .enabled else {
             return registrationStatus
         }
-        guard let currentHelperBuildVersion,
+        guard !hasPendingReplacementCleanup,
+              let currentHelperBuildVersion,
               defaults.string(forKey: Self.registeredBuildVersionKey)
                 == currentHelperBuildVersion else {
             return .updateRequired
@@ -45,13 +48,36 @@ struct NetworkRoutePrivilegedHelperRegistrationService {
                let registeredBuildVersion = defaults.string(
                 forKey: Self.registeredBuildVersionKey
                ) {
-                registeredBuildVersion != currentHelperBuildVersion
+                hasPendingReplacementCleanup
+                    || registeredBuildVersion != currentHelperBuildVersion
             } else {
                 false
             }
         case .unknown, .enabled, .requiresApproval:
             false
         }
+    }
+
+    var canCleanUpAfterReplacement: Bool {
+        guard let currentHelperBuildVersion else { return false }
+        // Legacy Boolean markers do not identify a build and must reinstall.
+        return defaults.object(forKey: Self.replacementCleanupPendingKey) as? String
+            == currentHelperBuildVersion
+            && service.status == .enabled
+    }
+
+    func requireReplacementCleanup() {
+        // An unknown build remains pending but can never resume cleanup.
+        defaults.set(
+            currentHelperBuildVersion ?? "",
+            forKey: Self.replacementCleanupPendingKey
+        )
+    }
+
+    func completeReplacementCleanup() {
+        // register() may have required approval before recording the version.
+        recordRegisteredBuildVersion()
+        defaults.removeObject(forKey: Self.replacementCleanupPendingKey)
     }
 
     func enable() throws -> NetworkRouteHelperRegistrationStatus {
@@ -64,12 +90,7 @@ struct NetworkRoutePrivilegedHelperRegistrationService {
         }
 
         try service.register()
-        if let currentHelperBuildVersion {
-            defaults.set(
-                currentHelperBuildVersion,
-                forKey: Self.registeredBuildVersionKey
-            )
-        }
+        recordRegisteredBuildVersion()
         return status()
     }
 
@@ -86,6 +107,8 @@ struct NetworkRoutePrivilegedHelperRegistrationService {
             break
         }
 
+        // Await daemon termination. The replacement workflow also allows time
+        // for Background Task Management's registration state to settle.
         try await service.unregister()
         if !preservingRegisteredBuildVersion {
             clearRegisteredBuildVersion()
@@ -97,8 +120,21 @@ struct NetworkRoutePrivilegedHelperRegistrationService {
         SMAppService.openSystemSettingsLoginItems()
     }
 
+    private var hasPendingReplacementCleanup: Bool {
+        defaults.object(forKey: Self.replacementCleanupPendingKey) != nil
+    }
+
     private func clearRegisteredBuildVersion() {
         defaults.removeObject(forKey: Self.registeredBuildVersionKey)
+    }
+
+    private func recordRegisteredBuildVersion() {
+        if let currentHelperBuildVersion {
+            defaults.set(
+                currentHelperBuildVersion,
+                forKey: Self.registeredBuildVersionKey
+            )
+        }
     }
 
     private static func helperBuildVersion() -> String? {

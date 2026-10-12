@@ -34,6 +34,7 @@ final class NetworkRouteHelperStore: ObservableObject {
     private let registrationService:
         NetworkRoutePrivilegedHelperRegistrationService
     private let eventLog: EventLogStore
+    private var hasAttemptedReplacementCleanup = false
 
     init(eventLog: EventLogStore) {
         registrationService = NetworkRoutePrivilegedHelperRegistrationService()
@@ -93,14 +94,17 @@ final class NetworkRouteHelperStore: ObservableObject {
         Task { @MainActor [weak self] in
             guard let self else { return }
             do {
-                let status = try self.registrationService.enable()
-                self.operation = nil
+                _ = try self.registrationService.enable()
+                try await self.cleanUpAfterReplacementIfNeeded()
+                let status = self.registrationService.status()
                 self.registrationStatus = status
+                self.operation = nil
                 self.reportRegistrationResult(
                     status,
                     successMessage: "Network Helper is enabled for the current app build."
                 )
             } catch {
+                self.registrationStatus = self.registrationService.status()
                 self.operation = nil
                 self.refresh()
                 if self.registrationStatus != .requiresApproval {
@@ -151,38 +155,43 @@ final class NetworkRouteHelperStore: ObservableObject {
         Task { @MainActor [weak self] in
             guard let self else { return }
             do {
-                if self.registrationStatus == .enabled
-                    || self.registrationStatus == .updateRequired {
-                    self.appendEventLog(
-                        "Stopping managed network state before Network Helper replacement.",
-                        level: .debug
+                // Approval or relaunch can resume cleanup without replacing an
+                // already registered helper. Explicit retries after failure
+                // still perform a full reinstall.
+                if !self.registrationService.canCleanUpAfterReplacement
+                    || self.hasAttemptedReplacementCleanup {
+                    // Authenticate only the new executable. The old daemon may
+                    // no longer match the replaced app bundle on disk.
+                    let removalStatus = try await self.registrationService.disable(
+                        preservingRegisteredBuildVersion: true
                     )
-                    let replacementClient = NetworkRoutePrivilegedHelperClient()
-                    try await replacementClient
-                        .stopRegisteredHelperBeforeReplacement()
-                }
-                let removalStatus = try await self.registrationService.disable(
-                    preservingRegisteredBuildVersion: true
-                )
-                guard removalStatus == .notRegistered
-                        || removalStatus == .notFound else {
-                    self.operation = nil
-                    self.registrationStatus = removalStatus
-                    self.reportError(
-                        "Network Helper did not become disabled for reinstall."
-                    )
-                    return
-                }
+                    guard removalStatus == .notRegistered
+                            || removalStatus == .notFound else {
+                        self.registrationStatus = removalStatus
+                        self.operation = nil
+                        self.reportError(
+                            "Network Helper did not become disabled for reinstall."
+                        )
+                        return
+                    }
 
-                try await Task.sleep(for: Self.reregistrationDelay)
-                let status = try self.registrationService.enable()
-                self.operation = nil
+                    self.registrationService.requireReplacementCleanup()
+                    self.hasAttemptedReplacementCleanup = false
+                    // macOS 27 can finish unregistering the process before
+                    // Background Task Management permits registration again.
+                    try await Task.sleep(for: Self.reregistrationDelay)
+                    _ = try self.registrationService.enable()
+                }
+                try await self.cleanUpAfterReplacementIfNeeded()
+                let status = self.registrationService.status()
                 self.registrationStatus = status
+                self.operation = nil
                 self.reportRegistrationResult(
                     status,
                     successMessage: "Network Helper was reinstalled for the current app build."
                 )
             } catch {
+                self.registrationStatus = self.registrationService.status()
                 self.operation = nil
                 self.refresh()
                 if self.registrationStatus != .requiresApproval {
@@ -200,6 +209,28 @@ final class NetworkRouteHelperStore: ObservableObject {
         if registrationStatus != status {
             registrationStatus = status
         }
+        // Resume once after approval or relaunch. A failed cleanup remains
+        // unavailable until an explicit reinstall (or the next launch).
+        guard registrationService.canCleanUpAfterReplacement,
+              !hasAttemptedReplacementCleanup else { return }
+        reinstall()
+    }
+
+    private func cleanUpAfterReplacementIfNeeded() async throws {
+        guard registrationService.canCleanUpAfterReplacement else { return }
+        hasAttemptedReplacementCleanup = true
+        appendEventLog(
+            "Cleaning up managed network state with the replacement Network Helper.",
+            level: .debug
+        )
+        let replacementClient = NetworkRoutePrivilegedHelperClient()
+        let snapshot = try await replacementClient.stop()
+        guard snapshot.state == .inactive else {
+            throw NetworkRoutePrivilegedHelperClientError.helperFailure(
+                message: "Network Helper replacement cleanup did not become inactive."
+            )
+        }
+        registrationService.completeReplacementCleanup()
     }
 
     func openSystemSettings() {
