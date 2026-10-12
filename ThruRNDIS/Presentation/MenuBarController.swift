@@ -39,6 +39,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var isPresentationRefreshScheduled = false
     private var isPresentingPrompt = false
     private var presentedPromptAlert: NSAlert?
+    private var notifiedADBAccessoryIDs: Set<UInt64> = []
+    private var adbWarningAlerts: [NSAlert] = []
 
     init(
         store: TetheringStore,
@@ -73,7 +75,59 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         }
         .store(in: &cancellables)
 
+        store.usbSession.$snapshot
+            .sink { [weak self] snapshot in
+                guard let self else { return }
+                self.notifiedADBAccessoryIDs.formIntersection(
+                    snapshot.accessories.map(\.id)
+                )
+                guard !self.store.appPreferences.suppressesADBWarnings else { return }
+                for accessory in snapshot.accessories where accessory.hasADBInterface {
+                    if self.notifiedADBAccessoryIDs.insert(accessory.id).inserted {
+                        self.presentADBWarning(for: accessory)
+                    }
+                }
+            }
+            .store(in: &cancellables)
+
         networkRoute.refresh()
+    }
+
+    private func presentADBWarning(for accessory: USBAccessoryRecord) {
+        let alert = NSAlert()
+        alert.messageText = String(localized: "ADB Interface Detected")
+        alert.informativeText = String(localized: "ADB detected on \(accessory.deviceName).\nDisable USB debugging to avoid connection failures.")
+        alert.alertStyle = .informational
+        alert.showsSuppressionButton = true
+        alert.suppressionButton?.title = String(localized: "Don't Show Again")
+        let button = alert.addButton(withTitle: String(localized: "OK"))
+        button.target = self
+        button.action = #selector(dismissADBWarning(_:))
+        adbWarningAlerts.append(alert)
+        alert.layout()
+        // Center the native checkbox without changing AppKit's alert size.
+        if let checkbox = alert.suppressionButton, let container = checkbox.superview {
+            checkbox.setFrameOrigin(NSPoint(
+                x: container.bounds.midX - checkbox.frame.width / 2,
+                y: checkbox.frame.minY
+            ))
+        }
+        (alert.window as? NSPanel)?.worksWhenModal = true
+        alert.window.level = NSWindow.Level(rawValue: NSWindow.Level.modalPanel.rawValue + 1)
+        alert.window.center()
+        alert.window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    @objc private func dismissADBWarning(_ sender: NSButton) {
+        guard let index = adbWarningAlerts.firstIndex(where: { $0.buttons.first === sender }) else {
+            return
+        }
+        let alert = adbWarningAlerts.remove(at: index)
+        if alert.suppressionButton?.state == .on {
+            store.appPreferences.suppressesADBWarnings = true
+        }
+        alert.window.orderOut(nil)
     }
 
     func menuWillOpen(_ menu: NSMenu) {

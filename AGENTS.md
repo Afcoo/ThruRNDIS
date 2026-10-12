@@ -223,6 +223,10 @@ macOS managed IPv4 Network Service
   workflow. Auto Connect proceeds only when no accessory owns the current VM
   session; an unavailable or ambiguous identity fails closed without a later
   automatic retry.
+- A detected USB ADB interface (`FF:42:01`) shows a modeless warning once per
+  connected registry ID, independently of the ask-to-attach preference. Warnings
+  do not queue, delay Auto Connect, or close on disconnect. "Don't Show Again"
+  suppresses future ADB warnings globally across launches; app reset restores them.
 - One VM boot corresponds to one passthrough attachment lifetime. Manual
   detach, physical disconnect, or passthrough disconnect stops that VM session.
 - Preserve VM-generation and USB-operation tokens so callbacks from old
