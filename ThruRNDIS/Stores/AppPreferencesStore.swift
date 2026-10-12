@@ -131,11 +131,16 @@ final class AppPreferencesStore: ObservableObject {
         return true
     }
 
-    func resetPersistedValues() throws {
+    // System registrations must be removed successfully by the reset workflow
+    // before clearing local preferences.
+    func resetPersistedValues() {
         defaults.removeObject(forKey: DefaultsKey.onboardingVersion)
         defaults.removeObject(forKey: DefaultsKey.isDebugModeEnabled)
         defaults.removeObject(forKey: DefaultsKey.shouldAskToAttachDetectedUSBDevices)
         defaults.removeObject(forKey: DefaultsKey.usbAutoConnectIdentities)
+        for key in Self.obsoletePreferenceKeys {
+            defaults.removeObject(forKey: key)
+        }
 
         defaults.removeObject(forKey: DefaultsKey.suppressesADBWarnings)
 
@@ -146,18 +151,15 @@ final class AppPreferencesStore: ObservableObject {
         usbAutoConnectIdentities = []
         hasCompletedOnboarding = false
         isResettingPersistedValues = false
-
-        do {
-            launchAtLoginSnapshot = try launchAtLoginService.setEnabled(false)
-            launchAtLoginStatusMessage = launchAtLoginSnapshot.statusText
-        } catch {
-            launchAtLoginSnapshot = launchAtLoginService.snapshot()
-            launchAtLoginStatusMessage = String(
-                localized: "Could not update Launch at Login: \(error.localizedDescription)"
-            )
-            throw error
-        }
     }
+
+    // Removed UI inputs from 0.3. Helper ownership and migration records are
+    // deliberately left to the services that validate their cleanup.
+    private static let obsoletePreferenceKeys = [
+        "DummyEthernet.hostIPv4Address",
+        "DummyEthernet.memberInterfaceName",
+        "DummyEthernet.peerInterfaceName",
+    ]
 
     private enum DefaultsKey {
         static let onboardingVersion = "Onboarding.completedVersion"

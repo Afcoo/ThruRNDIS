@@ -806,6 +806,7 @@ final class TetheringStore: ObservableObject {
         }
 
         applicationState = .resetting
+        resetStatusMessage = ""
         defer {
             if applicationState == .resetting {
                 applicationState = .active
@@ -833,6 +834,15 @@ final class TetheringStore: ObservableObject {
         }
 
         do {
+            try appPreferences.setLaunchAtLoginEnabled(false)
+        } catch {
+            resetStatusMessage = String(
+                localized: "Could not disable Launch at Login before resetting app settings: \(error.localizedDescription)"
+            )
+            return false
+        }
+
+        do {
             try await networkRoute.resetForAppSettings()
         } catch {
             resetStatusMessage = String(
@@ -842,20 +852,15 @@ final class TetheringStore: ObservableObject {
         }
 
         workflowCoordinator.clearDeferredWorkForReset()
+        appPreferences.resetPersistedValues()
         vmConfiguration.reset()
         portForwarding.reset()
+        assetProvider.clearSelection()
         statusMessage = String(
             localized: "App settings reset. Install or select VM assets to continue."
         )
 
-        do {
-            try appPreferences.resetPersistedValues()
-            resetStatusMessage = String(localized: "App settings were reset.")
-        } catch {
-            resetStatusMessage = String(
-                localized: "Settings reset, but Launch at Login could not be disabled: \(error.localizedDescription)"
-            )
-        }
+        resetStatusMessage = String(localized: "App settings were reset.")
         appendEventLog(
             "App settings were reset; VM asset files were not deleted.",
             level: .info,

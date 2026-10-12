@@ -312,10 +312,7 @@ final class PortForwardingStore: ObservableObject {
     }
 
     func reset() {
-        defaults.set(
-            PortForwardingConfiguration.isEnabledByDefault,
-            forKey: DefaultsKey.isEnabled
-        )
+        defaults.removeObject(forKey: DefaultsKey.isEnabled)
         defaults.removeObject(forKey: DefaultsKey.portSpecification)
         isConfigurationLocked = false
         isEnabled = PortForwardingConfiguration.isEnabledByDefault

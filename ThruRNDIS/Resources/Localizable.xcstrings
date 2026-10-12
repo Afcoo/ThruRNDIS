@@ -1915,12 +1915,42 @@
         }
       }
     },
-    "Settings reset, but Launch at Login could not be disabled: %@" : {
+    "Could not disable Launch at Login before resetting app settings: %@" : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "설정은 초기화되었지만 로그인 시 열기를 비활성화할 수 없습니다: %@"
+            "value" : "앱 설정 초기화 전에 로그인 시 열기를 비활성화하지 못했습니다: %@"
+          }
+        }
+      }
+    },
+    "Could not reset all settings." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "모든 설정을 초기화하지 못했습니다."
+          }
+        }
+      }
+    },
+    "Could not stop Network Routing before resetting app settings." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "앱 설정 초기화 전에 네트워크 라우팅을 중지하지 못했습니다. 네트워크 헬퍼 상태를 확인한 후 다시 시도하세요."
+          }
+        }
+      }
+    },
+    "Could not reset Network Routing: %@" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 라우팅을 초기화하지 못했습니다: %@"
           }
         }
       }

@@ -5,6 +5,7 @@ Copyright (C) 2026 Afcoo.
 import SwiftUI
 
 struct SettingsView: View {
+    @EnvironmentObject private var store: TetheringStore
     @State private var selectedSection: SettingsSection = .general
 
     let openConsole: () -> Void
@@ -37,6 +38,7 @@ struct SettingsView: View {
             .scrollEdgeEffectHidden(true, for: .top)
         }
         .formStyle(.grouped)
+        .disabled(store.isResettingAppSettings)
         .frame(minWidth: 760, minHeight: 480)
         .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
         .onAppear {

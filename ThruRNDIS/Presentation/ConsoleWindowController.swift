@@ -7,6 +7,8 @@ import SwiftUI
 
 @MainActor
 final class ConsoleWindowController: NSWindowController {
+    static let frameAutosaveName = "ThruRNDISVMConsoleWindow"
+
     init(store: TetheringStore) {
         let rootView = ConsoleView()
             .environmentObject(store)
@@ -20,7 +22,7 @@ final class ConsoleWindowController: NSWindowController {
         window.minSize = NSSize(width: 680, height: 420)
         window.isReleasedWhenClosed = false
         window.isRestorable = false
-        window.setFrameAutosaveName("ThruRNDISVMConsoleWindow")
+        window.setFrameAutosaveName(Self.frameAutosaveName)
         window.center()
 
         super.init(window: window)

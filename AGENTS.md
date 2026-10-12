@@ -208,6 +208,13 @@ macOS managed IPv4 Network Service
   entitlement or listener-transition safety.
 - App reset stops the managed network before unregistering the helper. If
   cleanup fails, do not unregister the helper or claim reset success.
+- Explicit settings reset finishes before the bounded termination cleanup
+  begins. A failed reset keeps the app open and reports the failed step.
+  Disable Launch at Login before clearing local preferences; clear USB Auto
+  Connect identities, VM configuration and asset selection, port forwarding,
+  obsolete Dummy Ethernet UI preferences, and the saved console frame on
+  success. Preserve VM asset files, scratch disk contents, logs, and helper
+  migration/ownership records managed by their respective services.
 - Application termination performs bounded best-effort network cleanup. Explicit
   user operations still surface failures normally.
 

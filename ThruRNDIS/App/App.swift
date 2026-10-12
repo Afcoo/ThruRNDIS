@@ -276,28 +276,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func resetAppSettingsAndQuit() {
-        quitApplication(
-            reason: "app settings reset",
-            prepare: { [weak self] in
-                guard let self else { return }
-                guard await self.store.resetAppSettings() else {
-                    self.eventLog.append(
-                        "Application termination will continue after the app settings reset failed.",
-                        level: .error,
-                        category: .application
-                    )
-                    return
-                }
-                self.assetWorkflowCoordinator.clearSelection()
-            }
-        )
-    }
-
-    private func quitApplication(
-        reason: String,
-        prepare: @escaping @MainActor () async -> Void = {},
-        afterTerminationPreparation: @escaping @MainActor () -> Void = {}
-    ) {
         guard !isQuittingAfterSettingsChange,
               !isTerminating else {
             return
@@ -309,15 +287,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 return
             }
             self.eventLog.append(
-                "Application will quit after \(reason).",
+                "App settings reset requested; the application will quit only after it succeeds.",
                 level: .debug,
                 category: .application
             )
 
-            await self.prepareApplicationServicesForTermination(
-                prepare: prepare
-            )
-            afterTerminationPreparation()
+            // Explicit reset must finish before the bounded, best-effort quit
+            // cleanup starts. Its helper requests have their own timeouts.
+            guard await self.store.resetAppSettings() else {
+                self.isQuittingAfterSettingsChange = false
+                if self.isTerminating {
+                    self.isTerminating = false
+                    NSApp.reply(toApplicationShouldTerminate: false)
+                }
+                self.eventLog.append(
+                    "App settings reset failed; the application will remain open: \(self.store.resetStatusMessage)",
+                    level: .error,
+                    category: .application
+                )
+                self.showSettingsWindow()
+                let alert = NSAlert()
+                alert.alertStyle = .warning
+                alert.messageText = String(localized: "Could not reset all settings.")
+                alert.informativeText = self.store.resetStatusMessage
+                alert.addButton(withTitle: String(localized: "OK"))
+                alert.runModal()
+                return
+            }
+            self.consoleWindowController?.window?.setFrameAutosaveName("")
+            NSWindow.removeFrame(usingName: ConsoleWindowController.frameAutosaveName)
+            await self.prepareApplicationServicesForTermination()
             self.isPreparedToQuitAfterSettingsChange = true
             self.isQuittingAfterSettingsChange = false
             if self.isTerminating {
@@ -384,9 +383,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return alert.runModal() == .alertFirstButtonReturn
     }
 
-    private func prepareApplicationServicesForTermination(
-        prepare: @escaping @MainActor () async -> Void = {}
-    ) async {
+    private func prepareApplicationServicesForTermination() async {
         eventLog.append(
             "Preparing application services for termination.",
             level: .debug,
@@ -399,7 +396,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard let self else {
                 return
             }
-            await prepare()
             async let assetTermination: Void = assetWorkflowCoordinator
                 .prepareForApplicationTermination()
             await store.prepareForApplicationTermination()
