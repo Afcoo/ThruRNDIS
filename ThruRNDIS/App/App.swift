@@ -292,8 +292,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 category: .application
             )
 
-            // Explicit reset must finish before the bounded, best-effort quit
-            // cleanup starts. Its helper requests have their own timeouts.
+            // Finish explicit reset before the bounded, best-effort quit cleanup.
             guard await self.store.resetAppSettings() else {
                 self.isQuittingAfterSettingsChange = false
                 if self.isTerminating {

@@ -3645,26 +3645,6 @@
         }
       }
     },
-    "Install valid VM assets before finishing onboarding." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "온보딩을 완료하려면 유효한 VM 에셋을 설치하세요."
-          }
-        }
-      }
-    },
-    "Wait for the Network Helper to become ready before finishing onboarding." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "네트워크 헬퍼가 준비된 후 온보딩을 완료하세요."
-          }
-        }
-      }
-    },
     "Stopping Network Routing before restarting the VM." : {
       "localizations" : {
         "ko" : {

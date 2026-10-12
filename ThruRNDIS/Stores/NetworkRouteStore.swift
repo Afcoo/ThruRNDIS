@@ -99,10 +99,6 @@ final class NetworkRouteStore: ObservableObject {
 
     func refresh() {
         helper.refresh()
-        requestRouteStatusRefresh()
-    }
-
-    private func requestRouteStatusRefresh() {
         guard helper.isAvailable, !helper.isOperationInProgress else {
             if !helper.isAvailable {
                 snapshot = nil

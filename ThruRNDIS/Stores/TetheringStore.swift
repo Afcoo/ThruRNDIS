@@ -54,7 +54,7 @@ final class TetheringStore: ObservableObject {
     @Published private(set) var isOnboardingPresented = false
     @Published private(set) var onboardingPresentationRequest =
         OnboardingPresentationRequest(sequence: 0, restart: false)
-    @Published private(set) var resetStatusMessage = ""
+    private(set) var resetStatusMessage = ""
 
     let guestMACAddress = "02:00:5E:10:00:02"
     let eventLog: EventLogStore
@@ -770,15 +770,8 @@ final class TetheringStore: ObservableObject {
 
     func completeOnboarding() -> Bool {
         guard canCompleteOnboarding else {
-            if !acceptsNewWork || assetProvider.isBusy {
-                statusMessage = String(localized: "Wait for the current operation to finish.")
-            } else if !hasConfiguredVMAssets {
-                statusMessage = String(localized: "Install valid VM assets before finishing onboarding.")
-            } else {
-                statusMessage = String(localized: "Wait for the Network Helper to become ready before finishing onboarding.")
-            }
             appendEventLog(
-                "Onboarding completion rejected: \(statusMessage)",
+                "Onboarding completion rejected because setup is not ready.",
                 level: .warning,
                 category: .application
             )
