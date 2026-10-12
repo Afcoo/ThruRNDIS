@@ -78,9 +78,6 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         store.usbSession.$snapshot
             .sink { [weak self] snapshot in
                 guard let self else { return }
-                self.notifiedADBAccessoryIDs.formIntersection(
-                    snapshot.accessories.map(\.id)
-                )
                 guard !self.store.appPreferences.suppressesADBWarnings else { return }
                 for accessory in snapshot.accessories where accessory.hasADBInterface {
                     if self.notifiedADBAccessoryIDs.insert(accessory.id).inserted {
