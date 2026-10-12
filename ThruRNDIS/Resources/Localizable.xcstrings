@@ -995,46 +995,6 @@
         }
       }
     },
-    "GitHub did not return a compatible published VM asset release." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "GitHub에서 게시된 호환 VM 에셋 릴리스를 찾을 수 없습니다."
-          }
-        }
-      }
-    },
-    "GitHub rejected the release request. The unauthenticated API rate limit may have been reached." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "GitHub가 릴리스 요청을 거부했습니다. 인증되지 않은 API 요청 한도에 도달했을 수 있습니다."
-          }
-        }
-      }
-    },
-    "GitHub returned an invalid response while checking VM assets." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "VM 에셋 확인 중 GitHub에서 잘못된 응답을 반환했습니다."
-          }
-        }
-      }
-    },
-    "GitHub returned HTTP %lld while checking VM assets." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "VM 에셋 확인 중 GitHub가 HTTP %lld 응답을 반환했습니다."
-          }
-        }
-      }
-    },
     "Guest shut down." : {
       "localizations" : {
         "ko" : {
@@ -1955,36 +1915,6 @@
         }
       }
     },
-    "SHA256SUMS contains more than one entry for %@." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "SHA256SUMS에 %@ 항목이 두 개 이상 있습니다."
-          }
-        }
-      }
-    },
-    "SHA256SUMS does not contain an entry for %@." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "SHA256SUMS에 %@ 항목이 없습니다."
-          }
-        }
-      }
-    },
-    "SHA256SUMS is malformed." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "SHA256SUMS 형식이 잘못되었습니다."
-          }
-        }
-      }
-    },
     "Start" : {
       "localizations" : {
         "ko" : {
@@ -2115,6 +2045,16 @@
         }
       }
     },
+    "Supports V1 assets" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "V1 에셋 지원"
+          }
+        }
+      }
+    },
     "SwiftTerm" : {
       "localizations" : {
         "ko" : {
@@ -2151,46 +2091,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "설치된 VM 에셋 릴리스가 불완전하거나 손상되었습니다: %@"
-          }
-        }
-      }
-    },
-    "The latest compatible VM asset release contains an invalid download URL for %@." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "최신 호환 VM 에셋 릴리스에 포함된 %@의 다운로드 URL이 잘못되었습니다."
-          }
-        }
-      }
-    },
-    "The latest compatible VM asset release contains an invalid SHA-256 digest for %@." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "최신 호환 VM 에셋 릴리스에 포함된 %@의 SHA-256 다이제스트가 잘못되었습니다."
-          }
-        }
-      }
-    },
-    "The latest compatible VM asset release contains more than one %@ attachment." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "최신 호환 VM 에셋 릴리스에 %@ 첨부 파일이 두 개 이상 있습니다."
-          }
-        }
-      }
-    },
-    "The latest compatible VM asset release does not contain %@." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "최신 호환 VM 에셋 릴리스에 %@ 첨부 파일이 없습니다."
           }
         }
       }
@@ -3706,6 +3606,37 @@
       }
     },
     "VM" : {
+
+    },
+    "The VM asset download manifest response was invalid." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VM 에셋 다운로드 정보 응답이 올바르지 않습니다."
+          }
+        }
+      }
+    },
+    "The VM asset download manifest is invalid." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VM 에셋 다운로드 정보가 올바르지 않습니다."
+          }
+        }
+      }
+    },
+    "Checking VM assets failed with HTTP %lld." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VM 에셋 확인 중 HTTP %lld 오류가 발생했습니다."
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

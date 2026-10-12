@@ -31,9 +31,9 @@ struct VMAssetStorageLayout {
         stagingDirectoryURL.appendingPathComponent(operationID.uuidString, isDirectory: true)
     }
 
-    func releaseURL(releaseID: Int64, archiveAssetID: Int64) -> URL {
+    func releaseURL(archiveSHA256: String) -> URL {
         releasesDirectoryURL.appendingPathComponent(
-            "\(releaseID)-\(archiveAssetID)",
+            archiveSHA256,
             isDirectory: true
         )
     }

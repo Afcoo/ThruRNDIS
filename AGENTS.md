@@ -255,18 +255,28 @@ macOS managed IPv4 Network Service
 ## VM Asset Installation
 
 - App launch restores and validates local selection without a network request.
-  Release-list lookup begins only after explicit user action.
-- The app follows the VM Assets Release list pagination and selects the newest
-  `created_at` value among published, non-prerelease Releases whose tag begins
-  with `V1-`. It never falls back to `/releases/latest` or a legacy
-  tag. From the selected Release it downloads exactly `vm_assets.zip` and
-  `SHA256SUMS`, validates reported size and SHA-256, inspects ZIP entries,
-  extracts to staging, and promotes atomically.
+  Explicit user action fetches the static `releases/v1.json` manifest from the
+  VM Assets repository's `main` branch. The app never queries the GitHub Releases
+  API or falls back to `/releases/latest`.
+- The flat manifest contains `schemaVersion`, `assetVersion`, `tagName`, `size`,
+  and `sha256`. Require supported versions, a safe `V1-` tag, a positive size,
+  and a canonical SHA-256. Derive the fixed `vm_assets.zip` URL from that tag,
+  download only the archive, verify its exact size and manifest hash, inspect
+  ZIP entries, extract to staging, and promote atomically. `SHA256SUMS` remains
+  a published companion for manual users, not an additional app download.
+- New managed installation directories use the archive SHA-256 as identity.
+  Continue reading existing numeric release/asset-ID `install.json` records
+  and reusing a matching tag/hash without moving or redownloading those files.
 - ZIP contents must remain under `vm_assets/`; reject absolute paths,
   traversal, duplicates, unexpected roots, and symbolic links.
 - Managed assets require regular `vm_assets/Image-lts` and
   `vm_assets/initramfs-thrurndis-lts` files. Manual extracted-folder selection
   and per-file overrides remain supported fallbacks.
+- File transfers use `URLSessionDownloadTask` with progress callbacks. Retry only
+  transient connection errors, at most three times per file with bounded backoff;
+  use system resume data when available within the current install operation.
+  Keep detailed transfer, stall, and retry diagnostics in the event log; the
+  download UI retains its high-level state and byte progress.
 - A failed or cancelled install leaves the previous selection active and
   removes partial staging data. Clearing selection preserves managed releases
   and the optional scratch disk.

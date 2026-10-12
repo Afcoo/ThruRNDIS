@@ -4,33 +4,29 @@ Copyright (C) 2026 Afcoo.
 
 import Foundation
 
-struct VMAssetRemoteAsset: Equatable {
-    let id: Int64
-    let name: String
-    let downloadURL: URL
-    let size: Int64
-    let sha256Digest: String?
-}
+struct VMAssetReleaseDescriptor: Decodable, Equatable {
+    static let archiveName = "vm_assets.zip"
 
-struct VMAssetReleaseDescriptor: Equatable {
-    let id: Int64
+    let schemaVersion: Int
+    let assetVersion: Int
     let tagName: String
-    let archive: VMAssetRemoteAsset
-    let checksums: VMAssetRemoteAsset
+    let size: Int64
+    let sha256: String
 
-    var totalDownloadBytes: Int64 {
-        let archiveBytes = max(archive.size, 0)
-        let checksumsBytes = max(checksums.size, 0)
-        let (totalBytes, overflow) = archiveBytes.addingReportingOverflow(checksumsBytes)
-        return overflow ? Int64.max : max(totalBytes, 1)
+    var archiveURL: URL {
+        URL(string: "https://github.com/Afcoo/ThruRNDIS_VM_Assets/releases/download")!
+            .appendingPathComponent(tagName)
+            .appendingPathComponent(Self.archiveName)
     }
 }
 
 struct DownloadedVMAssetPackage {
     let release: VMAssetReleaseDescriptor
     let stagingDirectoryURL: URL
-    let archiveURL: URL
-    let checksumsURL: URL
+
+    var archiveURL: URL {
+        stagingDirectoryURL.appendingPathComponent(VMAssetReleaseDescriptor.archiveName)
+    }
 }
 
 struct VMAssetDownloadProgress: Equatable, Sendable {
@@ -39,19 +35,26 @@ struct VMAssetDownloadProgress: Equatable, Sendable {
 }
 
 struct VMAssetInstallMetadata: Codable, Equatable {
-    let releaseID: Int64
     let tagName: String
-    let archiveAssetID: Int64
     let archiveSHA256: String
     let installedAt: Date
+    // Read existing numeric-ID installations without moving or redownloading them.
+    let releaseID: Int64?
+    let archiveAssetID: Int64?
 
     func isValid(forManagedReleaseDirectory releaseDirectoryURL: URL) -> Bool {
-        let expectedDirectoryName = "\(releaseID)-\(archiveAssetID)"
-        return releaseDirectoryURL.standardizedFileURL.lastPathComponent == expectedDirectoryName
+        let directoryName: String
+        switch (releaseID, archiveAssetID) {
+        case let (.some(release), .some(archive)):
+            directoryName = "\(release)-\(archive)"
+        case (.none, .none):
+            directoryName = archiveSHA256
+        default:
+            return false
+        }
+        return releaseDirectoryURL.standardizedFileURL.lastPathComponent == directoryName
             && archiveSHA256.utf8.count == 64
-            && archiveSHA256.utf8.allSatisfy { byte in
-                (48...57).contains(byte) || (97...102).contains(byte)
-            }
+            && archiveSHA256.utf8.allSatisfy { (48...57).contains($0) || (97...102).contains($0) }
     }
 }
 
@@ -64,9 +67,10 @@ struct InstalledVMAssetRelease: Equatable {
     }
 
     var displayName: String {
-        metadata.tagName.isEmpty
-            ? String(localized: "Release \(metadata.releaseID)")
-            : metadata.tagName
+        if metadata.tagName.isEmpty, let releaseID = metadata.releaseID {
+            return String(localized: "Release \(releaseID)")
+        }
+        return metadata.tagName
     }
 }
 

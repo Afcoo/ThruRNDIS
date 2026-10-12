@@ -37,7 +37,7 @@
 		9A0000000000000000000009 /* InfoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A0000000000000000000109 /* InfoView.swift */; };
 		B10000000000000000000001 /* VMAssetModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000101 /* VMAssetModels.swift */; };
 		B10000000000000000000002 /* VMAssetFolderResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000102 /* VMAssetFolderResolver.swift */; };
-		B10000000000000000000003 /* GitHubVMAssetReleaseService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000103 /* GitHubVMAssetReleaseService.swift */; };
+		B10000000000000000000003 /* VMAssetReleaseService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000103 /* VMAssetReleaseService.swift */; };
 		B10000000000000000000004 /* VMAssetDownloadService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000104 /* VMAssetDownloadService.swift */; };
 		B10000000000000000000005 /* VMAssetInstallService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000105 /* VMAssetInstallService.swift */; };
 		B10000000000000000000006 /* VMAssetSelectionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000106 /* VMAssetSelectionStore.swift */; };
@@ -171,7 +171,7 @@
 		9A0000000000000000000109 /* InfoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InfoView.swift; sourceTree = "<group>"; };
 		B10000000000000000000101 /* VMAssetModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMAssetModels.swift; sourceTree = "<group>"; };
 		B10000000000000000000102 /* VMAssetFolderResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMAssetFolderResolver.swift; sourceTree = "<group>"; };
-		B10000000000000000000103 /* GitHubVMAssetReleaseService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubVMAssetReleaseService.swift; sourceTree = "<group>"; };
+		B10000000000000000000103 /* VMAssetReleaseService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMAssetReleaseService.swift; sourceTree = "<group>"; };
 		B10000000000000000000104 /* VMAssetDownloadService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMAssetDownloadService.swift; sourceTree = "<group>"; };
 		B10000000000000000000105 /* VMAssetInstallService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMAssetInstallService.swift; sourceTree = "<group>"; };
 		B10000000000000000000106 /* VMAssetSelectionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMAssetSelectionStore.swift; sourceTree = "<group>"; };
@@ -339,7 +339,7 @@
 				8B0000000000000000000105 /* USBAccessoryMonitor.swift */,
 				8B0000000000000000000107 /* VMConfigurationFactory.swift */,
 				9A0000000000000000000104 /* LaunchAtLoginService.swift */,
-				B10000000000000000000103 /* GitHubVMAssetReleaseService.swift */,
+				B10000000000000000000103 /* VMAssetReleaseService.swift */,
 				B10000000000000000000104 /* VMAssetDownloadService.swift */,
 				B10000000000000000000105 /* VMAssetInstallService.swift */,
 			);
@@ -645,7 +645,7 @@
 				E20000000000000000000009 /* VMAssetConfigurationView.swift in Sources */,
 				B10000000000000000000001 /* VMAssetModels.swift in Sources */,
 				B10000000000000000000002 /* VMAssetFolderResolver.swift in Sources */,
-				B10000000000000000000003 /* GitHubVMAssetReleaseService.swift in Sources */,
+				B10000000000000000000003 /* VMAssetReleaseService.swift in Sources */,
 				B10000000000000000000004 /* VMAssetDownloadService.swift in Sources */,
 				B10000000000000000000005 /* VMAssetInstallService.swift in Sources */,
 				B10000000000000000000006 /* VMAssetSelectionStore.swift in Sources */,
