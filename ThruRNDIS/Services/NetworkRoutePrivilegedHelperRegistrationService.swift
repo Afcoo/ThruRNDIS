@@ -30,7 +30,7 @@ struct NetworkRoutePrivilegedHelperRegistrationService {
         guard registrationStatus == .enabled else {
             return registrationStatus
         }
-        guard !defaults.bool(forKey: Self.replacementCleanupPendingKey),
+        guard !hasPendingReplacementCleanup,
               let currentHelperBuildVersion,
               defaults.string(forKey: Self.registeredBuildVersionKey)
                 == currentHelperBuildVersion else {
@@ -48,7 +48,7 @@ struct NetworkRoutePrivilegedHelperRegistrationService {
                let registeredBuildVersion = defaults.string(
                 forKey: Self.registeredBuildVersionKey
                ) {
-                defaults.bool(forKey: Self.replacementCleanupPendingKey)
+                hasPendingReplacementCleanup
                     || registeredBuildVersion != currentHelperBuildVersion
             } else {
                 false
@@ -59,12 +59,19 @@ struct NetworkRoutePrivilegedHelperRegistrationService {
     }
 
     var canCleanUpAfterReplacement: Bool {
-        defaults.bool(forKey: Self.replacementCleanupPendingKey)
+        guard let currentHelperBuildVersion else { return false }
+        // Legacy Boolean markers do not identify a build and must reinstall.
+        return defaults.object(forKey: Self.replacementCleanupPendingKey) as? String
+            == currentHelperBuildVersion
             && service.status == .enabled
     }
 
     func requireReplacementCleanup() {
-        defaults.set(true, forKey: Self.replacementCleanupPendingKey)
+        // An unknown build remains pending but can never resume cleanup.
+        defaults.set(
+            currentHelperBuildVersion ?? "",
+            forKey: Self.replacementCleanupPendingKey
+        )
     }
 
     func completeReplacementCleanup() {
@@ -111,6 +118,10 @@ struct NetworkRoutePrivilegedHelperRegistrationService {
 
     func openSystemSettings() {
         SMAppService.openSystemSettingsLoginItems()
+    }
+
+    private var hasPendingReplacementCleanup: Bool {
+        defaults.object(forKey: Self.replacementCleanupPendingKey) != nil
     }
 
     private func clearRegisteredBuildVersion() {

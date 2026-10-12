@@ -23,6 +23,9 @@ for the VM's VZNAT attachment.
   re-registration even after that completion. Persist pending cleanup across
   approval and relaunch; only make the replacement available after its
   authenticated `stop` confirms the recorded network state is inactive.
+  The pending cleanup value records its target build; resume cleanup only when
+  it matches the current build. Older-build or legacy Boolean values require
+  replacement before cleanup.
 - The app bundle is the helper executable's only source. Do not copy the helper
   into `/Library/PrivilegedHelperTools`, add a versioned system copy, or add a
   DriverKit target.
