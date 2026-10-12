@@ -6,9 +6,6 @@ import CryptoKit
 import Foundation
 
 enum VMAssetInstallError: LocalizedError {
-    case invalidChecksums
-    case missingChecksum(String)
-    case duplicateChecksum(String)
     case checksumMismatch(expected: String, actual: String)
     case unsafeArchiveEntry(String)
     case duplicateArchiveEntry(String)
@@ -20,12 +17,6 @@ enum VMAssetInstallError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .invalidChecksums:
-            return String(localized: "SHA256SUMS is malformed.")
-        case .missingChecksum(let name):
-            return String(localized: "SHA256SUMS does not contain an entry for \(name).")
-        case .duplicateChecksum(let name):
-            return String(localized: "SHA256SUMS contains more than one entry for \(name).")
         case .checksumMismatch(let expected, let actual):
             return String(localized: "The VM asset checksum does not match (expected \(expected), calculated \(actual)).")
         case .unsafeArchiveEntry(let name):
@@ -71,24 +62,10 @@ final class VMAssetInstallService {
     }
 
     func installedRelease(matching release: VMAssetReleaseDescriptor) throws -> InstalledVMAssetRelease? {
-        let releaseURL = layout.releaseURL(
-            releaseID: release.id,
-            archiveAssetID: release.archive.id
-        )
-        guard fileManager.fileExists(atPath: releaseURL.path) else {
-            return nil
+        // The hash also finds installations written by older numeric-ID releases.
+        try installedReleases().first {
+            $0.metadata.tagName == release.tagName && $0.metadata.archiveSHA256 == release.sha256
         }
-        guard let installed = try? loadInstalledRelease(at: releaseURL) else {
-            return nil
-        }
-        guard let expectedArchiveSHA256 = release.archive.sha256Digest,
-              installed.metadata.releaseID == release.id,
-              installed.metadata.archiveAssetID == release.archive.id,
-              installed.metadata.tagName == release.tagName,
-              installed.metadata.archiveSHA256 == expectedArchiveSHA256 else {
-            return nil
-        }
-        return installed
     }
 
     func installedReleases() throws -> [InstalledVMAssetRelease] {
@@ -160,23 +137,9 @@ final class VMAssetInstallService {
         try Task.checkCancellation()
         progress(.verifying)
 
-        let expectedHash = try expectedArchiveHash(
-            checksumsURL: package.checksumsURL,
-            archiveName: package.release.archive.name
-        )
         let actualHash = try calculateSHA256(package.archiveURL)
-        guard expectedHash == actualHash else {
-            throw VMAssetInstallError.checksumMismatch(
-                expected: expectedHash,
-                actual: actualHash
-            )
-        }
-        if let releaseDigest = package.release.archive.sha256Digest,
-           releaseDigest != actualHash {
-            throw VMAssetInstallError.checksumMismatch(
-                expected: releaseDigest,
-                actual: actualHash
-            )
+        guard package.release.sha256 == actualHash else {
+            throw VMAssetInstallError.checksumMismatch(expected: package.release.sha256, actual: actualHash)
         }
 
         try await validateArchive(package.archiveURL)
@@ -207,56 +170,17 @@ final class VMAssetInstallService {
         try validateRequiredReleaseFiles(in: extractedAssetFolderURL)
 
         let metadata = VMAssetInstallMetadata(
-            releaseID: package.release.id,
             tagName: package.release.tagName,
-            archiveAssetID: package.release.archive.id,
             archiveSHA256: actualHash,
-            installedAt: now()
+            installedAt: now(),
+            releaseID: nil,
+            archiveAssetID: nil
         )
         try Task.checkCancellation()
         return try promote(
             extractedAssetFolderURL: extractedAssetFolderURL,
             metadata: metadata
         )
-    }
-
-    private func expectedArchiveHash(
-        checksumsURL: URL,
-        archiveName: String
-    ) throws -> String {
-        let text = try String(contentsOf: checksumsURL, encoding: .utf8)
-        var matches: [String] = []
-
-        for rawLine in text.split(whereSeparator: \Character.isNewline) {
-            let line = rawLine.trimmingCharacters(in: .whitespaces)
-            guard !line.isEmpty else {
-                continue
-            }
-            let fields = line.split(maxSplits: 1, whereSeparator: \Character.isWhitespace)
-            guard fields.count == 2 else {
-                throw VMAssetInstallError.invalidChecksums
-            }
-            let hash = String(fields[0]).lowercased()
-            var name = String(fields[1]).trimmingCharacters(in: .whitespaces)
-            if name.hasPrefix("*") {
-                name.removeFirst()
-            }
-            guard hash.count == 64,
-                  hash.allSatisfy({ $0.isHexDigit }) else {
-                throw VMAssetInstallError.invalidChecksums
-            }
-            if name == archiveName || name == "./\(archiveName)" {
-                matches.append(hash)
-            }
-        }
-
-        guard !matches.isEmpty else {
-            throw VMAssetInstallError.missingChecksum(archiveName)
-        }
-        guard matches.count == 1, let hash = matches.first else {
-            throw VMAssetInstallError.duplicateChecksum(archiveName)
-        }
-        return hash
     }
 
     private func calculateSHA256(_ url: URL) throws -> String {
@@ -386,13 +310,8 @@ final class VMAssetInstallService {
             attributes: nil
         )
 
-        let destinationURL = layout.releaseURL(
-            releaseID: metadata.releaseID,
-            archiveAssetID: metadata.archiveAssetID
-        )
+        let destinationURL = layout.releaseURL(archiveSHA256: metadata.archiveSHA256)
         if let existing = try? loadInstalledRelease(at: destinationURL),
-           existing.metadata.releaseID == metadata.releaseID,
-           existing.metadata.archiveAssetID == metadata.archiveAssetID,
            existing.metadata.tagName == metadata.tagName,
            existing.metadata.archiveSHA256 == metadata.archiveSHA256 {
             try Task.checkCancellation()

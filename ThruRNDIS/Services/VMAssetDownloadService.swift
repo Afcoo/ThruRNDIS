@@ -5,17 +5,18 @@ Copyright (C) 2026 Afcoo.
 import Foundation
 
 enum VMAssetDownloadError: LocalizedError {
-    case invalidResponse(String)
-    case httpStatus(Int, String)
-    case sizeMismatch(name: String, expected: Int64, actual: Int64)
+    case invalidResponse
+    case httpStatus(Int)
+    case sizeMismatch(expected: Int64, actual: Int64)
 
     var errorDescription: String? {
+        let name = VMAssetReleaseDescriptor.archiveName
         switch self {
-        case .invalidResponse(let name):
+        case .invalidResponse:
             return String(localized: "The download response for \(name) was invalid.")
-        case .httpStatus(let status, let name):
+        case .httpStatus(let status):
             return String(localized: "Downloading \(name) failed with HTTP \(status).")
-        case .sizeMismatch(let name, let expected, let actual):
+        case .sizeMismatch(let expected, let actual):
             return String(localized: "Downloaded \(name) has an unexpected size (expected \(expected) bytes, received \(actual)).")
         }
     }
@@ -54,34 +55,18 @@ final class VMAssetDownloadService {
                 attributes: nil
             )
 
-            let assets = [release.archive, release.checksums]
-            let totalBytes = release.totalDownloadBytes
-            var completedBytes: Int64 = 0
-
-            for asset in assets {
-                let destinationURL = stagingURL.appendingPathComponent(asset.name, isDirectory: false)
-                let previouslyCompletedBytes = completedBytes
-                try await download(
-                    asset: asset,
-                    destinationURL: destinationURL,
-                    progress: { downloadedBytes in
-                        progress(VMAssetDownloadProgress(
-                            downloadedBytes: previouslyCompletedBytes + downloadedBytes,
-                            totalBytes: totalBytes
-                        ))
-                    },
-                    eventLog: eventLog
-                )
-                completedBytes += max(asset.size, 0)
-            }
+            let package = DownloadedVMAssetPackage(release: release, stagingDirectoryURL: stagingURL)
+            try await downloadArchive(
+                release: release,
+                destinationURL: package.archiveURL,
+                progress: { downloadedBytes in
+                    progress(VMAssetDownloadProgress(downloadedBytes: downloadedBytes, totalBytes: release.size))
+                },
+                eventLog: eventLog
+            )
 
             try Task.checkCancellation()
-            return DownloadedVMAssetPackage(
-                release: release,
-                stagingDirectoryURL: stagingURL,
-                archiveURL: stagingURL.appendingPathComponent(release.archive.name),
-                checksumsURL: stagingURL.appendingPathComponent(release.checksums.name)
-            )
+            return package
         } catch {
             discardStagingData(for: operationID)
             throw error
@@ -99,8 +84,8 @@ final class VMAssetDownloadService {
         return configuration
     }
 
-    private func download(
-        asset: VMAssetRemoteAsset,
+    private func downloadArchive(
+        release: VMAssetReleaseDescriptor,
         destinationURL: URL,
         progress: @escaping (Int64) -> Void,
         eventLog: @escaping EventLogHandler
@@ -118,14 +103,14 @@ final class VMAssetDownloadService {
         for attempt in 0...maximumRetries {
             try Task.checkCancellation()
             let log: EventLogHandler = { message, level in
-                eventLog("Download \(asset.name) [\(attempt + 1)/\(maximumRetries + 1)]: \(message)", level)
+                eventLog("Download \(release.tagName) [\(attempt + 1)/\(maximumRetries + 1)]: \(message)", level)
             }
             let delegate = VMAssetDownloadDelegate(
-                asset: asset, destinationURL: destinationURL, fileManager: fileManager,
+                release: release, destinationURL: destinationURL, fileManager: fileManager,
                 progress: progress, eventLog: log
             )
             log("Starting \(resumeData == nil ? "new download" : "resume"); " +
-                "host=\(asset.downloadURL.host ?? "unknown"), expected=\(asset.size) bytes, " +
+                "host=\(release.archiveURL.host ?? "unknown"), expected=\(release.size) bytes, " +
                 "idleTimeout=\(Int(session.configuration.timeoutIntervalForRequest))s, " +
                 "resourceTimeout=\(Int(session.configuration.timeoutIntervalForResource))s.", .debug)
             do {
@@ -135,7 +120,7 @@ final class VMAssetDownloadService {
                     task = session.downloadTask(withResumeData: data)
                 } else {
                     progress(0)
-                    var request = URLRequest(url: asset.downloadURL)
+                    var request = URLRequest(url: release.archiveURL)
                     request.timeoutInterval = session.configuration.timeoutIntervalForRequest
                     request.setValue("application/octet-stream", forHTTPHeaderField: "Accept")
                     request.setValue("ThruRNDIS", forHTTPHeaderField: "User-Agent")
@@ -187,7 +172,7 @@ final class VMAssetDownloadService {
 // Delegate callbacks and the heartbeat share observations with cancellation handlers.
 // Protect state with the lock and invoke external callbacks after releasing it.
 private final class VMAssetDownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
-    private let asset: VMAssetRemoteAsset
+    private let release: VMAssetReleaseDescriptor
     private let destinationURL: URL
     private let fileManager: FileManager
     private let progress: (Int64) -> Void
@@ -202,9 +187,9 @@ private final class VMAssetDownloadDelegate: NSObject, URLSessionDownloadDelegat
     private var continuation: CheckedContinuation<Void, Error>?
     private var cancelled = false
 
-    init(asset: VMAssetRemoteAsset, destinationURL: URL, fileManager: FileManager,
+    init(release: VMAssetReleaseDescriptor, destinationURL: URL, fileManager: FileManager,
          progress: @escaping (Int64) -> Void, eventLog: @escaping EventLogHandler) {
-        self.asset = asset
+        self.release = release
         self.destinationURL = destinationURL
         self.fileManager = fileManager
         self.progress = progress
@@ -246,10 +231,10 @@ private final class VMAssetDownloadDelegate: NSObject, URLSessionDownloadDelegat
     var diagnostic: String {
         lock.withLock {
             let now = ProcessInfo.processInfo.systemUptime
-            return "received=\(receivedBytes)/\(asset.size) bytes, " +
+            return "received=\(receivedBytes)/\(release.size) bytes, " +
                 "elapsed=\(Int(now - startedAt))s, idle=\(Int(now - lastReceivedAt))s, " +
                 "HTTP=\(response.map { String($0.statusCode) } ?? "pending"), " +
-                "host=\(response?.url?.host ?? asset.downloadURL.host ?? "unknown")"
+                "host=\(response?.url?.host ?? release.archiveURL.host ?? "unknown")"
         }
     }
 
@@ -260,14 +245,14 @@ private final class VMAssetDownloadDelegate: NSObject, URLSessionDownloadDelegat
 
     private func validate(response: URLResponse?, receivedBytes: Int64, complete: Bool) throws {
         guard let response = response as? HTTPURLResponse else {
-            throw VMAssetDownloadError.invalidResponse(asset.name)
+            throw VMAssetDownloadError.invalidResponse
         }
         guard (200..<300).contains(response.statusCode) else {
-            throw VMAssetDownloadError.httpStatus(response.statusCode, asset.name)
+            throw VMAssetDownloadError.httpStatus(response.statusCode)
         }
-        let invalidSize = complete ? receivedBytes != asset.size : receivedBytes > asset.size
-        if asset.size >= 0, invalidSize {
-            throw VMAssetDownloadError.sizeMismatch(name: asset.name, expected: asset.size, actual: receivedBytes)
+        let invalidSize = complete ? receivedBytes != release.size : receivedBytes > release.size
+        if invalidSize {
+            throw VMAssetDownloadError.sizeMismatch(expected: release.size, actual: receivedBytes)
         }
     }
 

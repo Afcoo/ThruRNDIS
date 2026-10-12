@@ -7,16 +7,16 @@ import Foundation
 @MainActor
 final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
     @Published private(set) var currentSelection: VMAssetSelection?
-    @Published private(set) var installedReleases: [InstalledVMAssetRelease] = []
     @Published private(set) var installState: VMAssetInstallState = .idle
     @Published private(set) var errorMessage: String?
 
     var onEventLog: EventLogHandler?
 
-    private let releaseService: GitHubVMAssetReleaseService
+    private let releaseService: VMAssetReleaseService
     private let downloadService: VMAssetDownloadService
     private let installService: VMAssetInstallService
     private let selectionStore: VMAssetSelectionStore
+    private let restoredReleaseCount: Int
     private var eventLogErrorDescription: String?
     private var operationTask: Task<Void, Never>?
     private var operationID: UUID?
@@ -26,7 +26,7 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
         let layout = VMAssetStorageLayout(fileManager: fileManager)
         let resolver = VMAssetFolderResolver(fileManager: fileManager)
         self.init(
-            releaseService: GitHubVMAssetReleaseService(),
+            releaseService: VMAssetReleaseService(),
             downloadService: VMAssetDownloadService(
                 fileManager: fileManager,
                 layout: layout
@@ -41,7 +41,7 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
     }
 
     init(
-        releaseService: GitHubVMAssetReleaseService,
+        releaseService: VMAssetReleaseService,
         downloadService: VMAssetDownloadService,
         installService: VMAssetInstallService,
         selectionStore: VMAssetSelectionStore
@@ -64,9 +64,9 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
         }
 
         do {
-            installedReleases = try installService.installedReleases()
+            restoredReleaseCount = try installService.installedReleases().count
         } catch {
-            installedReleases = []
+            restoredReleaseCount = 0
             if initializationError == nil {
                 initializationError = error
             }
@@ -114,10 +114,6 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
         currentSelection?.initialRamdiskOverrideURL
     }
 
-    var installedRelease: InstalledVMAssetRelease? {
-        currentSelection?.managedRelease
-    }
-
     func validatedBootAssets() throws -> VMAssetBootAssets {
         guard let currentSelection else {
             throw VMAssetWorkflowCoordinatorError.noSelection
@@ -154,9 +150,9 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
             reportEventLog("No VM assets are selected.", level: .warning)
         }
 
-        if !installedReleases.isEmpty {
+        if restoredReleaseCount > 0 {
             reportEventLog(
-                "Loaded \(installedReleases.count) installed VM asset release(s).",
+                "Loaded \(restoredReleaseCount) installed VM asset release(s).",
                 level: .debug
             )
         }
@@ -268,17 +264,12 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
 
     private func runLatestInstall(operationID: UUID) async {
         var newlyInstalledRelease: InstalledVMAssetRelease?
-        var didDiscardStaging = false
-        defer {
-            if !didDiscardStaging {
-                downloadService.discardStagingData(for: operationID)
-            }
-        }
+        defer { downloadService.discardStagingData(for: operationID) }
 
         do {
             let release = try await releaseService.fetchLatestCompatibleRelease()
             try requireCurrentOperation(operationID)
-            let releaseName = displayName(for: release)
+            let releaseName = release.tagName
             reportEventLog(
                 "Latest compatible VM asset release found: \(releaseName).",
                 level: .debug
@@ -293,11 +284,8 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
                 )
                 try activate(installed)
                 try requireMatchingOperation(operationID)
-                downloadService.discardStagingData(for: operationID)
-                didDiscardStaging = true
                 finishOperation(operationID)
                 finishSuccessfully(
-                    release: installed,
                     message: String(localized: "Already up to date: \(installed.displayName)"),
                     eventMessage: "VM assets \(installed.displayName) are already installed and ready."
                 )
@@ -306,7 +294,7 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
 
             installState = .downloading(progress: VMAssetDownloadProgress(
                 downloadedBytes: 0,
-                totalBytes: release.totalDownloadBytes
+                totalBytes: release.size
             ))
             reportEventLog(
                 "Downloading VM assets \(releaseName).",
@@ -389,11 +377,8 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
                 throw error
             }
             try requireMatchingOperation(operationID)
-            downloadService.discardStagingData(for: operationID)
-            didDiscardStaging = true
             finishOperation(operationID)
             finishSuccessfully(
-                release: installed,
                 message: String(localized: "Installation complete: \(installed.displayName)"),
                 eventMessage: "Installed and activated VM assets \(installed.displayName)."
             )
@@ -401,8 +386,6 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
             guard self.operationID == operationID else {
                 return
             }
-            downloadService.discardStagingData(for: operationID)
-            didDiscardStaging = true
 
             if Task.isCancelled || error is CancellationError {
                 if let newlyInstalledRelease,
@@ -434,16 +417,13 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
         let protectedManualDirectoryURL = currentSelection?.source == .manual
             ? currentSelection?.folderURL
             : nil
-        let inventory = (try? installService.installedReleases()) ?? [release]
         let selection = try selectionStore.selectManagedRelease(release)
         currentSelection = selection
-        installedReleases = inventory
         do {
             try installService.pruneInstalledReleases(
                 keeping: release,
                 preserving: protectedManualDirectoryURL
             )
-            installedReleases = try installService.installedReleases()
         } catch {
             reportEventLog(
                 "VM asset cleanup failed after activation: " +
@@ -454,7 +434,6 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
     }
 
     private func finishSuccessfully(
-        release: InstalledVMAssetRelease,
         message: String,
         eventMessage: String
     ) {
@@ -544,10 +523,6 @@ final class VMAssetWorkflowCoordinator: ObservableObject, VMAssetProviding {
             return String(localized: "VM assets \(release.displayName) are ready.")
         }
         return String(localized: "Manually selected VM assets are ready.")
-    }
-
-    private func displayName(for release: VMAssetReleaseDescriptor) -> String {
-        release.tagName.isEmpty ? "release \(release.id)" : release.tagName
     }
 
     private func reportEventLog(
