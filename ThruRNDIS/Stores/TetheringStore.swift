@@ -1016,7 +1016,7 @@ final class TetheringStore: ObservableObject {
         networkRoute.helper.$registrationStatus
             .dropFirst()
             .sink { [weak self] _ in
-                self?.scheduleAccessoryMonitoringStartIfRequested(
+                self?.scheduleNetworkRouteHealthCheck(
                     reason: "Network Helper status changed"
                 )
             }
@@ -1025,7 +1025,7 @@ final class TetheringStore: ObservableObject {
         networkRoute.helper.$operation
             .dropFirst()
             .sink { [weak self] _ in
-                self?.scheduleAccessoryMonitoringStartIfRequested(
+                self?.scheduleNetworkRouteHealthCheck(
                     reason: "Network Helper operation changed"
                 )
             }
@@ -1038,12 +1038,14 @@ final class TetheringStore: ObservableObject {
         )
         .dropFirst()
         .sink { [weak self] _, _, _ in
-            self?.networkRouteHealthDidChange()
+            self?.scheduleNetworkRouteHealthCheck(
+                reason: "Network Helper health changed"
+            )
         }
         .store(in: &accessoryMonitoringStartCancellables)
     }
 
-    private func networkRouteHealthDidChange() {
+    private func networkRouteHealthDidChange(reason: String) {
         objectWillChange.send()
 
         let hasHealthFailure = networkRoute.lastErrorMessage != nil
@@ -1060,9 +1062,7 @@ final class TetheringStore: ObservableObject {
             return
         }
 
-        scheduleAccessoryMonitoringStartIfRequested(
-            reason: "Network Helper health changed"
-        )
+        startAccessoryMonitoringIfRequested(reason: reason)
     }
 
     private func startAccessoryMonitoring(reason: String) {
@@ -1104,12 +1104,11 @@ final class TetheringStore: ObservableObject {
         startAccessoryMonitoring(reason: reason)
     }
 
-    private func scheduleAccessoryMonitoringStartIfRequested(reason: String) {
+    private func scheduleNetworkRouteHealthCheck(reason: String) {
         Task { @MainActor [weak self] in
             await Task.yield()
             guard let self else { return }
-            self.objectWillChange.send()
-            self.startAccessoryMonitoringIfRequested(reason: reason)
+            self.networkRouteHealthDidChange(reason: reason)
         }
     }
 
