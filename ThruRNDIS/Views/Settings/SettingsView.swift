@@ -30,6 +30,8 @@ struct SettingsView: View {
                     USBDevicesView()
                 case .networkRoute:
                     NetworkRouteView()
+                case .misc:
+                    MiscView()
                 case .info:
                     InfoView(resetAndQuit: resetAndQuit)
                 }
@@ -56,6 +58,7 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
     case virtualMachine
     case usbDevices
     case networkRoute
+    case misc
     case info
 
     var id: Self { self }
@@ -70,6 +73,8 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
             "USB Devices"
         case .networkRoute:
             "Network Routing"
+        case .misc:
+            "Misc"
         case .info:
             "Info"
         }
@@ -85,6 +90,8 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
             "cable.connector"
         case .networkRoute:
             "network"
+        case .misc:
+            "ellipsis.circle"
         case .info:
             "info.circle"
         }

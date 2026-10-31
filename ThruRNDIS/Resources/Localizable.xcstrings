@@ -3335,6 +3335,16 @@
         }
       }
     },
+    "Misc" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "기타 기능"
+          }
+        }
+      }
+    },
     "Network Routing" : {
       "localizations" : {
         "ko" : {

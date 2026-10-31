@@ -78,6 +78,7 @@
 		NR1000000000000000000007 /* ThruRNDISNetworkRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR1000000000000000000107 /* ThruRNDISNetworkRoute.swift */; };
 		NR1000000000000000000008 /* NetworkRouteHelperPermissionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR1000000000000000000108 /* NetworkRouteHelperPermissionView.swift */; };
 		NR1000000000000000000009 /* NetworkRouteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR1000000000000000000109 /* NetworkRouteView.swift */; };
+		AB09EF264CEB440C90000101 /* MiscView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB09EF264CEB440C90000102 /* MiscView.swift */; };
 		NR1000000000000000000010 /* LegacyNetworkRouteHelperMigrationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR1000000000000000000110 /* LegacyNetworkRouteHelperMigrationService.swift */; };
 		NR1000000000000000000011 /* NetworkRouteModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR1000000000000000000101 /* NetworkRouteModels.swift */; };
 		NR1000000000000000000012 /* NetworkRoutePrivilegedHelperProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR1000000000000000000102 /* NetworkRoutePrivilegedHelperProtocol.swift */; };
@@ -216,6 +217,7 @@
 		NR1000000000000000000107 /* ThruRNDISNetworkRoute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThruRNDISNetworkRoute.swift; sourceTree = "<group>"; };
 		NR1000000000000000000108 /* NetworkRouteHelperPermissionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkRouteHelperPermissionView.swift; sourceTree = "<group>"; };
 		NR1000000000000000000109 /* NetworkRouteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkRouteView.swift; sourceTree = "<group>"; };
+		AB09EF264CEB440C90000102 /* MiscView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiscView.swift; sourceTree = "<group>"; };
 		NR1000000000000000000110 /* LegacyNetworkRouteHelperMigrationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacyNetworkRouteHelperMigrationService.swift; sourceTree = "<group>"; };
 		NR100000000000000000011A /* NetworkRouteController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkRouteController.swift; sourceTree = "<group>"; };
 		NR100000000000000000011B /* NetworkRoutePrivilegedHelperService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkRoutePrivilegedHelperService.swift; sourceTree = "<group>"; };
@@ -407,6 +409,7 @@
 				8B000000000000000000010B /* SettingsView.swift */,
 				9A0000000000000000000105 /* GeneralView.swift */,
 				NR1000000000000000000109 /* NetworkRouteView.swift */,
+				AB09EF264CEB440C90000102 /* MiscView.swift */,
 				8B000000000000000000010C /* VirtualMachineView.swift */,
 				8B000000000000000000010D /* USBDevicesView.swift */,
 				9A0000000000000000000109 /* InfoView.swift */,
@@ -597,6 +600,7 @@
 				NR1000000000000000000007 /* ThruRNDISNetworkRoute.swift in Sources */,
 				NR1000000000000000000008 /* NetworkRouteHelperPermissionView.swift in Sources */,
 				NR1000000000000000000009 /* NetworkRouteView.swift in Sources */,
+				AB09EF264CEB440C90000101 /* MiscView.swift in Sources */,
 				NR1000000000000000000010 /* LegacyNetworkRouteHelperMigrationService.swift in Sources */,
 				PF1000000000000000000001 /* PortForwardingStore.swift in Sources */,
 				DE1000000000000000000001 /* AppPreferencesStore.swift in Sources */,
