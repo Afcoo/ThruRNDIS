@@ -34,11 +34,11 @@ final class NetworkRouteStore: ObservableObject {
     @Published private(set) var isRNDISRouteReady = false
     @Published private(set) var lastErrorMessage: String?
     @Published private var isStopQueued = false
+    @Published private var shouldRunManagedNetwork = false
 
     private let client: NetworkRoutePrivilegedHelperClient
     private let eventLog: EventLogStore
     private var reconciliationGeneration: UInt64 = 0
-    private var shouldRunManagedNetwork = false
     private var needsReconciliationAfterRefresh = false
     private var helperCancellables: Set<AnyCancellable> = []
 
@@ -92,9 +92,13 @@ final class NetworkRouteStore: ObservableObject {
         !isOperationInProgress && snapshot?.state == .active
     }
 
+    private var hasManagedNetwork: Bool {
+        snapshot?.state == .active || snapshot?.state == .degraded
+    }
+
     var canStop: Bool {
-        !isOperationInProgress
-            && (snapshot?.state == .active || snapshot?.state == .degraded)
+        if isStopQueued { return shouldRunManagedNetwork }
+        return !isOperationInProgress && (hasManagedNetwork || shouldRunManagedNetwork)
     }
 
     func refresh() {
@@ -109,7 +113,7 @@ final class NetworkRouteStore: ObservableObject {
     }
 
     private func refreshRouteStatus() {
-        guard operation == nil else { return }
+        guard operation == nil, !isStopQueued else { return }
 
         needsReconciliationAfterRefresh = false
         let generation = beginOperation(.refreshing)
@@ -176,18 +180,16 @@ final class NetworkRouteStore: ObservableObject {
         }
         guard isRNDISRouteReady != isReady else { return }
         isRNDISRouteReady = isReady
-        if !isReady {
-            shouldRunManagedNetwork = false
-        }
         appendEventLog(
             isReady
                 ? "Guest RNDIS route reported ready."
                 : "Guest RNDIS route is no longer ready.",
             level: isReady ? .info : .warning
         )
-        if !isReady, operation == .starting {
+        if !isReady, operation != .stopping,
+           operation == .starting || hasManagedNetwork {
             stopPreservingDesiredState(
-                reason: "guest RNDIS route became unavailable during network start"
+                reason: "guest RNDIS route became unavailable"
             )
             return
         }
@@ -231,8 +233,7 @@ final class NetworkRouteStore: ObservableObject {
     func resetForVMStart() -> Bool {
         cancelStatusRefreshIfNeeded()
         clearDesiredNetworkState()
-        guard operation == nil,
-              !helper.isOperationInProgress,
+        guard !isOperationInProgress,
               snapshot?.state == .inactive else {
             stop(reason: "VM session starting")
             return false
@@ -330,8 +331,14 @@ final class NetworkRouteStore: ObservableObject {
         isStopQueued = true
         Task { @MainActor [weak self] in
             guard let self else { return }
-            _ = await self.performStop(reason: reason)
+            let didStop = await self.performStop(reason: reason)
+            if !didStop {
+                self.shouldRunManagedNetwork = false
+            }
             self.isStopQueued = false
+            if didStop {
+                self.reconcileIfNeeded(reason: "Network Routing stop completed")
+            }
         }
     }
 
@@ -373,7 +380,6 @@ final class NetworkRouteStore: ObservableObject {
                     localized: "Network Routing did not become inactive."
                 )
             }
-            reconcileIfNeeded(reason: "Network Routing stop completed")
             return didStop
         } catch {
             guard finishOperation(generation) else { return false }
@@ -459,17 +465,17 @@ final class NetworkRouteStore: ObservableObject {
     }
 
     private func reconcileIfNeeded(reason: String) {
+        guard !isStopQueued, helper.isAvailable, !helper.isOperationInProgress else { return }
         guard operation == nil else {
             if operation == .refreshing {
                 needsReconciliationAfterRefresh = true
             }
             return
         }
-        guard helper.isAvailable else { return }
         guard let guestIPv4Address,
               let vznatGatewayIPv4Address,
               isRNDISRouteReady else {
-            if snapshot?.state == .active || snapshot?.state == .degraded {
+            if hasManagedNetwork {
                 stopPreservingDesiredState(reason: reason)
             }
             return
@@ -496,31 +502,30 @@ final class NetworkRouteStore: ObservableObject {
             level: .debug
         )
         Task { @MainActor [weak self] in
-            guard let self else { return }
+            guard let self, self.reconciliationGeneration == generation else { return }
+            guard self.helper.isAvailable, !self.helper.isOperationInProgress else {
+                self.operation = nil
+                return
+            }
             do {
                 let snapshot = try await self.client.start(
                     guestIPv4Address: guestIPv4Address,
                     vznatGatewayIPv4Address: vznatGatewayIPv4Address
                 )
                 guard self.finishOperation(generation) else {
-                    _ = await self.performStop(
-                        reason: "stale network start completed"
-                    )
-                    self.reconcileIfNeeded(
-                        reason: "stale network start was cleaned up"
-                    )
+                    self.queueStop(reason: "stale network start completed")
                     return
                 }
                 self.apply(snapshot)
-                guard self.guestIPv4Address == guestIPv4Address,
+                // A readiness loss may have queued cleanup before the start reply.
+                guard !self.isStopQueued else { return }
+                guard self.shouldRunManagedNetwork,
+                      self.guestIPv4Address == guestIPv4Address,
                       self.vznatGatewayIPv4Address
                         == vznatGatewayIPv4Address,
                       self.isRNDISRouteReady else {
-                    _ = await self.performStop(
+                    self.queueStop(
                         reason: "network start completed after desired state changed"
-                    )
-                    self.reconcileIfNeeded(
-                        reason: "stale network start cleanup completed"
                     )
                     return
                 }
