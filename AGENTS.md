@@ -99,6 +99,10 @@ macOS managed IPv4 Network Service
   known, and RNDIS is ready. It disables and removes that service and the owned
   interfaces when readiness is lost, the VM stops, app settings are reset, or
   the app terminates.
+- Losing guest readiness preserves the intent to run the managed network for
+  the current USB and VM session. A new ready marker restores that network
+  after successful cleanup. Explicit Stop, session teardown, and failed
+  network starts or cleanup cancel pending recovery.
 - Outside debug mode, a successful USB passthrough attachment arms one automatic
   managed-network start. In debug mode, attachments accepted through the
   detected-device prompt and remembered Auto Connect attachments also arm that
