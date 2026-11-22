@@ -12,7 +12,7 @@ struct NetworkRouteSystemConfigurationSnapshot: Sendable {
     let hasBond: Bool
     let hasNetworkService: Bool
     let isNetworkServiceEnabled: Bool
-    let hasExpectedIPv4Configuration: Bool
+    let hasExpectedProtocolConfiguration: Bool
 }
 
 enum NetworkRouteSystemConfigurationError: Error, LocalizedError {
@@ -89,7 +89,7 @@ struct NetworkRouteSystemConfigurationService: Sendable {
                 )
             }
 
-            try configureProtocols(for: service)
+            try configureProtocols(for: service, policy: configuration.policy)
             guard SCNetworkServiceSetEnabled(service, false),
                   let networkSet = SCNetworkSetCopyCurrent(preferences),
                   SCNetworkSetAddService(networkSet, service) else {
@@ -112,9 +112,9 @@ struct NetworkRouteSystemConfigurationService: Sendable {
         let initial = try inspect()
         guard initial.hasNetworkService,
               !initial.isNetworkServiceEnabled,
-              initial.hasExpectedIPv4Configuration else {
+              initial.hasExpectedProtocolConfiguration else {
             throw NetworkRouteSystemConfigurationError.conflict(
-                "The owned Network Service does not have the exact disabled IPv4 configuration."
+                "The owned Network Service does not have the expected disabled IPv4 and DNS configuration."
             )
         }
 
@@ -122,9 +122,9 @@ struct NetworkRouteSystemConfigurationService: Sendable {
             try setNetworkServiceEnabled(true)
             let activated = try inspect()
             guard activated.isNetworkServiceEnabled,
-                  activated.hasExpectedIPv4Configuration else {
+                  activated.hasExpectedProtocolConfiguration else {
                 throw NetworkRouteSystemConfigurationError.operationFailed(
-                    "The Network Service did not retain its exact IPv4 configuration."
+                    "The Network Service did not retain its IPv4 and DNS configuration."
                 )
             }
         } catch {
@@ -214,9 +214,15 @@ struct NetworkRouteSystemConfigurationService: Sendable {
 
     private func setNetworkServiceEnabled(_ enabled: Bool) throws {
         try preferencesTransaction.withLockedPreferences { preferences in
-            guard let service = try managedObjects(in: preferences).service else {
+            let objects = try managedObjects(in: preferences)
+            guard let service = objects.service else {
                 throw NetworkRouteSystemConfigurationError.unavailable(
                     "The ThruRNDIS Network Service is missing."
+                )
+            }
+            if enabled, !hasExpectedProtocolConfiguration(in: objects) {
+                throw NetworkRouteSystemConfigurationError.conflict(
+                    "The owned Network Service configuration changed before activation."
                 )
             }
             guard SCNetworkServiceSetEnabled(service, enabled) else {
@@ -280,26 +286,43 @@ struct NetworkRouteSystemConfigurationService: Sendable {
         )
     }
 
-    private func configureProtocols(for service: SCNetworkService) throws {
-        guard let ipv4 = SCNetworkServiceCopyProtocol(
-            service,
-            kSCNetworkProtocolTypeIPv4
-        ) else {
-            throw preferencesTransaction.error("resolve the IPv4 service protocol")
-        }
-        let ipv4Configuration: [String: Any] = [
+    private func ipv4Configuration(for policy: NetworkRoutePolicy) -> [String: Any] {
+        var configuration: [String: Any] = [
             kSCPropNetIPv4ConfigMethod as String:
                 kSCValNetIPv4ConfigMethodManual,
             kSCPropNetIPv4Addresses as String:
                 [ThruRNDISNetworkRoute.hostIPv4Address],
             kSCPropNetIPv4SubnetMasks as String:
                 [ThruRNDISNetworkRoute.subnetMask],
-            kSCPropNetIPv4Router as String:
-                ThruRNDISNetworkRoute.routerIPv4Address,
         ]
+        let gateway = ThruRNDISNetworkRoute.routerIPv4Address
+        switch policy {
+        case .defaultRoute:
+            configuration[kSCPropNetIPv4Router as String] = gateway
+        case .selectedSubnets(let subnets):
+            // IPMonitor associates these service routes with the Bond's ifindex.
+            // The AdditionalRoutes schema is absent from the public SDK.
+            configuration["AdditionalRoutes"] = subnets.map {
+                [
+                    "DestinationAddress": $0.network.description,
+                    "SubnetMask": $0.subnetMask.description,
+                    "GatewayAddress": gateway,
+                ]
+            }
+        }
+        return configuration
+    }
+
+    private func configureProtocols(for service: SCNetworkService, policy: NetworkRoutePolicy) throws {
+        guard let ipv4 = SCNetworkServiceCopyProtocol(
+            service,
+            kSCNetworkProtocolTypeIPv4
+        ) else {
+            throw preferencesTransaction.error("resolve the IPv4 service protocol")
+        }
         guard SCNetworkProtocolSetConfiguration(
             ipv4,
-            ipv4Configuration as CFDictionary
+            ipv4Configuration(for: policy) as CFDictionary
         ), SCNetworkProtocolSetEnabled(ipv4, true) else {
             throw preferencesTransaction.error("configure the IPv4 service protocol")
         }
@@ -327,14 +350,14 @@ struct NetworkRouteSystemConfigurationService: Sendable {
         ) else {
             throw preferencesTransaction.error("resolve the DNS service protocol")
         }
-        let dnsConfiguration: [String: Any] = [
-            kSCPropNetDNSServerAddresses as String:
-                [ThruRNDISNetworkRoute.routerIPv4Address],
-        ]
+        let providesDNS = policy == .defaultRoute
+        let dnsConfiguration: [String: [String]] = providesDNS
+            ? [kSCPropNetDNSServerAddresses as String: [ThruRNDISNetworkRoute.routerIPv4Address]]
+            : [:]
         guard SCNetworkProtocolSetConfiguration(
             dns,
             dnsConfiguration as CFDictionary
-        ), SCNetworkProtocolSetEnabled(dns, true) else {
+        ), SCNetworkProtocolSetEnabled(dns, providesDNS) else {
             throw preferencesTransaction.error("configure the DNS service protocol")
         }
     }
@@ -350,46 +373,25 @@ struct NetworkRouteSystemConfigurationService: Sendable {
             isNetworkServiceEnabled: objects.service.map(
                 SCNetworkServiceGetEnabled
             ) ?? false,
-            hasExpectedIPv4Configuration: objects.service.map(
-                hasExpectedIPv4Configuration
-            ) ?? false
+            hasExpectedProtocolConfiguration: hasExpectedProtocolConfiguration(in: objects)
         )
     }
 
-    private func hasExpectedIPv4Configuration(
-        for service: SCNetworkService
-    ) -> Bool {
-        guard let ipv4 = SCNetworkServiceCopyProtocol(
-            service,
-            kSCNetworkProtocolTypeIPv4
-        ), SCNetworkProtocolGetEnabled(ipv4) else {
+    private func hasExpectedProtocolConfiguration(in objects: ManagedObjects) -> Bool {
+        guard let service = objects.service, let policy = objects.metadata?.configuration.policy,
+              let ipv4 = SCNetworkServiceCopyProtocol(service, kSCNetworkProtocolTypeIPv4),
+              SCNetworkProtocolGetEnabled(ipv4),
+              let settings = SCNetworkProtocolGetConfiguration(ipv4),
+              CFEqual(settings, ipv4Configuration(for: policy) as CFDictionary) else {
             return false
         }
-        let configuration = SCNetworkProtocolGetConfiguration(ipv4)
-            as? [String: Any]
-        return ipv4ConfigurationIsExact(configuration)
-    }
-
-    private func ipv4ConfigurationIsExact(
-        _ configuration: [String: Any]?
-    ) -> Bool {
-        guard let configuration,
-              Set(configuration.keys) == IPv4ConfigurationKey.all,
-              configuration[
-                kSCPropNetIPv4ConfigMethod as String
-              ] as? String == kSCValNetIPv4ConfigMethodManual as String,
-              configuration[
-                kSCPropNetIPv4Addresses as String
-              ] as? [String] == [ThruRNDISNetworkRoute.hostIPv4Address],
-              configuration[
-                kSCPropNetIPv4SubnetMasks as String
-              ] as? [String] == [ThruRNDISNetworkRoute.subnetMask],
-              configuration[
-                kSCPropNetIPv4Router as String
-              ] as? String == ThruRNDISNetworkRoute.routerIPv4Address else {
+        // Preserve the default mode's existing IPv4 readiness check. Selected
+        // subnets additionally require the service to keep its DNS disabled.
+        if policy == .defaultRoute { return true }
+        guard let dns = SCNetworkServiceCopyProtocol(service, kSCNetworkProtocolTypeDNS) else {
             return false
         }
-        return true
+        return !SCNetworkProtocolGetEnabled(dns)
     }
 
     private func metadata(
@@ -417,8 +419,8 @@ struct NetworkRouteSystemConfigurationService: Sendable {
         guard isCanonicalBondInterfaceName(bondInterfaceName),
               isCanonicalBridgeInterfaceName(bridgeInterfaceName),
               !networkServiceID.isEmpty,
-              isCanonicalIPv4Address(guestIPv4Address),
-              isCanonicalIPv4Address(vznatGatewayIPv4Address),
+              IPv4Value(guestIPv4Address) != nil,
+              IPv4Value(vznatGatewayIPv4Address) != nil,
               guestIPv4Address != vznatGatewayIPv4Address else {
             throw NetworkRouteSystemConfigurationError.conflict(
                 "The stored network ownership metadata contains invalid values."
@@ -430,7 +432,8 @@ struct NetworkRouteSystemConfigurationService: Sendable {
             configuration: NetworkRouteConfiguration(
                 guestIPv4Address: guestIPv4Address,
                 vznatGatewayIPv4Address: vznatGatewayIPv4Address,
-                bridgeInterfaceName: bridgeInterfaceName
+                bridgeInterfaceName: bridgeInterfaceName,
+                policy: try NetworkRoutePolicy(selectedSubnets: values[MetadataKey.selectedSubnets])
             )
         )
     }
@@ -441,7 +444,7 @@ struct NetworkRouteSystemConfigurationService: Sendable {
         configuration: NetworkRouteConfiguration,
         in preferences: SCPreferences
     ) throws {
-        let metadata = [
+        var metadata = [
             MetadataKey.bondInterfaceName: bondInterfaceName,
             MetadataKey.networkServiceID: networkServiceID,
             MetadataKey.guestIPv4Address: configuration.guestIPv4Address,
@@ -450,6 +453,8 @@ struct NetworkRouteSystemConfigurationService: Sendable {
             MetadataKey.bridgeInterfaceName:
                 configuration.bridgeInterfaceName,
         ]
+        // Records created before subnet selection use the default route.
+        metadata[MetadataKey.selectedSubnets] = configuration.policy.subnetSpecification
         guard SCPreferencesSetValue(
             preferences,
             ThruRNDISNetworkRoute.systemConfigurationMetadataKey as CFString,
@@ -496,23 +501,6 @@ struct NetworkRouteSystemConfigurationService: Sendable {
             && UInt(unit).map { String($0) == unit } == true
     }
 
-    private func isCanonicalIPv4Address(_ value: String) -> Bool {
-        var address = in_addr()
-        guard value.withCString({ inet_pton(AF_INET, $0, &address) }) == 1 else {
-            return false
-        }
-        var buffer = [CChar](repeating: 0, count: Int(INET_ADDRSTRLEN))
-        guard inet_ntop(
-            AF_INET,
-            &address,
-            &buffer,
-            socklen_t(INET_ADDRSTRLEN)
-        ) != nil else {
-            return false
-        }
-        return String(cString: buffer) == value
-    }
-
     private struct OwnershipMetadata {
         let bondInterfaceName: String
         let networkServiceID: String
@@ -525,20 +513,12 @@ struct NetworkRouteSystemConfigurationService: Sendable {
         static let guestIPv4Address = "GuestIPv4Address"
         static let vznatGatewayIPv4Address = "VZNATGatewayIPv4Address"
         static let bridgeInterfaceName = "BridgeInterfaceName"
+        static let selectedSubnets = "SelectedSubnets"
     }
 
     private enum BondOptionKey {
         static let ownershipToken =
             "ThruRNDIS.NetworkRoute.OwnershipToken"
-    }
-
-    private enum IPv4ConfigurationKey {
-        static let all: Set<String> = [
-            kSCPropNetIPv4ConfigMethod as String,
-            kSCPropNetIPv4Addresses as String,
-            kSCPropNetIPv4SubnetMasks as String,
-            kSCPropNetIPv4Router as String,
-        ]
     }
 
     private struct ManagedObjects {

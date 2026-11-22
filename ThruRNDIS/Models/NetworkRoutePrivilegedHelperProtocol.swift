@@ -13,6 +13,7 @@ protocol NetworkRoutePrivilegedHelperProtocol {
     func start(
         guestIPv4Address: String,
         vznatGatewayIPv4Address: String,
+        selectedSubnets: String?,
         withReply reply: @escaping NetworkRoutePrivilegedHelperReply
     )
 

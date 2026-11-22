@@ -33,11 +33,18 @@ final class NetworkRouteStore: ObservableObject {
     @Published private(set) var rndisIPv4Address: String?
     @Published private(set) var isRNDISRouteReady = false
     @Published private(set) var lastErrorMessage: String?
+    @Published private(set) var usesSelectedSubnets: Bool
+    @Published private(set) var subnetSpecification: String
     @Published private var isStopQueued = false
     @Published private var shouldRunManagedNetwork = false
 
     private let client: NetworkRoutePrivilegedHelperClient
     private let eventLog: EventLogStore
+    private let defaults: UserDefaults
+    private enum DefaultsKey {
+        static let usesSelectedSubnets = "NetworkRoute.usesSelectedSubnets"
+        static let subnetSpecification = "NetworkRoute.subnetSpecification"
+    }
     private var reconciliationGeneration: UInt64 = 0
     private var needsReconciliationAfterRefresh = false
     private var helperCancellables: Set<AnyCancellable> = []
@@ -45,12 +52,16 @@ final class NetworkRouteStore: ObservableObject {
     init(
         eventLog: EventLogStore,
         helper: NetworkRouteHelperStore? = nil,
-        client: NetworkRoutePrivilegedHelperClient? = nil
+        client: NetworkRoutePrivilegedHelperClient? = nil,
+        defaults: UserDefaults = .standard
     ) {
         let helper = helper ?? NetworkRouteHelperStore(eventLog: eventLog)
         self.helper = helper
         self.client = client ?? NetworkRoutePrivilegedHelperClient()
         self.eventLog = eventLog
+        self.defaults = defaults
+        usesSelectedSubnets = defaults.bool(forKey: DefaultsKey.usesSelectedSubnets)
+        subnetSpecification = defaults.string(forKey: DefaultsKey.subnetSpecification) ?? ""
         self.client.onLeaseInvalidated = { [weak self] in
             self?.routeLeaseDidInvalidate()
         }
@@ -86,10 +97,38 @@ final class NetworkRouteStore: ObservableObject {
         isReadyToRoute
             && !isOperationInProgress
             && snapshot?.state != .active
+            && subnetValidationError == nil
+    }
+
+    var canEditRoutingPolicy: Bool { !isOperationInProgress && !hasManagedNetwork }
+
+    private func routingPolicy() throws -> NetworkRoutePolicy {
+        try NetworkRoutePolicy(selectedSubnets: usesSelectedSubnets ? subnetSpecification : nil)
+    }
+
+    var subnetValidationError: String? {
+        do {
+            _ = try routingPolicy()
+            return nil
+        } catch {
+            return error.localizedDescription
+        }
+    }
+
+    func setUsesSelectedSubnets(_ enabled: Bool) {
+        guard canEditRoutingPolicy else { return }
+        usesSelectedSubnets = enabled
+        defaults.set(enabled, forKey: DefaultsKey.usesSelectedSubnets)
+    }
+
+    func setSubnetSpecification(_ value: String) {
+        guard canEditRoutingPolicy else { return }
+        subnetSpecification = value
+        defaults.set(value, forKey: DefaultsKey.subnetSpecification)
     }
 
     var canRestart: Bool {
-        !isOperationInProgress && snapshot?.state == .active
+        !isOperationInProgress && snapshot?.state == .active && subnetValidationError == nil
     }
 
     private var hasManagedNetwork: Bool {
@@ -318,6 +357,10 @@ final class NetworkRouteStore: ObservableObject {
         // Preserve the proven cleanup result. App reset subsequently runs the
         // normal termination preparation after unregistering the helper.
         snapshot = .inactive
+        usesSelectedSubnets = false
+        subnetSpecification = ""
+        defaults.removeObject(forKey: DefaultsKey.usesSelectedSubnets)
+        defaults.removeObject(forKey: DefaultsKey.subnetSpecification)
     }
 
     private func stopPreservingDesiredState(reason: String) {
@@ -481,7 +524,17 @@ final class NetworkRouteStore: ObservableObject {
             return
         }
         guard shouldRunManagedNetwork else { return }
+        let policy: NetworkRoutePolicy
+        do {
+            policy = try routingPolicy()
+        } catch {
+            shouldRunManagedNetwork = false
+            report(error, context: "Invalid IPv4 subnet selection")
+            if hasManagedNetwork { queueStop(reason: "invalid IPv4 subnet selection") }
+            return
+        }
         guard snapshot?.state != .active
+                || snapshot?.selectedSubnets != policy.subnetSpecification
                 || snapshot?.guestIPv4Address != guestIPv4Address
                 || snapshot?.vznatGatewayIPv4Address
                     != vznatGatewayIPv4Address else {
@@ -489,7 +542,7 @@ final class NetworkRouteStore: ObservableObject {
         }
 
         if snapshot?.state == .active {
-            stopPreservingDesiredState(reason: "guest VZNAT network changed")
+            stopPreservingDesiredState(reason: "managed network configuration changed")
             return
         }
 
@@ -510,7 +563,8 @@ final class NetworkRouteStore: ObservableObject {
             do {
                 let snapshot = try await self.client.start(
                     guestIPv4Address: guestIPv4Address,
-                    vznatGatewayIPv4Address: vznatGatewayIPv4Address
+                    vznatGatewayIPv4Address: vznatGatewayIPv4Address,
+                    policy: policy
                 )
                 guard self.finishOperation(generation) else {
                     self.queueStop(reason: "stale network start completed")

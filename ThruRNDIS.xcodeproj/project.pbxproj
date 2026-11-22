@@ -71,6 +71,7 @@
 		F40000000000000000000019 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4000000000000000000010E /* main.swift */; };
 		F4000000000000000000001D /* ThruRNDISPrivilegedHelper in Copy Privileged Helper */ = {isa = PBXBuildFile; fileRef = F40000000000000000000111 /* ThruRNDISPrivilegedHelper */; };
 		NR1000000000000000000001 /* NetworkRouteModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR1000000000000000000101 /* NetworkRouteModels.swift */; };
+		EB5000000000000000000001 /* NetworkRoutePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB5000000000000000000101 /* NetworkRoutePolicy.swift */; };
 		NR1000000000000000000002 /* NetworkRoutePrivilegedHelperProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR1000000000000000000102 /* NetworkRoutePrivilegedHelperProtocol.swift */; };
 		NR1000000000000000000003 /* NetworkRoutePrivilegedHelperClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR1000000000000000000103 /* NetworkRoutePrivilegedHelperClient.swift */; };
 		NR1000000000000000000004 /* NetworkRoutePrivilegedHelperRegistrationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR1000000000000000000104 /* NetworkRoutePrivilegedHelperRegistrationService.swift */; };
@@ -82,6 +83,7 @@
 		AB09EF264CEB440C90000101 /* MiscView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB09EF264CEB440C90000102 /* MiscView.swift */; };
 		NR1000000000000000000010 /* LegacyNetworkRouteHelperMigrationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR1000000000000000000110 /* LegacyNetworkRouteHelperMigrationService.swift */; };
 		NR1000000000000000000011 /* NetworkRouteModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR1000000000000000000101 /* NetworkRouteModels.swift */; };
+		EB5000000000000000000011 /* NetworkRoutePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB5000000000000000000101 /* NetworkRoutePolicy.swift */; };
 		NR1000000000000000000012 /* NetworkRoutePrivilegedHelperProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR1000000000000000000102 /* NetworkRoutePrivilegedHelperProtocol.swift */; };
 		NR1000000000000000000013 /* ThruRNDISNetworkRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR1000000000000000000107 /* ThruRNDISNetworkRoute.swift */; };
 		NR1000000000000000000014 /* NetworkRouteController.swift in Sources */ = {isa = PBXBuildFile; fileRef = NR100000000000000000011A /* NetworkRouteController.swift */; };
@@ -211,6 +213,7 @@
 		F40000000000000000000110 /* ThruRNDISPrivilegedHelper.plist.template */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = ThruRNDISPrivilegedHelper.plist.template; sourceTree = "<group>"; };
 		F40000000000000000000111 /* ThruRNDISPrivilegedHelper */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = ThruRNDISPrivilegedHelper; sourceTree = BUILT_PRODUCTS_DIR; };
 		NR1000000000000000000101 /* NetworkRouteModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkRouteModels.swift; sourceTree = "<group>"; };
+		EB5000000000000000000101 /* NetworkRoutePolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkRoutePolicy.swift; sourceTree = "<group>"; };
 		NR1000000000000000000102 /* NetworkRoutePrivilegedHelperProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkRoutePrivilegedHelperProtocol.swift; sourceTree = "<group>"; };
 		NR1000000000000000000103 /* NetworkRoutePrivilegedHelperClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkRoutePrivilegedHelperClient.swift; sourceTree = "<group>"; };
 		NR1000000000000000000104 /* NetworkRoutePrivilegedHelperRegistrationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkRoutePrivilegedHelperRegistrationService.swift; sourceTree = "<group>"; };
@@ -325,6 +328,7 @@
 				H20000000000000000000101 /* EventLogModels.swift */,
 				I10000000000000000000101 /* MenuBarCombinedStatus.swift */,
 				NR1000000000000000000101 /* NetworkRouteModels.swift */,
+				EB5000000000000000000101 /* NetworkRoutePolicy.swift */,
 				NR1000000000000000000102 /* NetworkRoutePrivilegedHelperProtocol.swift */,
 				8B0000000000000000000103 /* USBAccessoryRecord.swift */,
 				8B0000000000000000000104 /* VMRuntimeState.swift */,
@@ -595,6 +599,7 @@
 				8B0000000000000000000001 /* App.swift in Sources */,
 				F40000000000000000000004 /* PeerCodeSigningRequirementBuilder.swift in Sources */,
 				NR1000000000000000000001 /* NetworkRouteModels.swift in Sources */,
+				EB5000000000000000000001 /* NetworkRoutePolicy.swift in Sources */,
 				NR1000000000000000000002 /* NetworkRoutePrivilegedHelperProtocol.swift in Sources */,
 				NR1000000000000000000003 /* NetworkRoutePrivilegedHelperClient.swift in Sources */,
 				NR1000000000000000000004 /* NetworkRoutePrivilegedHelperRegistrationService.swift in Sources */,
@@ -667,6 +672,7 @@
 			files = (
 				LG1000000000000000000001 /* LegacyDummyEthernetCleanupService.swift in Sources */,
 				NR1000000000000000000011 /* NetworkRouteModels.swift in Sources */,
+				EB5000000000000000000011 /* NetworkRoutePolicy.swift in Sources */,
 				NR1000000000000000000012 /* NetworkRoutePrivilegedHelperProtocol.swift in Sources */,
 				F40000000000000000000013 /* PeerCodeSigningRequirementBuilder.swift in Sources */,
 				NR1000000000000000000013 /* ThruRNDISNetworkRoute.swift in Sources */,

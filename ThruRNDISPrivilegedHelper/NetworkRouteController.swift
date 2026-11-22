@@ -45,6 +45,7 @@ final class NetworkRouteController: @unchecked Sendable {
     func start(
         guestIPv4Address: String,
         vznatGatewayIPv4Address: String,
+        selectedSubnets: String?,
         leaseOwnerIdentifier: UUID,
         completion: @escaping Completion
     ) {
@@ -53,6 +54,7 @@ final class NetworkRouteController: @unchecked Sendable {
                 try startNow(
                     guestIPv4Address: guestIPv4Address,
                     vznatGatewayIPv4Address: vznatGatewayIPv4Address,
+                    policy: try NetworkRoutePolicy(selectedSubnets: selectedSubnets),
                     leaseOwnerIdentifier: leaseOwnerIdentifier
                 )
             })
@@ -80,6 +82,7 @@ final class NetworkRouteController: @unchecked Sendable {
     private func startNow(
         guestIPv4Address: String,
         vznatGatewayIPv4Address: String,
+        policy: NetworkRoutePolicy,
         leaseOwnerIdentifier: UUID
     ) throws -> NetworkRouteSnapshot {
         if let currentLeaseOwnerIdentifier = self.leaseOwnerIdentifier,
@@ -94,7 +97,8 @@ final class NetworkRouteController: @unchecked Sendable {
         let requested = NetworkRouteConfiguration(
             guestIPv4Address: guestIPv4Address,
             vznatGatewayIPv4Address: vznatGatewayIPv4Address,
-            bridgeInterfaceName: bridgeInterfaceName
+            bridgeInterfaceName: bridgeInterfaceName,
+            policy: policy
         )
 
         let existingSystemConfiguration = try systemConfiguration.inspect()
@@ -280,7 +284,7 @@ final class NetworkRouteController: @unchecked Sendable {
             && systemSnapshot.hasBond
             && systemSnapshot.hasNetworkService
             && systemSnapshot.isNetworkServiceEnabled
-            && systemSnapshot.hasExpectedIPv4Configuration
+            && systemSnapshot.hasExpectedProtocolConfiguration
 
         var readinessFailures: [String] = []
         if !bridgeIdentityReady {
@@ -311,7 +315,7 @@ final class NetworkRouteController: @unchecked Sendable {
                 "SystemConfiguration bond=\(systemSnapshot.hasBond), "
                     + "service=\(systemSnapshot.hasNetworkService), "
                     + "enabled=\(systemSnapshot.isNetworkServiceEnabled), "
-                    + "IPv4=\(systemSnapshot.hasExpectedIPv4Configuration)"
+                    + "IPv4/DNS=\(systemSnapshot.hasExpectedProtocolConfiguration)"
             )
         }
         let snapshot = NetworkRouteSnapshot(
@@ -320,7 +324,8 @@ final class NetworkRouteController: @unchecked Sendable {
             guestIPv4Address: network.guestIPv4Address,
             vznatGatewayIPv4Address: network.vznatGatewayIPv4Address,
             bridgeInterfaceName: network.bridgeInterfaceName,
-            bondInterfaceName: owned.bondInterfaceName
+            bondInterfaceName: owned.bondInterfaceName,
+            selectedSubnets: network.policy.subnetSpecification
         )
         return (snapshot, readinessFailures)
     }

@@ -26,6 +26,33 @@ struct NetworkRouteView: View {
             }
 
             Section("Network Routing") {
+                Picker("IPv4 routing mode", selection: Binding(
+                    get: { networkRoute.usesSelectedSubnets },
+                    set: networkRoute.setUsesSelectedSubnets
+                )) {
+                    Text("Default route").tag(false)
+                    Text("Selected subnets only").tag(true)
+                }
+                .disabled(!networkRoute.canEditRoutingPolicy)
+
+                if networkRoute.usesSelectedSubnets {
+                    TextField(
+                        "IPv4 subnets",
+                        text: Binding(
+                            get: { networkRoute.subnetSpecification },
+                            set: networkRoute.setSubnetSpecification
+                        ),
+                        prompt: Text(verbatim: "10.10.0.0/24, 172.16.1.0/24"),
+                        axis: .vertical
+                    )
+                    .lineLimit(1...3)
+                    .disabled(!networkRoute.canEditRoutingPolicy)
+                    if let error = networkRoute.subnetValidationError {
+                        Text(error)
+                            .foregroundStyle(.red)
+                            .font(.caption)
+                    }
+                }
                 LabeledContent("Status") {
                     SettingsStatusLabel(
                         title: routeStatus.title,
