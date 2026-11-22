@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Requirements for ./script/build_app.sh:
-# - macOS with Xcode beta installed at /Applications/Xcode-beta.app, or set
+# - macOS with Xcode installed at /Applications/Xcode.app, or set
 #   THRURNDIS_XCODEBUILD to another xcodebuild executable.
 # - Configuration/LocalSigning.xcconfig copied from the example and configured
 #   with DEVELOPMENT_TEAM, the app bundle identifier, and the exact installed
@@ -36,7 +36,7 @@ CONFIGURATION="Release"
 PROJECT_PATH="$ROOT_DIR/$PROJECT_NAME"
 LOCAL_SIGNING_CONFIG="$ROOT_DIR/Configuration/LocalSigning.xcconfig"
 DERIVED_DATA_PATH="${THRURNDIS_DISTRIBUTION_DERIVED_DATA_PATH:-/tmp/ThruRNDIS-DistributionDerivedData}"
-XCODEBUILD_BIN="${THRURNDIS_XCODEBUILD:-/Applications/Xcode-beta.app/Contents/Developer/usr/bin/xcodebuild}"
+XCODEBUILD_BIN="${THRURNDIS_XCODEBUILD:-/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild}"
 
 WORK_DIR=""
 OUTPUT_STAGING_DIR=""
@@ -89,7 +89,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ -x "$XCODEBUILD_BIN" ]] || distribution_fail \
-  "Xcode beta xcodebuild not found at $XCODEBUILD_BIN"
+  "xcodebuild not found at $XCODEBUILD_BIN"
 [[ -f "$LOCAL_SIGNING_CONFIG" ]] || distribution_fail \
   "missing $LOCAL_SIGNING_CONFIG; copy LocalSigning.xcconfig.example and configure Developer ID signing first"
 [[ "${THRURNDIS_ALLOW_PROVISIONING_UPDATES:-0}" == "0" ||

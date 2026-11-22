@@ -15,7 +15,7 @@ LOCAL_SIGNING_CONFIG="$ROOT_DIR/Configuration/LocalSigning.xcconfig"
 DERIVED_DATA_PATH="${THRURNDIS_RUNTIME_DERIVED_DATA_PATH:-/tmp/ThruRNDIS-RuntimeDerivedData}"
 BUILT_APP="$DERIVED_DATA_PATH/Build/Products/$CONFIGURATION/$APP_NAME.app"
 INSTALL_APP="/Applications/$APP_NAME.app"
-XCODEBUILD_BIN="${THRURNDIS_XCODEBUILD:-/Applications/Xcode-beta.app/Contents/Developer/usr/bin/xcodebuild}"
+XCODEBUILD_BIN="${THRURNDIS_XCODEBUILD:-/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild}"
 
 VALIDATION_DIR=""
 INSTALL_STAGING_ROOT=""
@@ -59,7 +59,7 @@ if [[ $# -ne 0 ]]; then
   exit 2
 fi
 
-[[ -x "$XCODEBUILD_BIN" ]] || fail "Xcode beta xcodebuild not found at $XCODEBUILD_BIN"
+[[ -x "$XCODEBUILD_BIN" ]] || fail "xcodebuild not found at $XCODEBUILD_BIN"
 [[ -f "$LOCAL_SIGNING_CONFIG" ]] || fail \
   "missing $LOCAL_SIGNING_CONFIG; copy LocalSigning.xcconfig.example and configure local signing first"
 
