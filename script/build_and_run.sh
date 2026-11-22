@@ -12,7 +12,7 @@ PROJECT_PATH="$ROOT_DIR/$PROJECT_NAME"
 DERIVED_DATA_PATH="${THRURNDIS_DERIVED_DATA_PATH:-/tmp/ThruRNDIS-DerivedData}"
 APP_BUNDLE="$DERIVED_DATA_PATH/Build/Products/$CONFIGURATION/$APP_NAME.app"
 APP_BINARY="$APP_BUNDLE/Contents/MacOS/$APP_NAME"
-XCODEBUILD_BIN="${THRURNDIS_XCODEBUILD:-/Applications/Xcode-beta.app/Contents/Developer/usr/bin/xcodebuild}"
+XCODEBUILD_BIN="${THRURNDIS_XCODEBUILD:-/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild}"
 
 usage() {
   echo "usage: $0 [run|--debug|--logs|--telemetry|--verify]" >&2
@@ -33,7 +33,7 @@ case "$MODE" in
 esac
 
 if [[ ! -x "$XCODEBUILD_BIN" ]]; then
-  echo "error: Xcode beta xcodebuild not found at $XCODEBUILD_BIN" >&2
+  echo "error: xcodebuild not found at $XCODEBUILD_BIN" >&2
   echo "Set THRURNDIS_XCODEBUILD to override the tool path." >&2
   exit 1
 fi

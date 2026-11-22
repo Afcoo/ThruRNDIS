@@ -31,7 +31,7 @@ APP_BUILD_SCRIPT="$SCRIPT_DIR/build_app.sh"
 APP_NOTARIZATION_SCRIPT="$SCRIPT_DIR/notarize_app.sh"
 DMG_BUILD_SCRIPT="$SCRIPT_DIR/build_dmg.sh"
 DMG_NOTARIZATION_SCRIPT="$SCRIPT_DIR/notarize_dmg.sh"
-XCODEBUILD_BIN="${THRURNDIS_XCODEBUILD:-/Applications/Xcode-beta.app/Contents/Developer/usr/bin/xcodebuild}"
+XCODEBUILD_BIN="${THRURNDIS_XCODEBUILD:-/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild}"
 
 OUTPUT_DIR="${THRURNDIS_DISTRIBUTION_OUTPUT_DIR:-$ROOT_DIR/dist}"
 PACKAGE_WORK_ROOT="${THRURNDIS_PACKAGE_WORK_DIR:-$OUTPUT_DIR/.package-work}"
@@ -81,7 +81,7 @@ for required_script in \
     "distribution script is missing or not executable: $required_script"
 done
 [[ -x "$XCODEBUILD_BIN" ]] || distribution_fail \
-  "Xcode beta xcodebuild not found at $XCODEBUILD_BIN"
+  "xcodebuild not found at $XCODEBUILD_BIN"
 [[ "$OUTPUT_DIR" != "/" && "$PACKAGE_WORK_ROOT" != "/" ]] || distribution_fail \
   "distribution directories cannot be /"
 
