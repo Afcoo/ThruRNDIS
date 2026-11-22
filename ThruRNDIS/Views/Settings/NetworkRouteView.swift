@@ -53,11 +53,6 @@ struct NetworkRouteView: View {
                             .font(.caption)
                     }
                 }
-                if networkRoute.snapshot?.state == .active || networkRoute.snapshot?.state == .degraded {
-                    Text("Stop Network Routing to change these settings.")
-                        .foregroundStyle(.secondary)
-                        .font(.caption)
-                }
                 LabeledContent("Status") {
                     SettingsStatusLabel(
                         title: routeStatus.title,

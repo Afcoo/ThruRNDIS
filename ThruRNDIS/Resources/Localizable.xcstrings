@@ -3425,16 +3425,6 @@
         }
       }
     },
-    "Stop Network Routing to change these settings." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "이 설정을 변경하려면 네트워크 라우팅을 중지하세요."
-          }
-        }
-      }
-    },
     "Enter comma-separated IPv4 networks in CIDR notation." : {
       "localizations" : {
         "ko" : {
