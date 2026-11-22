@@ -22,6 +22,7 @@
 		8B000000000000000000000D /* USBDevicesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B000000000000000000010D /* USBDevicesView.swift */; };
 		8B000000000000000000000E /* ConsoleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B000000000000000000010E /* ConsoleView.swift */; };
 		8B0000000000000000000012 /* RuntimeEntitlements.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000000000000000000112 /* RuntimeEntitlements.swift */; };
+		8B0000000000000000000014 /* TextEditingMenuBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000000000000000000114 /* TextEditingMenuBuilder.swift */; };
 		8E0000000000000000000001 /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = 8E0000000000000000000102 /* SwiftTerm */; };
 		8F0000000000000000000003 /* VMCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F0000000000000000000103 /* VMCoordinator.swift */; };
 		8F0000000000000000000004 /* USBAccessoryCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F0000000000000000000104 /* USBAccessoryCoordinator.swift */; };
@@ -158,6 +159,7 @@
 		8B000000000000000000010E /* ConsoleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsoleView.swift; sourceTree = "<group>"; };
 		8B0000000000000000000112 /* RuntimeEntitlements.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeEntitlements.swift; sourceTree = "<group>"; };
 		8B0000000000000000000113 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		8B0000000000000000000114 /* TextEditingMenuBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextEditingMenuBuilder.swift; sourceTree = "<group>"; };
 		8F0000000000000000000103 /* VMCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMCoordinator.swift; sourceTree = "<group>"; };
 		8F0000000000000000000104 /* USBAccessoryCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBAccessoryCoordinator.swift; sourceTree = "<group>"; };
 		K10000000000000000000101 /* TetheringWorkflowCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TetheringWorkflowCoordinator.swift; sourceTree = "<group>"; };
@@ -374,6 +376,7 @@
 				I10000000000000000000103 /* MenuBarStatusDotImageFactory.swift */,
 				F40000000000000000000104 /* PeerCodeSigningRequirementBuilder.swift */,
 				8B0000000000000000000112 /* RuntimeEntitlements.swift */,
+				8B0000000000000000000114 /* TextEditingMenuBuilder.swift */,
 				NR1000000000000000000107 /* ThruRNDISNetworkRoute.swift */,
 				E10000000000000000000101 /* USBDeviceIdentityResolver.swift */,
 				B10000000000000000000102 /* VMAssetFolderResolver.swift */,
@@ -623,6 +626,7 @@
 				8B0000000000000000000009 /* Clipboard.swift in Sources */,
 				8B000000000000000000000A /* FilePicker.swift in Sources */,
 				8B0000000000000000000012 /* RuntimeEntitlements.swift in Sources */,
+				8B0000000000000000000014 /* TextEditingMenuBuilder.swift in Sources */,
 				DC1000000000000000000001 /* EventLogErrorFormatter.swift in Sources */,
 				8F0000000000000000000003 /* VMCoordinator.swift in Sources */,
 				8F0000000000000000000004 /* USBAccessoryCoordinator.swift in Sources */,
