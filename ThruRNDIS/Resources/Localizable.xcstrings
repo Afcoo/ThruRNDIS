@@ -3385,16 +3385,6 @@
         }
       }
     },
-    "Your Mac keeps its existing default route and DNS settings." : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mac의 기존 기본 경로와 DNS 설정을 유지합니다."
-          }
-        }
-      }
-    },
     "Stop Network Routing to change these settings." : {
       "localizations" : {
         "ko" : {

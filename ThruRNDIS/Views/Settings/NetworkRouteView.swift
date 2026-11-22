@@ -51,10 +51,6 @@ struct NetworkRouteView: View {
                         Text(error)
                             .foregroundStyle(.red)
                             .font(.caption)
-                    } else {
-                        Text("Your Mac keeps its existing default route and DNS settings.")
-                            .foregroundStyle(.secondary)
-                            .font(.caption)
                     }
                 }
                 if networkRoute.snapshot?.state == .active || networkRoute.snapshot?.state == .degraded {
