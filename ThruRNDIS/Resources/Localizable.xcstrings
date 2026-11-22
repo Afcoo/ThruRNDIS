@@ -3345,6 +3345,116 @@
         }
       }
     },
+    "IPv4 routing mode" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "IPv4 라우팅 모드"
+          }
+        }
+      }
+    },
+    "Default route" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "기본 경로"
+          }
+        }
+      }
+    },
+    "Selected subnets only" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "지정 대역만"
+          }
+        }
+      }
+    },
+    "IPv4 subnets" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "IPv4 대역"
+          }
+        }
+      }
+    },
+    "Your Mac keeps its existing default route and DNS settings." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac의 기존 기본 경로와 DNS 설정을 유지합니다."
+          }
+        }
+      }
+    },
+    "Stop Network Routing to change these settings." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 설정을 변경하려면 네트워크 라우팅을 중지하세요."
+          }
+        }
+      }
+    },
+    "Enter comma-separated IPv4 networks in CIDR notation." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "IPv4 네트워크를 CIDR 형식으로 입력하고 쉼표로 구분하세요."
+          }
+        }
+      }
+    },
+    "The IPv4 subnet list exceeds 16 KB." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "IPv4 대역 목록은 16KB까지 입력할 수 있습니다."
+          }
+        }
+      }
+    },
+    "Use Default route to send all IPv4 traffic." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "모든 IPv4 트래픽을 보내려면 기본 경로 모드를 선택하세요."
+          }
+        }
+      }
+    },
+    "Use the network address %@." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 주소 %@를 입력하세요."
+          }
+        }
+      }
+    },
+    "192.168.100.0/24 is reserved for the link to the guest." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "192.168.100.0/24는 게스트 연결에 사용하는 대역입니다."
+          }
+        }
+      }
+    },
     "Network Routing" : {
       "localizations" : {
         "ko" : {

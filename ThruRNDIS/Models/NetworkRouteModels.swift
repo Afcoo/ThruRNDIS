@@ -22,6 +22,7 @@ struct NetworkRouteConfiguration: Equatable, Sendable {
     let guestIPv4Address: String
     let vznatGatewayIPv4Address: String
     let bridgeInterfaceName: String
+    let policy: NetworkRoutePolicy
 }
 
 struct NetworkRouteSnapshot: Codable, Equatable, Sendable {
@@ -30,12 +31,14 @@ struct NetworkRouteSnapshot: Codable, Equatable, Sendable {
     let vznatGatewayIPv4Address: String?
     let bridgeInterfaceName: String?
     let bondInterfaceName: String?
+    let selectedSubnets: String?
 
     static let inactive = Self(
         state: .inactive,
         guestIPv4Address: nil,
         vznatGatewayIPv4Address: nil,
         bridgeInterfaceName: nil,
-        bondInterfaceName: nil
+        bondInterfaceName: nil,
+        selectedSubnets: nil
     )
 }

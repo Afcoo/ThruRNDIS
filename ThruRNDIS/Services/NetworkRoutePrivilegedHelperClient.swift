@@ -58,7 +58,8 @@ final class NetworkRoutePrivilegedHelperClient {
 
     func start(
         guestIPv4Address: String,
-        vznatGatewayIPv4Address: String
+        vznatGatewayIPv4Address: String,
+        policy: NetworkRoutePolicy
     ) async throws -> NetworkRouteSnapshot {
         let hadActiveLease = isLeaseActive
         let connection: NSXPCConnection
@@ -84,6 +85,7 @@ final class NetworkRoutePrivilegedHelperClient {
                 proxy.start(
                     guestIPv4Address: guestIPv4Address,
                     vznatGatewayIPv4Address: vznatGatewayIPv4Address,
+                    selectedSubnets: policy.subnetSpecification,
                     withReply: reply
                 )
             }
@@ -97,6 +99,10 @@ final class NetworkRoutePrivilegedHelperClient {
                 )
                 throw NetworkRoutePrivilegedHelperClientError
                     .remoteObjectUnavailable(message: nil)
+            }
+            guard snapshot.state == .active,
+                  snapshot.selectedSubnets == policy.subnetSpecification else {
+                throw NetworkRoutePrivilegedHelperClientError.malformedResponse
             }
             isLeaseActive = true
             return snapshot

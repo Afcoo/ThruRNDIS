@@ -112,12 +112,14 @@ macOS managed IPv4 Network Service
   are read-only and must not retry a failed start. An eligible new USB attach or
   an explicit Start action may arm another attempt; Stop preserves current guest
   inputs so the user can start again without restarting the VM.
-- The helper gives its owned Network Service a manual IPv4 address, subnet,
-  router, and DNS configuration and adds it to the current network set without
-  changing the user-selected service order. It does not configure
-  `AdditionalRoutes`.
-  SystemConfiguration/configd owns default-route synthesis, ranking,
-  installation, and removal.
+- Settings → Network Routing persists the IPv4 routing mode and comma-separated
+  CIDRs. Edit them while the managed network is stopped. The default mode
+  configures the owned Bond service with router and DNS `192.168.100.1`.
+  In **Selected subnets only**, omit the IPv4 `Router`, clear and disable the
+  DNS protocol, and set `AdditionalRoutes` on that service's IPv4 protocol.
+  Each entry specifies the network address, subnet mask, and the fixed guest
+  gateway `192.168.100.1`. Both modes keep the manual Bond address and service
+  order. SystemConfiguration/configd owns route installation, ranking, and removal.
 - IPv6 routing is out of scope. Do not claim that this PoC captures or blocks
   IPv6 traffic.
 
@@ -139,8 +141,9 @@ macOS managed IPv4 Network Service
   and makes one fresh authenticated stop attempt so a restarted helper can
   rediscover and remove the exactly recorded SystemConfiguration objects.
 - The shared XPC surface contains only `status`,
-  `start(guestIPv4Address:vznatGatewayIPv4Address:)`, and `stop`. Keep values
-  Foundation/XPC-safe and validate every value again in the helper.
+  `start(guestIPv4Address:vznatGatewayIPv4Address:selectedSubnets:)`, and
+  `stop`. An absent subnet string selects default routing. A present string
+  must contain valid IPv4 CIDRs. Validate again in the helper before mutation.
 - `VZNATInterfaceResolver` accepts only canonical RFC 1918 guest and gateway
   addresses. It enumerates active host IPv4 interfaces and requires exactly
   one canonical `bridge<number>` whose link type is `IFT_BRIDGE`, whose address
@@ -149,25 +152,26 @@ macOS managed IPv4 Network Service
 - The helper creates only the validated `feth0`/`feth1` pair, leaves `feth1`
   unaddressed, creates its recorded SCBond and Network Service, adds `feth1`
   to the resolved VM bridge with `/sbin/ifconfig`, and assigns the Bond
-  `192.168.100.2/24` with router and DNS `192.168.100.1`. It adds the Network
+  `192.168.100.2/24` with the selected IPv4 routing policy. It adds the Network
   Service to the current network set but does not call
   `SCNetworkSetSetServiceOrder`; service priority remains user-controlled.
 - Runtime Bond inspection uses `ifconfig -b <bond>` so both the static mode and
   exact feth member are verified before the helper grants the network lease.
-- Host routing uses only the owned SystemConfiguration Network Service. Do not
-  add `AdditionalRoutes`, restore `/sbin/route`, `netstat` parsing,
-  `networksetup`, a routing-socket mutator, per-route ownership flags, or
-  private SystemConfiguration symbols.
+- Host routing uses only the owned `SCNetworkService`. The sole exception for
+  the undocumented `AdditionalRoutes` schema is **Selected subnets only** on
+  that service. Keep the default mode free of the key. Do not add
+  `/sbin/route`, `netstat` parsing, `networksetup`, a routing-socket mutator,
+  per-route ownership flags, primary-rank assertions, or private framework symbols.
 - `NetworkRouteSystemConfigurationService` orchestrates the owned Bond and
   Network Service lifecycle and validates the persisted manual IPv4
   configuration. `SystemConfigurationPreferencesTransaction` owns preference
   locking, commit, and apply behavior.
-- Readiness requires the recorded Network Service to be enabled and its
-  persisted IPv4 protocol dictionary to contain the exact managed
-  address, subnet, and router configuration. It does not inspect explicit
-  routes or acknowledge the kernel route table; SystemConfiguration/configd
-  remains responsible for default-route application, ranking, reconciliation,
-  and conflict handling.
+- Readiness requires the recorded Network Service to be enabled, its persisted
+  IPv4 dictionary to match the selected mode exactly, and its DNS protocol to
+  be disabled in selected-subnets mode. Store the canonical CIDRs in the
+  existing ownership record only in selected-subnets mode. Older records without this field use
+  default routing. Readiness verifies service configuration, while configd
+  handles kernel route application, ranking, reconciliation, and conflicts.
 - Activation failure rolls back by disabling the owned Network Service through
   a fresh SCPreferences transaction. Do not add route-specific repair or
   rollback beside configd.
@@ -228,7 +232,8 @@ macOS managed IPv4 Network Service
 - Explicit settings reset finishes before the bounded termination cleanup
   begins. A failed reset keeps the app open and reports the failed step.
   Disable Launch at Login before clearing local preferences; clear USB Auto
-  Connect identities, VM configuration and asset selection, port forwarding,
+  Connect identities, VM configuration and asset selection, the IPv4 routing
+  mode and subnet list, port forwarding,
   obsolete Dummy Ethernet UI preferences, and the saved console frame on
   success. Preserve VM asset files, scratch disk contents, logs, and helper
   migration/ownership records managed by their respective services.

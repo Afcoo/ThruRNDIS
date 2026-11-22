@@ -49,7 +49,7 @@ brew install --cask afcoo/tap/thrurndis
 
    ![Passing a USB device to ThruRNDIS from Virtual Machine Accessories](./images/accessory-access-onboarding.gif)
 
-3. **(Optional) Port forwarding:** Before connecting the device, configure the TCP/UDP ports to expose through the RNDIS device in **Settings → Network Routing**.
+3. **(Optional) IPv4 routing and port forwarding.** To keep your current default route and DNS, choose **Settings → Network Routing → Selected subnets only** while routing is stopped. Enter IPv4 networks separated by commas, such as `10.10.0.0/24, 172.16.1.0/24`. The default mode uses the guest as router and DNS. Configure TCP/UDP port forwarding in **Settings → Misc** before connecting the device.
 4. **Confirm the USB device connection:** Approve the connection in the USB device connection pop-up.
 
 ## How It Works

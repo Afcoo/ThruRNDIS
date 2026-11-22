@@ -203,35 +203,10 @@ struct VZNATInterfaceResolver: Sendable {
     }
 }
 
-private struct IPv4Value: Equatable, CustomStringConvertible {
-    let rawValue: UInt32
-
-    init(rawValue: UInt32) {
-        self.rawValue = rawValue
-    }
-
-    init?(_ text: String) {
-        var address = in_addr()
-        guard text.withCString({
-            inet_pton(AF_INET, $0, &address)
-        }) == 1 else {
-            return nil
-        }
-        rawValue = UInt32(bigEndian: address.s_addr)
-        guard description == text else {
-            return nil
-        }
-    }
-
+private extension IPv4Value {
     var isRFC1918: Bool {
         (rawValue & 0xFF00_0000) == 0x0A00_0000
             || (rawValue & 0xFFF0_0000) == 0xAC10_0000
             || (rawValue & 0xFFFF_0000) == 0xC0A8_0000
-    }
-
-    var description: String {
-        [24, 16, 8, 0]
-            .map { String((rawValue >> UInt32($0)) & 0xFF) }
-            .joined(separator: ".")
     }
 }
