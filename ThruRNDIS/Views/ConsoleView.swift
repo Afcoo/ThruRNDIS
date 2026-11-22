@@ -136,6 +136,12 @@ private final class ConsoleTerminalView: SwiftTerm.TerminalView {
         return super.validateUserInterfaceItem(item)
     }
 
+    override func paste(_ sender: Any) {
+        guard isInputEnabled else { return }
+        selectNone()
+        super.paste(sender)
+    }
+
     func updateOutput(_ output: ConsoleOutputState) {
         self.output = output
         renderPendingOutput()
