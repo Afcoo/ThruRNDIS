@@ -6,8 +6,10 @@ import AppKit
 import SwiftUI
 
 @MainActor
-final class ConsoleWindowController: NSWindowController {
+final class ConsoleWindowController: NSWindowController, NSWindowDelegate {
     static let frameAutosaveName = "ThruRNDISVMConsoleWindow"
+
+    private var restoresAccessoryActivationPolicy = false
 
     init(store: TetheringStore) {
         let rootView = ConsoleView()
@@ -26,6 +28,7 @@ final class ConsoleWindowController: NSWindowController {
         window.center()
 
         super.init(window: window)
+        window.delegate = self
     }
 
     @available(*, unavailable)
@@ -34,8 +37,19 @@ final class ConsoleWindowController: NSWindowController {
     }
 
     func show() {
+        // Accessory apps have no system menu bar. Show Edit while the console is open.
+        if NSApp.activationPolicy() == .accessory {
+            restoresAccessoryActivationPolicy = NSApp.setActivationPolicy(.regular)
+        }
         showWindow(nil)
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        if restoresAccessoryActivationPolicy {
+            NSApp.setActivationPolicy(.accessory)
+            restoresAccessoryActivationPolicy = false
+        }
     }
 }

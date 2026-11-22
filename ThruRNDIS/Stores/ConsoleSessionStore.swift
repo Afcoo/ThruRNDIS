@@ -7,8 +7,22 @@ import Foundation
 
 struct ConsoleOutputState: Equatable {
     var data = Data()
-    var outputSequence = 0
+    var startOffset = 0
     var resetSequence = 0
+
+    var plainText: String {
+        String(decoding: data, as: UTF8.self)
+            .replacingOccurrences(of: Self.controlSequences, with: "", options: .regularExpression)
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+    }
+
+    // CSI, OSC, other escape strings, and control characters outside tabs and line breaks.
+    private static let controlSequences =
+        #"\x1B\[[0-?]*[ -/]*(?:[@-~]|\z)"#
+        + #"|\x1B\][^\x07\x1B]*(?:\x07|\x1B\\|\z)"#
+        + #"|\x1B[PX^_][^\x1B]*(?:\x1B\\|\z)"#
+        + #"|\x1B[ -/]*[0-~]|[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]"#
 }
 
 enum GuestRNDISIPv4AddressUpdate: Equatable {
@@ -73,23 +87,19 @@ final class ConsoleSessionStore: ObservableObject {
         rndisIPv4AddressUpdate = nil
         isRNDISRouteReady = nil
         portForwardingState = nil
-        output = ConsoleOutputState(
-            data: Data(),
-            outputSequence: 0,
-            resetSequence: output.resetSequence &+ 1
-        )
+        output = ConsoleOutputState(resetSequence: output.resetSequence &+ 1)
     }
 
     private func appendOutput(_ data: Data) {
         var next = output
         next.data.append(data)
 
-        if next.data.count > maximumOutputBytes {
-            next.data.removeFirst(next.data.count - maximumOutputBytes)
-            next.resetSequence &+= 1
+        let discardedByteCount = next.data.count - maximumOutputBytes
+        if discardedByteCount > 0 {
+            next.data.removeFirst(discardedByteCount)
+            next.startOffset += discardedByteCount
         }
 
-        next.outputSequence &+= 1
         output = next
     }
 

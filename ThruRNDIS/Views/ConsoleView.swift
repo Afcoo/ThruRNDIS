@@ -21,6 +21,16 @@ struct ConsoleView: View {
                 Spacer()
 
                 Button {
+                    let transcript = consoleSession.output.plainText
+                    if !transcript.isEmpty {
+                        Clipboard.copy(transcript)
+                    }
+                } label: {
+                    Label("Copy All", systemImage: "document.on.document")
+                }
+                .disabled(consoleSession.output.data.isEmpty)
+
+                Button {
                     consoleSession.clear()
                 } label: {
                     Label("Clear", systemImage: "trash")
@@ -28,9 +38,7 @@ struct ConsoleView: View {
             }
 
             SwiftTermConsoleView(
-                outputData: consoleSession.output.data,
-                outputSequence: consoleSession.output.outputSequence,
-                resetSequence: consoleSession.output.resetSequence,
+                output: consoleSession.output,
                 isInputEnabled: store.canSendConsoleInput,
                 sendInput: { data in
                     store.sendConsoleBytes(data)
@@ -46,9 +54,7 @@ struct ConsoleView: View {
 }
 
 private struct SwiftTermConsoleView: NSViewRepresentable {
-    let outputData: Data
-    let outputSequence: Int
-    let resetSequence: Int
+    let output: ConsoleOutputState
     let isInputEnabled: Bool
     let sendInput: @MainActor (Data) -> Void
 
@@ -56,9 +62,9 @@ private struct SwiftTermConsoleView: NSViewRepresentable {
         Coordinator(sendInput: sendInput)
     }
 
-    func makeNSView(context: Context) -> SwiftTerm.TerminalView {
+    func makeNSView(context: Context) -> ConsoleTerminalView {
         let font = NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
-        let terminalView = SwiftTerm.TerminalView(frame: NSRect(x: 0, y: 0, width: 960, height: 540), font: font)
+        let terminalView = ConsoleTerminalView(frame: NSRect(x: 0, y: 0, width: 960, height: 540), font: font)
         let foreground = NSColor(calibratedRed: 0.86, green: 0.90, blue: 0.86, alpha: 1)
         let background = NSColor(calibratedRed: 0.05, green: 0.06, blue: 0.07, alpha: 1)
 
@@ -69,58 +75,20 @@ private struct SwiftTermConsoleView: NSViewRepresentable {
         terminalView.layer?.backgroundColor = background.cgColor
         terminalView.caretColor = .systemGreen
         terminalView.optionAsMetaKey = true
-        terminalView.allowMouseReporting = true
+        terminalView.allowMouseReporting = false
         terminalView.backspaceSendsControlH = false
         terminalView.terminal.changeHistorySize(4_000)
+        terminalView.menu = TextEditingMenuBuilder.makeMenu(target: terminalView)
 
         return terminalView
     }
 
-    func updateNSView(_ terminalView: SwiftTerm.TerminalView, context: Context) {
-        context.coordinator.isInputEnabled = isInputEnabled
-        terminalView.terminalDelegate = context.coordinator
-
-        if context.coordinator.lastResetSequence != resetSequence {
-            reset(terminalView)
-            context.coordinator.lastResetSequence = resetSequence
-            context.coordinator.lastOutputByteCount = 0
-            context.coordinator.lastOutputSequence = 0
-            context.coordinator.didRequestInitialFocus = false
-        }
-
-        if outputData.count < context.coordinator.lastOutputByteCount ||
-            outputSequence < context.coordinator.lastOutputSequence {
-            reset(terminalView)
-            context.coordinator.lastOutputByteCount = 0
-            context.coordinator.lastOutputSequence = 0
-        }
-
-        if outputData.count > context.coordinator.lastOutputByteCount {
-            let newBytes = Array(outputData.dropFirst(context.coordinator.lastOutputByteCount))
-            terminalView.feed(byteArray: newBytes[...])
-            context.coordinator.lastOutputByteCount = outputData.count
-            context.coordinator.lastOutputSequence = outputSequence
-        }
-
-        if isInputEnabled, !context.coordinator.didRequestInitialFocus {
-            context.coordinator.didRequestInitialFocus = true
-            DispatchQueue.main.async {
-                terminalView.window?.makeFirstResponder(terminalView)
-            }
-        }
-    }
-
-    private func reset(_ terminalView: SwiftTerm.TerminalView) {
-        terminalView.feed(text: "\u{1B}c\u{1B}[3J\u{1B}[2J\u{1B}[H")
+    func updateNSView(_ terminalView: ConsoleTerminalView, context: Context) {
+        terminalView.isInputEnabled = isInputEnabled
+        terminalView.updateOutput(output)
     }
 
     final class Coordinator: NSObject, TerminalViewDelegate {
-        var isInputEnabled = false
-        var lastOutputByteCount = 0
-        var lastOutputSequence = 0
-        var lastResetSequence = -1
-        var didRequestInitialFocus = false
-
         private let sendInput: @MainActor (Data) -> Void
 
         init(sendInput: @escaping @MainActor (Data) -> Void) {
@@ -128,7 +96,7 @@ private struct SwiftTermConsoleView: NSViewRepresentable {
         }
 
         func send(source: SwiftTerm.TerminalView, data: ArraySlice<UInt8>) {
-            guard isInputEnabled else {
+            guard let terminalView = source as? ConsoleTerminalView, terminalView.isInputEnabled else {
                 return
             }
 
@@ -145,5 +113,64 @@ private struct SwiftTermConsoleView: NSViewRepresentable {
         func clipboardCopy(source: SwiftTerm.TerminalView, content: Data) {}
         func clipboardRead(source: SwiftTerm.TerminalView) -> Data? { nil }
         func rangeChanged(source: SwiftTerm.TerminalView, startY: Int, endY: Int) {}
+    }
+}
+
+private final class ConsoleTerminalView: SwiftTerm.TerminalView {
+    var isInputEnabled = false
+
+    private var output = ConsoleOutputState()
+    private var nextByteOffset = 0
+    private var renderedResetSequence = 0
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        window?.initialFirstResponder = self
+        window?.makeFirstResponder(self)
+    }
+
+    override func validateUserInterfaceItem(_ item: NSValidatedUserInterfaceItem) -> Bool {
+        if item.action == #selector(NSText.paste(_:)) {
+            return isInputEnabled
+        }
+        return super.validateUserInterfaceItem(item)
+    }
+
+    override func paste(_ sender: Any) {
+        guard isInputEnabled else { return }
+        selectNone()
+        super.paste(sender)
+    }
+
+    func updateOutput(_ output: ConsoleOutputState) {
+        self.output = output
+        renderPendingOutput()
+    }
+
+    override func selectionChanged(source: Terminal) {
+        super.selectionChanged(source: source)
+        guard !selectionActive else { return }
+
+        // Let the terminal finish handling the click or key that cleared the selection.
+        DispatchQueue.main.async { [weak self] in
+            self?.renderPendingOutput()
+        }
+    }
+
+    private func renderPendingOutput() {
+        let hasReset = renderedResetSequence != output.resetSequence
+        guard hasReset || !selectionActive else { return }
+
+        if hasReset || nextByteOffset < output.startOffset {
+            renderedResetSequence = output.resetSequence
+            nextByteOffset = output.startOffset
+            selectNone()
+            feed(text: "\u{1B}c\u{1B}[3J\u{1B}[2J\u{1B}[H")
+        }
+
+        let newBytes = output.data.dropFirst(nextByteOffset - output.startOffset)
+        guard !newBytes.isEmpty else { return }
+        nextByteOffset += newBytes.count
+        feed(byteArray: Array(newBytes)[...])
     }
 }

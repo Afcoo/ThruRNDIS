@@ -663,6 +663,16 @@
         }
       }
     },
+    "Copy All" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "모두 복사"
+          }
+        }
+      }
+    },
     "Could not stop the VM before resetting app settings." : {
       "localizations" : {
         "ko" : {
@@ -871,6 +881,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "비활성화됨"
+          }
+        }
+      }
+    },
+    "Edit" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "편집"
           }
         }
       }
@@ -1455,6 +1475,16 @@
         }
       }
     },
+    "Paste" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "붙여넣기"
+          }
+        }
+      }
+    },
     "Preparing device connection video…" : {
       "localizations" : {
         "ko" : {
@@ -1841,6 +1871,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "USB 액세서리를 선택하세요."
+          }
+        }
+      }
+    },
+    "Select All" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "모두 선택"
           }
         }
       }

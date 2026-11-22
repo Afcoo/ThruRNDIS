@@ -17,6 +17,7 @@ enum App {
         application.run()
     }
 
+    @MainActor
     private static func makeMainMenu(for application: NSApplication) -> NSMenu {
         let mainMenu = NSMenu()
 
@@ -56,6 +57,11 @@ enum App {
         closeWindowItem.keyEquivalentModifierMask = [.command]
         closeWindowItem.target = nil
         fileMenu.addItem(closeWindowItem)
+
+        let editMenu = TextEditingMenuBuilder.makeMenu()
+        let editMenuItem = NSMenuItem(title: editMenu.title, action: nil, keyEquivalent: "")
+        editMenuItem.submenu = editMenu
+        mainMenu.addItem(editMenuItem)
 
         return mainMenu
     }
